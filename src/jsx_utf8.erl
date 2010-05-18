@@ -3,6 +3,7 @@
 -export([start/4]).
 
 -include("jsx_common.hrl").
+-include("../include/jsx.hrl").
 
 callback(eof, Callbacks) ->
     lists:reverse(Callbacks);
