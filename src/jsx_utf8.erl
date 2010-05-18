@@ -204,7 +204,7 @@ escaped_unicode(<<D/utf8, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, 
             string(Rest, Stack, Callbacks, Opts, [X] ++ String)
         ; codepoint ->
             string(Rest, Stack, Callbacks, Opts, [X] ++ String)
-        ; _ ->
+        ; none ->
             string(Rest, Stack, Callbacks, Opts, [?rsolidus, $u, A, B, C, D] ++ String)
     end;
 escaped_unicode(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
