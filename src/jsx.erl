@@ -2,7 +2,7 @@
 
 -export([decoder/0, decoder/1]).
 
--include("../include/jsx.hrl").
+-include("jsx_common.hrl").
 
 decoder() ->
     decoder([]).

@@ -1,3 +1,10 @@
+-record(opts, {
+    comments = false,
+    escaped_unicode = ascii,
+    naked_values = false,
+    encoding = utf8
+}).
+
 %% whitespace
 -define(space, 16#20).
 -define(tab, 16#09).
