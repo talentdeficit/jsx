@@ -141,7 +141,7 @@ colon(<<>>, Stack, Callbacks, Opts) ->
         
 key(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
-key(<<?rsolidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+key(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
 key(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     key(Rest, Stack, Callbacks, Opts);
@@ -240,7 +240,7 @@ zero(<<?decimalpoint/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
 zero(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, callback({number, lists:reverse(Acc)}, Callbacks), Opts);
-zero(<<?rsolidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+zero(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) end.
@@ -266,7 +266,7 @@ integer(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 integer(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, callback({number, lists:reverse(Acc)}, Callbacks), Opts);
-integer(<<?rsolidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+integer(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) end.
@@ -290,7 +290,7 @@ fraction(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(
     fraction(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 fraction(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, callback({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?rsolidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+fraction(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> fraction(Resume, Stack, Callbacks, Opts, Acc) end);
 fraction(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) end.
@@ -410,7 +410,7 @@ comment(<<>>, Resume) ->
     fun(Stream) -> comment(Stream, Resume) end.
     
     
-maybe_comment_done(<<?rsolidus/utf8, Rest/binary>>, Resume) ->
+maybe_comment_done(<<?solidus/utf8, Rest/binary>>, Resume) ->
     Resume(Rest);
 maybe_comment_done(<<>>, Resume) ->
     fun(Stream) -> maybe_comment_done(Stream, Resume) end.
