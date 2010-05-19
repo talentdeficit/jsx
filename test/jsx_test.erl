@@ -1,48 +1,66 @@
 -module(jsx_test).
 
--export([test/0]).
+-export([test/2]).
 
--define(assert(A, B),
-    case A == B of true -> ok ; false -> erlang:error(failed_assert, ?LINE) end
-).
+test(TestsDir, Opts) ->
+    {ok, MaybeTests} = file:list_dir(TestsDir),
+    
+    TestSpecs = lists:map(fun(X) -> 
+            filename:basename(X, ".test") end, 
+            lists:filter(fun(X) -> 
+                    case filename:extension(X) of 
+                        ".test" -> true
+                        ; _ -> false 
+                    end 
+                end, 
+                MaybeTests)),
+      
+    Results = test(TestSpecs, TestsDir, {[], [], []}),
+    
+    output(Results, Opts).
+    
+test([], _, Results) ->
+    Results;    
+test([Test|Rest], Dir, {Pass, Fail, Discard}) ->
+    {DecoderOpts, Expected} = case file:consult(filename:nativename(Dir ++ "/" ++ Test ++ ".test")) of
+        {ok, [Result]} when is_list(Result) -> {[], Result}
+        ; {ok, {Opts, Result}} -> {Opts, Result}
+    end,
+    
+    try decode(Test, Dir, DecoderOpts) of
+        Object ->
+            case Object == Expected of
+                true -> test(Rest, Dir, {[Test] ++ Pass, Fail, Discard})
+                ; false -> test(Rest, Dir, {Pass, [Test] ++ Fail, Discard})
+            end
+    catch
+        error:function_clause ->
+            test(Rest, Dir, {Pass, Fail, [Test] ++ Discard})
+        ; error:enoent ->
+            test(Rest, Dir, {Pass, Fail, [Test] ++ Discard})
+    end.  
 
-test() ->
-    Strict = jsx:decoder(),
-    Comments = jsx:decoder([{comments, true}]),
-    Naked = jsx:decoder([{naked_values, true}]),
-    NakedComments = jsx:decoder([{comments, true}, {naked_values, true}]),
+
+decode(Test, Dir, DecoderOpts) ->
+    Decoder = jsx:decoder(DecoderOpts),
+    {ok, JSON} = file:read_file(filename:nativename(Dir ++ "/" ++ Test ++ ".json")),
     
-    %% empty objects and arrays
-    ?assert([start_array, end_array], Strict(<<"[]">>)),
-    ?assert([start_object, end_object], Strict(<<"{}">>)),
+    Decoder(JSON).
+        
     
-    %% really deep array
-    ?assert([start_array, start_array, start_array, start_array, start_array, start_array, start_array, start_array, start_array, start_array, end_array, end_array, end_array, end_array, end_array, end_array, end_array, end_array, end_array, end_array], Strict(<<"[[[[[[[[[[]]]]]]]]]]">>)),
+output({Pass, Fail, Discard}, Opts) ->
+    Passes = length(Pass),
+    Failures = length(Fail),
+    Discards = length(Discard),
     
-    %% naked values
-    ?assert([{literal, true}], Naked(<<"true">>)),
-    ?assert([{literal, false}], Naked(<<"false">>)),
-    ?assert([{literal, null}], Naked(<<"null">>)),
-    ?assert([{string, "blah blah blah"}], Naked(<<"\"blah blah blah\"">>)),
-    ?assert([{number, "1"}], Naked(<<"1">>)),
-    ?assert([{number, "0.51323412"}], Naked(<<"0.51323412">>)),
-    ?assert([{number, "-1.1"}], Naked(<<"-1.1">>)),
+    Total = Passes + Failures + Discards,
     
-    %% comments
-    ?assert([start_array, end_array], Comments(<<"[ /* this is ignored */ ]">>)),
-    ?assert([start_object, end_object], Comments(<<"{ /* this too */ }">>)),
+    io:format("***~p total tests run, ~p passes, ~p failures, ~p discarded~n    Failed:~n", [Total, Passes, Failures, Discards]),
+    lists:foreach(fun(X) -> io:format("       ~p~n", [X]) end, Fail).
     
-    %% strings and unicode
-    ?assert([start_array, {string, "a test string"}, end_array], Strict(<<"[ \"a test string\" ]">>)),
-    ?assert([start_array, {string, "a high unicode value: " ++ [100000]}, end_array], Strict(<<"[ \"a high unicode value: ", 100000/utf8, "\" ]">>)),
-    ?assert([start_object, {key, "key"}, {string, "value"}, end_object], Strict(<<"{ \"key\": \"value\" }">>)),
-    
-    %% numbers
-    ?assert([start_array, {number, "1"}, end_array], Strict(<<"[ 1 ]">>)),
-    ?assert([start_array, {number, "0"}, end_array], Strict(<<"[ 0 ]">>)),
-    ?assert([start_array, {number, "1e1"}, end_array], Strict(<<"[ 1e1 ]">>)),
-    ?assert([start_array, {number, "-1.0e5123"}, end_array], Strict(<<"[ -1.0e5123 ]">>)),
-    ?assert([start_array, {number, "324523452345256234455"}, end_array], Strict(<<"[ 324523452345256234455 ]">>)), 
-    
-    ok.
-    
+
+          
+        
+        
+        
+        
