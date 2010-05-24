@@ -14,16 +14,16 @@ decoder(Callbacks, Opts) ->
     case Opts#opts.encoding of
         utf8 ->
             fun(Stream) -> jsx_utf8:start(Stream, [], init_callbacks(Callbacks), Opts) end
-        ; utf16-big ->
+        ; utf16b ->
             fun(Stream) -> jsx_utf16b:start(Stream, [], init_callbacks(Callbacks), Opts) end
-        ; utf16-little ->
+        ; utf16l ->
             fun(Stream) -> jsx_utf16l:start(Stream, [], init_callbacks(Callbacks), Opts) end
-        ; utf32-big ->
+        ; utf32b ->
             fun(Stream) -> jsx_utf32b:start(Stream, [], init_callbacks(Callbacks), Opts) end
-        ; utf32-little ->
+        ; utf32l ->
             fun(Stream) -> jsx_utf32l:start(Stream, [], init_callbacks(Callbacks), Opts) end
         ; auto ->
-            fun(Stream) -> detect_encoding(Stream, Callbacks, Opts, []) end
+            fun(Stream) -> detect_encoding(Stream, Callbacks, Opts) end
     end.
 
     
@@ -42,7 +42,7 @@ parse_opts([{naked_values, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{naked_values = Value});
 parse_opts([{encoding, Value}|Rest], Opts) ->
-    true = lists:member(Value, [auto, utf8, utf16-big, utf16-little, utf32-big, utf32-little]),
+    true = lists:member(Value, [auto, utf8, utf16b, utf16l, utf32b, utf32l]),
     parse_opts(Rest, Opts#opts{encoding = Value}).
     
 init_callbacks(none) ->
@@ -52,12 +52,12 @@ init_callbacks({M, S}) when is_atom(M) ->
 init_callbacks({F, S}) when is_function(F) ->
     {F, S}.
     
-detect_encoding(<<A:1, B:1, C:1, D:1, Rest/binary>> = Stream, Callbacks, Opts) ->
+detect_encoding(<<A:1, B:1, C:1, D:1, _/binary>> = Stream, Callbacks, Opts) ->
     Encoding = case [A, B, C, D] of
-        [0, 0, 0, _] -> utf32-big
-        ; [0, _, 0, _] -> utf16-big
-        ; [_, 0, 0, 0] -> utf32-little
-        ; [_, 0, _, 0] -> utf16-little
+        [0, 0, 0, _] -> utf32b
+        ; [0, _, 0, _] -> utf16b
+        ; [_, 0, 0, 0] -> utf32l
+        ; [_, 0, _, 0] -> utf16l
         ; _ -> utf8
     end,
     (decoder(Callbacks, Opts#opts{encoding = Encoding}))(Stream);
