@@ -1,2 +1,2 @@
-[start_array, {string, "a string"}, {number, "1"}, start_object, {key, "key"}, start_array, end_array, end_object, {literal, true}, end_array].
+[start_array, {string, "a string"}, {number, "1"}, start_object, {key, "key"}, start_array, end_array, {key, "another key"}, {number, "0"}, end_object, {literal, true}, end_array].
 [{comments, true}].
