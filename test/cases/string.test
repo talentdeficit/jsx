@@ -1,0 +1,1 @@
+[start_array, {string, "this is a random string with \n embedded escapes in it"}, end_array].

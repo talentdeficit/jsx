@@ -1,66 +1,36 @@
 -module(jsx_test).
 
--export([test/2]).
+-export([test/1]).
 
-test(TestsDir, Opts) ->
-    {ok, MaybeTests} = file:list_dir(TestsDir),
-    
-    TestSpecs = lists:map(fun(X) -> 
-            filename:basename(X, ".test") end, 
-            lists:filter(fun(X) -> 
-                    case filename:extension(X) of 
-                        ".test" -> true
-                        ; _ -> false 
-                    end 
-                end, 
-                MaybeTests)),
-      
-    Results = test(TestSpecs, TestsDir, {[], [], []}),
-    
-    output(Results, Opts).
-    
-test([], _, Results) ->
-    Results;    
-test([Test|Rest], Dir, {Pass, Fail, Discard}) ->
-    {DecoderOpts, Expected} = case file:consult(filename:nativename(Dir ++ "/" ++ Test ++ ".test")) of
-        {ok, [Result]} when is_list(Result) -> {[], Result}
-        ; {ok, {Opts, Result}} -> {Opts, Result}
-    end,
-    
-    try decode(Test, Dir, DecoderOpts) of
-        Object ->
-            case Object == Expected of
-                true -> test(Rest, Dir, {[Test] ++ Pass, Fail, Discard})
-                ; false -> test(Rest, Dir, {Pass, [Test] ++ Fail, Discard})
-            end
-    catch
-        error:function_clause ->
-            test(Rest, Dir, {Pass, Fail, [Test] ++ Discard})
-        ; error:enoent ->
-            test(Rest, Dir, {Pass, Fail, [Test] ++ Discard})
-    end.  
+-include_lib("eunit/include/eunit.hrl").
 
 
-decode(Test, Dir, DecoderOpts) ->
-    Decoder = jsx:decoder(DecoderOpts),
-    {ok, JSON} = file:read_file(filename:nativename(Dir ++ "/" ++ Test ++ ".json")),
-    
-    Decoder(JSON).
-        
-    
-output({Pass, Fail, Discard}, Opts) ->
-    Passes = length(Pass),
-    Failures = length(Fail),
-    Discards = length(Discard),
-    
-    Total = Passes + Failures + Discards,
-    
-    io:format("***~p total tests run, ~p passes, ~p failures, ~p discarded~n    Failed:~n", [Total, Passes, Failures, Discards]),
-    lists:foreach(fun(X) -> io:format("       ~p~n", [X]) end, Fail).
-    
+test(Dir) ->
+    Tests = gen_tests(Dir),
+    eunit:test(Tests).
 
-          
-        
-        
-        
-        
+gen_tests(Dir) ->
+    TestSpecs = filelib:wildcard("*.test", Dir),
+    gen_tests(TestSpecs, Dir, []).
+    
+gen_tests([], _, Acc) ->
+    lists:reverse(Acc); 
+    
+gen_tests([Test|Rest], Dir, Acc) ->
+    gen_tests(Rest, Dir, test_body(Test, Dir) ++ Acc).
+    
+test_body(TestSpec, Dir) ->
+    try
+        TestName = filename:basename(TestSpec, ".test"),
+        {ok, JSON} = file:read_file(Dir ++ "/" ++ TestName ++ ".json"),
+        case file:consult(Dir ++ "/" ++ TestSpec) of
+            {ok, [Events]} ->
+                Decoder = jsx:decoder(),
+                [{TestName, ?_assertEqual(Decoder(JSON), Events)}]
+            ; {ok, [Events, Flags]} ->
+                Decoder = jsx:decoder(none, Flags),
+                [{TestName, ?_assertEqual(Decoder(JSON), Events)}]
+        end
+    catch _:_ -> []
+    end.
+
