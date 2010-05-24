@@ -52,7 +52,7 @@ init_callbacks({M, S}) when is_atom(M) ->
 init_callbacks({F, S}) when is_function(F) ->
     {F, S}.
     
-detect_encoding(<<A:1, B:1, C:1, D:1, _/binary>> = Stream, Callbacks, Opts) ->
+detect_encoding(<<A:8, B:8, C:8, D:8, _/binary>> = Stream, Callbacks, Opts) ->
     Encoding = case [A, B, C, D] of
         [0, 0, 0, _] -> utf32b
         ; [0, _, 0, _] -> utf16b
