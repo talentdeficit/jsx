@@ -7,10 +7,12 @@
 decoder() ->
     decoder(none, []).
 
-decoder(Callbacks, OptsList) ->
-    Opts = parse_opts(OptsList),   
+decoder(Callbacks, OptsList) when is_list(OptsList) ->
+    Opts = parse_opts(OptsList),
+    decoder(Callbacks, Opts);
+decoder(Callbacks, Opts) ->
     case Opts#opts.encoding of
-        utf8 -> 
+        utf8 ->
             fun(Stream) -> jsx_utf8:start(Stream, [], init_callbacks(Callbacks), Opts) end
         ; utf16-big ->
             fun(Stream) -> jsx_utf16b:start(Stream, [], init_callbacks(Callbacks), Opts) end
@@ -20,7 +22,8 @@ decoder(Callbacks, OptsList) ->
             fun(Stream) -> jsx_utf32b:start(Stream, [], init_callbacks(Callbacks), Opts) end
         ; utf32-little ->
             fun(Stream) -> jsx_utf32l:start(Stream, [], init_callbacks(Callbacks), Opts) end
-        ; 
+        ; auto ->
+            fun(Stream) -> detect_encoding(Stream, Callbacks, Opts, []) end
     end.
 
     
@@ -48,4 +51,16 @@ init_callbacks({M, S}) when is_atom(M) ->
     {M, S};
 init_callbacks({F, S}) when is_function(F) ->
     {F, S}.
+    
+detect_encoding(<<A:1, B:1, C:1, D:1, Rest/binary>> = Stream, Callbacks, Opts) ->
+    Encoding = case [A, B, C, D] of
+        [0, 0, 0, _] -> utf32-big
+        ; [0, _, 0, _] -> utf16-big
+        ; [_, 0, 0, 0] -> utf32-little
+        ; [_, 0, _, 0] -> utf16-little
+        ; _ -> utf8
+    end,
+    (decoder(Callbacks, Opts#opts{encoding = Encoding}))(Stream);
+detect_encoding(Else, Callbacks, Opts) ->
+    fun(Stream) -> detect_encoding(<<Else/binary, Stream/binary>>, Callbacks, Opts) end.
 
