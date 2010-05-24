@@ -1,8 +1,11 @@
 -module(jsx).
 
--export([decoder/0, decoder/2]).
+-export([decoder/0, decoder/2, decode/3]).
 
 -include("jsx_common.hrl").
+
+decode(JSON, Callbacks, Opts) ->
+    (decoder(Callbacks, Opts))(JSON). 
 
 decoder() ->
     decoder(none, []).

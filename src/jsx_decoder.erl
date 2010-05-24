@@ -38,9 +38,9 @@ start(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
 start(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> start(Stream, Stack, Callbacks, Opts) end.
 
-maybe_done(eof, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
+maybe_done(<<16#FF8F>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
     {callback(eof, Callbacks), <<>>};
-maybe_done(Rest, [], Callbacks, Opts) when Opts#opts.explicit_termination == false ->
+maybe_done(<<Rest/binary>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == false ->
     {callback(eof, Callbacks), Rest};
 maybe_done(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
     maybe_done(Rest, Stack, callback(end_object, Callbacks), Opts);
