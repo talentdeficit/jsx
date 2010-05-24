@@ -26,11 +26,22 @@ test_body(TestSpec, Dir) ->
         case file:consult(Dir ++ "/" ++ TestSpec) of
             {ok, [Events]} ->
                 Decoder = jsx:decoder(),
-                [{TestName, ?_assertEqual(Decoder(JSON), Events)}]
+                [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
             ; {ok, [Events, Flags]} ->
                 Decoder = jsx:decoder(none, Flags),
-                [{TestName, ?_assertEqual(Decoder(JSON), Events)}]
+                [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
         end
     catch _:_ -> []
     end.
-
+    
+decode(F, <<>>) ->
+    {Result, _} = F(eof),
+    Result;    
+decode(F, <<A/utf8, Rest/binary>>) ->
+    case F(<<A/utf8>>) of
+        G when is_function(G) ->
+            decode(G, Rest)
+        ; {Result, _} ->
+            Result
+    end.
+    
