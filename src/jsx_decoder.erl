@@ -38,7 +38,7 @@ start(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
 start(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> start(Stream, Stack, Callbacks, Opts) end.
 
-maybe_done(<<16#F8FF/utf8, Rest/binary>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
+maybe_done(<<16#FDEF/utf8, Rest/binary>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
     {callback(eof, Callbacks), Rest};
 maybe_done(<<Rest/binary>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == false ->
     {callback(eof, Callbacks), Rest};
@@ -240,7 +240,7 @@ zero(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts
 zero(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == false ->
     fun(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) end;
 zero(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<16#F8FF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
+    fun(<<16#FDEF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
         ;(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) 
     end.
     
@@ -270,7 +270,7 @@ integer(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#o
 integer(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == false ->
     fun(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) end;
 integer(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<16#F8FF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>}
+    fun(<<16#FDEF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>}
         ;(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) 
     end.
     
@@ -298,7 +298,7 @@ fraction(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#
 fraction(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == false ->
     fun(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) end;
 fraction(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<16#F8FF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
+    fun(<<16#FDEF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
         ;(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) 
     end.
     
@@ -336,7 +336,7 @@ exp(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.
 exp(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == false ->
     fun(Stream) -> exp(Stream, Stack, Callbacks, Opts, Acc) end;
 exp(<<>>, Stack, Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<16#F8FF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
+    fun(<<16#FDEF/utf8>>) -> {callback(eof, callback({number, lists:reverse(Acc)}, Callbacks)), <<>>} 
         ;(Stream) -> exp(Stream, Stack, Callbacks, Opts, Acc) 
     end.
     

@@ -35,7 +35,7 @@ test_body(TestSpec, Dir) ->
     end.
     
 decode(F, <<>>) ->
-    {Result, _} = F(<<16#F8FF/utf8>>),
+    {Result, _} = F(<<16#FDEF/utf8>>),
     Result;    
 decode(F, <<A/utf8, Rest/binary>>) ->
     case F(<<A/utf8>>) of
