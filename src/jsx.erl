@@ -6,7 +6,7 @@
 
 
 decoder() ->
-    decoder(none, []).
+    decoder({none, []}, []).
 
 decoder(Callbacks, OptsList) when is_list(OptsList) ->
     Opts = parse_opts(OptsList),
@@ -14,7 +14,7 @@ decoder(Callbacks, OptsList) when is_list(OptsList) ->
 decoder(Callbacks, Opts) ->
     case Opts#opts.encoding of
         utf8 ->
-            fun(Stream) -> jsx_decoder:start(Stream, [], init_callbacks(Callbacks), Opts) end
+            fun(Stream) -> jsx_decoder:start(Stream, [], Callbacks, Opts) end
     end.
 
     
@@ -38,13 +38,7 @@ parse_opts([{encoding, Value}|Rest], Opts) ->
 parse_opts([{explicit_termination, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{explicit_termination = Value}).
-    
-init_callbacks(none) ->
-    {none, []};
-init_callbacks({{M, F}, S}) when is_atom(M), is_atom(F) ->
-    {{M, F}, S};
-init_callbacks({F, S}) when is_function(F) ->
-    {F, S}.
+
 
 tail_clean(<<X/utf8, Rest/binary>>) when ?is_whitespace(X) ->
     tail_clean(Rest);
