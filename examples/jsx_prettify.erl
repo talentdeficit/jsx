@@ -1,13 +1,13 @@
--module(pretty_printer).
+-module(jsx_prettify).
 
--export([print/2, jsx_event/2]).
+-export([pretty/2, jsx_event/2]).
 
 -record(opts, {
     indent = 4
 }).
 
 
-print(JSON, Opts) ->
+pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
     {{_, Result}, Rest} = (jsx:decoder({{pretty_printer, jsx_event}, Init}, []))(JSON),
     case jsx:tail_clean(Rest) of
