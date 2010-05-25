@@ -1,11 +1,9 @@
 -module(jsx).
 
--export([decoder/0, decoder/2, decode/3]).
+-export([decoder/0, decoder/2, tail_clean/1]).
 
 -include("jsx_common.hrl").
 
-decode(JSON, Callbacks, Opts) ->
-    (decoder(Callbacks, Opts))(JSON). 
 
 decoder() ->
     decoder(none, []).
@@ -43,8 +41,14 @@ parse_opts([{explicit_termination, Value}|Rest], Opts) ->
     
 init_callbacks(none) ->
     {none, []};
-init_callbacks({M, S}) when is_atom(M) ->
-    {M, S};
+init_callbacks({{M, F}, S}) when is_atom(M), is_atom(F) ->
+    {{M, F}, S};
 init_callbacks({F, S}) when is_function(F) ->
     {F, S}.
 
+tail_clean(<<X/utf8, Rest/binary>>) when ?is_whitespace(X) ->
+    tail_clean(Rest);
+tail_clean(<<>>) ->
+    true;
+tail_clean(_) ->
+    false.

@@ -7,7 +7,7 @@
 
 test(Dir) ->
     Tests = gen_tests(Dir),
-    eunit:test(Tests).
+    eunit:test(Tests, [verbose]).
 
 gen_tests(Dir) ->
     TestSpecs = filelib:wildcard("*.test", Dir),

@@ -433,8 +433,8 @@ callback(eof, {none, Callbacks}) ->
     lists:reverse(Callbacks);
 callback(Event, {none, Callbacks}) ->
     {none, [Event] ++ Callbacks};
-callback(Event, {Mod, State}) when is_atom(Mod) ->
-    {Mod, Mod:jsx_event(Event, State)};
+callback(Event, {{Mod, Function}, State}) when is_atom(Mod) ->
+    {{Mod, Function}, Mod:Function(Event, State)};
 callback(Event, {F, State}) when is_function(F) ->
     {F, F(Event, State)}.
 
