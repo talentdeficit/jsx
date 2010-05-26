@@ -20,10 +20,9 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--author("alisdairsullivan@yahoo.ca").
-
 
 -module(jsx_parser).
+-author("alisdairsullivan@yahoo.ca").
 
 -export([decode/1, event/2]).
 -export([literal/1, string/1, number/1]).

@@ -20,10 +20,9 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--author("alisdairsullivan@yahoo.ca").
-
 
 -module(jsx_stream_parser).
+-author("alisdairsullivan@yahoo.ca").
 
 -export([decoder/1, event/2]).
 
@@ -35,6 +34,7 @@ decoder(Opts) ->
         catch
             throw:{ok, Result} -> Result
             ; throw:not_found -> not_found
+            ; _:_ -> throw(badarg)
         end
     end. 
     

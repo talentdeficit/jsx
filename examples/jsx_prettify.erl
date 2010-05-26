@@ -20,10 +20,10 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--author("alisdairsullivan@yahoo.ca").
-
 
 -module(jsx_prettify).
+-author("alisdairsullivan@yahoo.ca").
+
 
 -export([pretty/2, jsx_event/2]).
 

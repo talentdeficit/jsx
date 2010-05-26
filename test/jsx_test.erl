@@ -20,10 +20,9 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--author("alisdairsullivan@yahoo.ca").
-
 
 -module(jsx_test).
+-author("alisdairsullivan@yahoo.ca").
 
 -export([test/1]).
 
@@ -62,7 +61,8 @@ test_body(TestSpec, Dir) ->
     end.
     
 incremental_decode(F, <<>>) ->
-    {Result, _} = F(<<>>),
+    {Result, Rest} = F(<<>>),
+    true = tail_clean(Rest),
     Result;    
 incremental_decode(F, <<A/utf8, Rest/binary>>) ->
     case F(<<A/utf8>>) of
@@ -77,7 +77,8 @@ decode(F, JSON) ->
         G when is_function(G) -> 
             {Result, <<>>} = G(<<>>),
             Result
-        ; {Result, _} ->
+        ; {Result, Rest} ->
+            true = tail_clean(Rest),
             Result
     end.
     
