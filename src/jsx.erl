@@ -40,6 +40,8 @@ parse_opts([{explicit_termination, Value}|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{explicit_termination = Value}).
 
 
+%% ensures there's no invalid characters left in the stream upon completion of parsing
+
 tail_clean(<<X/utf8, Rest/binary>>) when ?is_whitespace(X) ->
     tail_clean(Rest);
 tail_clean(<<>>) ->
