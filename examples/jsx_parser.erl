@@ -1,6 +1,6 @@
 %% The MIT License
 
-%% Copyright (c) 2010 <alisdairsullivan@yahoo.ca>
+%% Copyright (c) 2010 Alisdair Sullivan <alisdairsullivan@yahoo.ca>
 
 %% Permission is hereby granted, free of charge, to any person obtaining a copy
 %% of this software and associated documentation files (the "Software"), to deal
@@ -25,19 +25,23 @@
 
 -module(jsx_parser).
 
--export([decode/2, event/2]).
+-export([decode/1, event/2]).
 -export([literal/1, string/1, number/1]).
 
 
 %% this is a strict parser, no comments, no naked values and only one key per object. it
 %%   also is not streaming, though it could be modified to parse partial objects/lists.
 
-decode(JSON, Opts) ->
-    P = jsx:decoder({{jsx_parser, event}, []}, Opts),
-    {Result, Rest} = P(JSON),
-    case jsx:tail_clean(Rest) of
-        true -> Result
-        ; _ -> exit(badarg)
+decode(JSON) ->
+    P = jsx:decoder({{jsx_parser, event}, []}, []),
+    try    
+        {Result, Rest} = P(JSON),
+        case jsx:tail_clean(Rest) of
+            true -> Result
+            ; _ -> throw(badarg)
+        end
+    catch
+        _:_ -> throw(badarg)
     end.
  
 %% erlang representation is dicts for objects and lists for arrays. these are pushed
