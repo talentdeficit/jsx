@@ -44,6 +44,7 @@ decode(JSON) ->
         _:_ -> throw(badarg)
     end.
  
+ 
 %% erlang representation is dicts for objects and lists for arrays. these are pushed
 %%   onto a stack, the top of which is our current level, deeper levels represent parent
 %%   and grandparent levels in the json structure. keys are also stored on top of the array
@@ -54,7 +55,6 @@ event(start_object, Stack) ->
 event(start_array, Stack) ->
     [[]] ++ Stack;
     
-
 event(end_object, [Object, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
     [insert(Key, Object, Parent)] ++ Stack;
 event(end_array, [Array, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
@@ -65,6 +65,7 @@ event(end_array, [Array, Parent|Stack]) when is_list(Parent) ->
     [[Array] ++ Parent] ++ Stack;
 
 %% special cases for closing the root objects
+
 event(end_object, [Object]) ->
     [Object];
 event(end_array, [Array]) ->
@@ -85,7 +86,7 @@ event({Type, Value}, [Array|Stack]) when is_list(Array) ->
 event(eof, [Stack]) ->
     Stack.
     
-
+    
 %% we're restricting keys to one occurence per object, as the spec implies.    
     
 insert(Key, Val, Dict) ->
