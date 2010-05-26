@@ -82,7 +82,7 @@ event({Type, Value}, [{key, Key}, Object|Stack]) ->
 event({Type, Value}, [Array|Stack]) when is_list(Array) ->
     [[?MODULE:Type(Value)] ++ Array] ++ Stack;
     
-event(eof, [Stack]) ->
+event(completed_parse, [Stack]) ->
     Stack.
     
     

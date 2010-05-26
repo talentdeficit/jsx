@@ -33,7 +33,7 @@ decoder() ->
     decoder([]).
 
 decoder(Opts) ->
-    F = fun(eof, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State  end,
+    F = fun(completed_parse, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State  end,
     decoder({F, []}, Opts).
 
 decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->

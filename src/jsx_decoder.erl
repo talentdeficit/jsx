@@ -75,11 +75,11 @@ maybe_done(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opt
 maybe_done(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, Callbacks, Opts);
 maybe_done(<<>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
-    fun(<<>>) -> {fold(eof, Callbacks), <<>>}
+    fun(<<>>) -> {fold(completed_parse, Callbacks), <<>>}
         ;(Stream) -> maybe_done(Stream, [], Callbacks, Opts) 
     end;
 maybe_done(<<Rest/binary>>, [], Callbacks, _Opts) ->
-    {fold(eof, Callbacks), Rest};
+    {fold(completed_parse, Callbacks), Rest};
 maybe_done(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> maybe_done(Stream, Stack, Callbacks, Opts) end.
 
@@ -264,7 +264,7 @@ zero(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S
 zero(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<>>) -> {fold(eof, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
+    fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
         ;(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) 
     end;
 zero(<<>>, Stack, Callbacks, Opts, Acc) ->
@@ -295,7 +295,7 @@ integer(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespac
 integer(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(<<>> = Rest, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<>>) -> {fold(eof, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
+    fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
         ;(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) 
     end;
 integer(<<>>, Stack, Callbacks, Opts, Acc) ->
@@ -323,7 +323,7 @@ fraction(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespa
 fraction(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> fraction(Resume, Stack, Callbacks, Opts, Acc) end);
 fraction(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<>>) -> {fold(eof, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
+    fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
         ;(Stream) -> fraction(Stream, [], Callbacks, Opts, Acc) 
     end;
 fraction(<<>>, Stack, Callbacks, Opts, Acc) ->
@@ -361,7 +361,7 @@ exp(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S)
 exp(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Callbacks, Opts, Acc) end);
 exp(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
-    fun(<<>>) -> {fold(eof, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
+    fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
         ;(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) 
     end;
 exp(<<>>, Stack, Callbacks, Opts, Acc) ->
@@ -457,8 +457,8 @@ maybe_comment_done(<<>>, Resume) ->
 %% callbacks to our handler are roughly equivalent to a fold over the events, incremental
 %%   rather than all at once.    
 
-fold(eof, {F, State}) ->
-    F(eof, State);
+fold(completed_parse, {F, State}) ->
+    F(completed_parse, State);
 fold(Event, {F, State}) when is_function(F) ->
     {F, F(Event, State)}.
 
