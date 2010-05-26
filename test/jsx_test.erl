@@ -53,7 +53,7 @@ test_body(TestSpec, Dir) ->
                 [{TestName, ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
                 [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
             ; {ok, [Events, Flags]} ->
-                Decoder = jsx:decoder({none, []}, Flags),
+                Decoder = jsx:decoder(Flags),
                 [{TestName, ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
                 [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
         end

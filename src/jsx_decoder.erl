@@ -456,10 +456,6 @@ maybe_comment_done(<<>>, Resume) ->
 
 %% helper function for dispatching of parser events    
 
-callback(eof, {none, Callbacks}) ->
-    lists:reverse(Callbacks);
-callback(Event, {none, Callbacks}) ->
-    {none, [Event] ++ Callbacks};
 callback(eof, {{Mod, Function}, State}) ->
     Mod:Function(eof, State);
 callback(Event, {{Mod, Function}, State}) ->

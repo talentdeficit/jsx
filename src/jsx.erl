@@ -24,13 +24,17 @@
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decoder/0, decoder/2, tail_clean/1]).
+-export([decoder/0, decoder/1, decoder/2, tail_clean/1]).
 
 -include("jsx_common.hrl").
 
 
 decoder() ->
-    decoder({none, []}, []).
+    decoder([]).
+
+decoder(Opts) ->
+    F = fun(eof, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State  end,
+    decoder({F, []}, Opts).
 
 decoder(Callbacks, OptsList) when is_list(OptsList) ->
     Opts = parse_opts(OptsList),
