@@ -57,12 +57,12 @@ init(Opts) ->
     
     
 jsx_event(start_object, {Acc, Indent, Level, value}) ->
-    {Acc ++ "\n" ++ indent(Indent, Level) ++ "{", Indent, Level + 1, new};
+    {Acc ++ ",\n" ++ indent(Indent, Level) ++ "{", Indent, Level + 1, new};
 jsx_event(start_object, {Acc, Indent, Level, _}) ->
     {Acc ++ "{", Indent, Level + 1, new};
     
 jsx_event(start_array, {Acc, Indent, Level, value}) ->
-    {Acc ++ "\n" ++ indent(Indent, Level) ++ "[", Indent, Level + 1, new};
+    {Acc ++ ",\n" ++ indent(Indent, Level) ++ "[", Indent, Level + 1, new};
 jsx_event(start_array, {Acc, Indent, Level, _}) ->
     {Acc ++ "[", Indent, Level + 1, new};
 
