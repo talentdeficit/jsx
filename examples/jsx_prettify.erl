@@ -9,7 +9,7 @@
 
 pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
-    {{_, Result}, Rest} = (jsx:decoder({{pretty_printer, jsx_event}, Init}, []))(JSON),
+    {Result, Rest} = (jsx:decoder({{jsx_prettify, jsx_event}, Init}, []))(JSON),
     case jsx:tail_clean(Rest) of
         true -> Result
         ; _ -> exit(badarg)

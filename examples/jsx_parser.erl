@@ -1,6 +1,7 @@
 -module(jsx_parser).
 
 -export([decode/2, event/2]).
+-export([literal/1, string/1, number/1]).
 
 
 %% this is a strict parser, no comments, no naked values and only one key per object. it
@@ -8,7 +9,7 @@
 
 decode(JSON, Opts) ->
     P = jsx:decoder({{jsx_parser, event}, []}, Opts),
-    {{_, Result}, Rest} = P(JSON),
+    {Result, Rest} = P(JSON),
     case jsx:tail_clean(Rest) of
         true -> Result
         ; _ -> exit(badarg)
