@@ -62,7 +62,7 @@ test_body(TestSpec, Dir) ->
     
 incremental_decode(F, <<>>) ->
     {Result, Rest} = F(<<>>),
-    true = tail_clean(Rest),
+    true = jsx:tail_clean(Rest),
     Result;    
 incremental_decode(F, <<A/utf8, Rest/binary>>) ->
     case F(<<A/utf8>>) of
@@ -78,7 +78,7 @@ decode(F, JSON) ->
             {Result, <<>>} = G(<<>>),
             Result
         ; {Result, Rest} ->
-            true = tail_clean(Rest),
+            true = jsx:tail_clean(Rest),
             Result
     end.
     
