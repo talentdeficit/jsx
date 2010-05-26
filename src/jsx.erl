@@ -36,9 +36,12 @@ decoder(Opts) ->
     F = fun(eof, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State  end,
     decoder({F, []}, Opts).
 
-decoder(Callbacks, OptsList) when is_list(OptsList) ->
+decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
     Opts = parse_opts(OptsList),
     decoder(Callbacks, Opts);
+decoder({{Mod, Fun}, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
+    Opts = parse_opts(OptsList),
+    decoder({fun(E, S) -> Mod:Fun(E, S) end, State}, Opts);
 decoder(Callbacks, Opts) ->
     case Opts#opts.encoding of
         utf8 ->
