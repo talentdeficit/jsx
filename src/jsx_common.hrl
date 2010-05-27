@@ -25,8 +25,7 @@
     comments = false,
     escaped_unicode = ascii,
     naked_values = false,
-    encoding = utf8,
-    explicit_termination = false
+    encoding = utf8
 }).
 
 %% whitespace

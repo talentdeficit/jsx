@@ -62,13 +62,10 @@ parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{escaped_unicode = Value});
 parse_opts([{naked_values, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{naked_values = Value, explicit_termination = true});
+    parse_opts(Rest, Opts#opts{naked_values = Value});
 parse_opts([{encoding, Value}|Rest], Opts) ->
     true = lists:member(Value, [utf8]),
-    parse_opts(Rest, Opts#opts{encoding = Value});
-parse_opts([{explicit_termination, Value}|Rest], Opts) ->
-    true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{explicit_termination = Value}).
+    parse_opts(Rest, Opts#opts{encoding = Value}).
 
 
 %% ensures there's no invalid characters left in the stream upon completion of parsing

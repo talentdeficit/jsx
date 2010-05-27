@@ -50,24 +50,28 @@ test_body(TestSpec, Dir) ->
         case file:consult(Dir ++ "/" ++ TestSpec) of
             {ok, [Events]} ->
                 Decoder = jsx:decoder(),
-                [{TestName, ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
+                [{TestName ++ "_incremental", ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
                 [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
             ; {ok, [Events, Flags]} ->
                 Decoder = jsx:decoder(Flags),
-                [{TestName, ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
+                [{TestName ++ "_incremental", ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
                 [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
         end
     catch _:_ -> []
     end.
     
 incremental_decode(F, <<>>) ->
-    {Result, Rest} = F(<<>>),
-    true = jsx:tail_clean(Rest),
-    Result;    
+    case F(<<>>) of
+        G when is_function(G) ->
+            {Result, <<>>} = G(<<>>),
+            Result
+        ; {Result, Rest} ->
+            Result
+    end; 
 incremental_decode(F, <<A/utf8, Rest/binary>>) ->
     case F(<<A/utf8>>) of
         G when is_function(G) ->
-            decode(G, Rest)
+            incremental_decode(G, Rest)
         ; {Result, _} ->
             Result
     end.
@@ -78,7 +82,7 @@ decode(F, JSON) ->
             {Result, <<>>} = G(<<>>),
             Result
         ; {Result, Rest} ->
-            true = jsx:tail_clean(Rest),
+            {_, <<>>} = (F(Rest))(<<>>),
             Result
     end.
     
