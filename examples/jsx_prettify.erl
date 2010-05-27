@@ -36,11 +36,8 @@ pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
     P = jsx:decoder({{jsx_prettify, jsx_event}, Init}, []),
     try    
-        {Result, Rest} = P(JSON),
-        case jsx:tail_clean(Rest) of
-            true -> Result
-            ; _ -> throw(badarg)
-        end
+        {Result, _} = P(JSON),
+        Result
     catch
         _:_ -> throw(badarg)
     end.

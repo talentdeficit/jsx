@@ -34,11 +34,8 @@
 decode(JSON) ->
     P = jsx:decoder({{jsx_parser, event}, []}, []),
     try    
-        {Result, Rest} = P(JSON),
-        case jsx:tail_clean(Rest) of
-            true -> Result
-            ; _ -> throw(badarg)
-        end
+        {Result, _} = P(JSON),
+        Result
     catch
         _:_ -> throw(badarg)
     end.
@@ -68,7 +65,7 @@ event(end_array, [Array, Parent|Stack]) when is_list(Parent) ->
 event(end_object, [Object]) ->
     [Object];
 event(end_array, [Array]) ->
-    [Array];    
+    [lists:reverse(Array)];    
     
 event({key, Key}, [Object|Stack]) ->
     [{key, Key}] ++ [Object] ++ Stack;
