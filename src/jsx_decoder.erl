@@ -37,43 +37,44 @@
 %%   compiler for efficient matching, but you shouldn't be using naked values or comments 
 %%   anyways, they are horrible and contrary to the spec.
 
-start(<<?start_object/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
-start(<<?start_array/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
-start(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    string(Rest, Stack, Callbacks, Opts, []);
-start(<<$t/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    tr(Rest, Stack, Callbacks, Opts);
-start(<<$f/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    fa(Rest, Stack, Callbacks, Opts);
-start(<<$n/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    nu(Rest, Stack, Callbacks, Opts);
-start(<<?negative/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    negative(Rest, Stack, Callbacks, Opts, "-");
-start(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
-    zero(Rest, Stack, Callbacks, Opts, "0");
-start(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S), Opts#opts.naked_values == true ->
-    integer(Rest, Stack, Callbacks, Opts, [S]);
-start(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
-    maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
-start(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
+start(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
     start(Rest, Stack, Callbacks, Opts);
+start(<<?start_object, Rest/binary>>, Stack, Callbacks, Opts) ->
+    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
+start(<<?start_array, Rest/binary>>, Stack, Callbacks, Opts) ->
+    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
+start(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    string(Rest, Stack, Callbacks, Opts, []);
+start(<<$t, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    tr(Rest, Stack, Callbacks, Opts);
+start(<<$f, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    fa(Rest, Stack, Callbacks, Opts);
+start(<<$n, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    nu(Rest, Stack, Callbacks, Opts);
+start(<<?negative, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    negative(Rest, Stack, Callbacks, Opts, "-");
+start(<<?zero, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+    zero(Rest, Stack, Callbacks, Opts, "0");
+start(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S), Opts#opts.naked_values == true ->
+    integer(Rest, Stack, Callbacks, Opts, [S]);
+start(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+    maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
 start(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> start(Stream, Stack, Callbacks, Opts) end.
 
-maybe_done(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
-    maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
-maybe_done(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
-    maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
-maybe_done(<<?comma/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
-    key(Rest, [key|Stack], Callbacks, Opts);
-maybe_done(<<?comma/utf8, Rest/binary>>, [array|_] = Stack, Callbacks, Opts) ->
-    value(Rest, Stack, Callbacks, Opts);
-maybe_done(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
-    maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
-maybe_done(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
+
+maybe_done(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, Callbacks, Opts);
+maybe_done(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
+    maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
+maybe_done(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
+    maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
+maybe_done(<<?comma, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
+    key(Rest, [key|Stack], Callbacks, Opts);
+maybe_done(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts) ->
+    value(Rest, Stack, Callbacks, Opts);
+maybe_done(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+    maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(<<>>, [], Callbacks, Opts) when Opts#opts.explicit_termination == true ->
     fun(<<>>) -> {fold(completed_parse, Callbacks), <<>>}
         ;(Stream) -> maybe_done(Stream, [], Callbacks, Opts) 
@@ -84,88 +85,88 @@ maybe_done(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> maybe_done(Stream, Stack, Callbacks, Opts) end.
 
 
-object(<<?end_object/utf8, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
-    maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
-object(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    string(Rest, Stack, Callbacks, Opts, []);
-object(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
-    maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
-object(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
+object(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     object(Rest, Stack, Callbacks, Opts);
+object(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
+    string(Rest, Stack, Callbacks, Opts, []);
+object(<<?end_object, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
+    maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
+object(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+    maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
 object(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> object(Stream, Stack, Callbacks, Opts) end.
+
         
-        
-array(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
+    array(Rest, Stack, Callbacks, Opts);       
+array(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
-array(<<?start_object/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
-array(<<?start_array/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
-array(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
-    maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
-array(<<$t/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<$t, Rest/binary>>, Stack, Callbacks, Opts) ->
     tr(Rest, Stack, Callbacks, Opts);
-array(<<$f/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<$f, Rest/binary>>, Stack, Callbacks, Opts) ->
     fa(Rest, Stack, Callbacks, Opts);
-array(<<$n/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<$n, Rest/binary>>, Stack, Callbacks, Opts) ->
     nu(Rest, Stack, Callbacks, Opts);
-array(<<?negative/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<?negative, Rest/binary>>, Stack, Callbacks, Opts) ->
     negative(Rest, Stack, Callbacks, Opts, "-");
-array(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+array(<<?zero, Rest/binary>>, Stack, Callbacks, Opts) ->
     zero(Rest, Stack, Callbacks, Opts, "0");
-array(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
+array(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S]);
-array(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+array(<<?start_object, Rest/binary>>, Stack, Callbacks, Opts) ->
+    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
+array(<<?start_array, Rest/binary>>, Stack, Callbacks, Opts) ->
+    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
+array(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
+    maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
+array(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Callbacks, Opts) end);
-array(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
-    array(Rest, Stack, Callbacks, Opts);
 array(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> array(Stream, Stack, Callbacks, Opts) end.  
 
-        
-value(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    string(Rest, Stack, Callbacks, Opts, []);
-value(<<?start_object/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
-value(<<?start_array/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
-value(<<$t/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    tr(Rest, Stack, Callbacks, Opts);
-value(<<$f/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    fa(Rest, Stack, Callbacks, Opts);
-value(<<$n/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    nu(Rest, Stack, Callbacks, Opts);
-value(<<?negative/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    negative(Rest, Stack, Callbacks, Opts, "-");
-value(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
-    zero(Rest, Stack, Callbacks, Opts, "0");
-value(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Stack, Callbacks, Opts, [S]);
-value(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
-    maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
-value(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
+
+value(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
     value(Rest, Stack, Callbacks, Opts);
+value(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
+    string(Rest, Stack, Callbacks, Opts, []);
+value(<<$t, Rest/binary>>, Stack, Callbacks, Opts) ->
+    tr(Rest, Stack, Callbacks, Opts);
+value(<<$f, Rest/binary>>, Stack, Callbacks, Opts) ->
+    fa(Rest, Stack, Callbacks, Opts);
+value(<<$n, Rest/binary>>, Stack, Callbacks, Opts) ->
+    nu(Rest, Stack, Callbacks, Opts);
+value(<<?negative, Rest/binary>>, Stack, Callbacks, Opts) ->
+    negative(Rest, Stack, Callbacks, Opts, "-");
+value(<<?zero, Rest/binary>>, Stack, Callbacks, Opts) ->
+    zero(Rest, Stack, Callbacks, Opts, "0");
+value(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
+    integer(Rest, Stack, Callbacks, Opts, [S]);
+value(<<?start_object, Rest/binary>>, Stack, Callbacks, Opts) ->
+    object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
+value(<<?start_array, Rest/binary>>, Stack, Callbacks, Opts) ->
+    array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
+value(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+    maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
 value(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> value(Stream, Stack, Callbacks, Opts) end.
       
 
-colon(<<?colon/utf8, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
-    value(Rest, [object|Stack], Callbacks, Opts);
-colon(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
-    maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
-colon(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
+colon(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     colon(Rest, Stack, Callbacks, Opts);
+colon(<<?colon, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
+    value(Rest, [object|Stack], Callbacks, Opts);
+colon(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+    maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
 colon(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> colon(Stream, Stack, Callbacks, Opts) end.
+
   
-        
-key(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+key(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
+    key(Rest, Stack, Callbacks, Opts);        
+key(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
-key(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
+key(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
-key(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
-    key(Rest, Stack, Callbacks, Opts);
 key(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> key(Stream, Stack, Callbacks, Opts) end.
       
@@ -174,15 +175,15 @@ key(<<>>, Stack, Callbacks, Opts) ->
 %%   representation of the string being parsed. using a list of integers representing
 %%   unicode codepoints is faster than constructing binaries, many of which will be
 %%   converted back to lists by the user anyways.
-        
-string(<<?quote/utf8, Rest/binary>>, [key|_] = Stack, Callbacks, Opts, Acc) ->
+   
+string(<<?quote, Rest/binary>>, [key|_] = Stack, Callbacks, Opts, Acc) ->
     colon(Rest, Stack, fold({key, lists:reverse(Acc)}, Callbacks), Opts);
-string(<<?quote/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+string(<<?quote, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     maybe_done(Rest, Stack, fold({string, lists:reverse(Acc)}, Callbacks), Opts);
-string(<<?rsolidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    escape(Rest, Stack, Callbacks, Opts, Acc);
+string(<<?rsolidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
-    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
+    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);        
 string(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> string(Stream, Stack, Callbacks, Opts, Acc) end.
 
@@ -191,19 +192,19 @@ string(<<>>, Stack, Callbacks, Opts, Acc) ->
 %%   to hold the codepoint sequence. unescessary, but nicer than using the string 
 %%   accumulator. 
     
-escape(<<"b"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$b, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     string(Rest, Stack, Callbacks, Opts, "\b" ++ Acc);
-escape(<<"f"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$f, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     string(Rest, Stack, Callbacks, Opts, "\f" ++ Acc);
-escape(<<"n"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$n, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     string(Rest, Stack, Callbacks, Opts, "\n" ++ Acc);
-escape(<<"r"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$r, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     string(Rest, Stack, Callbacks, Opts, "\r" ++ Acc);
-escape(<<"t"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$t, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     string(Rest, Stack, Callbacks, Opts, "\t" ++ Acc);
-escape(<<"u"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+escape(<<$u, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escaped_unicode(Rest, Stack, Callbacks, Opts, Acc, []);      
-escape(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) 
+escape(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 escape(<<>>, Stack, Callbacks, Opts, Acc) ->
@@ -218,7 +219,7 @@ escape(<<>>, Stack, Callbacks, Opts, Acc) ->
 %%   insane). any other option and the sequence is converted back to an erlang string
 %%   and appended to the string in place.
     
-escaped_unicode(<<D/utf8, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, A]) ->
+escaped_unicode(<<D, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, A]) when ?is_hex(D) ->
     X = erlang:list_to_integer([A, B, C, D], 16),
     case Opts#opts.escaped_unicode of
         ascii when X < 16#0080 ->
@@ -228,7 +229,7 @@ escaped_unicode(<<D/utf8, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, 
         ; _ ->
             string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
     end;
-escaped_unicode(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
+escaped_unicode(<<S, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
     escaped_unicode(Rest, Stack, Callbacks, Opts, String, [S] ++ Acc);
 escaped_unicode(<<>>, Stack, Callbacks, Opts, String, Acc) ->
     fun(Stream) -> escaped_unicode(Stream, Stack, Callbacks, Opts, String, Acc) end.
@@ -241,27 +242,27 @@ escaped_unicode(<<>>, Stack, Callbacks, Opts, String, Acc) ->
 
 %% TODO: actually write that jsx_utils.erl module mentioned above...
     
-negative(<<"0"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+negative(<<$0, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     zero(Rest, Stack, Callbacks, Opts, "0" ++ Acc);
-negative(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+negative(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 negative(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> negative(Stream, Stack, Callbacks, Opts, Acc) end.
     
     
-zero(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+zero(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
     maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-zero(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
+zero(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
     maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-zero(<<?comma/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+zero(<<?comma, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
     key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-zero(<<?comma/utf8, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
+zero(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
     value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-zero(<<?decimalpoint/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+zero(<<?decimalpoint, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
-zero(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
+zero(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-zero(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+zero(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
     fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
@@ -271,28 +272,27 @@ zero(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) end.
 
     
-    
-integer(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-integer(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-integer(<<?comma/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-integer(<<?comma/utf8, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-integer(<<?decimalpoint/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
-integer(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    integer(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
-integer(<<"e"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-integer(<<"E"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-integer(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+integer(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-integer(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
+integer(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+integer(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+integer(<<?comma, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+integer(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
+    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+integer(<<?decimalpoint, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
+integer(<<?zero, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    integer(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
+integer(<<$e, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+integer(<<$E, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+integer(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-integer(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+integer(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(<<>> = Rest, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
     fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
@@ -301,26 +301,25 @@ integer(<<>> = Rest, [], Callbacks, Opts, Acc) when Opts#opts.explicit_terminati
 integer(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) end.
     
-
-fraction(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-fraction(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-fraction(<<?comma/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?comma/utf8, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    fraction(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
-fraction(<<"e"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-fraction(<<"E"/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-fraction(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+fraction(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     fraction(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-fraction(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
+fraction(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+fraction(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+fraction(<<?comma, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+fraction(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
+    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+fraction(<<?zero, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    fraction(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
+fraction(<<$e, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+fraction(<<$E, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+fraction(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+fraction(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> fraction(Resume, Stack, Callbacks, Opts, Acc) end);
 fraction(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
     fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
@@ -328,38 +327,38 @@ fraction(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_term
     end;
 fraction(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) end.
+
     
-    
-e(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positive; S =:= ?negative ->
+e(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
+e(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-e(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 e(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> e(Stream, Stack, Callbacks, Opts, Acc) end.
   
     
-ex(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
+ex(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 ex(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> ex(Stream, Stack, Callbacks, Opts, Acc) end.
-    
 
-exp(<<?end_object/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-exp(<<?end_array/utf8, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-exp(<<?comma/utf8, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-exp(<<?comma/utf8, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-exp(<<?zero/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    exp(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
-exp(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+    
+exp(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-exp(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
-    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-exp(<<?solidus/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
+exp(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+exp(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+exp(<<?comma, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+exp(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
+    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+exp(<<?zero, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    exp(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
+exp(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Callbacks, Opts, Acc) end);
+exp(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
+    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
 exp(<<Rest/binary>>, [], Callbacks, Opts, Acc) when Opts#opts.explicit_termination == true ->
     fun(<<>>) -> {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), Rest}
         ;(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) 
@@ -368,61 +367,61 @@ exp(<<>>, Stack, Callbacks, Opts, Acc) ->
     fun(Stream) -> exp(Stream, Stack, Callbacks, Opts, Acc) end.
     
     
-tr(<<"r"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+tr(<<$r, Rest/binary>>, Stack, Callbacks, Opts) ->
     tru(Rest, Stack, Callbacks, Opts);
 tr(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> tr(Stream, Stack, Callbacks, Opts) end.
     
-    
-tru(<<"u"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+
+tru(<<$u, Rest/binary>>, Stack, Callbacks, Opts) ->
     true(Rest, Stack, Callbacks, Opts);
 tru(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> tru(Stream, Stack, Callbacks, Opts) end.
 
     
-true(<<"e"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+true(<<$e, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, true}, Callbacks), Opts);
 true(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> true(Stream, Stack, Callbacks, Opts) end.
     
     
-fa(<<"a"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+fa(<<$a, Rest/binary>>, Stack, Callbacks, Opts) ->
     fal(Rest, Stack, Callbacks, Opts);
 fa(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> fa(Stream, Stack, Callbacks, Opts) end.
 
 
-fal(<<"l"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+fal(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     fals(Rest, Stack, Callbacks, Opts);
 fal(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> fal(Stream, Stack, Callbacks, Opts) end.
 
 
-fals(<<"s"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+fals(<<$s, Rest/binary>>, Stack, Callbacks, Opts) ->
     false(Rest, Stack, Callbacks, Opts);
 fals(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> fals(Stream, Stack, Callbacks, Opts) end.
     
     
-false(<<"e"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+false(<<$e, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, false}, Callbacks), Opts);
 false(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> false(Stream, Stack, Callbacks, Opts) end.
     
 
-nu(<<"u"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+nu(<<$u, Rest/binary>>, Stack, Callbacks, Opts) ->
     nul(Rest, Stack, Callbacks, Opts);
 nu(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> nu(Stream, Stack, Callbacks, Opts) end.
 
 
-nul(<<"l"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+nul(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     null(Rest, Stack, Callbacks, Opts);
 nul(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> nul(Stream, Stack, Callbacks, Opts) end.
 
 
-null(<<"l"/utf8, Rest/binary>>, Stack, Callbacks, Opts) ->
+null(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, null}, Callbacks), Opts);
 null(<<>>, Stack, Callbacks, Opts) ->
     fun(Stream) -> null(Stream, Stack, Callbacks, Opts) end.    
@@ -434,13 +433,13 @@ null(<<>>, Stack, Callbacks, Opts) ->
 %%   returns execution to the point where the comment began. comments are not 
 %%   recorded in any way, simply parsed.    
     
-maybe_comment(<<?star/utf8, Rest/binary>>, Resume) ->
+maybe_comment(<<?star, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 maybe_comment(<<>>, Resume) ->
     fun(Stream) -> maybe_comment(Stream, Resume) end.
     
     
-comment(<<?star/utf8, Rest/binary>>, Resume) ->
+comment(<<?star, Rest/binary>>, Resume) ->
     maybe_comment_done(Rest, Resume);
 comment(<<_/utf8, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
@@ -448,7 +447,7 @@ comment(<<>>, Resume) ->
     fun(Stream) -> comment(Stream, Resume) end.
     
     
-maybe_comment_done(<<?solidus/utf8, Rest/binary>>, Resume) ->
+maybe_comment_done(<<?solidus, Rest/binary>>, Resume) ->
     Resume(Rest);
 maybe_comment_done(<<>>, Resume) ->
     fun(Stream) -> maybe_comment_done(Stream, Resume) end.
