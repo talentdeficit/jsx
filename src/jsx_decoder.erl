@@ -43,19 +43,19 @@ start(<<?start_object, Rest/binary>>, Stack, Callbacks, Opts) ->
     object(Rest, [key|Stack], fold(start_object, Callbacks), Opts);
 start(<<?start_array, Rest/binary>>, Stack, Callbacks, Opts) ->
     array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
-start(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
-start(<<$t, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<$t, Rest/binary>>, Stack, Callbacks, Opts) ->
     tr(Rest, Stack, Callbacks, Opts);
-start(<<$f, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<$f, Rest/binary>>, Stack, Callbacks, Opts) ->
     fa(Rest, Stack, Callbacks, Opts);
-start(<<$n, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<$n, Rest/binary>>, Stack, Callbacks, Opts) ->
     nu(Rest, Stack, Callbacks, Opts);
-start(<<?negative, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<?negative, Rest/binary>>, Stack, Callbacks, Opts) ->
     negative(Rest, Stack, Callbacks, Opts, "-");
-start(<<?zero, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.naked_values == true ->
+start(<<?zero, Rest/binary>>, Stack, Callbacks, Opts) ->
     zero(Rest, Stack, Callbacks, Opts, "0");
-start(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S), Opts#opts.naked_values == true ->
+start(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S]);
 start(<<?solidus, Rest/binary>>, Stack, Callbacks, Opts) when Opts#opts.comments == true ->
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
