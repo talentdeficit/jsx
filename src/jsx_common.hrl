@@ -21,11 +21,11 @@
 %% THE SOFTWARE.
 
 
--record(opts, {
-    comments = false,
-    escaped_unicode = ascii,
-    encoding = utf8
-}).
+%% option flags
+
+-define(comments_true(X), {true, _} = X).
+-define(escaped_unicode_to_ascii(X), {_, ascii} = X).
+-define(escaped_unicode_to_codepoint(X), {_, codepoint} = X).
 
 %% whitespace
 -define(space, 16#20).

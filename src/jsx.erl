@@ -43,26 +43,20 @@ decoder({{Mod, Fun}, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_
     Opts = parse_opts(OptsList),
     decoder({fun(E, S) -> Mod:Fun(E, S) end, State}, Opts);
 decoder(Callbacks, Opts) ->
-    case Opts#opts.encoding of
-        utf8 ->
-            fun(Stream) -> jsx_decoder:start(Stream, [], Callbacks, Opts) end
-    end.
+    fun(Stream) -> jsx_decoder:start(Stream, [], Callbacks, Opts) end.
 
     
 parse_opts(Opts) ->
-    parse_opts(Opts, #opts{}).
+    parse_opts(Opts, {false, codepoint}).
 
 parse_opts([], Opts) ->
     Opts;    
-parse_opts([{comments, Value}|Rest], Opts) ->
+parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode}) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{comments = Value});
-parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
+    parse_opts(Rest, {Value, EscapedUnicode});
+parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode}) ->
     true = lists:member(Value, [ascii, codepoint, none]),
-    parse_opts(Rest, Opts#opts{escaped_unicode = Value});
-parse_opts([{encoding, Value}|Rest], Opts) ->
-    true = lists:member(Value, [utf8]),
-    parse_opts(Rest, Opts#opts{encoding = Value});
+    parse_opts(Rest, {Comments, Value});
 parse_opts([_UnknownOpt|Rest], Opts) ->
     parse_opts(Rest, Opts).
 

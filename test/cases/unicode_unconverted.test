@@ -1,1 +1,2 @@
 [start_array, {string, "arabic letter alef: "}, {string, "\\u0627"}, end_array].
+[{escaped_unicode, ascii}].
