@@ -24,7 +24,7 @@
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decoder/0, decoder/1, decoder/2, tail_clean/1]).
+-export([decoder/0, decoder/1, decoder/2]).
 
 -include("jsx_common.hrl").
 
@@ -65,14 +65,7 @@ parse_opts([{naked_values, Value}|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{naked_values = Value});
 parse_opts([{encoding, Value}|Rest], Opts) ->
     true = lists:member(Value, [utf8]),
-    parse_opts(Rest, Opts#opts{encoding = Value}).
+    parse_opts(Rest, Opts#opts{encoding = Value});
+parse_opts([_UnknownOpt|Rest], Opts) ->
+    parse_opts(Rest, Opts).
 
-
-%% ensures there's no invalid characters left in the stream upon completion of parsing
-
-tail_clean(<<X/utf8, Rest/binary>>) when ?is_whitespace(X) ->
-    tail_clean(Rest);
-tail_clean(<<>>) ->
-    true;
-tail_clean(_) ->
-    false.
