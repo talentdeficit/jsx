@@ -23,7 +23,7 @@
 
 %% option flags
 
--define(comments_true(X), {true, _} = X).
+-define(comments_enabled(X), {true, _} = X).
 -define(escaped_unicode_to_ascii(X), {_, ascii} = X).
 -define(escaped_unicode_to_codepoint(X), {_, codepoint} = X).
 
