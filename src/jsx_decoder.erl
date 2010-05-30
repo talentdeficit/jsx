@@ -60,11 +60,9 @@ start(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) ->
 start(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
 start(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> start(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> start(Stream, Stack, Callbacks, Opts) end}.
 
 
-maybe_done(<<Rest/binary>>, [], Callbacks, _Opts) ->
-    {fold(completed_parse, Callbacks), Rest};
 maybe_done(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, Callbacks, Opts);
 maybe_done(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts) ->
@@ -77,8 +75,10 @@ maybe_done(<<?comma, Rest/binary>>, [array|_] = Stack, Callbacks, Opts) ->
     value(Rest, Stack, Callbacks, Opts);
 maybe_done(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
+maybe_done(<<>>, [], Callbacks, Opts) ->
+    {fold(completed_parse, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
 maybe_done(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> maybe_done(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> maybe_done(Stream, Stack, Callbacks, Opts) end}.
 
 
 object(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -90,7 +90,7 @@ object(<<?end_object, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
 object(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
 object(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> object(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> object(Stream, Stack, Callbacks, Opts) end}.
 
         
 array(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
@@ -118,7 +118,7 @@ array(<<?end_array, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
 array(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Callbacks, Opts) end);
 array(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> array(Stream, Stack, Callbacks, Opts) end.  
+    {incomplete, fun(Stream) -> array(Stream, Stack, Callbacks, Opts) end}.  
 
 
 value(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
@@ -144,7 +144,7 @@ value(<<?start_array, Rest/binary>>, Stack, Callbacks, Opts) ->
 value(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
 value(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> value(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> value(Stream, Stack, Callbacks, Opts) end}.
       
 
 colon(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -154,7 +154,7 @@ colon(<<?colon, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
 colon(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
 colon(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> colon(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> colon(Stream, Stack, Callbacks, Opts) end}.
 
   
 key(<<S, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -164,7 +164,7 @@ key(<<?quote, Rest/binary>>, Stack, Callbacks, Opts) ->
 key(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
 key(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> key(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> key(Stream, Stack, Callbacks, Opts) end}.
       
       
 %% string has an additional parameter, an accumulator (Acc) used to hold the intermediate
@@ -181,7 +181,7 @@ string(<<?rsolidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 string(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);        
 string(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> string(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> string(Stream, Stack, Callbacks, Opts, Acc) end}.
 
 
 %% only thing to note here is the additional accumulator passed to escaped_unicode used
@@ -204,7 +204,7 @@ escape(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc)
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 escape(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> escape(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> escape(Stream, Stack, Callbacks, Opts, Acc) end}.
     
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped unicode
@@ -241,7 +241,7 @@ escaped_unicode(<<D, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, A]) w
 escaped_unicode(<<S, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
     escaped_unicode(Rest, Stack, Callbacks, Opts, String, [S] ++ Acc);
 escaped_unicode(<<>>, Stack, Callbacks, Opts, String, Acc) ->
-    fun(Stream) -> escaped_unicode(Stream, Stack, Callbacks, Opts, String, Acc) end.
+    {incomplete, fun(Stream) -> escaped_unicode(Stream, Stack, Callbacks, Opts, String, Acc) end}.
     
     
 %% like strings, numbers are collected in an intermediate accumulator before
@@ -256,7 +256,7 @@ negative(<<$0, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 negative(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 negative(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> negative(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> negative(Stream, Stack, Callbacks, Opts, Acc) end}.
     
     
 zero(<<?end_object, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
@@ -273,8 +273,11 @@ zero(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
 zero(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
+zero(<<>>, [], Callbacks, Opts, Acc) ->
+    {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), 
+        fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
 zero(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> zero(Stream, Stack, Callbacks, Opts, Acc) end}.
 
     
 integer(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
@@ -299,8 +302,11 @@ integer(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) 
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
 integer(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
+integer(<<>>, [], Callbacks, Opts, Acc) ->
+    {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), 
+        fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
 integer(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> integer(Stream, Stack, Callbacks, Opts, Acc) end}.
     
 fraction(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     fraction(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
@@ -322,8 +328,11 @@ fraction(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S)
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
 fraction(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> fraction(Resume, Stack, Callbacks, Opts, Acc) end);
+fraction(<<>>, [], Callbacks, Opts, Acc) ->
+    {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), 
+        fun(Stream) -> fraction(Stream, [], Callbacks, Opts, Acc) end};
 fraction(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> fraction(Stream, Stack, Callbacks, Opts, Acc) end}.
 
     
 e(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
@@ -331,13 +340,13 @@ e(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero
 e(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 e(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> e(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> e(Stream, Stack, Callbacks, Opts, Acc) end}.
   
     
 ex(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 ex(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> ex(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> ex(Stream, Stack, Callbacks, Opts, Acc) end}.
 
     
 exp(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
@@ -356,68 +365,71 @@ exp(<<?solidus, Rest/binary>>, Stack, Callbacks, ?comments_true(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Callbacks, Opts, Acc) end);
 exp(<<S, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+exp(<<>>, [], Callbacks, Opts, Acc) ->
+    {fold(completed_parse, fold({number, lists:reverse(Acc)}, Callbacks)), 
+        fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
 exp(<<>>, Stack, Callbacks, Opts, Acc) ->
-    fun(Stream) -> exp(Stream, Stack, Callbacks, Opts, Acc) end.
+    {incomplete, fun(Stream) -> exp(Stream, Stack, Callbacks, Opts, Acc) end}.
     
     
 tr(<<$r, Rest/binary>>, Stack, Callbacks, Opts) ->
     tru(Rest, Stack, Callbacks, Opts);
 tr(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> tr(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> tr(Stream, Stack, Callbacks, Opts) end}.
     
 
 tru(<<$u, Rest/binary>>, Stack, Callbacks, Opts) ->
     true(Rest, Stack, Callbacks, Opts);
 tru(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> tru(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> tru(Stream, Stack, Callbacks, Opts) end}.
 
     
 true(<<$e, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, true}, Callbacks), Opts);
 true(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> true(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> true(Stream, Stack, Callbacks, Opts) end}.
     
     
 fa(<<$a, Rest/binary>>, Stack, Callbacks, Opts) ->
     fal(Rest, Stack, Callbacks, Opts);
 fa(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> fa(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> fa(Stream, Stack, Callbacks, Opts) end}.
 
 
 fal(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     fals(Rest, Stack, Callbacks, Opts);
 fal(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> fal(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> fal(Stream, Stack, Callbacks, Opts) end}.
 
 
 fals(<<$s, Rest/binary>>, Stack, Callbacks, Opts) ->
     false(Rest, Stack, Callbacks, Opts);
 fals(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> fals(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> fals(Stream, Stack, Callbacks, Opts) end}.
     
     
 false(<<$e, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, false}, Callbacks), Opts);
 false(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> false(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> false(Stream, Stack, Callbacks, Opts) end}.
     
 
 nu(<<$u, Rest/binary>>, Stack, Callbacks, Opts) ->
     nul(Rest, Stack, Callbacks, Opts);
 nu(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> nu(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> nu(Stream, Stack, Callbacks, Opts) end}.
 
 
 nul(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     null(Rest, Stack, Callbacks, Opts);
 nul(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> nul(Stream, Stack, Callbacks, Opts) end.
+    {incomplete, fun(Stream) -> nul(Stream, Stack, Callbacks, Opts) end}.
 
 
 null(<<$l, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, null}, Callbacks), Opts);
 null(<<>>, Stack, Callbacks, Opts) ->
-    fun(Stream) -> null(Stream, Stack, Callbacks, Opts) end.    
+    {incomplete, fun(Stream) -> null(Stream, Stack, Callbacks, Opts) end}.    
     
     
 %% comments are c style, /* blah blah */ and are STRONGLY discouraged. any unicode
@@ -429,7 +441,7 @@ null(<<>>, Stack, Callbacks, Opts) ->
 maybe_comment(<<?star, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 maybe_comment(<<>>, Resume) ->
-    fun(Stream) -> maybe_comment(Stream, Resume) end.
+    {incomplete, fun(Stream) -> maybe_comment(Stream, Resume) end}.
     
     
 comment(<<?star, Rest/binary>>, Resume) ->
@@ -437,13 +449,13 @@ comment(<<?star, Rest/binary>>, Resume) ->
 comment(<<_/utf8, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 comment(<<>>, Resume) ->
-    fun(Stream) -> comment(Stream, Resume) end.
+    {incomplete, fun(Stream) -> comment(Stream, Resume) end}.
     
     
 maybe_comment_done(<<?solidus, Rest/binary>>, Resume) ->
     Resume(Rest);
 maybe_comment_done(<<>>, Resume) ->
-    fun(Stream) -> maybe_comment_done(Stream, Resume) end.
+    {incomplete, fun(Stream) -> maybe_comment_done(Stream, Resume) end}.
     
 
 %% callbacks to our handler are roughly equivalent to a fold over the events, incremental

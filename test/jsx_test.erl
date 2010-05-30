@@ -61,22 +61,19 @@ test_body(TestSpec, Dir) ->
     end.
     
 incremental_decode(F, <<>>) ->
-    {Result, Rest} = F(<<" "/utf8>>),
-    Result;
+    case F(<<>>) of
+        {incomplete, G} -> G
+        ; {Result, _} -> Result
+    end;
 incremental_decode(F, <<A/utf8, Rest/binary>>) ->
-    case F(<<A/utf8>>) of
-        G when is_function(G) ->
-            incremental_decode(G, Rest)
-        ; {Result, _} ->
-            Result
-    end.
+    {_, G} = F(<<A>>),
+    incremental_decode(G, Rest).
     
 decode(F, JSON) ->
     case F(JSON) of
-        G when is_function(G) -> 
-            {Result, <<>>} = G(<<" "/utf8>>),
-            Result
-        ; {Result, Rest} ->
+        {incomplete, G} when is_function(G) -> 
+            throw(badjson)
+        ; {Result, _} ->
             Result
     end.
     
