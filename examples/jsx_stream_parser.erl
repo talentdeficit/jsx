@@ -57,7 +57,7 @@ event({key, "_id"}, 1) ->
 event({string, String}, capture) ->
     throw({ok, String});
 
-event(completed_parse, _) ->
+event(end_of_stream, _) ->
     throw(not_found);    
     
 event(_, Level) ->

@@ -85,7 +85,7 @@ jsx_event({Type, Value}, {Acc, Indent, Level, new})  ->
 jsx_event({Type, Value}, {Acc, Indent, Level, key}) ->
     {Acc ++ format(Type, Value), Indent, Level, value};
 
-jsx_event(completed_parse, {Acc, _, _, _}) ->
+jsx_event(end_of_stream, {Acc, _, _, _}) ->
     Acc.
     
 
