@@ -101,7 +101,7 @@ decoder({{Mod, Fun}, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_
     Opts = parse_opts(OptsList),
     decoder({fun(E, S) -> Mod:Fun(E, S) end, State}, Opts);
 decoder(Callbacks, Opts) ->
-    fun(Stream) -> start(Stream, [], Callbacks, Opts) end.
+    fun(Stream) -> try start(Stream, [], Callbacks, Opts) catch error:function_clause -> {error, badjson} end end.
 
     
 parse_opts(Opts) ->
