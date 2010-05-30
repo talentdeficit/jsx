@@ -28,15 +28,16 @@
 
 decoder(Opts) ->
     Decoder = jsx:decoder({{jsx_stream_parser, event}, 0}, Opts),
-    fun(Stream) -> 
-        try Decoder(Stream) of
-            F when is_function(F) -> F
-        catch
-            throw:{ok, Result} -> Result
-            ; throw:not_found -> not_found
-            ; _:_ -> throw(badarg)
-        end
-    end. 
+        fun(Stream) -> try
+            case Decoder(Stream) of
+                {incomplete, F} -> {incomplete, F}
+                ; {error, badjson} -> {error, badjson}
+            end
+            catch
+                throw:{ok, Result} -> {ok, Result}
+                ; throw:not_found -> {error, not_found}
+            end
+        end.
     
 event(start_object, Level) ->
     Level + 1;

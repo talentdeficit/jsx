@@ -32,12 +32,14 @@
 %%   also is not streaming, though it could be modified to parse partial objects/lists.
 
 decode(JSON) ->
-    P = jsx:decoder({{jsx_parser, event}, []}, []),
-    try    
-        {Result, _} = P(JSON),
-        Result
-    catch
-        _:_ -> throw(badarg)
+    P = jsx:decoder({{jsx_parser, event}, []}, []),   
+    case P(JSON) of
+        {incomplete, _} ->
+            {error, badjson}
+        ; {error, badjson} ->
+            {error, badjosn}
+        ; {Result, _} ->
+            Result
     end.
  
  
@@ -71,7 +73,7 @@ event({key, Key}, [Object|Stack]) ->
     [{key, Key}] ++ [Object] ++ Stack;
 
 %% this is kind of a dirty hack, but erlang will interpret atoms when applied to (Args)
-%%   as a function. so naming out formatting functions string, number and literal will
+%%   as a function. so naming our formatting functions string, number and literal will
 %%   allow the following shortcut
 
 event({Type, Value}, [{key, Key}, Object|Stack]) ->
@@ -88,7 +90,7 @@ event(end_of_stream, [Stack]) ->
 insert(Key, Val, Dict) ->
     case dict:is_key(Key, Dict) of
         false -> dict:store(Key, Val, Dict)
-        ; true -> exit(badarg)
+        ; true -> erlang:error(badjson)
     end.
     
 
