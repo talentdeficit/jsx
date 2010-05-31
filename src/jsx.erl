@@ -262,6 +262,9 @@ key(<<>>, Stack, Callbacks, Opts) ->
 %%   unicode codepoints is faster than constructing binaries, many of which will be
 %%   converted back to lists by the user anyways.
 
+%% the clause starting with Bin is necessary for cases where a stream is broken at a
+%%   point where it contains only a partial utf-8 sequence.
+
 string(<<?quote, Rest/binary>>, [key|_] = Stack, Callbacks, Opts, Acc) ->
     colon(Rest, Stack, fold({key, lists:reverse(Acc)}, Callbacks), Opts);
 string(<<?quote, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
@@ -269,7 +272,9 @@ string(<<?quote, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 string(<<?rsolidus, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/utf8, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
-    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);        
+    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
+string(Bin, Stack, Callbacks, Opts, Acc) ->
+    {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};     
 string(<<>>, Stack, Callbacks, Opts, Acc) ->
     {incomplete, fun(Stream) -> string(Stream, Stack, Callbacks, Opts, Acc) end}.
 
