@@ -37,7 +37,7 @@ decode(JSON) ->
         {incomplete, _} ->
             {error, badjson}
         ; {error, badjson} ->
-            {error, badjosn}
+            {error, badjson}
         ; {Result, _} ->
             Result
     end.
@@ -46,7 +46,7 @@ decode(JSON) ->
 %% erlang representation is dicts for objects and lists for arrays. these are pushed
 %%   onto a stack, the top of which is our current level, deeper levels represent parent
 %%   and grandparent levels in the json structure. keys are also stored on top of the array
-%%   during parsing of their associated values.
+%%   during parsing of their associated values.    
     
 event(start_object, Stack) ->
     [dict:new()] ++ Stack;
@@ -71,6 +71,11 @@ event(end_array, [Array]) ->
     
 event({key, Key}, [Object|Stack]) ->
     [{key, Key}] ++ [Object] ++ Stack;
+
+%% reject values that aren't wrapped by an array or object
+
+event({_Type, _Value}, []) ->
+    erlang:error(badjson);
 
 %% this is kind of a dirty hack, but erlang will interpret atoms when applied to (Args)
 %%   as a function. so naming our formatting functions string, number and literal will
