@@ -304,9 +304,9 @@ escape(<<>>, Stack, Callbacks, Opts, Acc) ->
 %%   codepoint sequences. if the ascii option is present, the sequence is converted
 %%   to a codepoint and inserted into the string if it represents an ascii value. if 
 %%   the codepoint option is present the sequence is converted and inserted as long
-%%   as it represents a valid 16 bit integer value (this is where json's spec gets
-%%   insane). any other option and the sequence is converted back to an erlang string
-%%   and appended to the string in place.
+%%   as it represents a valid unicode codepoint. this means non-characters 
+%%   representable in 16 bits are not converted (the utf16 surrogates and the two
+%%   special non-characters). any other option and no conversion is done.
 
 escaped_unicode(<<D, Rest/binary>>, 
         Stack, 
@@ -316,7 +316,7 @@ escaped_unicode(<<D, Rest/binary>>,
         [C, B, A]) 
             when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        X when X < 127 ->
+        X when X < 128 ->
             string(Rest, Stack, Callbacks, Opts, [X] ++ String)
         ; _ ->
             string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
@@ -328,7 +328,12 @@ escaped_unicode(<<D, Rest/binary>>,
         String, 
         [C, B, A]) 
             when ?is_hex(D) ->
-    string(Rest, Stack, Callbacks, Opts, [erlang:list_to_integer([A, B, C, D], 16)] ++ String);
+    case erlang:list_to_integer([A, B, C, D], 16) of
+        X when X < 16#d800; X > 16#dfff, X < 16#fffe ->
+            string(Rest, Stack, Callbacks, Opts, [X] ++ String)
+        ; _ ->
+            string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
+    end;
 escaped_unicode(<<D, Rest/binary>>, Stack, Callbacks, Opts, String, [C, B, A]) when ?is_hex(D) ->
     string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String);
 escaped_unicode(<<S, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
