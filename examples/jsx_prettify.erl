@@ -88,12 +88,12 @@ jsx_event(end_of_stream, {Acc, _, _, _}) ->
     Acc.
     
 
-format(number, Number) ->
-    Number;
 format(string, String) ->
     "\"" ++ String ++ "\"";
 format(literal, Literal) ->
-    erlang:atom_to_list(Literal).
+    erlang:atom_to_list(Literal);
+format(_, Number) ->
+    Number;
     
 
 indent(Indent, Level) ->

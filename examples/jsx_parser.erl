@@ -25,7 +25,7 @@
 -author("alisdairsullivan@yahoo.ca").
 
 -export([decode/1, event/2]).
--export([literal/1, string/1, number/1]).
+-export([literal/1, string/1, float/1, integer/1]).
 
 
 %% this is a strict parser, no comments, no naked values and only one key per object. it
@@ -99,13 +99,15 @@ insert(Key, Val, Dict) ->
     end.
     
 
-%% strings, numbers and literals we just return with no post-processing, this is where we
-%%   would deal with them though.
+%% strings and literals we just return with no post-processing, numbers we convert
+%%   from strings to integers/floats as appropriate
    
 string(String) ->
     String.
-number(Number) ->
-    Number.
+integer(Number) ->
+    list_to_integer(Number).
+float(Number) ->
+    list_to_float(Number).
 literal(Literal) ->
     Literal.
     
