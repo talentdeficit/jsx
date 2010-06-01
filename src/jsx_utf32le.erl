@@ -69,7 +69,7 @@ start(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) 
     integer(Rest, Stack, Callbacks, Opts, [S]);
 start(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
-start(Bin, Stack, Callbacks, Opts) ->
+start(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> start(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -87,7 +87,7 @@ maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enab
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(<<>>, [], Callbacks, Opts) ->
     {fold(end_of_stream, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
-maybe_done(Bin, Stack, Callbacks, Opts) ->
+maybe_done(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -99,7 +99,7 @@ object(<<?end_object/?encoding, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
 object(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
-object(Bin, Stack, Callbacks, Opts) ->
+object(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> object(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -127,7 +127,7 @@ array(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
 array(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Callbacks, Opts) end);
-array(Bin, Stack, Callbacks, Opts) ->
+array(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> array(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.  
 
 
@@ -153,7 +153,7 @@ value(<<?start_array/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
 value(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
-value(Bin, Stack, Callbacks, Opts) ->
+value(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> value(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -163,7 +163,7 @@ colon(<<?colon/?encoding, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
     value(Rest, [object|Stack], Callbacks, Opts);
 colon(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
-colon(Bin, Stack, Callbacks, Opts) ->
+colon(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> colon(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -173,7 +173,7 @@ key(<<?quote/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
 key(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
-key(Bin, Stack, Callbacks, Opts) ->
+key(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> key(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
@@ -193,7 +193,7 @@ string(<<?rsolidus/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
-string(Bin, Stack, Callbacks, Opts, Acc) ->
+string(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
@@ -216,7 +216,7 @@ escape(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 escape(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-escape(Bin, Stack, Callbacks, Opts, Acc) ->
+escape(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> escape(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
@@ -258,7 +258,7 @@ escaped_unicode(<<D/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, [C
     string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String);
 escaped_unicode(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
     escaped_unicode(Rest, Stack, Callbacks, Opts, String, [S] ++ Acc);
-escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) ->
+escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> escaped_unicode(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, String, Acc) end}.
 
 
@@ -273,180 +273,189 @@ negative(<<$0/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     zero(Rest, Stack, Callbacks, Opts, "0" ++ Acc);
 negative(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-negative(Bin, Stack, Callbacks, Opts, Acc) ->
+negative(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> negative(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 zero(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_object, fold({integer, lists:reverse(Acc)}, Callbacks)), Opts);
 zero(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_array, fold({integer, lists:reverse(Acc)}, Callbacks)), Opts);
 zero(<<?comma/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    key(Rest, [key|Stack], fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 zero(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    value(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 zero(<<?decimalpoint/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
+    initial_decimal(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
 zero(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
-    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    maybe_done(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 zero(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({number, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
-zero(Bin, Stack, Callbacks, Opts, Acc) ->
+zero(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> zero(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 integer(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 integer(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_object, fold({integer, lists:reverse(Acc)}, Callbacks)), Opts);
 integer(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_array, fold({integer, lists:reverse(Acc)}, Callbacks)), Opts);
 integer(<<?comma/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    key(Rest, [key|Stack], fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 integer(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    value(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 integer(<<?decimalpoint/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    fraction(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
+    initial_decimal(Rest, Stack, Callbacks, Opts, [?decimalpoint] ++ Acc);
 integer(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     integer(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
 integer(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+    e(Rest, Stack, Callbacks, Opts, "e0." ++ Acc);
 integer(<<$E/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
+    e(Rest, Stack, Callbacks, Opts, "e0." ++ Acc);
 integer(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
-    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    maybe_done(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 integer(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({number, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
-integer(Bin, Stack, Callbacks, Opts, Acc) ->
+integer(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> integer(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
-fraction(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
-    fraction(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-fraction(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-fraction(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
-fraction(<<?comma/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    fraction(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
-fraction(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+
+initial_decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+    decimal(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
+initial_decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
+initial_decimal(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
+    {incomplete, fun(Stream) -> initial_decimal(Stream, Stack, Callbacks, Opts, Acc) end}.
+
+
+decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
+    decimal(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
+decimal(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_object, fold({float, lists:reverse(Acc)}, Callbacks)), Opts);
+decimal(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
+    maybe_done(Rest, Stack, fold(end_array, fold({float, lists:reverse(Acc)}, Callbacks)), Opts);
+decimal(<<?comma/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
+    key(Rest, [key|Stack], fold({float, lists:reverse(Acc)}, Callbacks), Opts);
+decimal(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
+    value(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
+decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+    decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
+decimal(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-fraction(<<$E/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
+decimal(<<$E/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
-fraction(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
-    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
-fraction(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
-    maybe_comment(Rest, fun(Resume) -> fraction(Resume, Stack, Callbacks, Opts, Acc) end);
-fraction(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({number, lists:reverse(Acc)}, Callbacks)), 
-        fun(Stream) -> fraction(Stream, [], Callbacks, Opts, Acc) end};
-fraction(Bin, Stack, Callbacks, Opts, Acc) ->
-    {incomplete, fun(Stream) -> fraction(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
+    maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
+decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
+    maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Callbacks, Opts, Acc) end);
+decimal(<<>>, [], Callbacks, Opts, Acc) ->
+    {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
+        fun(Stream) -> decimal(Stream, [], Callbacks, Opts, Acc) end};
+decimal(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
+    {incomplete, fun(Stream) -> decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 e(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
 e(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-e(Bin, Stack, Callbacks, Opts, Acc) ->
+e(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> e(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 ex(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-ex(Bin, Stack, Callbacks, Opts, Acc) ->
+ex(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> ex(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 exp(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_object, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_object, fold({float, lists:reverse(Acc)}, Callbacks)), Opts);
 exp(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts, Acc) ->
-    maybe_done(Rest, Stack, fold(end_array, fold({number, lists:reverse(Acc)}, Callbacks)), Opts);
+    maybe_done(Rest, Stack, fold(end_array, fold({float, lists:reverse(Acc)}, Callbacks)), Opts);
 exp(<<?comma/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
-    key(Rest, [key|Stack], fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    key(Rest, [key|Stack], fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 exp(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, Acc) ->
-    value(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    value(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 exp(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     exp(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
 exp(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Callbacks, Opts, Acc) end);
 exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
-    maybe_done(Rest, Stack, fold({number, lists:reverse(Acc)}, Callbacks), Opts);
+    maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 exp(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({number, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
-exp(Bin, Stack, Callbacks, Opts, Acc) ->
+exp(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> exp(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 tr(<<$r/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     tru(Rest, Stack, Callbacks, Opts);
-tr(Bin, Stack, Callbacks, Opts) ->
+tr(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> tr(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 tru(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     true(Rest, Stack, Callbacks, Opts);
-tru(Bin, Stack, Callbacks, Opts) ->
+tru(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> tru(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 true(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, true}, Callbacks), Opts);
-true(Bin, Stack, Callbacks, Opts) ->
+true(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> true(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 fa(<<$a/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fal(Rest, Stack, Callbacks, Opts);
-fa(Bin, Stack, Callbacks, Opts) ->
+fa(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> fa(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 fal(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fals(Rest, Stack, Callbacks, Opts);
-fal(Bin, Stack, Callbacks, Opts) ->
+fal(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> fal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 fals(<<$s/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     false(Rest, Stack, Callbacks, Opts);
-fals(Bin, Stack, Callbacks, Opts) ->
+fals(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> fals(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 false(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, false}, Callbacks), Opts);
-false(Bin, Stack, Callbacks, Opts) ->
+false(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> false(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 nu(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     nul(Rest, Stack, Callbacks, Opts);
-nu(Bin, Stack, Callbacks, Opts) ->
+nu(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> nu(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 nul(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     null(Rest, Stack, Callbacks, Opts);
-nul(Bin, Stack, Callbacks, Opts) ->
+nul(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> nul(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
 
 
 null(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, null}, Callbacks), Opts);
-null(Bin, Stack, Callbacks, Opts) ->
+null(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> null(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.    
 
 
@@ -458,7 +467,7 @@ null(Bin, Stack, Callbacks, Opts) ->
 
 maybe_comment(<<?star/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
-maybe_comment(Bin, Resume) ->
+maybe_comment(Bin, Resume) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> maybe_comment(<<Bin/binary, Stream/binary>>, Resume) end}.
 
 
@@ -466,11 +475,11 @@ comment(<<?star/?encoding, Rest/binary>>, Resume) ->
     maybe_comment_done(Rest, Resume);
 comment(<<_/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
-comment(Bin, Resume) ->
+comment(Bin, Resume) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> comment(<<Bin/binary, Stream/binary>>, Resume) end}.
 
 
 maybe_comment_done(<<?solidus/?encoding, Rest/binary>>, Resume) ->
     Resume(Rest);
-maybe_comment_done(Bin, Resume) ->
+maybe_comment_done(Bin, Resume) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume) end}.
