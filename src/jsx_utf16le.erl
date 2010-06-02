@@ -267,7 +267,7 @@ escaped_unicode(<<D/?encoding, Rest/binary>>,
                 false ->
                     string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
                 ; {Y, NewString} ->
-                    string(Rest, Stack, Callbacks, Opts, [surrogate_to_codepoint(X, Y)] ++ NewString)
+                    string(Rest, Stack, Callbacks, Opts, [surrogate_to_codepoint(Y, X)] ++ NewString)
             end
         ; X when X < 16#d800; X > 16#dfff, X < 16#fffe ->
             string(Rest, Stack, Callbacks, Opts, [X] ++ String) 
@@ -297,8 +297,8 @@ check_acc_for_surrogate(_) ->
 
 %% stole this from the unicode spec    
 
-surrogate_to_codepoint(X, Y) ->
-    (X - 16#d800) * 16#400 + (Y - 16#dc00) + 16#10000.
+surrogate_to_codepoint(High, Low) ->
+    (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
 
 
 %% like strings, numbers are collected in an intermediate accumulator before

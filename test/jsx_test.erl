@@ -77,7 +77,6 @@ incremental_decode(F, <<>>) ->
         ; {Result, _} -> Result
     end;
 incremental_decode(F, <<A, Rest/binary>>) ->
-    io:fwrite("~p~n", [A]),
     {_, G} = F(<<A>>),
     incremental_decode(G, Rest).
     
