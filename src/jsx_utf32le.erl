@@ -249,8 +249,15 @@ escaped_unicode(<<D/?encoding, Rest/binary>>,
         [C, B, A]) 
             when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        X when X < 16#d800; X > 16#dfff, X < 16#fffe ->
-            string(Rest, Stack, Callbacks, Opts, [X] ++ String)
+        X when X >= 16#dc00, X =< 16#dfff ->
+            case check_acc_for_surrogate(String) of
+                false ->
+                    string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
+                ; {Y, NewString} ->
+                    string(Rest, Stack, Callbacks, Opts, [surrogate_to_codepoint(X, Y)] ++ NewString)
+            end
+        ; X when X < 16#d800; X > 16#dfff, X < 16#fffe ->
+            string(Rest, Stack, Callbacks, Opts, [X] ++ String) 
         ; _ ->
             string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
     end;
@@ -261,6 +268,25 @@ escaped_unicode(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, Ac
 escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) when byte_size(Bin) < 4 ->
     {incomplete, fun(Stream) -> escaped_unicode(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, String, Acc) end}.
 
+%% upon encountering a low pair json/hex encoded value, check to see if there's a high
+%%   value already in the accumulator. 
+
+check_acc_for_surrogate([D, C, B, A, $u, ?rsolidus|Rest])
+        when ?is_hex(D), ?is_hex(C), ?is_hex(B), ?is_hex(A) ->
+    case erlang:list_to_integer([A, B, C, D], 16) of
+        X when X >=16#d800, X =< 16#dbff ->
+            {X, Rest};
+        _ ->
+            false
+    end;
+check_acc_for_surrogate(_) ->
+    false.
+
+%% stole this from the unicode spec    
+
+surrogate_to_codepoint(X, Y) ->
+    (X - 16#d800) * 16#400 + (Y - 16#dc00) + 16#10000.
+        
 
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler. no processing of numbers is done in
