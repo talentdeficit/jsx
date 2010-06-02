@@ -21,45 +21,32 @@
 %% THE SOFTWARE.
 
 
--module(jsx_stream_parser).
+-module(jsx_verify).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decoder/1, event/2]).
+-export([is_json/1, event/2]).
 
-decoder(Opts) ->
-    Decoder = jsx:decoder({jsx_stream_parser, event, 0}, Opts),
-        fun(Stream) -> try
-            case Decoder(Stream) of
-                {incomplete, F} -> {incomplete, F}
-                ; {error, badjson} -> {error, badjson}
-            end
-            catch
-                throw:{ok, Result} -> {ok, Result}
-                ; throw:not_found -> {error, not_found}
-            end
-        end.
-    
-event(start_object, Level) ->
-    Level + 1;
-    
-event(start_array, 0) ->
-    throw(not_found);    
-event(start_array, Level) ->
-    Level + 1;
-    
-event(end_object, Level) ->
-    Level - 1;
-event(end_array, Level) ->
-    Level - 1;
-    
-event({key, "_id"}, 1) ->
-    capture;
-    
-event({string, String}, capture) ->
-    throw({ok, String});
 
-event(end_of_stream, _) ->
-    throw(not_found);    
+
+%% this is a strict parser, no comments, no naked values and only one key per object. it
+%%   also is not streaming, though it could be modified to parse partial objects/lists.
+
+is_json(JSON) ->
+    P = jsx:decoder({jsx_verify, event, ok}, []),   
+    case P(JSON) of
+        {incomplete, _} ->
+            false
+        ; {error, badjson} ->
+            false
+        ; _ ->
+            true
+    end.
+ 
+ 
+%% erlang representation is dicts for objects and lists for arrays. these are pushed
+%%   onto a stack, the top of which is our current level, deeper levels represent parent
+%%   and grandparent levels in the json structure. keys are also stored on top of the array
+%%   during parsing of their associated values.    
     
-event(_, Level) ->
-    Level.
+event(_, ok) ->
+    ok.

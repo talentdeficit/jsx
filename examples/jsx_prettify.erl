@@ -34,7 +34,7 @@
 
 pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
-    P = jsx:decoder({{jsx_prettify, jsx_event}, Init}, []),
+    P = jsx:decoder({jsx_prettify, jsx_event, Init}, []),
     case P(JSON) of
         {incomplete, _} -> {error, badjson}
         ; {error, badjson} -> {error, badjson}
@@ -93,7 +93,7 @@ format(string, String) ->
 format(literal, Literal) ->
     erlang:atom_to_list(Literal);
 format(_, Number) ->
-    Number;
+    Number.
     
 
 indent(Indent, Level) ->
