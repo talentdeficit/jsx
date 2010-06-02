@@ -358,7 +358,7 @@ initial_decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when 
 initial_decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
 initial_decimal(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> initial_decimal(Stream, Stack, Callbacks, Opts, Acc) end}.
+    {incomplete, fun(Stream) -> initial_decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
 
 
 decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->

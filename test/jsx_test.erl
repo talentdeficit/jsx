@@ -24,14 +24,18 @@
 -module(jsx_test).
 -author("alisdairsullivan@yahoo.ca").
 
--export([test/1, test_event/2, incremental_decode/2, decode/2]).
+-export([test/0, test/1, test_event/2]).
 
--include_lib("eunit/include/eunit.hrl").
-
+test() ->
+    F = decoder([]),
+    incremental_decode(F, unicode:characters_to_binary(<<"0">>, utf8, utf16)).
 
 test(Dir) ->
-    Tests = gen_tests(Dir),
-    eunit:test(Tests, [verbose]).
+    ValidJSONTests = load_tests(Dir),
+    
+    etap:plan(length(ValidJSONTests) * 10),
+    run_tests(ValidJSONTests),
+    etap:end_tests().
 
 
 decoder(Flags) ->
@@ -43,33 +47,40 @@ test_event(Event, Acc) ->
     [Event] ++ Acc.
 
 
-
-gen_tests(Dir) ->
+load_tests(Dir) ->
     TestSpecs = filelib:wildcard("*.test", Dir),
-    gen_tests(TestSpecs, Dir, []).
+    load_tests(TestSpecs, Dir, []).
     
-gen_tests([], _, Acc) ->
-    lists:reverse(Acc); 
-    
-gen_tests([Test|Rest], Dir, Acc) ->
-    gen_tests(Rest, Dir, test_body(Test, Dir) ++ Acc).
-    
-test_body(TestSpec, Dir) ->
+load_tests([], _Dir, Acc) ->
+    lists:reverse(Acc);
+load_tests([Test|Rest], Dir, Acc) ->
     try
-        TestName = filename:basename(TestSpec, ".test"),
+        TestName = filename:basename(Test, ".test"),
         {ok, JSON} = file:read_file(Dir ++ "/" ++ TestName ++ ".json"),
-        case file:consult(Dir ++ "/" ++ TestSpec) of
+        case file:consult(Dir ++ "/" ++ Test) of
             {ok, [Events]} ->
-                Decoder = jsx:decoder(),
-                [{TestName ++ "_incremental", ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
-                [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
+                load_tests(Rest, Dir, [{TestName, JSON, Events, []}] ++ Acc)
             ; {ok, [Events, Flags]} ->
-                Decoder = jsx:decoder(Flags),
-                [{TestName ++ "_incremental", ?_assertEqual(incremental_decode(Decoder, JSON), Events)}] ++
-                [{TestName, ?_assertEqual(decode(Decoder, JSON), Events)}]
+                load_tests(Rest, Dir, [{TestName, JSON, Events, Flags}] ++ Acc)
         end
-    catch _:_ -> []
-    end.
+    catch _:_ -> load_tests(Rest, Dir, Acc) end.
+    
+run_tests([]) ->
+    ok;
+run_tests([{TestName, JSON, Events, Flags}|Rest]) ->
+    F = decoder(Flags),
+    etap:is(decode(F, JSON), Events, TestName ++ ": utf8"),
+    etap:is(incremental_decode(F, JSON), Events, TestName ++ ": incremental utf8"),
+    etap:is(decode(F, to_utf16(JSON)), Events, TestName ++ ": utf16"),
+    etap:is(incremental_decode(F, to_utf16(JSON)), Events, TestName ++ ": incremental utf16"),
+    etap:is(decode(F, to_utf16le(JSON)), Events, TestName ++ ": utf16le"),
+    etap:is(incremental_decode(F, to_utf16le(JSON)), Events, TestName ++ ": incremental utf16le"),
+    etap:is(decode(F, to_utf32(JSON)), Events, TestName ++ ": utf32"),
+    etap:is(incremental_decode(F, to_utf32(JSON)), Events, TestName ++ ": incremental utf32"),
+    etap:is(decode(F, to_utf32le(JSON)), Events, TestName ++ ": utf32le"),
+    etap:is(incremental_decode(F, to_utf32le(JSON)), Events, TestName ++ ": incremental utf32le"),
+    run_tests(Rest).
+    
     
 incremental_decode(F, <<>>) ->
     case F(<<>>) of
@@ -87,4 +98,10 @@ decode(F, JSON) ->
         ; {Result, _} ->
             Result
     end.
+    
+to_utf16(Bin) -> unicode:characters_to_binary(Bin, utf8, utf16).
+to_utf16le(Bin) -> unicode:characters_to_binary(Bin, utf8, {utf16,little}).
+to_utf32(Bin) -> unicode:characters_to_binary(Bin, utf8, utf32).
+to_utf32le(Bin) -> unicode:characters_to_binary(Bin, utf8, {utf32,little}).
+
     

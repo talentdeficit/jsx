@@ -99,9 +99,6 @@ detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Stack, Callbacks, Opts) ->
 detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Stack, Callbacks, Opts) ->
     jsx_utf32:start(Rest, Stack, Callbacks, Opts);
     
-%% utf8 null order detection
-detect_encoding(<<X, Y, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0, Y =/= 0 ->
-    jsx_utf8:start(JSON, Stack, Callbacks, Opts);
 
 %% utf32-little null order detection
 detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0 ->
@@ -119,17 +116,38 @@ detect_encoding(<<X, 0, Y, 0, _Rest/binary>> = JSON, Stack, Callbacks, Opts) whe
 detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0 ->
     jsx_utf32:start(JSON, Stack, Callbacks, Opts);
     
-%% trying to parse a json string of a single character encoded in utf8 will fail
-%%   unless special cased
-detect_encoding(<<X>> = JSON, Stack, Callbacks, Opts) when X =/= 0 ->
-    try jsx_utf8:start(JSON, Stack, Callbacks, Opts)
-    catch error:function_clause ->
-        {incomplete, 
-            fun(Stream) -> 
-                detect_encoding(<<X, Stream/binary>>, Stack, Callbacks, Opts) 
-            end
-        }
-    end;
+%% utf8 null order detection
+detect_encoding(<<X, Y, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0, Y =/= 0 ->
+    jsx_utf8:start(JSON, Stack, Callbacks, Opts);
+    
+%% a problem, to autodetect naked single digits' encoding, there is not enough data
+%%   to conclusively determine the encoding correctly. below is an attempt to solve
+%%   the problem
+
+detect_encoding(<<X>>, Stack, Callbacks, Opts) when X =/= 0 ->
+    {
+        try {Result, _} = jsx_utf8:start(<<X>>, [], Callbacks, Opts), Result 
+        catch error:function_clause -> incomplete end,
+        fun(Stream) ->
+            detect_encoding(<<X, Stream/binary>>, Stack, Callbacks, Opts)
+        end
+    };
+detect_encoding(<<0, X>>, Stack, Callbacks, Opts) when X =/= 0 ->
+    {
+        try {Result, _} = jsx_utf16:start(<<0, X>>, [], Callbacks, Opts), Result 
+        catch error:function_clause -> incomplete end,
+        fun(Stream) ->
+            detect_encoding(<<0, X, Stream/binary>>, Stack, Callbacks, Opts)
+        end
+    };
+detect_encoding(<<X, 0>>, Stack, Callbacks, Opts) when X =/= 0 ->
+    {
+        try {Result, _} = jsx_utf16le:start(<<X, 0>>, [], Callbacks, Opts), Result 
+        catch error:function_clause -> incomplete end,
+        fun(Stream) ->
+            detect_encoding(<<X, 0, Stream/binary>>, Stack, Callbacks, Opts)
+        end
+    };
     
 %% not enough input, request more
 detect_encoding(Bin, Stack, Callbacks, Opts) ->
