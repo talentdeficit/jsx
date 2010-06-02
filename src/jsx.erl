@@ -36,7 +36,7 @@ decoder(Opts) ->
 
 decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
     start(Callbacks, OptsList);
-decoder({{Mod, Fun}, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
+decoder({Mod, Fun, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
     start({fun(E, S) -> Mod:Fun(E, S) end, State}, OptsList).
 
 start(Callbacks, OptsList) ->

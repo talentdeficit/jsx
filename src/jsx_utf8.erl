@@ -183,7 +183,8 @@ key(<<>>, Stack, Callbacks, Opts) ->
 %%   converted back to lists by the user anyways.
 
 %% the clause starting with Bin is necessary for cases where a stream is broken at a
-%%   point where it contains only a partial utf-8 sequence.
+%%   point where it contains only a partial utf-8 sequence. we emulate a function_clause
+%%   error if the partial sequence is not valid utf-8 to maintain consistency of errors
 
 string(<<?quote/?encoding, Rest/binary>>, [key|_] = Stack, Callbacks, Opts, Acc) ->
     colon(Rest, Stack, fold({key, lists:reverse(Acc)}, Callbacks), Opts);
@@ -192,9 +193,32 @@ string(<<?quote/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 string(<<?rsolidus/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
-    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
-string(<<>>, Stack, Callbacks, Opts, Acc) ->
-    {incomplete, fun(Stream) -> string(Stream, Stack, Callbacks, Opts, Acc) end}.
+    string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
+string(Bin, Stack, Callbacks, Opts, Acc) ->
+    case partial_utf8(Bin) of
+        true ->
+            {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}
+        ; false ->
+            erlang:error(function_clause)
+    end.
+    
+%% in the case of broken (as in split over two halves of a stream) utf-8 input,
+%%   ensure that the half present is *possibly* valid
+    
+partial_utf8(<<>>) -> true;
+partial_utf8(<<X>>) when X >= 16#c2, X =< 16#df -> true;
+partial_utf8(<<X, Rest/binary>>) when X >= 16#e0, X =< 16#ef ->
+    case Rest of
+        <<>> -> true
+        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
+    end;
+partial_utf8(<<X, Rest/binary>>) when X >= 16#f0, X =< 16#f4 ->
+    case Rest of
+        <<>> -> true
+        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
+        ; <<Y, Z>> when Y >= 16#80, Y =< 16#bf, Z >= 16#80, Z =< 16#bf -> true
+    end;
+partial_utf8(_) -> false.
 
 
 %% only thing to note here is the additional accumulator passed to escaped_unicode used
@@ -346,9 +370,9 @@ decimal(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts, A
 decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
 decimal(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e0." ++ Acc);
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
 decimal(<<$E/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
-    e(Rest, Stack, Callbacks, Opts, "e0." ++ Acc);
+    e(Rest, Stack, Callbacks, Opts, "e" ++ Acc);
 decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->

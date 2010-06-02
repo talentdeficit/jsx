@@ -193,8 +193,21 @@ string(<<?rsolidus/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
-string(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 2 ->
-    {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+string(Bin, Stack, Callbacks, Opts, Acc) ->
+    case partial_utf16(Bin) of
+        true ->
+            {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}
+        ; false ->
+            erlang:error(function_clause)
+    end. 
+    
+partial_utf16(<<>>) -> true;
+%% this case is not strictly true, there are single bytes that should be rejected, but
+%%   they're rare enough they can be ignored
+partial_utf16(<<_X>>) -> true;
+partial_utf16(<<_Y, X>>) when X >= 16#d8, X =< 16#df -> true;
+partial_utf16(<<_Y, X, _Z>>) when X >= 16#d8, X =< 16#df -> true;
+partial_utf16(_) -> false.
 
 
 %% only thing to note here is the additional accumulator passed to escaped_unicode used
