@@ -24,7 +24,7 @@
 -module(jsx_test).
 -author("alisdairsullivan@yahoo.ca").
 
--export([test/1]).
+-export([test/1, test_event/2, incremental_decode/2, decode/2]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -32,6 +32,17 @@
 test(Dir) ->
     Tests = gen_tests(Dir),
     eunit:test(Tests, [verbose]).
+
+
+decoder(Flags) ->
+    jsx:decoder({jsx_test, test_event, []}, Flags).
+
+test_event(end_of_stream, Acc) ->
+    lists:reverse(Acc);
+test_event(Event, Acc) ->
+    [Event] ++ Acc.
+
+
 
 gen_tests(Dir) ->
     TestSpecs = filelib:wildcard("*.test", Dir),
@@ -65,7 +76,8 @@ incremental_decode(F, <<>>) ->
         {incomplete, G} -> G
         ; {Result, _} -> Result
     end;
-incremental_decode(F, <<A/utf8, Rest/binary>>) ->
+incremental_decode(F, <<A, Rest/binary>>) ->
+    io:fwrite("~p~n", [A]),
     {_, G} = F(<<A>>),
     incremental_decode(G, Rest).
     

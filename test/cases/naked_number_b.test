@@ -1,2 +1,1 @@
-[{number, "-42"}].
-[{naked_values, true}].
+[{integer, "-42"}].

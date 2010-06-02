@@ -1,1 +1,1 @@
-[start_array, start_array, {number, "20"}, end_array, {number, "20"}, start_object, {key, "key"}, {number, "20"}, {key, "another key"}, {number, "20"}, end_object, {number, "42"}, end_array].
+[start_array, start_array, {integer, "20"}, end_array, {integer, "20"}, start_object, {key, "key"}, {integer, "20"}, {key, "another key"}, {integer, "20"}, end_object, {integer, "42"}, end_array].

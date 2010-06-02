@@ -1,3 +1,3 @@
-[start_array, start_array, {number, "2.0"}, end_array, {number, "2.0"}, start_object, {key, "key"}, {number, "2.0e7"}, {key, "another key"}, {number, "2.0e7"}, end_object, start_object, {key, "key"}, {number, "2.0"}, {key, "another key"}, {number, "2.0"}, end_object, {number, "4.2"}, end_array].
+[start_array, start_array, {float, "2.0"}, end_array, {float, "2.0"}, start_object, {key, "key"}, {float, "2.0e7"}, {key, "another key"}, {float, "2.0e7"}, end_object, start_object, {key, "key"}, {float, "2.0"}, {key, "another key"}, {float, "2.0"}, end_object, {float, "4.2"}, end_array].
 
 [{comments, true}].

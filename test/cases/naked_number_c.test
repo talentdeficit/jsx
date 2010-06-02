@@ -1,2 +1,1 @@
-[{number, "-0.7"}].
-[{naked_values, true}].
+[{float, "-0.7"}].

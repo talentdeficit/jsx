@@ -1,2 +1,1 @@
 [{string, "this is a naked string"}].
-[{naked_values, true}].
