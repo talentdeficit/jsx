@@ -28,7 +28,7 @@
 -export([start/4]).
 
 -define(encoding, utf32-little).
-
+-define(partial_size(Bin), byte_size(Bin) < 4).
 
 %% callbacks to our handler are roughly equivalent to a fold over the events, incremental
 %%   rather than all at once.    
@@ -69,8 +69,9 @@ start(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_nonzero(S) 
     integer(Rest, Stack, Callbacks, Opts, [S]);
 start(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
-start(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> start(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+start(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> start(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+start(_, _, _, _) -> {error, badjson}.
 
 
 maybe_done(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -87,8 +88,9 @@ maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enab
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(<<>>, [], Callbacks, Opts) ->
     {fold(end_of_stream, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
-maybe_done(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+maybe_done(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+maybe_done(_, _, _, _) -> {error, badjson}.
 
 
 object(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -99,8 +101,9 @@ object(<<?end_object/?encoding, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold(end_object, Callbacks), Opts);
 object(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
-object(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> object(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+object(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> object(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+object(_, _, _, _) -> {error, badjson}.
 
 
 array(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
@@ -127,8 +130,9 @@ array(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold(end_array, Callbacks), Opts);
 array(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Callbacks, Opts) end);
-array(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> array(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.  
+array(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> array(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+array(_, _, _, _) -> {error, badjson}.
 
 
 value(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) -> 
@@ -153,8 +157,9 @@ value(<<?start_array/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     array(Rest, [array|Stack], fold(start_array, Callbacks), Opts);
 value(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
-value(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> value(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+value(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> value(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+value(_, _, _, _) -> {error, badjson}.
 
 
 colon(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -163,8 +168,9 @@ colon(<<?colon/?encoding, Rest/binary>>, [key|Stack], Callbacks, Opts) ->
     value(Rest, [object|Stack], Callbacks, Opts);
 colon(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
-colon(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> colon(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+colon(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> colon(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+colon(_, _, _, _) -> {error, badjson}.
 
 
 key(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts) when ?is_whitespace(S) ->
@@ -173,8 +179,9 @@ key(<<?quote/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     string(Rest, Stack, Callbacks, Opts, []);
 key(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
-key(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> key(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+key(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> key(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+key(_, _, _, _) -> {error, badjson}.
 
 
 %% string has an additional parameter, an accumulator (Acc) used to hold the intermediate
@@ -193,8 +200,9 @@ string(<<?rsolidus/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     escape(Rest, Stack, Callbacks, Opts, Acc);   
 string(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_noncontrol(S) ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
-string(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+string(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+string(_, _, _, _, _) -> {error, badjson}.
 
 
 %% only thing to note here is the additional accumulator passed to escaped_unicode used
@@ -216,8 +224,9 @@ escape(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
 escape(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-escape(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> escape(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+escape(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> escape(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+escape(_, _, _, _, _) -> {error, badjson}.
 
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped unicode
@@ -265,8 +274,12 @@ escaped_unicode(<<D/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, [C
     string(Rest, Stack, Callbacks, Opts, [D, C, B, A, $u, ?rsolidus] ++ String);
 escaped_unicode(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, Acc) when ?is_hex(S) ->
     escaped_unicode(Rest, Stack, Callbacks, Opts, String, [S] ++ Acc);
-escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> escaped_unicode(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, String, Acc) end}.
+escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> 
+            escaped_unicode(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, String, Acc) 
+        end
+    };
+escaped_unicode(_, _, _, _, _, _) -> {error, badjson}.
 
 %% upon encountering a low pair json/hex encoded value, check to see if there's a high
 %%   value already in the accumulator. 
@@ -286,7 +299,7 @@ check_acc_for_surrogate(_) ->
 
 surrogate_to_codepoint(High, Low) ->
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
-        
+
 
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler. no processing of numbers is done in
@@ -299,8 +312,9 @@ negative(<<$0/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     zero(Rest, Stack, Callbacks, Opts, "0" ++ Acc);
 negative(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-negative(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> negative(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+negative(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> negative(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+negative(_, _, _, _, _) -> {error, badjson}.
 
 
 zero(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Callbacks, Opts, Acc) ->
@@ -320,8 +334,9 @@ zero(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Op
 zero(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
-zero(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> zero(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+zero(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> zero(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+zero(_, _, _, _, _) -> {error, badjson}.
 
 
 integer(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
@@ -349,16 +364,18 @@ integer(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
 integer(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
-integer(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> integer(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+integer(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> integer(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+integer(_, _, _, _, _) -> {error, badjson}.
 
 
 initial_decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
     decimal(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 initial_decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) ->
     decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
-initial_decimal(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> initial_decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+initial_decimal(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> initial_decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+initial_decimal(_, _, _, _, _) -> {error, badjson}.
 
 
 decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
@@ -384,22 +401,25 @@ decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
 decimal(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> decimal(Stream, [], Callbacks, Opts, Acc) end};
-decimal(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+decimal(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+decimal(_, _, _, _, _) -> {error, badjson}.
 
 
 e(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);   
 e(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-e(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> e(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+e(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> e(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+e(_, _, _, _, _) -> {error, badjson}.
 
 
 ex(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
-ex(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> ex(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+ex(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> ex(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+ex(_, _, _, _, _) -> {error, badjson}.
 
 
 exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_nonzero(S) ->
@@ -421,68 +441,79 @@ exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespa
 exp(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
-exp(Bin, Stack, Callbacks, Opts, Acc) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> exp(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end}.
+exp(Bin, Stack, Callbacks, Opts, Acc) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> exp(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end};
+exp(_, _, _, _, _) -> {error, badjson}.
 
 
 tr(<<$r/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     tru(Rest, Stack, Callbacks, Opts);
-tr(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> tr(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+tr(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> tr(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+tr(_, _, _, _) -> {error, badjson}.
 
 
 tru(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     true(Rest, Stack, Callbacks, Opts);
-tru(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> tru(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+tru(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> tru(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+tru(_, _, _, _) -> {error, badjson}.
 
 
 true(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, true}, Callbacks), Opts);
-true(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> true(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+true(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> true(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+true(_, _, _, _) -> {error, badjson}.
 
 
 fa(<<$a/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fal(Rest, Stack, Callbacks, Opts);
-fa(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> fa(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+fa(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> fa(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+fa(_, _, _, _) -> {error, badjson}.
 
 
 fal(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fals(Rest, Stack, Callbacks, Opts);
-fal(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> fal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+fal(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> fal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+fal(_, _, _, _) -> {error, badjson}.
 
 
 fals(<<$s/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     false(Rest, Stack, Callbacks, Opts);
-fals(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> fals(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+fals(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> fals(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+fals(_, _, _, _) -> {error, badjson}.
 
 
 false(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, false}, Callbacks), Opts);
-false(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> false(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+false(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> false(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+false(_, _, _, _) -> {error, badjson}.
 
 
 nu(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     nul(Rest, Stack, Callbacks, Opts);
-nu(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> nu(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+nu(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> nu(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+nu(_, _, _, _) -> {error, badjson}.
 
 
 nul(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     null(Rest, Stack, Callbacks, Opts);
-nul(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> nul(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.
+nul(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> nul(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+nul(_, _, _, _) -> {error, badjson}.
 
 
 null(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, null}, Callbacks), Opts);
-null(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> null(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end}.    
+null(Bin, Stack, Callbacks, Opts) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> null(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end};
+null(_, _, _, _) -> {error, badjson}. 
 
 
 %% comments are c style, /* blah blah */ and are STRONGLY discouraged. any unicode
@@ -493,19 +524,22 @@ null(Bin, Stack, Callbacks, Opts) when byte_size(Bin) < 4 ->
 
 maybe_comment(<<?star/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
-maybe_comment(Bin, Resume) when byte_size(Bin) < 4 ->
-    {incomplete, fun(Stream) -> maybe_comment(<<Bin/binary, Stream/binary>>, Resume) end}.
+maybe_comment(Bin, Resume) when ?partial_size(Bin) ->
+    {incomplete, fun(Stream) -> maybe_comment(<<Bin/binary, Stream/binary>>, Resume) end};
+maybe_comment(_, _) -> {error, badjson}.
 
 
 comment(<<?star/?encoding, Rest/binary>>, Resume) ->
     maybe_comment_done(Rest, Resume);
 comment(<<_/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
-comment(Bin, Resume) when byte_size(Bin) < 4 ->
+comment(Bin, Resume) when ?partial_size(Bin) ->
     {incomplete, fun(Stream) -> comment(<<Bin/binary, Stream/binary>>, Resume) end}.
 
 
 maybe_comment_done(<<?solidus/?encoding, Rest/binary>>, Resume) ->
     Resume(Rest);
-maybe_comment_done(Bin, Resume) when byte_size(Bin) < 4 ->
+maybe_comment_done(<<_/?encoding, Rest/binary>>, Resume) ->
+    comment(Rest, Resume);
+maybe_comment_done(Bin, Resume) when ?partial_size(Bin) ->
     {incomplete, fun(Stream) -> maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume) end}.
