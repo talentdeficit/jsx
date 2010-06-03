@@ -54,10 +54,7 @@ start(Callbacks, OptsList) ->
 start(Callbacks, Opts, F) ->
     fun(Stream) -> 
         try F(Stream, [], Callbacks, Opts) 
-        catch 
-            error:function_clause -> {error, badjson} 
-            ; error:badjson -> {error, badjson} 
-        end 
+        catch error:badjson -> {error, badjson} end 
     end.
 
 parse_opts(Opts) ->
