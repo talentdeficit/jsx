@@ -39,14 +39,11 @@ decode(JSON) ->
         ; {error, badjson} ->
             {error, badjson}
         ; {Result, _} ->
-            Result
+            {ok, Result}
     end.
  
  
-%% erlang representation is dicts for objects and lists for arrays. these are pushed
-%%   onto a stack, the top of which is our current level, deeper levels represent parent
-%%   and grandparent levels in the json structure. keys are also stored on top of the array
-%%   during parsing of their associated values.    
+%% erlang representation is dicts for objects and lists for arrays. 
     
 event(start_object, Stack) ->
     [dict:new()] ++ Stack;
@@ -56,11 +53,11 @@ event(start_array, Stack) ->
 event(end_object, [Object, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
     [insert(Key, Object, Parent)] ++ Stack;
 event(end_array, [Array, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
-    [insert(Key, Array, Parent)] ++ Stack;    
+    [insert(Key, lists:reverse(Array), Parent)] ++ Stack;    
 event(end_object, [Object, Parent|Stack]) when is_list(Parent) ->
     [[Object] ++ Parent] ++ Stack;
 event(end_array, [Array, Parent|Stack]) when is_list(Parent) ->
-    [[Array] ++ Parent] ++ Stack;
+    [[lists:reverse(Array)] ++ Parent] ++ Stack;
 
 %% special cases for closing the root objects
 
@@ -78,7 +75,7 @@ event({_Type, _Value}, []) ->
     erlang:error(badjson);
 
 %% this is kind of a dirty hack, but erlang will interpret atoms when applied to (Args)
-%%   as a function. so naming our formatting functions string, number and literal will
+%%   as a function. so naming our formatting functions string, integer, float and literal will
 %%   allow the following shortcut
 
 event({Type, Value}, [{key, Key}, Object|Stack]) ->
