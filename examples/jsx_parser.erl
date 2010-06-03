@@ -25,6 +25,8 @@
 -author("alisdairsullivan@yahoo.ca").
 
 -export([decode/1, event/2]).
+
+%% export to allow the dirty hack below
 -export([literal/1, string/1, float/1, integer/1]).
 
 
@@ -107,6 +109,3 @@ float(Number) ->
     list_to_float(Number).
 literal(Literal) ->
     Literal.
-    
-
-
