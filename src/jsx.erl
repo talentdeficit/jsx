@@ -45,8 +45,8 @@ start(Callbacks, OptsList) ->
         utf8 -> fun jsx_utf8:start/4
         ; utf16 -> fun jsx_utf16:start/4
         ; utf32 -> fun jsx_utf32:start/4
-        ; utf16le -> fun jsx_utf16le:start/4
-        ; utf32le -> fun jsx_utf32le:start/4
+        ; {utf16, little} -> fun jsx_utf16le:start/4
+        ; {utf32, little} -> fun jsx_utf32le:start/4
         ; auto -> fun jsx:detect_encoding/4
     end,
     start(Callbacks, Opts, F).
