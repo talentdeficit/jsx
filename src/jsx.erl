@@ -24,8 +24,10 @@
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decoder/0, decoder/1, decoder/2, detect_encoding/4]).
+-export([decode/1, decoder/0, decoder/1, decoder/2, detect_encoding/4]).
 
+decode(JSON) ->
+    (jsx:decoder())(JSON).
 
 decoder() ->
     decoder([]).
