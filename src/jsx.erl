@@ -33,7 +33,10 @@ decoder() ->
     decoder([]).
 
 decoder(Opts) ->
-    F = fun(end_of_stream, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State end,
+    F = fun(end_of_stream, State) -> lists:reverse(State) 
+            ; (reset, _State) -> []
+            ; (Event, State) -> [Event] ++ State
+        end,
     decoder({F, []}, Opts).
 
 decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
@@ -60,16 +63,19 @@ start(Callbacks, Opts, F) ->
     end.
 
 parse_opts(Opts) ->
-    parse_opts(Opts, {false, codepoint}).
+    parse_opts(Opts, {false, codepoint, false}).
 
 parse_opts([], Opts) ->
     Opts;    
-parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode}) ->
+parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode, Stream}) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, {Value, EscapedUnicode});
-parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode}) ->
+    parse_opts(Rest, {Value, EscapedUnicode, Stream});
+parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Stream}) ->
     true = lists:member(Value, [ascii, codepoint, none]),
-    parse_opts(Rest, {Comments, Value});
+    parse_opts(Rest, {Comments, Value, Stream});
+parse_opts([{stream_mode, Value}|Rest], {Comments, EscapedUnicode, _Stream}) ->
+    true = lists:member(Value, [true, false]),
+    parse_opts(Rest, {Comments, EscapedUnicode, Value});
 parse_opts([_UnknownOpt|Rest], Opts) ->
     parse_opts(Rest, Opts).
     

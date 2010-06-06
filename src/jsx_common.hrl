@@ -22,9 +22,10 @@
 
 %% option flags
 
--define(comments_enabled(X), {true, _} = X).
--define(escaped_unicode_to_ascii(X), {_, ascii} = X).
--define(escaped_unicode_to_codepoint(X), {_, codepoint} = X).
+-define(comments_enabled(X), {true, _, _} = X).
+-define(escaped_unicode_to_ascii(X), {_, ascii, _} = X).
+-define(escaped_unicode_to_codepoint(X), {_, codepoint, _} = X).
+-define(stream_mode(X), {_, _, true} = X).
 
 %% whitespace
 -define(space, 16#20).

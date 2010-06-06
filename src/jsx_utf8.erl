@@ -88,6 +88,10 @@ maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enab
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(<<>>, [], Callbacks, Opts) ->
     {fold(end_of_stream, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
+maybe_done(Bin, [], Callbacks, ?stream_mode(Opts)) ->
+    {fold(end_of_stream, Callbacks), fun(Stream) -> 
+        start(<<Bin/binary, Stream/binary>>, [], fold(reset, Callbacks), Opts) 
+    end};
 maybe_done(<<>>, Stack, Callbacks, Opts) ->
     {incomplete, fun(Stream) -> maybe_done(Stream, Stack, Callbacks, Opts) end};
 maybe_done(_, _, _, _) -> {error, badjson}.
@@ -351,6 +355,11 @@ zero(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitesp
     maybe_done(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 zero(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
+zero(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
+    CB = fold({integer, lists:reverse(Acc)}, Callbacks),
+    {fold(end_of_stream, CB), fun(Stream) ->
+        start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
+    end};
 zero(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
@@ -381,6 +390,11 @@ integer(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whit
     maybe_done(Rest, Stack, fold({integer, lists:reverse(Acc)}, Callbacks), Opts);
 integer(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
+integer(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
+    CB = fold({integer, lists:reverse(Acc)}, Callbacks),
+    {fold(end_of_stream, CB), fun(Stream) ->
+        start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
+    end};
 integer(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
@@ -416,6 +430,11 @@ decimal(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whit
     maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts), Acc) ->
     maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Callbacks, Opts, Acc) end);
+decimal(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
+    CB = fold({float, lists:reverse(Acc)}, Callbacks),
+    {fold(end_of_stream, CB), fun(Stream) ->
+        start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
+    end};
 decimal(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> decimal(Stream, [], Callbacks, Opts, Acc) end};
@@ -456,6 +475,11 @@ exp(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opt
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Callbacks, Opts, Acc) end);
 exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
+exp(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
+    CB = fold({float, lists:reverse(Acc)}, Callbacks),
+    {fold(end_of_stream, CB), fun(Stream) ->
+        start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
+    end};
 exp(<<>>, [], Callbacks, Opts, Acc) ->
     {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
