@@ -22,9 +22,10 @@
 
 %% option flags
 
--define(comments_enabled(X), {true, _} = X).
--define(escaped_unicode_to_ascii(X), {_, ascii} = X).
--define(escaped_unicode_to_codepoint(X), {_, codepoint} = X).
+-define(comments_enabled(X), {true, _, _} = X).
+-define(escaped_unicode_to_ascii(X), {_, ascii, _} = X).
+-define(escaped_unicode_to_codepoint(X), {_, codepoint, _} = X).
+-define(stream_mode(X), {_, _, true} = X).
 
 %% whitespace
 -define(space, 16#20).
@@ -62,6 +63,8 @@
 %% comments
 -define(star, 16#2a).
 
+
+%% some useful guards
 -define(is_hex(Symbol),
     (Symbol >= $a andalso Symbol =< $z); (Symbol >= $A andalso Symbol =< $Z); 
         (Symbol >= $0 andalso Symbol =< $9)
@@ -78,6 +81,30 @@
 -define(is_whitespace(Symbol),
     Symbol =:= ?space; Symbol =:= ?tab; Symbol =:= ?cr; Symbol =:= ?newline
 ).
-    
-    
 
+
+%% compilation macros for unified decoder
+-ifdef(utf8).
+-define(encoding, utf8).
+-define(symbol_size, 1).
+-endif.
+
+-ifdef(utf16).
+-define(encoding, utf16).
+-define(symbol_size, 2).
+-endif.
+
+-ifdef(utf16le).
+-define(encoding, utf16-little).
+-define(symbol_size, 2).
+-endif.
+    
+-ifdef(utf32).
+-define(encoding, utf32).
+-define(symbol_size, 4).
+-endif.
+
+-ifdef(utf32le).
+-define(encoding, utf32-little).
+-define(symbol_size, 4).
+-endif.
