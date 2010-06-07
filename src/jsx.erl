@@ -33,7 +33,10 @@ decoder() ->
     decoder([]).
 
 decoder(Opts) ->
-    F = fun(end_of_stream, State) -> lists:reverse(State) ;(Event, State) -> [Event] ++ State end,
+    F = fun(end_of_json, State) -> lists:reverse(State) 
+            ; (reset, _State) -> []
+            ; (Event, State) -> [Event] ++ State
+        end,
     decoder({F, []}, Opts).
 
 decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
@@ -124,24 +127,21 @@ detect_encoding(<<X, Y, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/
 %%   the problem
 
 detect_encoding(<<X>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {
-        try {Result, _} = jsx_utf8:start(<<X>>, [], Callbacks, Opts), Result 
+    {try {Result, _} = jsx_utf8:start(<<X>>, [], Callbacks, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
             detect_encoding(<<X, Stream/binary>>, Stack, Callbacks, Opts)
         end
     };
 detect_encoding(<<0, X>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {
-        try {Result, _} = jsx_utf16:start(<<0, X>>, [], Callbacks, Opts), Result 
+    {try {Result, _} = jsx_utf16:start(<<0, X>>, [], Callbacks, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
             detect_encoding(<<0, X, Stream/binary>>, Stack, Callbacks, Opts)
         end
     };
 detect_encoding(<<X, 0>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {
-        try {Result, _} = jsx_utf16le:start(<<X, 0>>, [], Callbacks, Opts), Result 
+    {try {Result, _} = jsx_utf16le:start(<<X, 0>>, [], Callbacks, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
             detect_encoding(<<X, 0, Stream/binary>>, Stack, Callbacks, Opts)
