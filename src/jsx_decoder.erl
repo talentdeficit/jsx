@@ -20,23 +20,23 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--module(jsx_utf16le).
+
+%% this is a template for the utf8, utf16, utf16le, utf32 and utf32le decoders. it should
+%%   not be compiled directly, instead use the build script in /priv
+
+-module(?name).
 -author("alisdairsullivan@yahoo.ca").
 
--include("jsx_common.hrl").
+-include("jsx_decoder.hrl").
 
 -export([start/4]).
 
 
--define(utf16le, true).
--define(encoding, utf16-little).
--define(char_size, 2).
-
 %% callbacks to our handler are roughly equivalent to a fold over the events, incremental
 %%   rather than all at once.    
 
-fold(end_of_stream, {F, State}) ->
-    F(end_of_stream, State);
+fold(end_of_json, {F, State}) ->
+    F(end_of_json, State);
 fold(Event, {F, State}) when is_function(F) ->
     {F, F(Event, State)}.
 
@@ -73,7 +73,7 @@ start(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(O
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Callbacks, Opts) end);
 start(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> start(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -94,14 +94,14 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts
 maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(Bin, [], Callbacks, ?stream_mode(Opts)) ->
-    {fold(end_of_stream, Callbacks), fun(Stream) ->
+    {fold(end_of_json, Callbacks), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, Callbacks), Opts)
     end};
 maybe_done(<<>>, [], Callbacks, Opts) ->
-    {fold(end_of_stream, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
+    {fold(end_of_json, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
 maybe_done(Bin, Stack, Callbacks, Opts) ->    
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -119,7 +119,7 @@ object(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Callbacks, Opts) end);
 object(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> object(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -153,7 +153,7 @@ array(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(O
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Callbacks, Opts) end);
 array(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> array(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -185,7 +185,7 @@ value(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(O
     maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Callbacks, Opts) end);
 value(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> value(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -201,7 +201,7 @@ colon(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(O
     maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Callbacks, Opts) end);
 colon(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> colon(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -217,7 +217,7 @@ key(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opt
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Callbacks, Opts) end);
 key(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> key(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -229,9 +229,6 @@ key(Bin, Stack, Callbacks, Opts) ->
 %%   representation of the string being parsed. using a list of integers representing
 %%   unicode codepoints is faster than constructing binaries, many of which will be
 %%   converted back to lists by the user anyways.
-
-%% the clause starting with Bin is necessary for cases where a stream is broken at a
-%%   point where it contains only a partial utf-8 sequence.
 
 string(<<?quote/?encoding, Rest/binary>>, [key|_] = Stack, Callbacks, Opts, Acc) ->
     colon(Rest, Stack, fold({key, lists:reverse(Acc)}, Callbacks), Opts);
@@ -250,6 +247,24 @@ string(Bin, Stack, Callbacks, Opts, Acc) ->
         ; false ->
             {error, badjson}
     end.
+
+    
+-ifdef(utf8).
+partial_utf(<<>>) -> true;
+partial_utf(<<X>>) when X >= 16#c2, X =< 16#df -> true;
+partial_utf(<<X, Rest/binary>>) when X >= 16#e0, X =< 16#ef ->
+    case Rest of
+        <<>> -> true
+        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
+    end;
+partial_utf(<<X, Rest/binary>>) when X >= 16#f0, X =< 16#f4 ->
+    case Rest of
+        <<>> -> true
+        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
+        ; <<Y, Z>> when Y >= 16#80, Y =< 16#bf, Z >= 16#80, Z =< 16#bf -> true
+    end;
+partial_utf(_) -> false.    
+-endif.    
     
 -ifdef(utf16).
 partial_utf(<<>>) -> true;
@@ -276,6 +291,11 @@ partial_utf(<<_:32>>) -> false;
 partial_utf(_) -> true.
 -endif.
 
+-ifdef(utf32le).
+partial_utf(<<_:32>>) -> false;
+partial_utf(_) -> true.
+-endif.
+
 
 %% only thing to note here is the additional accumulator passed to escaped_unicode used
 %%   to hold the codepoint sequence. unescessary, but nicer than using the string 
@@ -298,7 +318,7 @@ escape(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc)
     string(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 escape(Bin, Stack, Callbacks, Opts, Acc) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> escape(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -353,7 +373,7 @@ escaped_unicode(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, String, Ac
     escaped_unicode(Rest, Stack, Callbacks, Opts, String, [S] ++ Acc);
 escaped_unicode(Bin, Stack, Callbacks, Opts, String, Acc) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> escaped_unicode(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, String, Acc) end
@@ -378,8 +398,8 @@ check_acc_for_surrogate(_) ->
 
 surrogate_to_codepoint(High, Low) ->
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
-    
-    
+
+
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler. 
 
@@ -389,7 +409,7 @@ negative(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_non
     integer(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 negative(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> negative(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -413,15 +433,15 @@ zero(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Op
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({integer, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_stream, CB), fun(Stream) ->
+    {fold(end_of_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 zero(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
 zero(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> zero(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -453,15 +473,15 @@ integer(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({integer, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_stream, CB), fun(Stream) ->
+    {fold(end_of_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 integer(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({integer, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
 integer(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> integer(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -475,7 +495,7 @@ initial_decimal(<<?zero/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) -
     decimal(Rest, Stack, Callbacks, Opts, [?zero] ++ Acc);
 initial_decimal(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> initial_decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -505,15 +525,15 @@ decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
     maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Callbacks, Opts, Acc) end);
 decimal(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({float, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_stream, CB), fun(Stream) ->
+    {fold(end_of_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 decimal(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> decimal(Stream, [], Callbacks, Opts, Acc) end};
 decimal(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> decimal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -527,7 +547,7 @@ e(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?positiv
     ex(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 e(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> e(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -539,7 +559,7 @@ ex(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when S =:= ?zero; 
     exp(Rest, Stack, Callbacks, Opts, [S] ++ Acc);
 ex(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> ex(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -565,15 +585,15 @@ exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespa
     maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 exp(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({float, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_stream, CB), fun(Stream) ->
+    {fold(end_of_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 exp(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_stream, fold({float, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_of_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
 exp(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> exp(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts, Acc) end
@@ -585,7 +605,7 @@ tr(<<$r/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     tru(Rest, Stack, Callbacks, Opts);
 tr(Bin, Stack, Callbacks, Opts) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> tr(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -597,7 +617,7 @@ tru(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     true(Rest, Stack, Callbacks, Opts);
 tru(Bin, Stack, Callbacks, Opts) ->  
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> tru(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -609,7 +629,7 @@ true(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, true}, Callbacks), Opts);
 true(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> true(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -621,7 +641,7 @@ fa(<<$a/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fal(Rest, Stack, Callbacks, Opts);
 fa(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> fa(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -633,7 +653,7 @@ fal(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     fals(Rest, Stack, Callbacks, Opts);
 fal(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> fal(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -645,7 +665,7 @@ fals(<<$s/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     false(Rest, Stack, Callbacks, Opts);
 fals(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> fals(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -657,7 +677,7 @@ false(<<$e/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, false}, Callbacks), Opts);
 false(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> false(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -669,7 +689,7 @@ nu(<<$u/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     nul(Rest, Stack, Callbacks, Opts);
 nu(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> nu(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -681,7 +701,7 @@ nul(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     null(Rest, Stack, Callbacks, Opts);
 nul(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> nul(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -693,7 +713,7 @@ null(<<$l/?encoding, Rest/binary>>, Stack, Callbacks, Opts) ->
     maybe_done(Rest, Stack, fold({literal, null}, Callbacks), Opts);
 null(Bin, Stack, Callbacks, Opts) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> null(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) end
@@ -711,7 +731,7 @@ maybe_comment(<<?star/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 maybe_comment(Bin, Resume) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ -> 
             {incomplete, 
                 fun(Stream) -> maybe_comment(<<Bin/binary, Stream/binary>>, Resume) end
@@ -725,7 +745,7 @@ comment(<<_/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 comment(Bin, Resume) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ ->
             {incomplete, fun(Stream) -> comment(<<Bin/binary, Stream/binary>>, Resume) end}
     end.
@@ -737,7 +757,7 @@ maybe_comment_done(<<_/?encoding, Rest/binary>>, Resume) ->
     comment(Rest, Resume);
 maybe_comment_done(Bin, Resume) ->
     case byte_size(Bin) of
-        ?char_size -> {error, badjson}
+        ?symbol_size -> {error, badjson}
         ; _ ->
             {incomplete, fun(Stream) -> maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume) end}
     end.
