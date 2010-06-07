@@ -58,7 +58,9 @@ event({key, "_id"}, 1) ->
 event({string, String}, capture) ->
     throw({ok, String});
 
-event(end_of_stream, _) ->
+event(reset, _) ->
+    0;
+event(end_of_json, _) ->
     throw(not_found);    
     
 event(_, Level) ->
