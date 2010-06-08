@@ -1,7 +1,7 @@
 compile:
 	./priv/jsx compile
     
-test: force
+test: compile
 	./priv/jsx test
 
 examples: force
