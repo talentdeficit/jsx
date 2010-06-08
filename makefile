@@ -2,7 +2,7 @@ compile:
 	./priv/jsx compile
     
 test: compile
-	./priv/jsx test
+	./priv/jsx_test test/cases
 
 examples: force
 	./priv/jsx examples    
