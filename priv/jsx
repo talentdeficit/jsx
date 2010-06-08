@@ -6,6 +6,8 @@ main(Args) ->
         ; ["examples"|Opts] -> examples(Opts)
         ; ["test"|Opts] -> test(Opts)
         ; ["clean"|Opts] -> clean(Opts)
+        ; ["install"|Opts] -> install(Opts)
+        ; ["uninstall"|Opts] -> uninstall(Opts)
     end.
     
 compile([]) ->
@@ -50,6 +52,17 @@ test(Path) ->
     
 clean([]) ->
     [ file:delete(Filename) || Filename <- filelib:wildcard("ebin/*.beam") ].
-
     
+install([]) ->
+    os:cmd("mkdir -p " ++ appdir()),
+    os:cmd("cp -r " ++ "ebin " ++ appdir()).
+    
+uninstall([]) ->
+    os:cmd("rm -rf " ++ appdir()).
+    
+appdir() ->
+    {ok, [{application, jsx, AppInfo}]} = file:consult("ebin/jsx.app"),
+    code:lib_dir() ++ "/jsx-" ++ proplists:get_value(vsn, AppInfo).
+    
+        
     

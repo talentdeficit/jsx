@@ -10,4 +10,7 @@ examples: force
 clean:
 	./priv/jsx clean
 	
+install: clean compile
+	./priv/jsx install
+	
 force:
