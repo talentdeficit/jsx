@@ -21,33 +21,51 @@
 %% THE SOFTWARE.
 
 
+
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decode/1, decoder/0, decoder/1, decoder/2, detect_encoding/4]).
+-export([decode/1, decode/2, parser/0, parser/1, parser/2]).
+
+-include("jsx_types.hrl").
+
+
+
+-spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, badjson}.
+-spec decode(JSON::json(), Opts::[any()]) -> {ok, [jsx_event(),...]} | {error, badjson}.
 
 decode(JSON) ->
-    F = decoder(),
+    decode(JSON, []).
+
+decode(JSON, Opts) ->
+    F = parser(Opts),
     case F(JSON) of
         {incomplete, _} -> {error, badjson}
         ; {error, badjson} -> {error, badjson}
         ; {Result, _} -> {ok, Result}
-    end. 
+    end.
+    
 
-decoder() ->
-    decoder([]).
+-spec parser() -> jsx_parser().
+-spec parser(Opts::[any()]) -> jsx_parser().
+-spec parser(Callbacks::{fun((jsx_event(), any()) -> any())}, Opts::[any()]) -> jsx_parser()
+    ; (Callbacks::{atom(), atom(), any()}, Opts::[any()]) -> jsx_parser().
 
-decoder(Opts) ->
+parser() ->
+    parser([]).
+
+parser(Opts) ->
     F = fun(end_of_json, State) -> lists:reverse(State) 
             ; (reset, _State) -> []
             ; (Event, State) -> [Event] ++ State
         end,
-    decoder({F, []}, Opts).
+    parser({F, []}, Opts).
 
-decoder({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
+parser({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
     start(Callbacks, OptsList);
-decoder({Mod, Fun, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
+parser({Mod, Fun, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
     start({fun(E, S) -> Mod:Fun(E, S) end, State}, OptsList).
+
 
 start(Callbacks, OptsList) ->
     F = case proplists:get_value(encoding, OptsList, auto) of
@@ -56,13 +74,14 @@ start(Callbacks, OptsList) ->
         ; utf32 -> fun jsx_utf32:start/4
         ; {utf16, little} -> fun jsx_utf16le:start/4
         ; {utf32, little} -> fun jsx_utf32le:start/4
-        ; auto -> fun jsx:detect_encoding/4
+        ; auto -> fun detect_encoding/4
     end,
     start(Callbacks, OptsList, F).
     
 start(Callbacks, OptsList, F) ->
     Opts = parse_opts(OptsList),
     fun(Stream) -> F(Stream, [], Callbacks, Opts) end.
+
 
 parse_opts(Opts) ->
     parse_opts(Opts, {false, codepoint, false}).
