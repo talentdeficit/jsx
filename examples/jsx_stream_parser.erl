@@ -27,7 +27,7 @@
 -export([decoder/1, event/2]).
 
 decoder(Opts) ->
-    Decoder = jsx:decoder({jsx_stream_parser, event, 0}, Opts),
+    Decoder = jsx:parser({jsx_stream_parser, event, 0}, Opts),
         fun(Stream) -> try
             case Decoder(Stream) of
                 {incomplete, F} -> {incomplete, F}

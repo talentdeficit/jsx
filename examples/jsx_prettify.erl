@@ -34,7 +34,7 @@
 
 pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
-    P = jsx:decoder({jsx_prettify, prettify, Init}, []),
+    P = jsx:parser({jsx_prettify, prettify, Init}, []),
     case P(JSON) of
         {incomplete, _} -> {error, badjson}
         ; {error, badjson} -> {error, badjson}

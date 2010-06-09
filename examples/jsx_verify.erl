@@ -32,7 +32,7 @@
 %%   also is not streaming, though it could be modified to parse partial objects/lists.
 
 is_json(JSON) ->
-    P = jsx:decoder({jsx_verify, event, ok}, []),   
+    P = jsx:parser({jsx_verify, event, ok}, []),   
     case P(JSON) of
         {incomplete, _} ->
             false
