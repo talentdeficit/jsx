@@ -24,9 +24,10 @@
 %% this is a template for the utf8, utf16, utf16le, utf32 and utf32le decoders. it should
 %%   not be compiled directly, see the build script in /priv for details
 
--module(?name).
+-module(jsx_utf8).
 -author("alisdairsullivan@yahoo.ca").
 
+-define(utf8, true).
 -include("jsx_decoder.hrl").
 
 -export([start/4]).

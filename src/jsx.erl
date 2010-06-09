@@ -27,7 +27,12 @@
 -export([decode/1, decoder/0, decoder/1, decoder/2, detect_encoding/4]).
 
 decode(JSON) ->
-    (jsx:decoder())(JSON).
+    F = decoder(),
+    case F(JSON) of
+        {incomplete, _} -> {error, badjson}
+        ; {error, badjson} -> {error, badjson}
+        ; {Result, _} -> {ok, Result}
+    end. 
 
 decoder() ->
     decoder([]).
@@ -45,7 +50,6 @@ decoder({Mod, Fun, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_at
     start({fun(E, S) -> Mod:Fun(E, S) end, State}, OptsList).
 
 start(Callbacks, OptsList) ->
-    Opts = parse_opts(OptsList),
     F = case proplists:get_value(encoding, OptsList, auto) of
         utf8 -> fun jsx_utf8:start/4
         ; utf16 -> fun jsx_utf16:start/4
@@ -54,13 +58,11 @@ start(Callbacks, OptsList) ->
         ; {utf32, little} -> fun jsx_utf32le:start/4
         ; auto -> fun jsx:detect_encoding/4
     end,
-    start(Callbacks, Opts, F).
+    start(Callbacks, OptsList, F).
     
-start(Callbacks, Opts, F) ->
-    fun(Stream) -> 
-        try F(Stream, [], Callbacks, Opts) 
-        catch error:badjson -> {error, badjson} end 
-    end.
+start(Callbacks, OptsList, F) ->
+    Opts = parse_opts(OptsList),
+    fun(Stream) -> F(Stream, [], Callbacks, Opts) end.
 
 parse_opts(Opts) ->
     parse_opts(Opts, {false, codepoint, false}).

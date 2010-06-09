@@ -25,16 +25,16 @@
 -author("alisdairsullivan@yahoo.ca").
 
 
--export([pretty/2, jsx_event/2]).
+-export([pretty/2, prettify/2]).
 
 -record(opts, {
-    indent = 4
+    indent = "    "
 }).
 
 
 pretty(JSON, Opts) ->
     Init = init(parse_opts(Opts, #opts{})),
-    P = jsx:decoder({jsx_prettify, jsx_event, Init}, []),
+    P = jsx:decoder({jsx_prettify, prettify, Init}, []),
     case P(JSON) of
         {incomplete, _} -> {error, badjson}
         ; {error, badjson} -> {error, badjson}
@@ -43,7 +43,7 @@ pretty(JSON, Opts) ->
     
 
 parse_opts([{indent, Val}|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{indent = Val});
+    parse_opts(Rest, Opts#opts{indent = [ 16#20 || _ <- lists:seq(1, Val) ]});
 parse_opts([], Opts) ->
     Opts.
 
@@ -52,45 +52,45 @@ init(Opts) ->
     {[], Opts#opts.indent, 0, new}.
     
     
-jsx_event(start_object, {Acc, Indent, Level, value}) ->
+prettify(start_object, {Acc, Indent, Level, value}) ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ "{", Indent, Level + 1, new};
-jsx_event(start_object, {Acc, Indent, Level, new}) ->
+prettify(start_object, {Acc, Indent, Level, new}) ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ "{", Indent, Level + 1, new};
-jsx_event(start_object, {Acc, Indent, Level, _}) ->
+prettify(start_object, {Acc, Indent, Level, _}) ->
     {Acc ++ "{", Indent, Level + 1, new};
     
-jsx_event(start_array, {Acc, Indent, Level, value}) ->
+prettify(start_array, {Acc, Indent, Level, value}) ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ "[", Indent, Level + 1, new};
-jsx_event(start_array, {Acc, Indent, Level, new}) ->
+prettify(start_array, {Acc, Indent, Level, new}) ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ "[", Indent, Level + 1, new};
-jsx_event(start_array, {Acc, Indent, Level, _}) ->
+prettify(start_array, {Acc, Indent, Level, _}) ->
     {Acc ++ "[", Indent, Level + 1, new};
 
-jsx_event(end_object, {Acc, Indent, Level, value}) ->
+prettify(end_object, {Acc, Indent, Level, value}) ->
     {Acc ++ "\n" ++ indent(Indent, Level - 1) ++ "}", Indent, Level - 1, value};
-jsx_event(end_object, {Acc, Indent, Level, new}) ->
+prettify(end_object, {Acc, Indent, Level, new}) ->
     {Acc ++ "}", Indent, Level - 1, value};
 
-jsx_event(end_array, {Acc, Indent, Level, value}) ->
+prettify(end_array, {Acc, Indent, Level, value}) ->
     {Acc ++ "\n" ++ indent(Indent, Level - 1) ++ "]", Indent, Level - 1, value};
-jsx_event(end_array, {Acc, Indent, Level, new}) ->
+prettify(end_array, {Acc, Indent, Level, new}) ->
     {Acc ++ "]", Indent, Level - 1, value};
 
-jsx_event({key, Key}, {Acc, Indent, Level, value}) ->
+prettify({key, Key}, {Acc, Indent, Level, value}) ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ "\"" ++ Key ++ "\": ", Indent, Level, key};
-jsx_event({key, Key}, {Acc, Indent, Level, _}) ->
+prettify({key, Key}, {Acc, Indent, Level, _}) ->
     {Acc ++ "\n" ++ indent(Indent, Level) ++ "\"" ++ Key ++ "\": ", Indent, Level, key};
 
-jsx_event({Type, Value}, {Acc, Indent, Level, value})  ->
+prettify({Type, Value}, {Acc, Indent, Level, value})  ->
     {Acc ++ ",\n" ++ indent(Indent, Level) ++ format(Type, Value), Indent, Level, value};
-jsx_event({Type, Value}, {Acc, Indent, Level, new})  ->
+prettify({Type, Value}, {Acc, Indent, Level, new})  ->
     {Acc ++ "\n" ++ indent(Indent, Level) ++ format(Type, Value), Indent, Level, value};
-jsx_event({Type, Value}, {Acc, Indent, Level, key}) ->
+prettify({Type, Value}, {Acc, Indent, Level, key}) ->
     {Acc ++ format(Type, Value), Indent, Level, value};
 
-jsx_event(reset, {_, Indent, _, _}) ->
+prettify(reset, {_, Indent, _, _}) ->
     {[], Indent, 0, new};
-jsx_event(end_of_json, {Acc, _, _, _}) ->
+prettify(end_of_json, {Acc, _, _, _}) ->
     Acc.
     
 
@@ -103,5 +103,10 @@ format(_, Number) ->
     
 
 indent(Indent, Level) ->
-    [ 16#20 || _ <- lists:seq(1, Indent * Level) ].
+    indent(Indent, Level, "").
+    
+indent(Indent, 0, Acc) ->
+    Acc;
+indent(Indent, N, Acc) ->
+    Indent ++ Acc.
     
