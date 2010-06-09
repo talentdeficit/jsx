@@ -32,7 +32,7 @@
 
 
 -spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, badjson}.
--spec decode(JSON::json(), Opts::[any()]) -> {ok, [jsx_event(),...]} | {error, badjson}.
+-spec decode(JSON::json(), Opts::jsx_opts()) -> {ok, [jsx_event(),...]} | {error, badjson}.
 
 decode(JSON) ->
     decode(JSON, []).
@@ -47,9 +47,9 @@ decode(JSON, Opts) ->
     
 
 -spec parser() -> jsx_parser().
--spec parser(Opts::[any()]) -> jsx_parser().
--spec parser(Callbacks::{fun((jsx_event(), any()) -> any())}, Opts::[any()]) -> jsx_parser()
-    ; (Callbacks::{atom(), atom(), any()}, Opts::[any()]) -> jsx_parser().
+-spec parser(Opts::jsx_opts()) -> jsx_parser().
+-spec parser(Callbacks::{fun((jsx_event(), any()) -> any())}, Opts::jsx_opts()) -> jsx_parser()
+    ; (Callbacks::{atom(), atom(), any()}, Opts::jsx_opts()) -> jsx_parser().
 
 parser() ->
     parser([]).
@@ -96,9 +96,7 @@ parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Stream})
     parse_opts(Rest, {Comments, Value, Stream});
 parse_opts([{stream_mode, Value}|Rest], {Comments, EscapedUnicode, _Stream}) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, {Comments, EscapedUnicode, Value});
-parse_opts([_UnknownOpt|Rest], Opts) ->
-    parse_opts(Rest, Opts).
+    parse_opts(Rest, {Comments, EscapedUnicode, Value}).
     
     
 %% first check to see if there's a bom, if not, use the rfc4627 method for determining

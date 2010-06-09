@@ -27,6 +27,13 @@
 -type json() :: binary().
 
 
+-type jsx_opts() :: [jsx_opt()].
+-type jsx_opt() :: {comments, true | false}
+    | {escaped_unicode, ascii | codepoint | none}
+    | {stream_mode, true | false}
+    | {encoding, auto | utf8 | utf16 | utf16le | utf32 | utf32le }.
+
+
 %% events emitted by the parser and component types
 
 -type unicode_codepoint() :: 0..16#10ffff.
