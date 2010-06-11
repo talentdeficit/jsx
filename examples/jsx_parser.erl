@@ -87,7 +87,7 @@ event({Type, Value}, [Array|Stack]) when is_list(Array) ->
     
 event(reset, _) ->
     [];    
-event(end_of_json, [Stack]) ->
+event(end_json, [Stack]) ->
     Stack.
     
     

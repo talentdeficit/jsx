@@ -55,7 +55,7 @@ parser() ->
     parser([]).
 
 parser(Opts) ->
-    F = fun(end_of_json, State) -> lists:reverse(State) 
+    F = fun(end_json, State) -> lists:reverse(State) 
             ; (reset, _State) -> []
             ; (Event, State) -> [Event] ++ State
         end,

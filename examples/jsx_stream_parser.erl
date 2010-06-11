@@ -60,7 +60,7 @@ event({string, String}, capture) ->
 
 event(reset, _) ->
     0;
-event(end_of_json, _) ->
+event(end_json, _) ->
     throw(not_found);    
     
 event(_, Level) ->

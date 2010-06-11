@@ -90,7 +90,7 @@ prettify({Type, Value}, {Acc, Indent, Level, key}) ->
 
 prettify(reset, {_, Indent, _, _}) ->
     {[], Indent, 0, new};
-prettify(end_of_json, {Acc, _, _, _}) ->
+prettify(end_json, {Acc, _, _, _}) ->
     Acc.
     
 

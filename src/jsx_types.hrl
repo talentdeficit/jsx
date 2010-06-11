@@ -43,7 +43,7 @@
     | end_object
     | start_array
     | end_array
-    | end_of_json
+    | end_json
     | reset
     | {key, unicode_string()}
     | {string, unicode_string()}

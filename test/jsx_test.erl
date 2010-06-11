@@ -41,7 +41,7 @@ test(Dir) ->
 decoder(Flags) ->
     jsx:decoder({jsx_test, test_event, []}, Flags).
 
-test_event(end_of_json, Acc) ->
+test_event(end_json, Acc) ->
     lists:reverse(Acc);
 test_event(Event, Acc) ->
     [Event] ++ Acc.

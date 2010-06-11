@@ -35,9 +35,9 @@
 %% callbacks to our handler are roughly equivalent to a fold over the events, incremental
 %%   rather than all at once.    
 
-fold(end_of_json, {F, State}) ->
-    F(end_of_json, State);
-fold(Event, {F, State}) when is_function(F) ->
+fold(end_json, {F, State}) ->
+    F(end_json, State);
+fold(Event, {F, State}) ->
     {F, F(Event, State)}.
 
 
@@ -94,11 +94,11 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Callbacks, Opts
 maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Callbacks, Opts) end);
 maybe_done(Bin, [], Callbacks, ?stream_mode(Opts)) ->
-    {fold(end_of_json, Callbacks), fun(Stream) ->
+    {fold(end_json, Callbacks), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, Callbacks), Opts)
     end};
 maybe_done(<<>>, [], Callbacks, Opts) ->
-    {fold(end_of_json, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
+    {fold(end_json, Callbacks), fun(Stream) -> maybe_done(Stream, [], Callbacks, Opts) end};
 maybe_done(Bin, Stack, Callbacks, Opts) -> 
     case byte_size(Bin) >= ?symbol_size of
         true -> {error, badjson}
@@ -433,11 +433,11 @@ zero(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled(Op
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Callbacks, Opts, Acc) end);
 zero(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({integer, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_json, CB), fun(Stream) ->
+    {fold(end_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 zero(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> zero(Stream, [], Callbacks, Opts, Acc) end};
 zero(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) >= ?symbol_size of
@@ -473,11 +473,11 @@ integer(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Callbacks, Opts, Acc) end);
 integer(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({integer, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_json, CB), fun(Stream) ->
+    {fold(end_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 integer(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_json, fold({integer, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> integer(Stream, [], Callbacks, Opts, Acc) end};
 integer(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) >= ?symbol_size of
@@ -525,11 +525,11 @@ decimal(<<?solidus/?encoding, Rest/binary>>, Stack, Callbacks, ?comments_enabled
     maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Callbacks, Opts, Acc) end);
 decimal(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({float, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_json, CB), fun(Stream) ->
+    {fold(end_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 decimal(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> decimal(Stream, [], Callbacks, Opts, Acc) end};
 decimal(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) >= ?symbol_size of
@@ -585,11 +585,11 @@ exp(<<S/?encoding, Rest/binary>>, Stack, Callbacks, Opts, Acc) when ?is_whitespa
     maybe_done(Rest, Stack, fold({float, lists:reverse(Acc)}, Callbacks), Opts);
 exp(Bin, [], Callbacks, ?stream_mode(Opts), Acc) ->
     CB = fold({float, lists:reverse(Acc)}, Callbacks),
-    {fold(end_of_json, CB), fun(Stream) ->
+    {fold(end_json, CB), fun(Stream) ->
         start(<<Bin/binary, Stream/binary>>, [], fold(reset, CB), Opts)
     end};
 exp(<<>>, [], Callbacks, Opts, Acc) ->
-    {fold(end_of_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
+    {fold(end_json, fold({float, lists:reverse(Acc)}, Callbacks)), 
         fun(Stream) -> exp(Stream, [], Callbacks, Opts, Acc) end};
 exp(Bin, Stack, Callbacks, Opts, Acc) ->  
     case byte_size(Bin) >= ?symbol_size of
