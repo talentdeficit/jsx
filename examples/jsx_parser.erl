@@ -21,6 +21,8 @@
 %% THE SOFTWARE.
 
 
+%% this module is an example of how to use the raw parser api 
+
 -module(jsx_parser).
 -author("alisdairsullivan@yahoo.ca").
 
@@ -33,61 +35,61 @@
 %% this is a strict parser, no comments, no naked values and only one key per object. it
 %%   also is not streaming, though it could be modified to parse partial objects/lists.
 
+%% event takes two arguments, the result of calling the parser on a json argument (or the
+%%   generator returned by the parser) and a term that holds the erlang representation of
+%%   the json.
+
 decode(JSON) ->
-    P = jsx:parser({jsx_parser, event, []}, []),   
-    case P(JSON) of
-        {incomplete, _} ->
-            {error, badjson}
-        ; {error, badjson} ->
-            {error, badjson}
-        ; {Result, _} ->
-            {ok, Result}
+    F = jsx:parser(),   
+    try event(F(JSON), [])
+    catch error:badjson -> {error, badjson}
     end.
  
  
 %% erlang representation is dicts for objects and lists for arrays. 
     
-event(start_object, Stack) ->
-    [dict:new()] ++ Stack;
-event(start_array, Stack) ->
-    [[]] ++ Stack;
+event({start_object, Next}, Stack) ->
+    event(Next(), [dict:new()] ++ Stack);
+event({start_array, Next}, Stack) ->
+    event(Next(), [[]] ++ Stack);
     
-event(end_object, [Object, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
-    [insert(Key, Object, Parent)] ++ Stack;
-event(end_array, [Array, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
-    [insert(Key, lists:reverse(Array), Parent)] ++ Stack;    
-event(end_object, [Object, Parent|Stack]) when is_list(Parent) ->
-    [[Object] ++ Parent] ++ Stack;
-event(end_array, [Array, Parent|Stack]) when is_list(Parent) ->
-    [[lists:reverse(Array)] ++ Parent] ++ Stack;
+event({end_object, Next}, [Object, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
+    event(Next(), [insert(Key, Object, Parent)] ++ Stack);
+event({end_array, Next}, [Array, {key, Key}, Parent|Stack]) when is_tuple(Parent) ->
+    event(Next(), [insert(Key, lists:reverse(Array), Parent)] ++ Stack);    
+event({end_object, Next}, [Object, Parent|Stack]) when is_list(Parent) ->
+    event(Next(), [[Object] ++ Parent] ++ Stack);
+event({end_array, Next}, [Array, Parent|Stack]) when is_list(Parent) ->
+    event(Next(), [[lists:reverse(Array)] ++ Parent] ++ Stack);
 
 %% special cases for closing the root objects
 
-event(end_object, [Object]) ->
-    [Object];
-event(end_array, [Array]) ->
-    [lists:reverse(Array)];    
+event({end_object, Next}, [Object]) ->
+    event(Next(), [Object]);
+event({end_array, Next}, [Array]) ->
+    event(Next(), [lists:reverse(Array)]);    
     
-event({key, Key}, [Object|Stack]) ->
-    [{key, Key}] ++ [Object] ++ Stack;
+%% keys are just pushed onto the stack until their corresponding value is
+%%   encountered    
+    
+event({{key, Key}, Next}, [Stack]) ->
+    event(Next(), [{key, Key}] ++ Stack);
 
 %% reject values that aren't wrapped by an array or object
 
-event({_Type, _Value}, []) ->
-    erlang:error(badjson);
+event({{_Type, _Value}, _Next}, []) ->
+    {error, badjson};
 
 %% this is kind of a dirty hack, but erlang will interpret atoms when applied to (Args)
 %%   as a function. so naming our formatting functions string, integer, float and literal will
 %%   allow the following shortcut
 
-event({Type, Value}, [{key, Key}, Object|Stack]) ->
-    [insert(Key, ?MODULE:Type(Value), Object)] ++ Stack;
-event({Type, Value}, [Array|Stack]) when is_list(Array) ->
-    [[?MODULE:Type(Value)] ++ Array] ++ Stack;
-    
-event(reset, _) ->
-    [];    
-event(end_json, [Stack]) ->
+event({{Type, Value}, Next}, [{key, Key}, Object|Stack]) ->
+    event(Next(), [insert(Key, ?MODULE:Type(Value), Object)] ++ Stack);
+event({{Type, Value}, Next}, [Array|Stack]) when is_list(Array) ->
+    event(Next(), [[?MODULE:Type(Value)] ++ Array] ++ Stack);
+       
+event({end_json, _}, [Stack]) ->
     Stack.
     
     
