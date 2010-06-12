@@ -56,31 +56,30 @@ parser() ->
 
 parser(Opts) ->
     F = fun(end_json, State) -> lists:reverse(State) 
-            ; (reset, _State) -> []
             ; (Event, State) -> [Event] ++ State
         end,
     parser({F, []}, Opts).
 
-parser({F, _} = Callbacks, OptsList) when is_list(OptsList), is_function(F) ->
-    start(Callbacks, OptsList);
+parser({F, S} = Callback, OptsList) when is_list(OptsList), is_function(F) ->
+    start(Callback, OptsList);
 parser({Mod, Fun, State}, OptsList) when is_list(OptsList), is_atom(Mod), is_atom(Fun) ->
     start({fun(E, S) -> Mod:Fun(E, S) end, State}, OptsList).
 
 
-start(Callbacks, OptsList) ->
+start(Callback, OptsList) ->
     F = case proplists:get_value(encoding, OptsList, auto) of
-        utf8 -> fun jsx_utf8:start/4
-        ; utf16 -> fun jsx_utf16:start/4
-        ; utf32 -> fun jsx_utf32:start/4
-        ; {utf16, little} -> fun jsx_utf16le:start/4
-        ; {utf32, little} -> fun jsx_utf32le:start/4
-        ; auto -> fun detect_encoding/4
+        utf8 -> fun jsx_utf8:parse/3
+        ; utf16 -> fun jsx_utf16:parse/3
+        ; utf32 -> fun jsx_utf32:parse/3
+        ; {utf16, little} -> fun jsx_utf16le:parse/3
+        ; {utf32, little} -> fun jsx_utf32le:parse/3
+        ; auto -> fun detect_encoding/3
     end,
-    start(Callbacks, OptsList, F).
+    start(F, Callback, OptsList).
     
-start(Callbacks, OptsList, F) ->
+start(F, Callback, OptsList) ->
     Opts = parse_opts(OptsList),
-    fun(Stream) -> F(Stream, [], Callbacks, Opts) end.
+    fun(Stream) -> F(Stream, Callback, Opts) end.
 
 
 parse_opts(Opts) ->
@@ -104,76 +103,76 @@ parse_opts([{stream_mode, Value}|Rest], {Comments, EscapedUnicode, _Stream}) ->
 %%   which may delay failure later than if an encoding is explicitly provided.    
     
 %% utf8 bom detection    
-detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Stack, Callbacks, Opts) ->
-    jsx_utf8:start(Rest, Stack, Callbacks, Opts);    
+detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Callback, Opts) ->
+    jsx_utf8:parse(Rest, Callback, Opts);    
     
 %% utf32-little bom detection (this has to come before utf16-little)
-detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Stack, Callbacks, Opts) ->
-    jsx_utf32le:start(Rest, Stack, Callbacks, Opts);    
+detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Callback, Opts) ->
+    jsx_utf32le:parse(Rest, Callback, Opts);    
     
 %% utf16-big bom detection
-detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Stack, Callbacks, Opts) ->
-    jsx_utf16:start(Rest, Stack, Callbacks, Opts);
+detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Callback, Opts) ->
+    jsx_utf16:parse(Rest, Callback, Opts);
     
 %% utf16-little bom detection
-detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Stack, Callbacks, Opts) ->
-    jsx_utf16le:start(Rest, Stack, Callbacks, Opts);
+detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Callback, Opts) ->
+    jsx_utf16le:parse(Rest, Callback, Opts);
     
 %% utf32-big bom detection
-detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Stack, Callbacks, Opts) ->
-    jsx_utf32:start(Rest, Stack, Callbacks, Opts);
+detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Callback, Opts) ->
+    jsx_utf32:parse(Rest, Callback, Opts);
     
 
 %% utf32-little null order detection
-detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0 ->
-    jsx_utf32le:start(JSON, Stack, Callbacks, Opts);
+detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Callback, Opts) when X =/= 0 ->
+    jsx_utf32le:parse(JSON, Callback, Opts);
     
 %% utf16-big null order detection
-detect_encoding(<<0, X, 0, Y, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0, Y =/= 0 ->
-    jsx_utf16:start(JSON, Stack, Callbacks, Opts);
+detect_encoding(<<0, X, 0, Y, _Rest/binary>> = JSON, Callback, Opts) when X =/= 0, Y =/= 0 ->
+    jsx_utf16:parse(JSON, Callback, Opts);
     
 %% utf16-little null order detection
-detect_encoding(<<X, 0, Y, 0, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0, Y =/= 0 ->
-    jsx_utf16le:start(JSON, Stack, Callbacks, Opts);
+detect_encoding(<<X, 0, Y, 0, _Rest/binary>> = JSON, Callback, Opts) when X =/= 0, Y =/= 0 ->
+    jsx_utf16le:parse(JSON, Callback, Opts);
 
 %% utf32-big null order detection
-detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0 ->
-    jsx_utf32:start(JSON, Stack, Callbacks, Opts);
+detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Callback, Opts) when X =/= 0 ->
+    jsx_utf32:parse(JSON, Callback, Opts);
     
 %% utf8 null order detection
-detect_encoding(<<X, Y, _Rest/binary>> = JSON, Stack, Callbacks, Opts) when X =/= 0, Y =/= 0 ->
-    jsx_utf8:start(JSON, Stack, Callbacks, Opts);
+detect_encoding(<<X, Y, _Rest/binary>> = JSON, Callback, Opts) when X =/= 0, Y =/= 0 ->
+    jsx_utf8:parse(JSON, Callback, Opts);
     
 %% a problem, to autodetect naked single digits' encoding, there is not enough data
 %%   to conclusively determine the encoding correctly. below is an attempt to solve
 %%   the problem
 
-detect_encoding(<<X>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf8:start(<<X>>, [], Callbacks, Opts), Result 
+detect_encoding(<<X>>, Callback, Opts) when X =/= 0 ->
+    {try {Result, _} = jsx_utf8:parse(<<X>>, Callback, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
-            detect_encoding(<<X, Stream/binary>>, Stack, Callbacks, Opts)
+            detect_encoding(<<X, Stream/binary>>, Callback, Opts)
         end
     };
-detect_encoding(<<0, X>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf16:start(<<0, X>>, [], Callbacks, Opts), Result 
+detect_encoding(<<0, X>>, Callback, Opts) when X =/= 0 ->
+    {try {Result, _} = jsx_utf16:parse(<<0, X>>, Callback, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
-            detect_encoding(<<0, X, Stream/binary>>, Stack, Callbacks, Opts)
+            detect_encoding(<<0, X, Stream/binary>>, Callback, Opts)
         end
     };
-detect_encoding(<<X, 0>>, Stack, Callbacks, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf16le:start(<<X, 0>>, [], Callbacks, Opts), Result 
+detect_encoding(<<X, 0>>, Callback, Opts) when X =/= 0 ->
+    {try {Result, _} = jsx_utf16le:parse(<<X, 0>>, Callback, Opts), Result 
         catch error:function_clause -> incomplete end,
         fun(Stream) ->
-            detect_encoding(<<X, 0, Stream/binary>>, Stack, Callbacks, Opts)
+            detect_encoding(<<X, 0, Stream/binary>>, Callback, Opts)
         end
     };
     
 %% not enough input, request more
-detect_encoding(Bin, Stack, Callbacks, Opts) ->
+detect_encoding(Bin, Callback, Opts) ->
     {incomplete, 
         fun(Stream) -> 
-            detect_encoding(<<Bin/binary, Stream/binary>>, Stack, Callbacks, Opts) 
+            detect_encoding(<<Bin/binary, Stream/binary>>, Callback, Opts) 
         end
     }.
