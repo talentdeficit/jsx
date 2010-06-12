@@ -44,7 +44,6 @@
     | start_array
     | end_array
     | end_json
-    | reset
     | {key, unicode_string()}
     | {string, unicode_string()}
     | {integer, unicode_string()}
@@ -60,3 +59,8 @@
     | {incomplete, jsx_parser()}
     | {error, badjson}
 ).
+
+
+-type parser_result() :: {jsx_event(), fun(() -> parser_result())}
+    | {incomplete, jsx_parser()}
+    | {error, badjson}.
