@@ -86,25 +86,25 @@
 %% compilation macros for unified decoder
 -ifdef(utf8).
 -define(encoding, utf8).
--define(symbol_size, 1).
+-define(partial_codepoint(Bin), byte_size(Bin) >= 1).
 -endif.
 
 -ifdef(utf16).
 -define(encoding, utf16).
--define(symbol_size, 2).
+-define(partial_codepoint(Bin), byte_size(Bin) >= 2).
 -endif.
 
 -ifdef(utf16le).
 -define(encoding, utf16-little).
--define(symbol_size, 2).
+-define(partial_codepoint(Bin), byte_size(Bin) >= 2).
 -endif.
     
 -ifdef(utf32).
 -define(encoding, utf32).
--define(symbol_size, 4).
+-define(partial_codepoint(Bin), byte_size(Bin) >= 4).
 -endif.
 
 -ifdef(utf32le).
 -define(encoding, utf32-little).
--define(symbol_size, 4).
+-define(partial_codepoint(Bin), byte_size(Bin) >= 4).
 -endif.

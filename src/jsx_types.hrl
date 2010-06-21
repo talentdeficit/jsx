@@ -55,12 +55,9 @@
     
 %% this probably doesn't work properly
 
--type jsx_parser() :: fun((json()) -> {[jsx_event(),...], jsx_parser()} 
-    | {incomplete, jsx_parser()}
-    | {error, badjson}
-).
+-type jsx_parser() :: fun((json()) -> jsx_parser_result()).
 
 
--type parser_result() :: {jsx_event(), fun(() -> parser_result())}
+-type jsx_parser_result() :: {event, jsx_event(), fun(() -> jsx_parser_result())}
     | {incomplete, jsx_parser()}
     | {error, badjson}.

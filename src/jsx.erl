@@ -24,35 +24,17 @@
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
--export([decode/1, decode/2, parser/0, parser/1]).
+%% the core parser api
+-export([parser/0, parser/1]).
 
+%% example usage of core api
+-export([decode/1, decode/2]).
+-export([is_json/1, is_json/2]).
+-export([fold/3, fold/4]).
+
+%% types for function specifications
 -include("jsx_types.hrl").
-
-
-%% decode takes a json binary (and optionally, a proplist of options) and returns a list
-%%   of events corresponding to the json structure/contents. it converts incompletes into
-%%   errors
-
--spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, badjson}.
--spec decode(JSON::json(), Opts::jsx_opts()) -> {ok, [jsx_event(),...]} | {error, badjson}.
-
-decode(JSON) ->
-    decode(JSON, []).
-
-decode(JSON, Opts) ->
-    F = parser(Opts),
-    decode_loop(F(JSON), []).
     
-decode_loop({incomplete, _}, _) -> {error, badjson};
-decode_loop({error, badjson}, _) -> {error, badjson};
-decode_loop({end_json, _}, State) -> {ok, lists:reverse(State)};
-decode_loop({Event, F}, State) -> decode_loop(F(), [Event] ++ State).
-    
-
-%% parser returns an anonymous function of arity 1 that takes a json binary as it's
-%%   argument and returns a tuple containing an error, incomplete and a new parser that
-%%   can be handed more input to resume parsing or a single event and a function that
-%%   can be called to get the next result
 
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
@@ -76,6 +58,72 @@ start(F, OptsList) ->
     fun(Stream) -> F(Stream, Opts) end.
 
 
+%% decode is an example decoder using the jsx api. it converts the events into a simple
+%%   list and converts incomplete parses into errors. 
+    
+-spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, badjson}.
+-spec decode(JSON::json(), Opts::jsx_opts()) -> {ok, [jsx_event(),...]} | {error, badjson}.
+
+decode(JSON) ->
+    decode(JSON, []).
+
+decode(JSON, Opts) ->
+    fold(fun(end_json, State) -> 
+                lists:reverse(State) 
+            ;(Event, State) -> [Event] ++ State end, 
+        [], JSON, Opts).
+        
+
+-spec is_json(JSON::json()) -> true | false.
+-spec is_json(JSON::json(), Opts::jsx_opts()) -> true | false.
+
+is_json(JSON) ->
+    is_json(JSON, []).
+    
+is_json(JSON, Opts) ->
+    case fold(fun(end_json, ok) -> true ;(_, _) -> ok end, ok, JSON, Opts) of
+        {incomplete, _} -> false
+        ; {error, _} -> false
+        ; {ok, true} -> true
+    end.
+
+
+-spec fold(F::fun((jsx_event(), any()) -> any()), 
+            Acc::any(), 
+            JSON::json()) -> 
+        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}.
+-spec fold(F::fun((jsx_event(), any()) -> any()), 
+            Acc::any(), 
+            JSON::json(), 
+            Opts::jsx_opts()) -> 
+        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}
+    ; (F::fun((jsx_event(), any()) -> any()), 
+            Acc::any(), 
+            JSON::json(), 
+            Parser::jsx_parser()) -> 
+        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}.
+    
+fold(F, Acc, JSON) ->
+    P = jsx:parser(),
+    fold(F, Acc, JSON, P).
+    
+fold(F, Acc, JSON, Opts) when is_list(Opts) ->
+    P = jsx:parser(Opts),
+    fold(F, Acc, JSON, P);
+fold(F, Acc, JSON, P) ->
+    fold_loop(F, Acc, P(JSON)).
+ 
+fold_loop(F, Acc, {incomplete, Next}) ->
+    {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end};
+fold_loop(_, _, {error, Error}) -> {error, Error};
+fold_loop(F, Acc, {end_json, _}) -> {ok, F(end_json, Acc)};
+fold_loop(F, Acc, {Event, Next}) -> fold_loop(F, F(Event, Acc), Next()).
+
+    
+    
+%% option parsing
+
+%% converts a proplist into a tuple
 parse_opts(Opts) ->
     parse_opts(Opts, {false, codepoint, false}).
 
@@ -93,6 +141,8 @@ parse_opts([{stream_mode, Value}|Rest], {Comments, EscapedUnicode, _Stream}) ->
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts).
     
+   
+%% encoding detection   
     
 %% first check to see if there's a bom, if not, use the rfc4627 method for determining
 %%   encoding. this function makes some assumptions about the validity of the stream
@@ -142,31 +192,29 @@ detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
 %% a problem, to autodetect naked single digits' encoding, there is not enough data
 %%   to conclusively determine the encoding correctly. below is an attempt to solve
 %%   the problem
-
 detect_encoding(<<X>>, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf8:parse(<<X>>, Opts), Result 
-        catch error:function_clause -> incomplete end,
-        fun(Stream) ->
+    try jsx_utf8:parse(<<X>>, Opts)
+    catch error:function_clause ->
+        {incomplete, fun(Stream) ->
             detect_encoding(<<X, Stream/binary>>, Opts)
-        end
-    };
+        end}
+    end;
 detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf16:parse(<<0, X>>, Opts), Result 
-        catch error:function_clause -> incomplete end,
-        fun(Stream) ->
+    try jsx_utf16:parse(<<0, X>>, Opts)
+    catch error:function_clause -> 
+        {incomplete, fun(Stream) ->
             detect_encoding(<<0, X, Stream/binary>>, Opts)
-        end
-    };
+        end}
+    end;
 detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
-    {try {Result, _} = jsx_utf16le:parse(<<X, 0>>, Opts), Result 
-        catch error:function_clause -> incomplete end,
-        fun(Stream) ->
+    try jsx_utf16le:parse(<<X, 0>>, Opts)
+    catch error:function_clause ->
+        {incomplete, fun(Stream) ->
             detect_encoding(<<X, 0, Stream/binary>>, Opts)
-        end
-    };
+        end}
+    end;
     
 %% not enough input, request more
-
 detect_encoding(Bin, Opts) ->
     {incomplete, 
         fun(Stream) -> 
