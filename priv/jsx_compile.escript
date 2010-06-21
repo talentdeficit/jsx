@@ -22,19 +22,8 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
-main(Args) ->
-    case Args of
-        ["compile"|Opts] -> compile(Opts)
-        ; ["examples"|Opts] -> examples(Opts)
-        ; ["clean"|Opts] -> clean(Opts)
-        ; ["install"|Opts] -> install(Opts)
-        ; ["uninstall"|Opts] -> uninstall(Opts)
-    end.
-    
-compile([]) ->
-    Mods = ["src/jsx"],
-    compile_files(Mods, [{outdir, "ebin"}]),
-    compile_backend().
+main(Mods) ->
+    compile_files(Mods, [{outdir, "ebin"}]).
     
 compile_files([], _) ->
     ok;    
@@ -44,37 +33,6 @@ compile_files([FileName|Rest], Opts) ->
         ; {ok, Name, Bin} -> file:write_file("ebin/" ++ atom_to_list(Name) ++ ".beam", Bin), ok
     end,
     compile_files(Rest, Opts).
-    
-compile_backend() ->
-    [ compile_files(["src/jsx_decoder"], [binary, {d, Backend}, {d, name, to_modname(Backend)}]) 
-        || Backend <- [utf8, utf16, utf16le, utf32, utf32le]
-    ].
-    
-to_modname(Atom) ->
-    list_to_atom("jsx_" ++ atom_to_list(Atom)).
-    
-    
-examples([]) ->
-    Mods = ["examples/jsx_prettify", 
-        "examples/jsx_parser", 
-        "examples/jsx_stream_parser", 
-        "examples/jsx_verify"
-    ],
-    compile_files(Mods, [{outdir, "ebin"}]).
-    
-clean([]) ->
-    [ file:delete(Filename) || Filename <- filelib:wildcard("ebin/*.beam") ].
-    
-install([]) ->
-    os:cmd("mkdir -p " ++ appdir()),
-    os:cmd("cp -r " ++ "ebin " ++ appdir()).
-    
-uninstall([]) ->
-    os:cmd("rm -rf " ++ appdir()).
-    
-appdir() ->
-    {ok, [{application, jsx, AppInfo}]} = file:consult("ebin/jsx.app"),
-    code:lib_dir() ++ "/jsx-" ++ proplists:get_value(vsn, AppInfo).
     
         
     
