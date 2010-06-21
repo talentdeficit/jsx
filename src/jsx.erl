@@ -91,17 +91,17 @@ is_json(JSON, Opts) ->
 -spec fold(F::fun((jsx_event(), any()) -> any()), 
             Acc::any(), 
             JSON::json()) -> 
-        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}.
+        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
 -spec fold(F::fun((jsx_event(), any()) -> any()), 
             Acc::any(), 
             JSON::json(), 
             Opts::jsx_opts()) -> 
-        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}
+        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}
     ; (F::fun((jsx_event(), any()) -> any()), 
             Acc::any(), 
             JSON::json(), 
             Parser::jsx_parser()) -> 
-        {ok, any()} | {incomplete, jsx_parser()} | {error, atom()}.
+        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
     
 fold(F, Acc, JSON) ->
     P = jsx:parser(),
@@ -113,11 +113,18 @@ fold(F, Acc, JSON, Opts) when is_list(Opts) ->
 fold(F, Acc, JSON, P) ->
     fold_loop(F, Acc, P(JSON)).
  
-fold_loop(F, Acc, {incomplete, Next}) ->
-    {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end};
+fold_loop(F, Acc, {incomplete, Next, Force}) ->
+    case Force() of
+        {event, Val, End} -> 
+            case End() of
+                {event, end_json, _} -> {ok, F(end_json, F(Val, Acc))}
+                ; _ -> {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end}
+            end
+        ; _ -> {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end}
+    end;
 fold_loop(_, _, {error, Error}) -> {error, Error};
-fold_loop(F, Acc, {end_json, _}) -> {ok, F(end_json, Acc)};
-fold_loop(F, Acc, {Event, Next}) -> fold_loop(F, F(Event, Acc), Next()).
+fold_loop(F, Acc, {event, end_json, _}) -> {ok, F(end_json, Acc)};
+fold_loop(F, Acc, {event, Event, Next}) -> fold_loop(F, F(Event, Acc), Next()).
 
     
     

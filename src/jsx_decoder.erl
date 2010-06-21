@@ -48,17 +48,6 @@ parse(JSON, Opts) ->
 %%   anyways, they are horrible and contrary to the spec
 
 
-%% two macros to simplify incomplete handling
--define(incomplete(Valid, Incomplete, Finish),
-    case Valid of
-        true -> {error, badjson}
-        ; false -> {incomplete, Incomplete, Finish}
-    end
-).
-
--define(ferror, fun() -> {error, badjson} end).
-
-
 start(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) -> 
     start(Rest, Stack, Opts);
 start(<<?start_object/?encoding, Rest/binary>>, Stack, Opts) ->

@@ -83,6 +83,17 @@
 ).
 
 
+%% two macros to simplify incomplete handling
+-define(incomplete(Valid, Incomplete, Finish),
+    case Valid of
+        true -> {error, badjson}
+        ; false -> {incomplete, Incomplete, Finish}
+    end
+).
+
+-define(ferror, fun() -> {error, badjson} end).
+
+
 %% compilation macros for unified decoder
 -ifdef(utf8).
 -define(encoding, utf8).
