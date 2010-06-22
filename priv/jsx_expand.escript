@@ -27,7 +27,7 @@ main(Backends) ->
     
 to_abf(Backend) ->
     case os:getenv("TMPDIR") of
-        false -> Out = "/tmp"
+        false -> Out = "."
         ; Out -> Out
     end,
     Name = to_modname(Backend),

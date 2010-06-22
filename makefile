@@ -7,6 +7,15 @@ compile: expand
 	 	src/jsx_utf32\
 	 	src/jsx_utf32le
 	
+debug: expand
+	./priv/jsx_compile.escript -d\
+		src/jsx\
+	 	src/jsx_utf8\
+	 	src/jsx_utf16\
+	 	src/jsx_utf16le\
+	 	src/jsx_utf32\
+	 	src/jsx_utf32le
+	
 expand:
 	./priv/jsx_expand.escript utf8 utf16 utf16le utf32 utf32le
     

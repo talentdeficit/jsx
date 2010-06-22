@@ -22,6 +22,9 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
+main(["-d"|Mods]) ->
+    compile_files(Mods, [{outdir, "ebin"}, debug_info]);
+
 main(Mods) ->
     compile_files(Mods, [{outdir, "ebin"}]).
     

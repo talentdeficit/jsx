@@ -28,12 +28,13 @@
 -export([parser/0, parser/1]).
 
 %% example usage of core api
--export([decode/1, decode/2]).
 -export([is_json/1, is_json/2]).
--export([fold/3, fold/4]).
+-export([decode/1, decode/2, decode/3, decode/4]).
+-export([fold/1, fold/2, fold/3, fold/4]).
 
 %% types for function specifications
 -include("jsx_types.hrl").
+
     
 
 -spec parser() -> jsx_parser().
@@ -58,36 +59,52 @@ start(F, OptsList) ->
     fun(Stream) -> F(Stream, Opts) end.
 
 
-%% decode is an example decoder using the jsx api. it converts the events into a simple
-%%   list and converts incomplete parses into errors. 
-    
--spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, badjson}.
--spec decode(JSON::json(), Opts::jsx_opts()) -> {ok, [jsx_event(),...]} | {error, badjson}.
-
-decode(JSON) ->
-    decode(JSON, []).
-
-decode(JSON, Opts) ->
-    fold(fun(end_json, State) -> 
-                lists:reverse(State) 
-            ;(Event, State) -> [Event] ++ State end, 
-        [], JSON, Opts).
-        
-
 -spec is_json(JSON::json()) -> true | false.
 -spec is_json(JSON::json(), Opts::jsx_opts()) -> true | false.
 
 is_json(JSON) ->
     is_json(JSON, []).
-    
+
 is_json(JSON, Opts) ->
     case fold(fun(end_json, ok) -> true ;(_, _) -> ok end, ok, JSON, Opts) of
         {incomplete, _} -> false
         ; {error, _} -> false
         ; {ok, true} -> true
     end.
+ 
 
+-spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, atom()}.
+-spec decode(JSON::json(), Parse::jsx_opts() | jsx_parser()) -> {ok, [jsx_event(),...]} | {error, atom()}. 
+-spec decode(F::fun((jsx_event(), any()) -> any()), 
+        Acc::any(), 
+        JSON::json()) -> 
+    {ok, any()} | {error, atom()}.
+-spec decode(F::fun((jsx_event(), any()) -> any()), 
+        Acc::any(), 
+        JSON::json(), 
+        Parse::jsx_opts() | jsx_parser()) -> 
+    {ok, any()} | {error, atom()}.
 
+decode(JSON) ->
+    decode(JSON, []).
+    
+decode(JSON, Parse) ->
+    F = fun(end_json, S) -> lists:reverse(S) ;(E, S) -> [E] ++ S end,
+    decode(F, [], JSON, Parse).
+
+decode(F, Acc, JSON) ->
+    decode(F, Acc, JSON, []).
+
+decode(F, Acc, JSON, Parse) ->
+    case fold(F, Acc, JSON, Parse) of
+        {ok, Result} -> {ok, Result}
+        ; _ -> {error, badjson}
+    end.
+        
+-spec fold(JSON::json()) -> 
+    {ok, [jsx_event(),...]} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
+-spec fold(JSON::json(), Parse::jsx_opts() | jsx_parser()) -> 
+    {ok, [jsx_event(),...]} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
 -spec fold(F::fun((jsx_event(), any()) -> any()), 
             Acc::any(), 
             JSON::json()) -> 
@@ -103,6 +120,13 @@ is_json(JSON, Opts) ->
             Parser::jsx_parser()) -> 
         {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
     
+fold(JSON) ->
+    fold(JSON, []).
+
+fold(JSON, Parse) ->
+    F = fun(end_json, S) -> lists:reverse(S) ;(E, S) -> [E] ++ S end,
+    fold(F, [], JSON, Parse).
+        
 fold(F, Acc, JSON) ->
     P = jsx:parser(),
     fold(F, Acc, JSON, P).
@@ -200,31 +224,39 @@ detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
 %%   to conclusively determine the encoding correctly. below is an attempt to solve
 %%   the problem
 detect_encoding(<<X>>, Opts) when X =/= 0 ->
-    try jsx_utf8:parse(<<X>>, Opts)
-    catch error:function_clause ->
-        {incomplete, fun(Stream) ->
-            detect_encoding(<<X, Stream/binary>>, Opts)
-        end}
-    end;
+    {incomplete, 
+        fun(Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) end,
+        fun() -> try 
+                {incomplete, _, Force} = jsx_utf8:parse(<<X>>, Opts),
+                Force()
+                catch error:function_clause -> {error, badjson} 
+            end 
+        end
+    };
 detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
-    try jsx_utf16:parse(<<0, X>>, Opts)
-    catch error:function_clause -> 
-        {incomplete, fun(Stream) ->
-            detect_encoding(<<0, X, Stream/binary>>, Opts)
-        end}
-    end;
+    {incomplete, 
+        fun(Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) end,
+        fun() -> try 
+                {incomplete, _, Force} = jsx_utf16:parse(<<0, X>>, Opts),
+                Force()
+                catch error:function_clause -> {error, badjson} 
+            end 
+        end
+    };
 detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
-    try jsx_utf16le:parse(<<X, 0>>, Opts)
-    catch error:function_clause ->
-        {incomplete, fun(Stream) ->
-            detect_encoding(<<X, 0, Stream/binary>>, Opts)
-        end}
-    end;
+    {incomplete, 
+        fun(Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts) end,
+        fun() -> try 
+                {incomplete, _, Force} = jsx_utf16le:parse(<<X, 0>>, Opts),
+                Force()
+                catch error:function_clause -> {error, badjson} 
+            end 
+        end
+    };
     
 %% not enough input, request more
 detect_encoding(Bin, Opts) ->
     {incomplete, 
-        fun(Stream) -> 
-            detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
-        end
+        fun(Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) end,
+        fun() -> {error, badjson} end
     }.

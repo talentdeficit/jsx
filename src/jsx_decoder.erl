@@ -217,7 +217,7 @@ string(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_noncontrol(S) ->
 string(Bin, Stack, Opts, Acc) ->
     case partial_utf(Bin) of
         false -> {error, badjson}
-        ; _ -> {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc) end}
+        ; _ -> {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc) end, ?ferror}
     end.
 
     
@@ -436,7 +436,7 @@ integer(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts), Acc
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Opts, Acc) end);
 integer(<<>>, [], Opts, Acc) ->
     {incomplete, 
-        fun(Stream) -> zero(Stream, [], Opts, Acc) end,
+        fun(Stream) -> integer(Stream, [], Opts, Acc) end,
         fun() -> {event, {integer, lists:reverse(Acc)}, fun() -> maybe_done(<<>>, [], Opts) end} end
     };
 integer(Bin, Stack, Opts, Acc) ->  
