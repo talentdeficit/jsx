@@ -30,7 +30,7 @@
 -type jsx_opts() :: [jsx_opt()].
 -type jsx_opt() :: {comments, true | false}
     | {escaped_unicode, ascii | codepoint | none}
-    | {stream_mode, true | false}
+    | {multi_term, true | false | whitespace | binary()}
     | {encoding, auto | utf8 | utf16 | utf16le | utf32 | utf32le }.
 
 

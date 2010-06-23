@@ -160,14 +160,19 @@ parse_opts(Opts) ->
 
 parse_opts([], Opts) ->
     Opts;    
-parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode, Stream}) ->
+parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode, Multi}) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, {Value, EscapedUnicode, Stream});
-parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Stream}) ->
+    parse_opts(Rest, {Value, EscapedUnicode, Multi});
+parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Multi}) ->
     true = lists:member(Value, [ascii, codepoint, none]),
-    parse_opts(Rest, {Comments, Value, Stream});
-parse_opts([{stream_mode, Value}|Rest], {Comments, EscapedUnicode, _Stream}) ->
-    true = lists:member(Value, [true, false]),
+    parse_opts(Rest, {Comments, Value, Multi});
+parse_opts([{multi_term, Value}|Rest], {Comments, EscapedUnicode, _Multi}) ->
+    ok = case Value of
+        S when is_binary(S) -> ok
+        ; whitespace -> ok
+        ; true -> ok
+        ; false -> ok
+    end,
     parse_opts(Rest, {Comments, EscapedUnicode, Value});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts).

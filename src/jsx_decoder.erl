@@ -88,6 +88,10 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Opts) ->
     value(Rest, Stack, Opts);
 maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
+maybe_done(Bin, [], ?multi_term(Opts)) ->
+    {event, end_json, fun(Stream) -> 
+        Rest = strip(<<Bin/binary, Stream/binary>>, Opts),
+        start(<<Bin/binary, Stream/binary>>, [], Opts) end};
 maybe_done(<<>>, [], Opts) ->
     {event, end_json, fun(Stream) -> maybe_done(Stream, [], Opts) end};
 maybe_done(Bin, Stack, Opts) -> 
@@ -635,8 +639,8 @@ null(Bin, Stack, Opts) ->
     ).
 
 
-%% comments are c style, /* blah blah */ and are STRONGLY discouraged. any unicode
-%%   character is valid in a comment, except, obviously the */ sequence which ends
+%% comments are c style, ex: /* blah blah */ 
+%%   any unicode character is valid in a comment except the */ sequence which ends
 %%   the comment. they're implemented as a closure called when the comment ends that
 %%   returns execution to the point where the comment began. comments are not 
 %%   recorded in any way, simply parsed.    
@@ -670,3 +674,14 @@ maybe_comment_done(Bin, Resume) ->
         fun(Stream) -> maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume) end, 
         ?ferror
     ).
+    
+    
+%% strip whitespace and comments (if enabled) from a stream, returning the
+%%   stream when the first non-whitespace/comment character is encountered
+
+strip(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
+    strip(Rest, Opts);
+strip(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
+    maybe_comment(Rest, fun(Resume) -> strip(Resume, Opts) end);
+strip(Bin, _Opts) ->
+    Bin.
