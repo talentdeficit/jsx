@@ -30,6 +30,12 @@ main([Path]) ->
 
 test(Dir) ->
 	code:add_path("ebin"),
+	code:load_file(jsx),
+	code:load_file(jsx_utf8),
+	code:load_file(jsx_utf16),
+	code:load_file(jsx_utf16le),
+	code:load_file(jsx_utf32),
+	code:load_file(jsx_utf32le),
 
     ValidJSONTests = load_tests(Dir),
     
@@ -92,12 +98,15 @@ incremental_decode({event, Event, F}, Rest, Acc) ->
 
 
 decode(JSON, Flags) ->
-    {ok, Result} = jsx:fold(fun(end_json, S) -> 
-				lists:reverse(S) 
-			;(E, S) -> 
-				[E] ++ S 
-		end, [], JSON, Flags),
-	Result.
+    P = jsx:parser(Flags),
+    decode_loop(P(JSON), []).
+    
+decode_loop({incomplete, _Next, Force}, Acc) ->
+    decode_loop(Force(), Acc);
+decode_loop({event, end_json, _}, Acc) ->
+    lists:reverse(Acc);
+decode_loop({event, E, Next}, Acc) ->
+    decode_loop(Next(), [E] ++ Acc).
     
 to_utf16(Bin) -> unicode:characters_to_binary(Bin, utf8, utf16).
 to_utf16le(Bin) -> unicode:characters_to_binary(Bin, utf8, {utf16,little}).

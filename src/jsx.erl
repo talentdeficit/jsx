@@ -27,15 +27,9 @@
 %% the core parser api
 -export([parser/0, parser/1]).
 
-%% example usage of core api
--export([is_json/1, is_json/2]).
--export([decode/1, decode/2, decode/3, decode/4]).
--export([fold/1, fold/2, fold/3, fold/4]).
-
 %% types for function specifications
 -include("jsx_types.hrl").
 
-    
 
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
@@ -59,99 +53,6 @@ start(F, OptsList) ->
     fun(Stream) -> F(Stream, Opts) end.
 
 
--spec is_json(JSON::json()) -> true | false.
--spec is_json(JSON::json(), Opts::jsx_opts()) -> true | false.
-
-is_json(JSON) ->
-    is_json(JSON, []).
-
-is_json(JSON, Opts) ->
-    case fold(fun(end_json, ok) -> true ;(_, _) -> ok end, ok, JSON, Opts) of
-        {incomplete, _} -> false
-        ; {error, _} -> false
-        ; {ok, true} -> true
-    end.
- 
-
--spec decode(JSON::json()) -> {ok, [jsx_event(),...]} | {error, atom()}.
--spec decode(JSON::json(), Parse::jsx_opts() | jsx_parser()) -> {ok, [jsx_event(),...]} | {error, atom()}. 
--spec decode(F::fun((jsx_event(), any()) -> any()), 
-        Acc::any(), 
-        JSON::json()) -> 
-    {ok, any()} | {error, atom()}.
--spec decode(F::fun((jsx_event(), any()) -> any()), 
-        Acc::any(), 
-        JSON::json(), 
-        Parse::jsx_opts() | jsx_parser()) -> 
-    {ok, any()} | {error, atom()}.
-
-decode(JSON) ->
-    decode(JSON, []).
-    
-decode(JSON, Parse) ->
-    F = fun(end_json, S) -> lists:reverse(S) ;(E, S) -> [E] ++ S end,
-    decode(F, [], JSON, Parse).
-
-decode(F, Acc, JSON) ->
-    decode(F, Acc, JSON, []).
-
-decode(F, Acc, JSON, Parse) ->
-    case fold(F, Acc, JSON, Parse) of
-        {ok, Result} -> {ok, Result}
-        ; _ -> {error, badjson}
-    end.
-        
--spec fold(JSON::json()) -> 
-    {ok, [jsx_event(),...]} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
--spec fold(JSON::json(), Parse::jsx_opts() | jsx_parser()) -> 
-    {ok, [jsx_event(),...]} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
--spec fold(F::fun((jsx_event(), any()) -> any()), 
-            Acc::any(), 
-            JSON::json()) -> 
-        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
--spec fold(F::fun((jsx_event(), any()) -> any()), 
-            Acc::any(), 
-            JSON::json(), 
-            Opts::jsx_opts()) -> 
-        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}
-    ; (F::fun((jsx_event(), any()) -> any()), 
-            Acc::any(), 
-            JSON::json(), 
-            Parser::jsx_parser()) -> 
-        {ok, any()} | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())} | {error, atom()}.
-    
-fold(JSON) ->
-    fold(JSON, []).
-
-fold(JSON, Parse) ->
-    F = fun(end_json, S) -> lists:reverse(S) ;(E, S) -> [E] ++ S end,
-    fold(F, [], JSON, Parse).
-        
-fold(F, Acc, JSON) ->
-    P = jsx:parser(),
-    fold(F, Acc, JSON, P).
-    
-fold(F, Acc, JSON, Opts) when is_list(Opts) ->
-    P = jsx:parser(Opts),
-    fold(F, Acc, JSON, P);
-fold(F, Acc, JSON, P) ->
-    fold_loop(F, Acc, P(JSON)).
- 
-fold_loop(F, Acc, {incomplete, Next, Force}) ->
-    case Force() of
-        {event, Val, End} -> 
-            case End() of
-                {event, end_json, _} -> {ok, F(end_json, F(Val, Acc))}
-                ; _ -> {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end}
-            end
-        ; _ -> {incomplete, fun(Bin) -> fold_loop(F, Acc, Next(Bin)) end}
-    end;
-fold_loop(_, _, {error, Error}) -> {error, Error};
-fold_loop(F, Acc, {event, end_json, _}) -> {ok, F(end_json, Acc)};
-fold_loop(F, Acc, {event, Event, Next}) -> fold_loop(F, F(Event, Acc), Next()).
-
-    
-    
 %% option parsing
 
 %% converts a proplist into a tuple
@@ -185,42 +86,28 @@ parse_opts([{encoding, _}|Rest], Opts) ->
 %%   which may delay failure later than if an encoding is explicitly provided
     
 %% utf8 bom detection    
-detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Opts) ->
-    jsx_utf8:parse(Rest, Opts);    
-    
-%% utf32-little bom detection (this has to come before utf16-little)
-detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Opts) ->
-    jsx_utf32le:parse(Rest, Opts);    
-    
+detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Opts) -> jsx_utf8:parse(Rest, Opts);    
+%% utf32-little bom detection (this has to come before utf16-little or it'll match that)
+detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Opts) -> jsx_utf32le:parse(Rest, Opts);        
 %% utf16-big bom detection
-detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Opts) ->
-    jsx_utf16:parse(Rest, Opts);
-    
+detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Opts) -> jsx_utf16:parse(Rest, Opts);
 %% utf16-little bom detection
-detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Opts) ->
-    jsx_utf16le:parse(Rest, Opts);
-    
+detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Opts) -> jsx_utf16le:parse(Rest, Opts);
 %% utf32-big bom detection
-detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Opts) ->
-    jsx_utf32:parse(Rest, Opts);
+detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Opts) -> jsx_utf32:parse(Rest, Opts);
     
-
 %% utf32-little null order detection
 detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     jsx_utf32le:parse(JSON, Opts);
-    
 %% utf16-big null order detection
 detect_encoding(<<0, X, 0, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf16:parse(JSON, Opts);
-    
 %% utf16-little null order detection
 detect_encoding(<<X, 0, Y, 0, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf16le:parse(JSON, Opts);
-
 %% utf32-big null order detection
 detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     jsx_utf32:parse(JSON, Opts);
-    
 %% utf8 null order detection
 detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf8:parse(JSON, Opts);
