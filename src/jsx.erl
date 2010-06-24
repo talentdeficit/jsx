@@ -180,42 +180,28 @@ parse_opts([{encoding, _}|Rest], Opts) ->
 %%   which may delay failure later than if an encoding is explicitly provided
     
 %% utf8 bom detection    
-detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Opts) ->
-    jsx_utf8:parse(Rest, Opts);    
-    
-%% utf32-little bom detection (this has to come before utf16-little)
-detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Opts) ->
-    jsx_utf32le:parse(Rest, Opts);    
-    
+detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Opts) -> jsx_utf8:parse(Rest, Opts);    
+%% utf32-little bom detection (this has to come before utf16-little or it'll match that)
+detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Opts) -> jsx_utf32le:parse(Rest, Opts);        
 %% utf16-big bom detection
-detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Opts) ->
-    jsx_utf16:parse(Rest, Opts);
-    
+detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Opts) -> jsx_utf16:parse(Rest, Opts);
 %% utf16-little bom detection
-detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Opts) ->
-    jsx_utf16le:parse(Rest, Opts);
-    
+detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Opts) -> jsx_utf16le:parse(Rest, Opts);
 %% utf32-big bom detection
-detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Opts) ->
-    jsx_utf32:parse(Rest, Opts);
+detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Opts) -> jsx_utf32:parse(Rest, Opts);
     
-
 %% utf32-little null order detection
 detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     jsx_utf32le:parse(JSON, Opts);
-    
 %% utf16-big null order detection
 detect_encoding(<<0, X, 0, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf16:parse(JSON, Opts);
-    
 %% utf16-little null order detection
 detect_encoding(<<X, 0, Y, 0, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf16le:parse(JSON, Opts);
-
 %% utf32-big null order detection
 detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     jsx_utf32:parse(JSON, Opts);
-    
 %% utf8 null order detection
 detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
     jsx_utf8:parse(JSON, Opts);
