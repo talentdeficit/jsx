@@ -68,12 +68,7 @@ parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Multi}) 
     true = lists:member(Value, [ascii, codepoint, none]),
     parse_opts(Rest, {Comments, Value, Multi});
 parse_opts([{multi_term, Value}|Rest], {Comments, EscapedUnicode, _Multi}) ->
-    ok = case Value of
-        S when is_binary(S) -> ok
-        ; whitespace -> ok
-        ; true -> ok
-        ; false -> ok
-    end,
+    true = lists:member(Value, [true, false]),
     parse_opts(Rest, {Comments, EscapedUnicode, Value});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts).

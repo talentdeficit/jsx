@@ -88,12 +88,13 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Opts) ->
     value(Rest, Stack, Opts);
 maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
-maybe_done(Bin, [], ?multi_term(Opts)) ->
-    {event, end_json, fun(Stream) -> 
-        Rest = strip(<<Bin/binary, Stream/binary>>, Opts),
-        start(<<Bin/binary, Stream/binary>>, [], Opts) end};
+maybe_done(Rest, [], ?multi_term(Opts)) ->
+    {event, end_json, fun() -> start(Rest, [], Opts) end};
 maybe_done(<<>>, [], Opts) ->
-    {event, end_json, fun(Stream) -> maybe_done(Stream, [], Opts) end};
+    {incomplete, 
+        fun(Stream) -> maybe_done(Stream, [], Opts) end, 
+        fun() -> {event, end_json, fun() -> maybe_done(<<>>, [], Opts) end} end
+    };
 maybe_done(Bin, Stack, Opts) -> 
     ?incomplete(?partial_codepoint(Bin),
         fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Opts) end,
@@ -674,14 +675,3 @@ maybe_comment_done(Bin, Resume) ->
         fun(Stream) -> maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume) end, 
         ?ferror
     ).
-    
-    
-%% strip whitespace and comments (if enabled) from a stream, returning the
-%%   stream when the first non-whitespace/comment character is encountered
-
-strip(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
-    strip(Rest, Opts);
-strip(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
-    maybe_comment(Rest, fun(Resume) -> strip(Resume, Opts) end);
-strip(Bin, _Opts) ->
-    Bin.
