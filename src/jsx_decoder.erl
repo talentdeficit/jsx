@@ -90,15 +90,28 @@ maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) 
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
 maybe_done(Rest, [], ?multi_term(Opts)) ->
     {event, end_json, fun() -> start(Rest, [], Opts) end};
-maybe_done(<<>>, [], Opts) ->
-    {incomplete, 
-        fun(Stream) -> maybe_done(Stream, [], Opts) end, 
-        fun() -> {event, end_json, fun() -> maybe_done(<<>>, [], Opts) end} end
+maybe_done(Rest, [], Opts) ->
+    {event, end_json, fun() -> 
+            {incomplete, 
+                fun(Stream) -> done(<<Rest/binary, Stream/binary>>, Opts) end, 
+                fun() -> done(Rest, Opts) end
+            } 
+        end
     };
 maybe_done(Bin, Stack, Opts) -> 
     ?incomplete(?partial_codepoint(Bin),
         fun(Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Opts) end,
         ?ferror
+    ).
+    
+done(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
+    done(Rest, Opts);
+done(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
+    maybe_comment(Rest, fun(Resume) -> done(Resume, Opts) end);
+done(Bin, Opts) ->
+    ?incomplete(?partial_codepoint(Bin),
+        fun(Stream) -> done(<<Bin/binary, Stream/binary>>, Opts) end,
+        fun() -> done(Bin, Opts) end
     ).
 
 

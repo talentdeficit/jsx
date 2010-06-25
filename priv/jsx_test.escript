@@ -101,14 +101,18 @@ incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	
 incremental_decode_loop({incomplete, Next, _}, <<C:1/binary, Rest/binary>>, Acc) ->
 	incremental_decode_loop(Next(C), Rest, Acc);
-incremental_decode_loop({incomplete, _, Force}, <<>>, Acc) ->
-	incremental_decode_loop(Force(), <<>>, Acc);
-incremental_decode_loop({event, end_json, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
-    incremental_decode_loop(Next(C), Rest, Acc);
-incremental_decode_loop({event, end_json, _}, <<>>, Acc) ->
+incremental_decode_loop({incomplete, _Next, Force}, <<>>, Acc) ->
+	case Force() of
+	    {error, badjson} -> {error, badjson}
+	    ; {incomplete, _, _} -> Acc
+	    ; _ -> incremental_decode_loop(Force(), <<>>, Acc)
+	end;
+incremental_decode_loop({event, end_json, Next}, Rest, Acc) ->
+    incremental_decode_loop(Next(), Rest, lists:reverse(Acc));
+incremental_decode_loop({event, end_json, _Next}, <<>>, Acc) ->
     lists:reverse(Acc);
-incremental_decode_loop({event, Event, F}, Rest, Acc) ->
-	incremental_decode_loop(F(), Rest, [Event] ++ Acc).
+incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
+	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
 
 
 multi_decode(JSON, Flags) ->
