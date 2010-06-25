@@ -24,29 +24,22 @@
 
 -mode(compile).
 
+main([]) ->
+    test("./test/cases");
+
 main([Path]) ->
     test(Path).
 
 
 test(Dir) ->
 	code:add_path("ebin"),
-	code:load_file(jsx),
-	code:load_file(jsx_utf8),
-	code:load_file(jsx_utf16),
-	code:load_file(jsx_utf16le),
-	code:load_file(jsx_utf32),
-	code:load_file(jsx_utf32le),
 
     ValidJSONTests = load_tests(Dir),
     
-    etap:plan(length(ValidJSONTests) * 5),
-    Before = erlang:now(),
+    etap:plan((length(ValidJSONTests) * 10) + 1),
     run_tests(ValidJSONTests),
     etap:is(multi_decode(multi_json_body(), []), multi_test_result(), "multi terms"),
-    After = erlang:now(),
-    etap:end_tests(),
-    
-    io:format("Elapsed Time:  ~p~n", [timer:now_diff(After, Before)]).
+    etap:end_tests().
 
 
 load_tests(Dir) ->
@@ -109,8 +102,6 @@ incremental_decode_loop({incomplete, _Next, Force}, <<>>, Acc) ->
 	end;
 incremental_decode_loop({event, end_json, Next}, Rest, Acc) ->
     incremental_decode_loop(Next(), Rest, lists:reverse(Acc));
-incremental_decode_loop({event, end_json, _Next}, <<>>, Acc) ->
-    lists:reverse(Acc);
 incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
 
