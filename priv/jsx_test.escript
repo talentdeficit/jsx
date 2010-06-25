@@ -115,7 +115,7 @@ multi_decode(JSON, Flags) ->
     P = jsx:parser(Flags ++ [{multi_term, true}]),
     multi_decode_loop(P(JSON), [[]]).
     
-multi_decode_loop({incomplete, _Next, Force}, [[]|Acc]) ->
+multi_decode_loop({incomplete, _Next, _Force}, [[]|Acc]) ->
     lists:reverse(Acc);
 multi_decode_loop({event, end_json, Next}, [S|Acc]) ->
     multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
