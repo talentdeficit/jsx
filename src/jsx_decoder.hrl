@@ -22,10 +22,10 @@
 
 %% option flags
 
--define(comments_enabled(X), {true, _, _} = X).
--define(escaped_unicode_to_ascii(X), {_, ascii, _} = X).
--define(escaped_unicode_to_codepoint(X), {_, codepoint, _} = X).
--define(multi_term(X), {_, _, true} = X).
+-define(comments_enabled(X), {_, true, _, _, _} = X).
+-define(escaped_unicode_to_ascii(X), {_, _, ascii, _, _} = X).
+-define(escaped_unicode_to_codepoint(X), {_, _, codepoint, _, _} = X).
+-define(multi_term(X), {_, _, _, true, _} = X).
 
 %% whitespace
 -define(space, 16#20).

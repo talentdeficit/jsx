@@ -25,11 +25,21 @@
 -author("alisdairsullivan@yahoo.ca").
 
 %% the core parser api
--export([parser/0, parser/1]).
+-export([parser/0, parser/1, opts/0]).
 
 %% types for function specifications
 -include("jsx_types.hrl").
 
+%% opts record
+-record(opts, {
+    comments = false,
+    escaped_unicode = codepoint,
+    multi_term = false,
+    encoding = auto
+}).
+
+opts() ->
+    io:format("~p~n", [#opts{}]).
 
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
@@ -57,19 +67,19 @@ start(F, OptsList) ->
 
 %% converts a proplist into a tuple
 parse_opts(Opts) ->
-    parse_opts(Opts, {false, codepoint, false}).
+    parse_opts(Opts, #opts{}).
 
 parse_opts([], Opts) ->
     Opts;    
-parse_opts([{comments, Value}|Rest], {_Comments, EscapedUnicode, Multi}) ->
+parse_opts([{comments, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, {Value, EscapedUnicode, Multi});
-parse_opts([{escaped_unicode, Value}|Rest], {Comments, _EscapedUnicode, Multi}) ->
+    parse_opts(Rest, Opts#opts{comments = Value});
+parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
     true = lists:member(Value, [ascii, codepoint, none]),
-    parse_opts(Rest, {Comments, Value, Multi});
-parse_opts([{multi_term, Value}|Rest], {Comments, EscapedUnicode, _Multi}) ->
+    parse_opts(Rest, Opts#opts{escaped_unicode = Value});
+parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
-    parse_opts(Rest, {Comments, EscapedUnicode, Value});
+    parse_opts(Rest, Opts#opts{multi_term = Value});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts).
     
