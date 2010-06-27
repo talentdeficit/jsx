@@ -9,56 +9,54 @@ json_to_term(JSON) ->
 json_to_term(JSON, Opts) ->
     Encoding = proplists:get_value(encoding, Opts, utf8),
     P = jsx:parser([{encoding, Encoding}]),
-    loop(P(JSON), [[]], Opts).
+    collect(P(JSON), [[]], Opts).
   
   
-loop({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
-    loop(Next(), [[]|Acc], Opts);
+collect({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
+    collect(Next(), [[]|Acc], Opts);
 
 %% special case for empty object
-loop({event, end_object, Next}, [[], Parent|Rest], Opts) ->
-    loop(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
+collect({event, end_object, Next}, [[], Parent|Rest], Opts) ->
+    collect(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
 %% reverse the array/object accumulator before prepending it to it's parent
-loop({event, end_object, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
-    loop(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
-loop({event, end_array, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
-    loop(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
-loop({event, Start, Next}, [Current, Key, Parent|Rest], Opts)
+collect({event, end_object, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
+    collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
+collect({event, end_array, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
+    collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
+collect({event, Start, Next}, [Current, Key, Parent|Rest], Opts)
         when Start =:= end_object; Start =:= end_array ->
-    loop(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);
+    collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);
     
 %% end of json is emitted asap (at close of array/object), calling Next() a final 
-%%   time ensures the tail of the json binary is clean (whitespace only)     
-loop({event, end_json, Next}, [[Acc]], _Opts) ->
-    case Next() of
-        {incomplete, _, _} -> Acc
-        ; _ -> erlang:throw(badarg)
-    end;
+%%   time and then Force() ensures the tail of the json binary is clean (whitespace only)     
+collect({event, end_json, Next}, Acc, _Opts) ->
+    collect(Next(), Acc, _Opts);
     
 %% key can only be emitted inside of a json object, so just insert it directly into
 %%   the head of the accumulator, deal with it when we receive it's paired value    
-loop({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
+collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
     Key = event(PreKey, Opts),
     case key_repeats(Key, Current) of
         true -> erlang:throw(badarg)
-        ; false -> loop(Next(), [Key] ++ Acc, Opts)
+        ; false -> collect(Next(), [Key] ++ Acc, Opts)
     end;
 
 %% check acc to see if we're inside an object or an array. because inside an object
 %%   context the events that fall this far are always preceded by a key (which are
 %%   binaries or atoms), if Current is a list, we're inside an array, else, an
 %%   object
-loop({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
-    loop(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
-loop({event, Event, Next}, [Key, Current|Rest], Opts) ->
-    loop(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
+collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
+    collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
+collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
+    collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
 
-loop({incomplete, _Next, Force}, Acc, Opts) ->
-    case E = Force() of
-        {incomplete, _, _} -> erlang:throw(badarg)
-        ; _ -> loop(E, Acc, Opts)
+%% 
+collect({incomplete, _Next, Force}, [[Acc]], _Opts) when is_list(Acc) ->
+    case Force() of
+        {incomplete, _, _} -> Acc
+        ; _ -> erlang:throw(badarg)
     end;
-loop(_, _, _) -> erlang:throw(badarg).
+collect(_, _, _) -> erlang:throw(badarg).
     
         
 event({string, String}, _Opts) ->
@@ -90,4 +88,3 @@ event({literal, Literal}, _Opts) ->
 key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
 key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
 key_repeats(_Key, []) -> false.
-    

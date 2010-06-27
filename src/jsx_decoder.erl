@@ -233,7 +233,7 @@ string(<<?rsolidus/?encoding, Rest/binary>>, Stack, Opts, Acc) ->
 string(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_noncontrol(S) ->
     string(Rest, Stack, Opts, [S] ++ Acc);
 string(Bin, Stack, Opts, Acc) ->
-    case partial_utf(Bin) of
+    case partial_utf(Bin) of 
         false -> {error, badjson}
         ; _ -> {incomplete, fun(Stream) -> string(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc) end, ?ferror}
     end.
