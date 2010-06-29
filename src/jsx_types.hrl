@@ -31,7 +31,7 @@
 -type jsx_opt() :: {comments, true | false}
     | {escaped_unicode, ascii | codepoint | none}
     | {multi_term, true | false | whitespace | binary()}
-    | {encoding, auto | utf8 | utf16 | utf16le | utf32 | utf32le }.
+    | {encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }.
 
 
 %% events emitted by the parser and component types
@@ -56,7 +56,6 @@
 %% this probably doesn't work properly
 
 -type jsx_parser() :: fun((json()) -> jsx_parser_result()).
-
 
 -type jsx_parser_result() :: {event, jsx_event(), fun(() -> jsx_parser_result())}
     | {incomplete, jsx_parser(), fun(() -> jsx_parser_result())}

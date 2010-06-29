@@ -25,7 +25,7 @@
 -author("alisdairsullivan@yahoo.ca").
 
 %% the core parser api
--export([parser/0, parser/1, opts/0]).
+-export([parser/0, parser/1]).
 
 %% types for function specifications
 -include("jsx_types.hrl").
@@ -37,9 +37,6 @@
     multi_term = false,
     encoding = auto
 }).
-
-opts() ->
-    io:format("~p~n", [#opts{}]).
 
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
