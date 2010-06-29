@@ -25,10 +25,6 @@ test: compile
 prove:
 	prove ./priv/jsx_test.escript
 
-examples: force
-	./priv/jsx_compile.escript\
-	    examples/jsx_eep0018
-
 clean:
 	./priv/jsx_clean.escript
 	
