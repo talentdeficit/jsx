@@ -25,6 +25,7 @@
 -author("alisdairsullivan@yahoo.ca").
 
 -export([json_to_term/1, json_to_term/2]).
+-export([term_to_json/1, term_to_json/2]).
 
 
 json_to_term(JSON) ->
@@ -112,3 +113,64 @@ event({literal, Literal}, _Opts) ->
 key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
 key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
 key_repeats(_Key, []) -> false.
+
+
+
+term_to_json(JSON) ->
+    term_to_json(JSON, []).
+    
+term_to_json(JSON, Opts) ->
+    Encoding = proplists:get_value(encoding, Opts, utf8),
+    Events = lists:reverse([end_json] ++ term_to_events(JSON, Encoding), Opts),
+    pretty_print(Events, []).
+    
+pretty_print(Events, _Opts) ->
+    io:format("~p~n", [Events]).
+ 
+term_to_events([{}], _) ->
+    [start_object, end_object];
+term_to_events([First|_] = JSON, Encoding) when is_tuple(First) ->
+    proplist_to_events(JSON, [start_object], Encoding);
+term_to_events(JSON, Encoding) ->
+    list_to_events(JSON, [start_array], Encoding).    
+    
+proplist_to_events([{Key, Term}|Rest], Acc, Encoding) ->
+    proplist_to_events(Rest,
+        [term_to_event(Term, Encoding), key_to_event(Key, Encoding)] ++ Acc,
+        Encoding
+    );
+proplist_to_events([], Acc, _Opts) ->
+    [end_object] ++ Acc.
+    
+    
+list_to_events([Term|Rest], Acc, Encoding) ->
+    list_to_events(Rest, [term_to_event(Term, Encoding)] ++ Acc, Encoding);
+list_to_events([], Acc, _Opts) ->
+    [end_array] ++ Acc.
+
+
+term_to_event(List, Encoding) when is_list(List) ->
+    term_to_events(List, Encoding);
+term_to_event(Float, Encoding) when is_float(Float) ->
+    {float, unicode:characters_to_binary(float_to_decimal(Float), latin1, Encoding)};
+term_to_event(Integer, Encoding) when is_integer(Integer) ->
+    {integer, unicode:characters_to_binary(erlang:integer_to_list(Integer), latin1, Encoding)};
+term_to_event(String, Encoding) when is_binary(String) -> 
+    {string, unicode:characters_to_binary(String, utf8, Encoding)};
+term_to_event(true, _Encoding) -> {literal, true};
+term_to_event(false, _Encoding) -> {literal, false};
+term_to_event(null, _Encoding) -> {literal, null}.
+
+
+key_to_event(Key, Encoding) when is_atom(Key) ->
+    {key, unicode:characters_to_binary(erlang:atom_to_list(Key), latin1, Encoding)};
+key_to_event(Key, Encoding) when is_binary(Key) ->
+    {key, unicode:characters_to_binary(Key, utf8, Encoding)}.
+    
+
+
+%% converting floats to printable ascii is a lot harder than you think, this is
+%%   temporary
+
+float_to_decimal(Float) ->
+    float_to_list(Float).    
