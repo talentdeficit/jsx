@@ -118,39 +118,43 @@ detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
 %%   to conclusively determine the encoding correctly. below is an attempt to solve
 %%   the problem
 detect_encoding(<<X>>, Opts) when X =/= 0 ->
-    {incomplete, 
-        fun(Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) end,
-        fun() -> try 
-                {incomplete, _, Force} = jsx_utf8:parse(<<X>>, Opts),
-                Force()
-                catch error:function_clause -> {error, badjson} 
-            end 
+    {incomplete,
+        fun(end_stream) ->
+                try
+                    {incomplete, Next} = jsx_utf8:parse(<<X>>, Opts),
+                    Next(end_stream)
+                    catch error:function_clause -> {error, badjson}
+                end
+            ; (Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) 
         end
     };
 detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
-    {incomplete, 
-        fun(Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) end,
-        fun() -> try 
-                {incomplete, _, Force} = jsx_utf16:parse(<<0, X>>, Opts),
-                Force()
-                catch error:function_clause -> {error, badjson} 
-            end 
+    {incomplete,
+        fun(end_stream) ->
+                try
+                    {incomplete, Next} = jsx_utf16:parse(<<0, X>>, Opts),
+                    Next(end_stream)
+                    catch error:function_clause -> {error, badjson}
+                end
+            ; (Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) 
         end
     };
 detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
-    {incomplete, 
-        fun(Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts) end,
-        fun() -> try 
-                {incomplete, _, Force} = jsx_utf16le:parse(<<X, 0>>, Opts),
-                Force()
-                catch error:function_clause -> {error, badjson} 
-            end 
+    {incomplete,
+        fun(end_stream) ->
+                try
+                    {incomplete, Next} = jsx_utf16le:parse(<<X, 0>>, Opts),
+                    Next(end_stream)
+                    catch error:function_clause -> {error, badjson}
+                end
+            ; (Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts)
         end
     };
     
 %% not enough input, request more
 detect_encoding(Bin, Opts) ->
-    {incomplete, 
-        fun(Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) end,
-        fun() -> {error, badjson} end
+    {incomplete,
+        fun(end_stream) -> {error, badjson}
+            ; (Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
+        end
     }.

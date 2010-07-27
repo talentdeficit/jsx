@@ -80,10 +80,14 @@ decode(JSON, Flags) ->
     P = jsx:parser(Flags),
     decode_loop(P(JSON), []).
 
-decode_loop({incomplete, _Next, Force}, Acc) ->
-    decode_loop(Force(), Acc);
-decode_loop({event, end_json, _}, Acc) ->
-    lists:reverse(Acc);
+decode_loop({incomplete, Next}, Acc) ->
+    case Next(end_stream) of
+        {error, badjson} -> {error, badjson}
+        ; ok -> lists:reverse(Acc)
+        ; X -> decode_loop(X, Acc)
+    end;
+decode_loop({event, end_json, Next}, Acc) ->
+    decode_loop(Next(), Acc);
 decode_loop({event, E, Next}, Acc) ->
     decode_loop(Next(), [E] ++ Acc).
 
@@ -92,16 +96,16 @@ incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx:parser(Flags),
 	incremental_decode_loop(P(C), Rest, []).
 	
-incremental_decode_loop({incomplete, Next, _}, <<C:1/binary, Rest/binary>>, Acc) ->
+incremental_decode_loop({incomplete, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
 	incremental_decode_loop(Next(C), Rest, Acc);
-incremental_decode_loop({incomplete, _Next, Force}, <<>>, Acc) ->
-	case Force() of
+incremental_decode_loop({incomplete, Next}, <<>>, Acc) ->
+	case Next(end_stream) of
 	    {error, badjson} -> {error, badjson}
-	    ; {incomplete, _, _} -> Acc
-	    ; _ -> incremental_decode_loop(Force(), <<>>, Acc)
+	    ; ok -> lists:reverse(Acc)
+	    ; X -> incremental_decode_loop(X, <<>>, Acc) 
 	end;
 incremental_decode_loop({event, end_json, Next}, Rest, Acc) ->
-    incremental_decode_loop(Next(), Rest, lists:reverse(Acc));
+    incremental_decode_loop(Next(), Rest, Acc);
 incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
 
@@ -110,7 +114,7 @@ multi_decode(JSON, Flags) ->
     P = jsx:parser(Flags ++ [{multi_term, true}]),
     multi_decode_loop(P(JSON), [[]]).
     
-multi_decode_loop({incomplete, _Next, _Force}, [[]|Acc]) ->
+multi_decode_loop({incomplete, _Next}, [[]|Acc]) ->
     lists:reverse(Acc);
 multi_decode_loop({event, end_json, Next}, [S|Acc]) ->
     multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
