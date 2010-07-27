@@ -29,8 +29,8 @@
 
 -export([parse/2]).
 
--include("jsx_decoder.hrl").
--include("jsx_types.hrl").
+-include("./include/jsx_decoder.hrl").
+-include("./include/jsx_types.hrl").
 
 
 -spec parse(JSON::json(), Opts::jsx_opts()) -> jsx_parser_result().

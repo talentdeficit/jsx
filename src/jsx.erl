@@ -28,7 +28,7 @@
 -export([parser/0, parser/1]).
 
 %% types for function specifications
--include("jsx_types.hrl").
+-include("./include/jsx_types.hrl").
 
 %% opts record
 -record(opts, {

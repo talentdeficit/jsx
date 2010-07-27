@@ -22,11 +22,34 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
-
-main([]) ->
-    os:cmd("mkdir -p " ++ appdir()),
-    os:cmd("cp -r " ++ "ebin " ++ appdir()).
+main(["create"]) ->
+	lists:foreach(
+	    fun(X) -> to_src(X) end, 
+	    [ to_abf(Backend) || Backend <- ["utf8", "utf16", "utf16le", "utf32", "utf32le"] ]
+	);
+	
+main(["clean"]) ->
+    [ file:delete(Filename) || Filename <- ["src/jsx_utf8.erl", "src/jsx_utf16.erl", "src/jsx_utf16le.erl", "src/jsx_utf32.erl", "src/jsx_utf32le.erl"] ].
     
-appdir() ->
-    {ok, [{application, jsx, AppInfo}]} = file:consult("ebin/jsx.app"),
-    code:lib_dir() ++ "/jsx-" ++ proplists:get_value(vsn, AppInfo).
+to_abf(Backend) ->
+    case os:getenv("TMPDIR") of
+        false -> Out = "."
+        ; Out -> Out
+    end,
+    Name = to_modname(Backend),
+    {ok, _, ABF} = compile:file(
+        "priv/jsx_decoder.erl", 
+        [binary, 'P', {outdir, Out}, {d, list_to_atom(Backend)}, {d, name, Name}]
+    ),
+	{Name, ABF}.
+	
+to_src({Name, ABF}) ->
+	{ok, Outfile} = file:open("src/" ++ atom_to_list(Name) ++ ".erl", [write, delayed_write]),
+	lists:foreach(fun(Form) -> io:put_chars(Outfile, [erl_pp:form(Form), "\n"]) end, ABF),
+	file:close(Outfile).
+    
+to_modname(Name) ->
+    list_to_atom("jsx_" ++ Name).
+    
+        
+    
