@@ -8,7 +8,7 @@ expand:
 test: compile
 	./priv/jsx_test.escript test/cases
 	
-prove:
+prove: compile
 	prove ./priv/jsx_test.escript
 
 clean:
