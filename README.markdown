@@ -134,7 +134,7 @@ api
 
 `jsx:parser/1` has the same return signature as `jsx:parser/0` but accepts a proplist containing the following options:
 
-* `{comments, true | false}`: determines whether (/* c style */) comments are allowed. default is false
+* `{comments, true | false}`: determines whether (\/\* c style \*\/) comments are allowed. default is false
 * `{escaped_unicode, ascii | codepoint | none}`: determines what escaped unicode sequences like `"\ua123"` are converted to in key/string events. ascii converts any sequences in the range 0-127 to their ascii value (`"\u0021"` would become 33), codepoint converts all valid sequences to their unicode codepoint value (`"\uabcd"` would become 43981), none does no conversion (`"\u0021"` would become the sequence 92, 117, 48, 48, 50, 49)
 * `{encoding, utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} | auto}`: determines which encoding to expect the binary to use. a contrary encoding will result in an error. auto will auto detect the encoding. auto is the default
 * `{multi_term, true | false}`: normally, after the end of a json document only whitespace is allowed, passing this option with true alters parsing so after the end of a json document, another json document is permitted, with any amount of whitespace in between. default is false
