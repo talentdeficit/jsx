@@ -6,10 +6,10 @@ expand:
 	./priv/backends.escript create
     
 test: compile
-	./priv/jsx_test.escript test/cases
+	./test/jsx_test.escript test/cases
 	
 prove: compile
-	prove ./priv/jsx_test.escript
+	prove ./test/jsx_test.escript
 
 clean:
 	./rebar clean
@@ -17,3 +17,6 @@ clean:
 	
 package: compile
 	./rebar install target=.
+	
+install: compile
+	./rebar install
