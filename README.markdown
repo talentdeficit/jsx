@@ -1,7 +1,7 @@
 jsx
 ===
 
-basically yajl[1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations
+basically [yajl][1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations
 
 
 
@@ -11,7 +11,7 @@ overview
 jsx is a json parsing toolkit, to be used to convert json streams to arbitrary output representations. see:
 
 
-    %% an eep0018 (erlang extension proposal for json decoding) json decoder
+an eep0018 (erlang extension proposal for json decoding) json decoder
     
     %% this is nearly complete, ignoring only the options json_to_term should accept
     
@@ -95,9 +95,7 @@ jsx is a json parsing toolkit, to be used to convert json streams to arbitrary o
 
 
 
-    %% the twitter json API has a ton of detail in it's stream, most of which
-    %%   is ignorable. this parser extracts just the user screenname, the text
-    %%   and the time and throws the rest away
+the twitter json API has a ton of detail in it's stream, most of which is ignorable. this parser extracts just the user screenname, the text and the time and throws the rest away
     
     %% {"talentdeficit", "use jsx!", "Fri Jul 30 04:25:50 +0000 2010"} = tweet_to_tuple(...).
     
