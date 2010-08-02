@@ -82,7 +82,6 @@ parse_opts([{encoding, _}|Rest], Opts) ->
     
    
 %% encoding detection   
-    
 %% first check to see if there's a bom, if not, use the rfc4627 method for determining
 %%   encoding. this function makes some assumptions about the validity of the stream
 %%   which may delay failure later than if an encoding is explicitly provided
