@@ -26,6 +26,10 @@
 
 %% the core parser api
 -export([parser/0, parser/1]).
+-export([term_to_json/1, term_to_json/2]).
+-export([json_to_term/1, json_to_term/2]).
+-export([is_json/1, is_json/2]).
+-export([format/1, format/2]).
 
 %% types for function specifications
 -include("./include/jsx_types.hrl").
@@ -37,6 +41,7 @@
     multi_term = false,
     encoding = auto
 }).
+
 
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
@@ -53,12 +58,55 @@ parser(OptsList) ->
         ; {utf32, little} -> fun jsx_utf32le:parse/2
         ; auto -> fun detect_encoding/2
     end,
-    start(F, OptsList).
+    case parse_opts(OptsList) of 
+        {error, badopt} -> {error, badopt}
+        ; Opts -> fun(Stream) -> F(Stream, Opts) end
+    end.
     
-start(F, OptsList) ->
-    Opts = parse_opts(OptsList),
-    fun(Stream) -> F(Stream, Opts) end.
+    
+-spec term_to_json(JSON::json()) -> binary().
+-spec term_to_json(JSON::json(), Opts::encoder_opts()) -> binary().
 
+term_to_json(JSON) ->
+    term_to_json(JSON, []).
+
+term_to_json(JSON, Opts) ->
+    json_encoder:term_to_json(JSON, Opts).
+
+
+-spec json_to_term(JSON::binary()) -> json().
+-spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> json().    
+
+json_to_term(JSON) ->
+    json_to_term(JSON, []).
+
+json_to_term(JSON, Opts) ->
+    json_decoder:json_to_term(JSON, Opts).
+
+
+-spec is_json(JSON::binary()) -> true | false.
+-spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
+
+is_json(JSON) ->
+    is_json(JSON, []).    
+
+is_json(JSON, Opts) ->
+    json_verify:is_json(JSON, Opts).
+
+
+-spec format(JSON::binary()) -> binary() | iolist().
+-spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
+
+format(JSON) ->
+    format(JSON, []).    
+
+format(JSON, Opts) ->
+    json_pp:pp(JSON, Opts).    
+
+
+%% ----------------------------------------------------------------------------
+%% internal functions
+%% ----------------------------------------------------------------------------
 
 %% option parsing
 
@@ -78,7 +126,9 @@ parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{multi_term = Value});
 parse_opts([{encoding, _}|Rest], Opts) ->
-    parse_opts(Rest, Opts).
+    parse_opts(Rest, Opts);
+parse_opts(_, _) ->
+    {error, badopt}.
     
    
 %% encoding detection   

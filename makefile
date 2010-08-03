@@ -15,8 +15,5 @@ clean:
 	./rebar clean
 	./priv/backends.escript clean
 	
-package: compile
-	./rebar install target=.
-	
 install: compile
 	./rebar install

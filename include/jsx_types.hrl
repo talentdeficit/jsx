@@ -24,8 +24,6 @@
 %% unsure of how to specify a binary with a complex structure like utfx encoded
 %%   binaries. this should be further limited somehow probably.
 
--type json() :: binary().
-
 
 -type jsx_opts() :: [jsx_opt()].
 -type jsx_opt() :: {comments, true | false}
@@ -55,9 +53,61 @@
     
 %% this probably doesn't work properly
 
--type jsx_parser() :: fun((json()) -> jsx_parser_result()).
+-type jsx_parser() :: fun((binary()) -> jsx_parser_result()).
 
 -type jsx_parser_result() :: {event, jsx_event(), fun(() -> jsx_parser_result())}
     | {incomplete, jsx_parser()}
     | {error, badjson}
     | ok.
+
+    
+-type json() :: json_object() | json_array().
+
+-type json_array() :: [json_term()].
+-type json_object() :: [{json_key(), json_term()}].
+
+-type json_key() :: binary() | atom().
+
+-type json_term() :: json_array() | json_object() | json_string() | json_number() | true | false | null.
+
+-type json_string() :: binary().
+
+-type json_number() :: float() | integer().
+
+
+-type supported_utf() :: utf8 | utf16 | {utf16, little} | utf32 | {utf32, little}.
+
+
+-type encoder_opts() :: [encoder_opt()].
+-type encoder_opt() :: {strict, true | false}
+    | {encoding, auto | supported_utf()}
+    | {space, integer()}
+    | space
+    | {indent, integer()}
+    | indent.
+
+
+
+-type decoder_opts() :: [decoder_opt()].
+-type decoder_opt() :: {strict, true | false}
+    | {comments, true | false}
+    | {encoding, supported_utf()}
+    | {label, atom | binary | existing_atom}
+    | {float, true | false}.
+
+
+-type verify_opts() :: [verify_opt()].
+-type verify_opt() :: {strict, true | false}
+    | {encoding, auto | supported_utf()}
+    | {comments, true | false}.
+
+
+-type format_opts() :: [format_opt()].
+-type format_opt() :: {strict, true | false}
+    | {encoding, auto | supported_utf()}
+    | {comments, true | false}
+    | {space, integer()}
+    | space
+    | {indent, integer()}
+    | indent
+    | {output_encoding, supported_utf()}.
