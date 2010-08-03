@@ -1,1 +1,1 @@
-[{integer, "42"}].
+[{integer, "42"}, end_json].

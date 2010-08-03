@@ -1,1 +1,1 @@
-[start_array, {float, "0.3"}, end_array].
+[start_array, {float, "0.3"}, end_array, end_json].

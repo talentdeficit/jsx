@@ -1,3 +1,3 @@
-[start_array, {string, "\""}, {string, "\\"}, {string, "/"}, {string, "\b"}, {string, "\f"}, {string, "\n"}, {string, "\r"}, {string, "\t"}, end_array].
+[start_array, {string, "\""}, {string, "\\"}, {string, "/"}, {string, "\b"}, {string, "\f"}, {string, "\n"}, {string, "\r"}, {string, "\t"}, end_array, end_json].
 
 
