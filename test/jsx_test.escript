@@ -46,7 +46,7 @@ test(Dir) ->
 
     ValidJSONTests = load_tests(Dir),
     
-    etap:plan((length(ValidJSONTests) * 10) + 9),
+    etap:plan((length(ValidJSONTests) * 10) + 13),
     run_jsx_tests(ValidJSONTests),
     
     etap:is(multi_decode(multi_json_body(), []), multi_test_result(), "multi terms"),
@@ -59,6 +59,11 @@ test(Dir) ->
     ?to_json([{<<"key">>, <<"value">>}, {<<"another key">>, []}], <<"{\"key\":\"value\",\"another key\":[]}">>, "object to json"),
     ?to_erep(<<"[true, 1, -0.5e7, \"hello world\"]">>, [true, 1, -0.5e7, <<"hello world">>], "array to erep"),
     ?to_json([true, 1, -0.5e7, <<"hello world">>], <<"[true,1,-5000000.0,\"hello world\"]">>, "array to json"),
+    ?to_erep(<<"[[[]]]">>, [[[]]], "deep array to erep"),
+    ?to_json([[[]]], <<"[[[]]]">>, "deep array to json"),
+    ?to_erep(<<"{\"a\":{\"a\":{\"a\":{}}}}">>, [{<<"a">>, [{<<"a">>, [{<<"a">>, [{}]}]}]}], "deep object to erep"),
+    ?to_json([{<<"a">>, [{<<"a">>, [{<<"a">>, [{}]}]}]}], <<"{\"a\":{\"a\":{\"a\":{}}}}">>, "deep object to json"),
+
     
     etap:end_tests().
 

@@ -70,15 +70,18 @@ collect({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= 
     collect(Next(), [[]|Acc], Opts);
 
 %% special case for empty object
-collect({event, end_object, Next}, [[], Parent|Rest], Opts) ->
+collect({event, end_object, Next}, [[], Parent|Rest], Opts) when is_list(Parent) ->
     collect(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
 %% reverse the array/object accumulator before prepending it to it's parent
 collect({event, end_object, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
     collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
 collect({event, end_array, Next}, [Current, Parent|Rest], Opts) when is_list(Parent) ->
     collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
-collect({event, Start, Next}, [Current, Key, Parent|Rest], Opts)
-        when Start =:= end_object; Start =:= end_array ->
+%% special case for empty object
+collect({event, end_object, Next}, [[], Key, Parent|Rest], Opts) ->
+    collect(Next(), [[{Key, [{}]}] ++ Parent] ++ Rest, Opts);
+collect({event, End, Next}, [Current, Key, Parent|Rest], Opts)
+        when End =:= end_object; End =:= end_array ->
     collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);
       
 collect({event, end_json, _Next}, [[Acc]], _Opts) ->
