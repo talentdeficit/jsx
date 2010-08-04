@@ -80,17 +80,9 @@ collect({event, end_array, Next}, [Current, Parent|Rest], Opts) when is_list(Par
 collect({event, Start, Next}, [Current, Key, Parent|Rest], Opts)
         when Start =:= end_object; Start =:= end_array ->
     collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);
-    
-%% end of json is emitted asap (at close of array/object), calling Next() until {incomplete, More}
-%%   and then More(end_stream) ensures the tail of the json binary is clean (whitespace only)     
-collect({event, end_json, Next}, [[Acc]], _Opts) ->
-    case Next() of
-        {incomplete, More} -> case More(end_stream) of
-            ok -> Acc
-            ; _ -> erlang:error(badarg)
-        end
-        ; _ -> erlang:error(badarg)
-    end;
+      
+collect({event, end_json, _Next}, [[Acc]], _Opts) ->
+    Acc;
     
 %% key can only be emitted inside of a json object, so just insert it directly into
 %%   the head of the accumulator and deal with it when we receive it's paired value    

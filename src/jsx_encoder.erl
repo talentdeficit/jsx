@@ -39,7 +39,7 @@ term_to_json(List, Opts) ->
         ; true -> erlang:error(badarg)
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
-    json:format(event_generator(term_to_events(List)), [{output_encoding, Encoding}] ++ Opts).
+    jsx:format(event_generator(lists:reverse(term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
     
 event_generator([]) ->
     fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> ok end} end} end;    
@@ -48,7 +48,7 @@ event_generator([Next|Rest]) ->
     
  
 term_to_events([{}]) ->
-    [start_object, end_object];
+    [end_object, start_object];
 term_to_events([First|_] = List) when is_tuple(First) ->
     proplist_to_events(List, [start_object]);
 term_to_events(List) when is_list(List) ->
@@ -65,7 +65,7 @@ proplist_to_events([{Key, Term}|Rest], Acc) ->
         ; true -> erlang:error(badarg)
     end;
 proplist_to_events([], Acc) ->
-    lists:reverse([end_object] ++ Acc);
+    [end_object] ++ Acc;
 proplist_to_events(_, _) ->
     erlang:throw(badarg).
     
@@ -73,7 +73,7 @@ proplist_to_events(_, _) ->
 list_to_events([Term|Rest], Acc) ->
     list_to_events(Rest, term_to_event(Term) ++ Acc);
 list_to_events([], Acc) ->
-    lists:reverse([end_array] ++ Acc).
+    [end_array] ++ Acc.
 
 
 term_to_event(List) when is_list(List) ->

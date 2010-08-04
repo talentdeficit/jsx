@@ -26,6 +26,14 @@
 
 -export([main/1]).
 
+-define(to_json(X, Y, N),
+    etap:is(jsx:term_to_json(X), Y, N)
+).
+
+-define(to_erep(X, Y, N),
+    etap:is(jsx:json_to_term(X), Y, N)
+).
+
 main([]) ->
     test("./test/cases");
 
@@ -38,9 +46,20 @@ test(Dir) ->
 
     ValidJSONTests = load_tests(Dir),
     
-    etap:plan((length(ValidJSONTests) * 10) + 1),
-    run_tests(ValidJSONTests),
+    etap:plan((length(ValidJSONTests) * 10) + 9),
+    run_jsx_tests(ValidJSONTests),
+    
     etap:is(multi_decode(multi_json_body(), []), multi_test_result(), "multi terms"),
+    
+    ?to_erep(<<"{}">>, [{}], "empty object to erep"),
+    ?to_json([{}], <<"{}">>, "empty object to json"),
+    ?to_erep(<<"[]">>, [], "empty array to erep"),
+    ?to_json([], <<"[]">>, "empty array to json"),
+    ?to_erep(<<"{ \"key\": \"value\", \"another key\": [] }">>, [{<<"key">>, <<"value">>}, {<<"another key">>, []}], "object to erep"),
+    ?to_json([{<<"key">>, <<"value">>}, {<<"another key">>, []}], <<"{\"key\":\"value\",\"another key\":[]}">>, "object to json"),
+    ?to_erep(<<"[true, 1, -0.5e7, \"hello world\"]">>, [true, 1, -0.5e7, <<"hello world">>], "array to erep"),
+    ?to_json([true, 1, -0.5e7, <<"hello world">>], <<"[true,1,-5000000.0,\"hello world\"]">>, "array to json"),
+    
     etap:end_tests().
 
 
@@ -62,9 +81,9 @@ load_tests([Test|Rest], Dir, Acc) ->
         end
     catch _:_ -> load_tests(Rest, Dir, Acc) end.
     
-run_tests([]) ->
+run_jsx_tests([]) ->
     ok;
-run_tests([{TestName, JSON, Events, Flags}|Rest]) ->
+run_jsx_tests([{TestName, JSON, Events, Flags}|Rest]) ->
     etap:is(decode(JSON, Flags), Events, TestName ++ ": utf8"),
     etap:is(incremental_decode(JSON, Flags), Events, TestName ++ ": incremental utf8"),
     etap:is(decode(to_utf16(JSON), Flags), Events, TestName ++ ": utf16"),
@@ -75,14 +94,14 @@ run_tests([{TestName, JSON, Events, Flags}|Rest]) ->
     etap:is(incremental_decode(to_utf32(JSON), Flags), Events, TestName ++ ": incremental utf32"),
     etap:is(decode(to_utf32le(JSON), Flags), Events, TestName ++ ": utf32le"),
     etap:is(incremental_decode(to_utf32le(JSON), Flags), Events, TestName ++ ": incremental utf32le"),
-    run_tests(Rest).
+    run_jsx_tests(Rest).
     
     
 decode(JSON, Flags) ->
     P = jsx:parser(Flags),
     decode_loop(P(JSON), []).
 
-decode_loop({event, end_json, Next}, Acc) ->
+decode_loop({event, end_json, _Next}, Acc) ->
     lists:reverse([end_json] ++ Acc);
 decode_loop({incomplete, More}, Acc) ->
     decode_loop(More(end_stream), Acc);
@@ -98,7 +117,7 @@ incremental_decode_loop({incomplete, Next}, <<>>, Acc) ->
     incremental_decode_loop(Next(end_stream), <<>>, Acc);	
 incremental_decode_loop({incomplete, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
 	incremental_decode_loop(Next(C), Rest, Acc);	
-incremental_decode_loop({event, end_json, Next}, _Rest, Acc) ->
+incremental_decode_loop({event, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
 incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
@@ -140,5 +159,3 @@ multi_test_result() ->
         [start_array, {integer, "1"}, {integer, "2"}, {integer, "3"}, end_array],
         [{string, "hope this works"}]
     ].
-
-    

@@ -24,7 +24,7 @@
 -module(jsx_format).
 -author("alisdairsullivan@yahoo.ca").
 
--export([pp/2]).
+-export([format/2]).
 
 -include("./include/jsx_types.hrl").
 
@@ -53,12 +53,17 @@
 
 -spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
     
-pp(F, Opts) when is_function(F) ->
-    prettify(F(), [], parse_opts(Opts, #opts{}), 0, start);
-    
-pp(JSON, Opts) when is_binary(JSON) ->
+format(JSON, Opts) when is_binary(JSON) ->
     P = jsx:parser(extract_parser_opts(Opts)),
-    prettify(P(JSON), [], parse_opts(Opts, #opts{}), 0, start). 
+    format(fun() -> P(JSON) end, Opts);
+    
+format(F, OptsList) when is_function(F) ->
+    Opts = parse_opts(OptsList, #opts{}),
+    {Continue, String} = format_something(F(), Opts, 0),
+    case Continue() of
+        {event, end_json, _} -> encode(String, Opts)
+        ; _ -> {error, badarg}
+    end.
 
 
 parse_opts([{indent, Val}|Rest], Opts) ->
@@ -79,81 +84,58 @@ extract_parser_opts(Opts) ->
     [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
     
 
-prettify({event, start_object, Next}, Acc, Opts, Level, start) ->
-    prettify(Next(), [Acc, ?start_object], Opts, Level + 1, new);
-prettify({event, start_object, Next}, Acc, Opts, Level, _) ->
-    prettify(Next(), 
-            [Acc, ?comma, space(Opts), indent(Opts, Level), ?start_object], 
-            Opts, 
-            Level + 1, 
-            new);
-
-prettify({event, start_array, Next}, Acc, Opts, Level, start) ->
-    prettify(Next(), [Acc, ?start_array], Opts, Level + 1, new);
-prettify({event, start_array, Next}, Acc, Opts, Level, _) ->
-    prettify(Next(),
-            [Acc, ?comma, space(Opts), indent(Opts, Level), ?start_array],
-            Opts,
-            Level + 1,
-            new);
-
-prettify({event, end_object, Next}, Acc, Opts, Level, value) ->
-    DeLevel = Level - 1,
-    prettify(Next(), [Acc, indent(Opts, DeLevel), ?end_object], Opts, DeLevel, value);
-prettify({event, end_object, Next}, Acc, Opts, Level, new) ->
-    prettify(Next(), [Acc, ?end_object], Opts, Level - 1, value);
+format_something({event, start_object, Next}, Opts, Level) ->
+    {Continue, Object} = format_object(Next(), [], Opts, Level + 1),
+    {Continue, [?start_object, Object, ?end_object]};
+format_something({event, start_array, Next}, Opts, Level) ->
+    {Continue, Array} = format_array(Next(), [], Opts, Level + 1),
+    {Continue, [?start_array, Array, ?end_array]};
+format_something({event, {Type, Value}, Next}, _Opts, _Level) ->
+    {Next, [encode(Type, Value)]}.
     
-prettify({event, end_array, Next}, Acc, Opts, Level, value) ->
-    DeLevel = Level - 1,
-    prettify(Next(), [Acc, indent(Opts, DeLevel), ?end_array], Opts, DeLevel, value);
-prettify({event, end_array, Next}, Acc, Opts, Level, new) ->
-    prettify(Next(), [Acc, ?end_array], Opts, Level - 1, value);
+    
+format_object({event, end_object, Next}, Acc, _Opts, _Level) ->
+    {Next, Acc};
+format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
+    {Continue, Value} = format_something(Next(), Opts, Level),
+    case Continue() of
+        {event, end_object, NextNext} -> 
+            {NextNext, [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value]}
+        ; Else -> 
+            format_object(Else, 
+                [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value, ?comma], 
+                Opts, 
+                Level
+            )
+    end.
+    
+format_array({event, end_array, Next}, Acc, _Opts, _Level) ->
+    {Next, Acc};
+format_array(Event, Acc, Opts, Level) ->
+    {Continue, Value} = format_something(Event, Opts, Level),
+    case Continue() of
+        {event, end_array, NextNext} ->
+            {NextNext, [Acc, indent(Opts, Level), Value]}
+        ; Else ->
+            format_array(Else, [Acc, indent(Opts, Level), Value, ?comma], Opts, Level)
+    end.
 
-prettify({event, {key, Key}, Next}, Acc, Opts, Level, value) ->
-    prettify(Next(), 
-            [Acc, ?comma, space(Opts), indent(Opts, Level), format(string, Key), ?colon, space(Opts)], 
-            Opts, 
-            Level, 
-            key);
-prettify({event, {key, Key}, Next}, Acc, Opts, Level, _) ->
-    prettify(Next(), 
-            [Acc, indent(Opts, Level), format(string, Key), ?colon, space(Opts)], 
-            Opts, 
-            Level, 
-            key);
 
-prettify({event, {Type, Value}, Next}, Acc, Opts, Level, value)  ->
-    prettify(Next(), 
-            [Acc, ?comma, space(Opts), indent(Opts, Level), format(Type, Value)], 
-            Opts, 
-            Level, 
-            value);
-prettify({event, {Type, Value}, Next}, Acc, Opts, Level, new)  ->
-    prettify(Next(), [Acc, indent(Opts, Level), format(Type, Value)], Opts, Level, value);
-prettify({event, {Type, Value}, Next}, Acc, Opts, Level, key) ->
-    prettify(Next(), [Acc, format(Type, Value)], Opts, Level, value);
-prettify({event, {Type, Value}, Next}, _Acc, Opts, Level, start) ->
-    case Opts#opts.strict of
-        true -> erlang:throw(badarg)
-        ; false -> prettify(Next(), [format(Type, Value)], Opts, Level, error)
-    end;
+-define(is_utf_encoding(X),
+    X == utf8; X == utf16; X == utf32; X == {utf16, little}; X == {utf32, little}
+).
 
-prettify({event, end_json, Next}, Acc, Opts, _, _) ->
-    case Next() of
-        {incomplete, More} -> case More(end_stream) of
-            ok -> encode(Acc, Opts)
-            ; _ -> erlang:throw(badarg)
-        end
+encode(Acc, Opts) when is_list(Acc) ->
+    case Opts#opts.output_encoding of
+        iolist -> Acc
+        ; UTF when ?is_utf_encoding(UTF) -> unicode:characters_to_binary(Acc, utf8, UTF)
         ; _ -> erlang:throw(badarg)
     end;
-    
-prettify(_, _, _, _, error) -> erlang:throw(badarg).
-
-format(string, String) ->
+encode(string, String) ->
     [?quote, String, ?quote];
-format(literal, Literal) ->
+encode(literal, Literal) ->
     erlang:atom_to_list(Literal);
-format(_, Number) ->
+encode(_, Number) ->
     Number.
 
 
@@ -175,16 +157,4 @@ space(Opts) ->
     case Opts#opts.space of
         0 -> []
         ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
-    end.
-
-
--define(is_utf_encoding(X),
-    X == utf8; X == utf16; X == utf32; X == {utf16, little}; X == {utf32, little}
-).    
-    
-encode(Acc, Opts) ->
-    case Opts#opts.output_encoding of
-        iolist -> Acc
-        ; UTF when ?is_utf_encoding(UTF) -> unicode:characters_to_binary(Acc, utf8, UTF)
-        ; _ -> erlang:throw(badarg)
     end.

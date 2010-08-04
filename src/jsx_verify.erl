@@ -49,16 +49,9 @@ collect_strict({event, start_array, Next}, Keys) ->
 collect_strict(_, _) ->
     false.
     
-%% make sure to ensure tail is clean
-collect({event, end_json, Next}, _Keys) ->
-    case Next() of
-        {incomplete, More} -> case More(end_stream) of
-            ok -> true
-            ; _ -> false
-        end
-        ; _ -> false
-    end; 
 
+collect({event, end_json, _Next}, _Keys) ->
+    true;
         
 %% check to see if key has already been encountered, if not add it to the key accumulator
 %%   and continue, else return false 

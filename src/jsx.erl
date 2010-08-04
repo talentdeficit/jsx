@@ -71,7 +71,7 @@ term_to_json(JSON) ->
     term_to_json(JSON, []).
 
 term_to_json(JSON, Opts) ->
-    json_encoder:term_to_json(JSON, Opts).
+    jsx_encoder:term_to_json(JSON, Opts).
 
 
 -spec json_to_term(JSON::binary()) -> json().
@@ -81,7 +81,7 @@ json_to_term(JSON) ->
     json_to_term(JSON, []).
 
 json_to_term(JSON, Opts) ->
-    json_decoder:json_to_term(JSON, Opts).
+    jsx_eep0018:json_to_term(JSON, Opts).
 
 
 -spec is_json(JSON::binary()) -> true | false.
@@ -91,7 +91,7 @@ is_json(JSON) ->
     is_json(JSON, []).    
 
 is_json(JSON, Opts) ->
-    json_verify:is_json(JSON, Opts).
+    jsx_verify:is_json(JSON, Opts).
 
 
 -spec format(JSON::binary()) -> binary() | iolist().
@@ -101,7 +101,7 @@ format(JSON) ->
     format(JSON, []).    
 
 format(JSON, Opts) ->
-    json_pp:pp(JSON, Opts).    
+    jsx_format:format(JSON, Opts).    
 
 
 %% ----------------------------------------------------------------------------
