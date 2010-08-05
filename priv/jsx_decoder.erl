@@ -21,8 +21,10 @@
 %% THE SOFTWARE.
 
 
-%% this is a template for the utf8, utf16, utf16le, utf32 and utf32le decoders. it should
-%%   not be compiled directly, see the build script in /priv for details
+%% this is the template for the utf backends for the jsx decoder. run 
+%%  `./priv/backends.escript create` to regenerate the source code for the various
+%%  decoders if you edit this file. do not edit the resulting source files directly.
+
 
 -module(?name).
 -author("alisdairsullivan@yahoo.ca").

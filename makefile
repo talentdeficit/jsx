@@ -1,6 +1,5 @@
-compile: expand
+compile:
 	./rebar compile
-	./priv/backends.escript clean
 	
 expand:
 	./priv/backends.escript create
@@ -13,7 +12,6 @@ prove: compile
 
 clean:
 	./rebar clean
-	./priv/backends.escript clean
 	
 install: compile
 	./rebar -f install
