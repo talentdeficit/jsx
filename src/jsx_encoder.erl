@@ -83,7 +83,7 @@ term_to_event(Float) when is_float(Float) ->
 term_to_event(Integer) when is_integer(Integer) ->
     [{integer, erlang:integer_to_list(Integer)}];
 term_to_event(String) when is_binary(String) -> 
-    [{string, String}];
+    [{string, json_escape(String)}];
 term_to_event(true) -> [{literal, true}];
 term_to_event(false) -> [{literal, false}];
 term_to_event(null) -> [{literal, null}];
@@ -91,9 +91,9 @@ term_to_event(_) -> erlang:error(badarg).
 
 
 key_to_event(Key) when is_atom(Key) ->
-    [{key, erlang:atom_to_list(Key)}];
+    [{key, json_escape(erlang:atom_to_binary(Key, utf8))}];
 key_to_event(Key) when is_binary(Key) ->
-    [{key, unicode:characters_to_list(Key, utf8)}].
+    [{key, json_escape(Key)}].
     
 
 key_repeats([Key], [Key|_]) -> true;
@@ -218,3 +218,55 @@ format([Digit|Digits], Dpoint, Acc) ->
 
     
 to_ascii(X) -> [X + 48].    %% ascii "1" is [49], "2" is [50], etc...
+
+
+%% json string escaping, for utf8 binaries. escape the json control sequences to their
+%%  json equivalent, escape other control characters to \uXXXX sequences, everything
+%%  else should be a legal json string component
+
+json_escape(String) ->
+    json_escape(String, <<>>).
+
+%% double quote    
+json_escape(<<$\", Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $\">>);
+%% backslash \ reverse solidus
+json_escape(<<$\\, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $\\>>);
+%% backspace
+json_escape(<<$\b, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $b>>);
+%% form feed
+json_escape(<<$\f, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $f>>);
+%% newline
+json_escape(<<$\n, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $n>>);
+%% cr
+json_escape(<<$\r, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $r>>);
+%% tab
+json_escape(<<$\t, Rest/binary>>, Acc) -> json_escape(Rest, <<Acc/binary, $\\, $t>>);
+%% other control characters
+json_escape(<<C/utf8, Rest/binary>>, Acc) when C >= 0, C < $\s -> 
+    json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+%% any other legal codepoint
+json_escape(<<C/utf8, Rest/binary>>, Acc) ->
+    json_escape(Rest, <<Acc/binary, C/utf8>>);
+json_escape(<<>>, Acc) ->
+    Acc;
+json_escape(_, _) ->
+    erlang:error(badarg).
+    
+
+%% convert a codepoint to it's \uXXXX equiv. for laziness, this only handles codepoints
+%%  this module might escape, ie, control characters
+json_escape_sequence(C) when C < 16#20 ->
+    <<_:8, A:4, B:4>> = <<C:16>>,   % first two hex digits are always zero
+    <<$\\, $u, $0, $0, (to_hex(A)), (to_hex(B))>>.
+    
+to_hex(15) -> $f;
+to_hex(14) -> $e;
+to_hex(13) -> $d;
+to_hex(12) -> $c;
+to_hex(11) -> $b;
+to_hex(10) -> $a;
+to_hex(X) -> X + $0.
+    
+
+
+        
