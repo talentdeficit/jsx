@@ -29,6 +29,11 @@
 -include("./include/jsx_types.hrl").
 
 
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
+
 
 -spec term_to_json(JSON::json(), Opts::encoder_opts()) -> binary().
 
@@ -114,7 +119,7 @@ float_to_decimal(Num) when is_float(Num) ->
     {F, E} = extract(<<Num:64/float>>),
     {R, S, MP, MM} = initial_vals(F, E),
     K = ceiling(math:log10(abs(Num)) - 1.0e-10),
-    Round = F band 1 =:= 1,
+    Round = F band 1 =:= 0,
     {Dpoint, Digits} = scale(R, S, MP, MM, K, Round),
     if Num >= 0 -> format(Dpoint, Digits)
         ; Num < 0 -> "-" ++ format(Dpoint, Digits)
@@ -172,7 +177,7 @@ generate(RT, S, MP, MM, Round) ->
     TC1 = case Round of true -> (R =< MM); false -> (R < MM) end,
     TC2 = case Round of true -> (R + MP >= S); false -> (R + MP > S) end,
     case TC1 of
-        false -> case TC2 of 
+        false -> case TC2 of
                 false -> [D | generate(R * 10, S, MP * 10, MM * 10, Round)]
                 ; true -> [D + 1]
             end
@@ -268,5 +273,22 @@ to_hex(10) -> $a;
 to_hex(X) -> X + $0.
     
 
+%% eunit tests
+-ifdef(test).
 
-        
+jsx_escape_test_() ->
+    [
+        {"json string escaping", ?_assert(json_escape(<<"\"\\\b\f\n\r\t">>) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>)},
+        {"json string hex escape", ?_assert(json_escape(<<1, 2, 3, 11, 26, 30, 31>>) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>)}
+    ].
+    
+jsx_nice_decimal_test_() ->
+    [
+        {"0.0 to decimal", ?_assert(list_to_float(float_to_decimal(0.0)) =:= 0.0)},
+        {"1.0 to decimal", ?_assert(list_to_float(float_to_decimal(1.0)) =:= 1.0)},
+        {"-1.0 to decimal", ?_assert(list_to_float(float_to_decimal(-1.0)) =:= -1.0)},
+        {"really long float to decimal", ?_assert(list_to_float(float_to_decimal(3.1234567890987654321)) =:= 3.1234567890987654321)},
+        {"1.0e23", ?_assert(float_to_decimal(1.0e23) =:= "1.0e23")}
+    ].
+
+-endif.

@@ -31,8 +31,18 @@
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
 
+%% if testing is enabled, export load_tests/1 so all modules may use it
+-ifdef(test).
+-export([load_tests/1]).
+-endif.
+
 %% types for function specifications
 -include("./include/jsx_types.hrl").
+
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 
 %% opts record
 -record(opts, {
@@ -207,3 +217,43 @@ detect_encoding(Bin, Opts) ->
             ; (Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
         end
     }.
+    
+    
+%% eunit tests
+-ifdef(test).
+
+load_tests(Path) ->
+    %% search the specified directory for any files with the .test ending
+    TestSpecs = filelib:wildcard("*.test", Path),
+    Tests = load_tests(TestSpecs, Path, []).
+    
+load_tests([], _Dir, Acc) ->
+    lists:reverse(Acc);
+load_tests([Test|Rest], Dir, Acc) ->
+    %% should alert about badly formed tests eventually, but for now just skip over them
+    case file:consult(Dir ++ "/" ++ Test) of
+        {ok, TestSpec} ->
+            try
+                load_tests(Rest, Dir, [parse_test(TestSpec, [])] ++ Acc)
+            catch _:_ ->
+                load_tests(Rest, Dir, Acc)
+            end
+        ; {error, _Reason} ->
+            load_tests(Rest, Dir, Acc)
+    end.
+  
+  
+%% if the json, erlang or jsx values are lists, assume they're a path to a file that should
+%%  be read with file:read_file/1
+parse_test([{Key, Path}|Rest], Test) when is_list(Path) ->
+    case lists:member(Key, [json, erlang, jsx]) of
+        true ->
+            case file:read_file(Path) of
+                {ok, Bin} -> parse_test(Rest, [{Key, Bin}] ++ Test)
+                ; {error, Reason} -> {error, Reason}
+            end
+        ; false ->
+            parse_test(Rest, [{Key, Path}] ++ Test)
+    end.
+    
+-endif.
