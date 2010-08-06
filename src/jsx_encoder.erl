@@ -114,7 +114,7 @@ float_to_decimal(Num) when is_float(Num) ->
     {F, E} = extract(<<Num:64/float>>),
     {R, S, MP, MM} = initial_vals(F, E),
     K = ceiling(math:log10(abs(Num)) - 1.0e-10),
-    Round = F band 1 =:= 1,
+    Round = F band 1 =:= 0,
     {Dpoint, Digits} = scale(R, S, MP, MM, K, Round),
     if Num >= 0 -> format(Dpoint, Digits)
         ; Num < 0 -> "-" ++ format(Dpoint, Digits)
