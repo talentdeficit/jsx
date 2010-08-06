@@ -225,7 +225,7 @@ detect_encoding(Bin, Opts) ->
 load_tests(Path) ->
     %% search the specified directory for any files with the .test ending
     TestSpecs = filelib:wildcard("*.test", Path),
-    Tests = load_tests(TestSpecs, Path, []).
+    load_tests(TestSpecs, Path, []).
     
 load_tests([], _Dir, Acc) ->
     lists:reverse(Acc);
