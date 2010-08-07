@@ -65,6 +65,7 @@ term_to_events(Term) ->
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
+    io:format("~p~n~p~n~n", [EncodedKey, Acc]),
     case key_repeats(EncodedKey, Acc) of
         false -> proplist_to_events(Rest, Event ++ EncodedKey ++ Acc)
         ; true -> erlang:error(badarg)
@@ -101,9 +102,10 @@ key_to_event(Key) when is_binary(Key) ->
     [{key, json_escape(Key)}].
     
 
-key_repeats([Key], [Key|_]) -> true;
+key_repeats([{key, Key}], [{key, Key}|_Rest]) -> true;
+key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
 key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
-key_repeats(_, []) -> false.
+key_repeats(_Key, []) -> false.
 
 
 %% conversion of floats to 'nice' decimal output. erlang's float implementation is almost

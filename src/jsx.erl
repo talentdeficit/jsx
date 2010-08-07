@@ -243,10 +243,10 @@ load_tests([Test|Rest], Dir, Acc) ->
     end.
   
   
-%% if the json, erlang or jsx values are lists, assume they're a path to a file that should
+%% if the json, eep0018 or jsx values are lists, assume they're a path to a file that should
 %%  be read with file:read_file/1
 parse_test([{Key, Path}|Rest], Test) when is_list(Path) ->
-    case lists:member(Key, [json, erlang, jsx]) of
+    case lists:member(Key, [json, eep0018, jsx]) of
         true ->
             case file:read_file(Path) of
                 {ok, Bin} -> parse_test(Rest, [{Key, Bin}] ++ Test)
