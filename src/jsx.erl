@@ -71,7 +71,7 @@ term_to_json(JSON) ->
     term_to_json(JSON, []).
 
 term_to_json(JSON, Opts) ->
-    jsx_encoder:term_to_json(JSON, Opts).
+    jsx_eep0018:term_to_json(JSON, Opts).
 
 
 -spec json_to_term(JSON::binary()) -> json().
