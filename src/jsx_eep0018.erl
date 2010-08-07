@@ -28,6 +28,10 @@
 
 -include("./include/jsx_types.hrl").
 
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 
 
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> json().
@@ -39,6 +43,11 @@ json_to_term(JSON, Opts) ->
         ; false -> collect(P(JSON), [[]], Opts)
     end.
     
+
+%% the jsx formatter (pretty printer) can do most of the heavy lifting in converting erlang
+%%  terms to json strings, but it expects a jsx event iterator. luckily, the mapping from
+%%  erlang terms to jsx events is straightforward and the iterator can be faked with an
+%%  anonymous function
 
 -spec term_to_json(JSON::json(), Opts::encoder_opts()) -> binary().
 
@@ -52,7 +61,7 @@ term_to_json(List, Opts) ->
     jsx:format(event_generator(lists:reverse(term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
 
 event_generator([]) ->
-    fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> ok end} end} end;    
+    fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> event_generator([]) end} end} end;    
 event_generator([Next|Rest]) ->
     fun() -> {event, Next, event_generator(Rest)} end.
     
@@ -379,3 +388,24 @@ key_repeats([{key, Key}], [{key, Key}|_Rest]) -> true;
 key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
 key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
 key_repeats(_Key, []) -> false.
+
+
+%% eunit tests
+-ifdef(test).
+
+jsx_escape_test_() ->
+    [
+        {"json string escaping", ?_assert(json_escape(<<"\"\\\b\f\n\r\t">>) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>)},
+        {"json string hex escape", ?_assert(json_escape(<<1, 2, 3, 11, 26, 30, 31>>) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>)}
+    ].
+    
+jsx_nice_decimal_test_() ->
+    [
+        {"0.0 to decimal", ?_assert(list_to_float(float_to_decimal(0.0)) =:= 0.0)},
+        {"1.0 to decimal", ?_assert(list_to_float(float_to_decimal(1.0)) =:= 1.0)},
+        {"-1.0 to decimal", ?_assert(list_to_float(float_to_decimal(-1.0)) =:= -1.0)},
+        {"really long float to decimal", ?_assert(list_to_float(float_to_decimal(3.1234567890987654321)) =:= 3.1234567890987654321)},
+        {"1.0e23", ?_assert(float_to_decimal(1.0e23) =:= "1.0e23")}
+    ].
+
+-endif.
