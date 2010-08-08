@@ -178,7 +178,6 @@ term_to_events(Term) ->
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
-    io:format("~p~n~p~n~n", [EncodedKey, Acc]),
     case key_repeats(EncodedKey, Acc) of
         false -> proplist_to_events(Rest, Event ++ EncodedKey ++ Acc)
         ; true -> erlang:error(badarg)
@@ -309,6 +308,8 @@ pow(B, E, Acc) when E band 1 == 1 -> pow(B * B, E bsr 1, B * Acc);
 pow(B, E, Acc) -> pow(B * B, E bsr 1, Acc).
 
 
+format(0, Digits) ->
+    format(Digits, ignore, ".0");
 format(Dpoint, Digits) when Dpoint =< length(Digits), Dpoint > 0 ->
     format(Digits, Dpoint, []);
 format(Dpoint, Digits) when Dpoint > 0 ->
@@ -401,11 +402,30 @@ jsx_escape_test_() ->
     
 jsx_nice_decimal_test_() ->
     [
-        {"0.0 to decimal", ?_assert(list_to_float(float_to_decimal(0.0)) =:= 0.0)},
-        {"1.0 to decimal", ?_assert(list_to_float(float_to_decimal(1.0)) =:= 1.0)},
-        {"-1.0 to decimal", ?_assert(list_to_float(float_to_decimal(-1.0)) =:= -1.0)},
-        {"really long float to decimal", ?_assert(list_to_float(float_to_decimal(3.1234567890987654321)) =:= 3.1234567890987654321)},
-        {"1.0e23", ?_assert(float_to_decimal(1.0e23) =:= "1.0e23")}
+        {"0.0", ?_assert(float_to_decimal(0.0) =:= "0.0")},
+        {"1.0", ?_assert(float_to_decimal(1.0) =:= "1.0")},
+        {"-1.0", ?_assert(float_to_decimal(-1.0) =:= "-1.0")},
+        {"3.1234567890987654321", ?_assert(float_to_decimal(3.1234567890987654321) =:= "3.1234567890987655")},
+        {"1.0e23", ?_assert(float_to_decimal(1.0e23) =:= "1.0e23")},
+        {"0.3", ?_assert(float_to_decimal(3.0/10.0) =:= "0.3")},
+        {"0.0001", ?_assert(float_to_decimal(0.0001) =:= "1.0e-4")},
+        {"0.00000001", ?_assert(float_to_decimal(0.00000001) =:= "1.0e-8")},
+        {"1.0e-323", ?_assert(float_to_decimal(1.0e-323) =:= "1.0e-323")},
+        {"1.0e308", ?_assert(float_to_decimal(1.0e308) =:= "1.0e308")},
+        {"min normalized float", ?_assert(float_to_decimal(math:pow(2, -1022)) =:= "2.2250738585072014e-308")},
+        {"max normalized float", ?_assert(float_to_decimal((2 - math:pow(2, -52)) * math:pow(2, 1023)) =:= "1.7976931348623157e308")},
+        {"min denormalized float", ?_assert(float_to_decimal(math:pow(2, -1074)) =:= "5.0e-324")},
+        {"max denormalized float", ?_assert(float_to_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) =:= "2.225073858507201e-308")}
+    ].
+    
+jsx_key_repeats_test_() ->
+    [
+        {"encoded key repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"key">>}, {key, <<"trailing key">>}]) =:= true)},
+        {"encoded key no repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"trailing key">>}]) =:= false)},
+        {"decoded key (atom) repeat", ?_assert(key_repeats(key, [{notkey, true}, {key, true}, {trailing_key, true}]) =:= true)},
+        {"decoded key (binary) repeat", ?_assert(key_repeats(<<"key">>, [{<<"notkey">>, true}, {<<"key">>, true}, {<<"trailing key">>, true}]) =:= true)},
+        {"decoded key (atom) no repeat", ?_assert(key_repeats(key, [{notkey, true}, {definitely_not_key, true}, {trailing_key, true}]) =:= false)},
+        {"decoded key (binary) no repeat", ?_assert(key_repeats(<<"key">>, [{<<"notkey">>, true}, {<<"definitely not key">>, true}, {<<"trailing key">>, true}]) =:= false)}
     ].
 
 -endif.
