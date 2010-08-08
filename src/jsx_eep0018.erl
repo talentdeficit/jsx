@@ -54,11 +54,14 @@ json_to_term(JSON, Opts) ->
 term_to_json(List, Opts) ->
     case proplists:get_value(strict, Opts, true) of
         true when is_list(List) -> continue
-        ; false -> continue
         ; true -> erlang:error(badarg)
+        ; false -> continue
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
     jsx:format(event_generator(lists:reverse(term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
+
+
+%% fake the jsx api with a closure to be passed to the pretty printer
 
 event_generator([]) ->
     fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> event_generator([]) end} end} end;    
@@ -66,7 +69,7 @@ event_generator([Next|Rest]) ->
     fun() -> {event, Next, event_generator(Rest)} end.
     
 
-%% internal for json_to_term
+%% parse opts for the decoder
 
 opts_to_jsx_opts(Opts) ->
     opts_to_jsx_opts(Opts, []).
@@ -86,13 +89,18 @@ opts_to_jsx_opts([_|Rest], Acc) ->
     opts_to_jsx_opts(Rest, Acc);
 opts_to_jsx_opts([], Acc) ->
     Acc.
-  
-  
+
+
+%% ensure the first jsx event we get is start_object or start_array when running
+%%  in strict mode
+
 collect_strict({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
 collect_strict(_, _, _) ->
     erlang:error(badarg).
     
+    
+%% collect decoder events and convert to eep0018 format    
     
 collect({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
@@ -136,6 +144,8 @@ collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
+
+%% helper functions for converting jsx events to eep0018 formats
         
 event({string, String}, _Opts) ->
     unicode:characters_to_binary(String);
@@ -163,7 +173,7 @@ event({literal, Literal}, _Opts) ->
     Literal.
     
     
-%% internal for term_to_json
+%% convert eep0018 representation to jsx events. note special casing for the empty object
 
 term_to_events([{}]) ->
     [end_object, start_object];
