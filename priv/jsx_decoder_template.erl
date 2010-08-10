@@ -35,6 +35,7 @@
 -include("./include/jsx_types.hrl").
 
 
+
 -spec parse(JSON::json(), Opts::jsx_opts()) -> jsx_parser_result().
 
 parse(JSON, Opts) ->

@@ -1,1 +1,3 @@
-[start_array, {float, "0.3"}, end_array, end_json].
+{name, "whitespace"}.
+{jsx, [start_array,{float,"0.3"},end_array,end_json]}.
+{json, "whitespace.json"}.

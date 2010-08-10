@@ -1,3 +1,4 @@
-[start_object, end_object, end_json].
-
-[{comments, true}].
+{name, "empty_object_with_comment"}.
+{jsx, [start_object,end_object,end_json]}.
+{json, "empty_object_with_comment.json"}.
+{jsx_flags, [{comments,true}]}.

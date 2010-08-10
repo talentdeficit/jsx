@@ -38,7 +38,7 @@ to_abf(Backend) ->
     end,
     Name = to_modname(Backend),
     {ok, _, ABF} = compile:file(
-        "priv/jsx_decoder.erl", 
+        "priv/jsx_decoder_template.erl", 
         [binary, 'P', {outdir, Out}, {d, list_to_atom(Backend)}, {d, name, Name}]
     ),
 	{Name, ABF}.

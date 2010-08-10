@@ -404,13 +404,13 @@ key_repeats(_Key, []) -> false.
 %% eunit tests
 -ifdef(test).
 
-jsx_escape_test_() ->
+escape_test_() ->
     [
         {"json string escaping", ?_assert(json_escape(<<"\"\\\b\f\n\r\t">>) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>)},
         {"json string hex escape", ?_assert(json_escape(<<1, 2, 3, 11, 26, 30, 31>>) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>)}
     ].
     
-jsx_nice_decimal_test_() ->
+nice_decimal_test_() ->
     [
         {"0.0", ?_assert(float_to_decimal(0.0) =:= "0.0")},
         {"1.0", ?_assert(float_to_decimal(1.0) =:= "1.0")},
@@ -428,7 +428,7 @@ jsx_nice_decimal_test_() ->
         {"max denormalized float", ?_assert(float_to_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) =:= "2.225073858507201e-308")}
     ].
     
-jsx_key_repeats_test_() ->
+key_repeats_test_() ->
     [
         {"encoded key repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"key">>}, {key, <<"trailing key">>}]) =:= true)},
         {"encoded key no repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"trailing key">>}]) =:= false)},

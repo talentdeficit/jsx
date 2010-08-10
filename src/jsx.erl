@@ -31,10 +31,6 @@
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
 
-%% if testing is enabled, export load_tests/1 so all modules may use it
--ifdef(test).
--export([load_tests/1]).
--endif.
 
 %% types for function specifications
 -include("./include/jsx_types.hrl").
@@ -218,15 +214,22 @@ detect_encoding(Bin, Opts) ->
         end
     }.
     
-    
 %% eunit tests
 -ifdef(test).
+
+jsx_decoder_test_() ->
+    lists:map(fun(Encoding) -> 
+            decoder_tests(load_tests("./test/cases"), Encoding, []) 
+        end, 
+        [utf8, utf16, {utf16, little}, utf32, {utf32, little}]
+    ).
+
 
 load_tests(Path) ->
     %% search the specified directory for any files with the .test ending
     TestSpecs = filelib:wildcard("*.test", Path),
     load_tests(TestSpecs, Path, []).
-    
+
 load_tests([], _Dir, Acc) ->
     lists:reverse(Acc);
 load_tests([Test|Rest], Dir, Acc) ->
@@ -234,26 +237,69 @@ load_tests([Test|Rest], Dir, Acc) ->
     case file:consult(Dir ++ "/" ++ Test) of
         {ok, TestSpec} ->
             try
-                load_tests(Rest, Dir, [parse_test(TestSpec, [])] ++ Acc)
+                ParsedTest = parse_tests(TestSpec, Dir),
+                load_tests(Rest, Dir, [ParsedTest] ++ Acc)
             catch _:_ ->
                 load_tests(Rest, Dir, Acc)
             end
         ; {error, _Reason} ->
             load_tests(Rest, Dir, Acc)
     end.
-  
-  
-%% if the json, eep0018 or jsx values are lists, assume they're a path to a file that should
-%%  be read with file:read_file/1
-parse_test([{Key, Path}|Rest], Test) when is_list(Path) ->
-    case lists:member(Key, [json, eep0018, jsx]) of
-        true ->
-            case file:read_file(Path) of
-                {ok, Bin} -> parse_test(Rest, [{Key, Bin}] ++ Test)
-                ; {error, Reason} -> {error, Reason}
-            end
-        ; false ->
-            parse_test(Rest, [{Key, Path}] ++ Test)
-    end.
+
+
+parse_tests(TestSpec, Dir) ->
+    parse_tests(TestSpec, Dir, []).
+    
+parse_tests([{json, Path}|Rest], Dir, Acc) when is_list(Path) ->
+    case file:read_file(Dir ++ "/" ++ Path) of
+        {ok, Bin} -> parse_tests(Rest, Dir, [{json, Bin}] ++ Acc)
+        ; _ -> erlang:error(badarg)
+    end;
+parse_tests([KV|Rest], Dir, Acc) ->
+    parse_tests(Rest, Dir, [KV] ++ Acc);
+parse_tests([], _Dir, Acc) ->
+    Acc.
+
+
+decoder_tests([Test|Rest], Encoding, Acc) ->
+    Name = lists:flatten(proplists:get_value(name, Test) ++ "::" ++ io_lib:format("~p", [Encoding])),
+    JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
+    JSX = proplists:get_value(jsx, Test),
+    Flags = proplists:get_value(jsx_flags, Test, []),
+    decoder_tests(Rest, 
+        Encoding, 
+        [{"incremental " ++ Name, ?_assert(incremental_decode(JSON, Flags) =:= JSX)}] 
+            ++ [{Name, ?_assert(decode(JSON, Flags) =:= JSX)}] 
+            ++ Acc
+    );  
+decoder_tests([], _Encoding, Acc) ->
+    io:format("~p~n", [Acc]),
+    Acc.
+
+
+decode(JSON, Flags) ->
+    P = jsx:parser(Flags),
+    decode_loop(P(JSON), []).
+
+decode_loop({event, end_json, _Next}, Acc) ->
+    lists:reverse([end_json] ++ Acc);
+decode_loop({incomplete, More}, Acc) ->
+    decode_loop(More(end_stream), Acc);
+decode_loop({event, E, Next}, Acc) ->
+    decode_loop(Next(), [E] ++ Acc).
+
+    
+incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
+	P = jsx:parser(Flags),
+	incremental_decode_loop(P(C), Rest, []).
+
+incremental_decode_loop({incomplete, Next}, <<>>, Acc) ->
+    incremental_decode_loop(Next(end_stream), <<>>, Acc);	
+incremental_decode_loop({incomplete, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
+	incremental_decode_loop(Next(C), Rest, Acc);	
+incremental_decode_loop({event, end_json, _Next}, _Rest, Acc) ->
+    lists:reverse([end_json] ++ Acc);
+incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
+	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
     
 -endif.
