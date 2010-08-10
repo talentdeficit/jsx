@@ -24,7 +24,9 @@
 -module(jsx_test).
 -author("alisdairsullivan@yahoo.ca").
 
+-ifndef(test).
 -export([test/0]).
+-endif.
 
 -ifdef(test).
 -include_lib("eunit/include/eunit.hrl").
@@ -39,16 +41,17 @@ test() -> erlang:error(notest).
 
 -else.
 
-
+fake_test_() ->
+    [ {"fake test", ?_assert(true)} ].
 
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}]).
     
-jsx_decoder_gen([Test|Rest], []) ->
+jsx_decoder_gen([_Test|Rest], []) ->
     jsx_decoder_gen(Rest, [utf8, utf16, {utf16, little}, utf32, {utf32, little}]);
 jsx_decoder_gen([], _) ->
     [];    
-jsx_decoder_gen([Test|Rest] = Tests, [Encoding|Encodings]) ->
+jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Name = lists:flatten(proplists:get_value(name, Test) ++ " :: " ++ io_lib:format("~p", [Encoding])),
     JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
     JSX = proplists:get_value(jsx, Test),
