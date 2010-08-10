@@ -1,4 +1,4 @@
--file("priv/jsx_decoder.erl", 1).
+-file("priv/jsx_decoder_template.erl", 1).
 
 -module(jsx_utf32le).
 
@@ -8,7 +8,7 @@
 
 -file("./include/jsx_decoder.hrl", 1).
 
--file("priv/jsx_decoder.erl", 38).
+-file("priv/jsx_decoder_template.erl", 35).
 
 -file("./include/jsx_types.hrl", 1).
 
@@ -111,7 +111,7 @@
                     | indent
                     | {output_encoding, supported_utf()}.
 
--file("priv/jsx_decoder.erl", 39).
+-file("priv/jsx_decoder_template.erl", 36).
 
 -spec parse(JSON :: json(), Opts :: jsx_opts()) -> jsx_parser_result().
 
