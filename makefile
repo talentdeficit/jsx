@@ -5,10 +5,7 @@ expand:
 	./priv/backends.escript create
     
 test: compile
-	./test/jsx_test.escript test/cases
-	
-prove: compile
-	prove ./test/jsx_test.escript
+	./rebar eunit
 
 clean:
 	./rebar clean
