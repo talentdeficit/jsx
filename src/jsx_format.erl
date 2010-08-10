@@ -26,14 +26,19 @@
 
 -export([format/2]).
 
+
 -include("./include/jsx_types.hrl").
 
+
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 
 -record(opts, {
     space = 0,
     indent = 0,
-    output_encoding = iolist,
+    output_encoding = utf8,
     strict = true
 }).
 
@@ -85,11 +90,21 @@ extract_parser_opts(Opts) ->
     
 
 format_something({event, start_object, Next}, Opts, Level) ->
-    {Continue, Object} = format_object(Next(), [], Opts, Level + 1),
-    {Continue, [?start_object, Object, ?end_object]};
+    case Next() of
+        {event, end_object, Continue} ->
+            {Continue, [?start_object, ?end_object]}
+        ; Event ->
+            {Continue, Object} = format_object(Event, [], Opts, Level + 1),
+            {Continue, [?start_object, Object, indent(Opts, Level), ?end_object]}
+    end;
 format_something({event, start_array, Next}, Opts, Level) ->
-    {Continue, Array} = format_array(Next(), [], Opts, Level + 1),
-    {Continue, [?start_array, Array, ?end_array]};
+    case Next() of
+        {event, end_array, Continue} ->
+            {Continue, [?start_array, ?end_array]}
+        ; Event ->
+            {Continue, Object} = format_array(Event, [], Opts, Level + 1),
+            {Continue, [?start_array, Object, indent(Opts, Level), ?end_array]}
+    end;
 format_something({event, {Type, Value}, Next}, _Opts, _Level) ->
     {Next, [encode(Type, Value)]}.
     
@@ -103,7 +118,7 @@ format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
             {NextNext, [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value]}
         ; Else -> 
             format_object(Else, 
-                [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value, ?comma], 
+                [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value, ?comma, space(Opts)], 
                 Opts, 
                 Level
             )
@@ -117,7 +132,7 @@ format_array(Event, Acc, Opts, Level) ->
         {event, end_array, NextNext} ->
             {NextNext, [Acc, indent(Opts, Level), Value]}
         ; Else ->
-            format_array(Else, [Acc, indent(Opts, Level), Value, ?comma], Opts, Level)
+            format_array(Else, [Acc, indent(Opts, Level), Value, ?comma, space(Opts)], Opts, Level)
     end.
 
 
@@ -158,3 +173,25 @@ space(Opts) ->
         0 -> []
         ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
     end.
+    
+
+%% eunit tests
+
+-ifdef(test).
+
+minify_test_() ->
+    [
+        {"minify object", ?_assert(format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, []) =:= <<"{\"key\":\"value\"}">>)},
+        {"minify array", ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, []) =:= <<"[true,false,null]">>)}
+    ].
+    
+opts_test_() ->
+    [
+        {"unspecified indent/space", ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, [space, indent]) =:= <<"[\n true, \n false, \n null\n]">>)},
+        {"specific indent/space", ?_assert(format(<<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, [{space, 2}, {indent, 4}]) =:= <<"{\n    \"key\":  [],  \n    \"another key\":  true\n}">>)},
+        {"nested structures", ?_assert(format(<<"[{\"key\":\"value\", \"another key\": \"another value\"}, [[true, false, null]]]">>, [{space, 2}, {indent, 2}]) =:= <<"[\n  {\n    \"key\":  \"value\",  \n    \"another key\":  \"another value\"\n  },  \n  [\n    [\n      true,  \n      false,  \n      null\n    ]\n  ]\n]">>)},
+        {"just spaces", ?_assert(format(<<"[1,2,3]">>, [{space, 2}]) =:= <<"[1,  2,  3]">>)},
+        {"just indent", ?_assert(format(<<"[1.0, 2.0, 3.0]">>, [{indent, 2}]) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>)}
+    ].
+    
+-endif.
