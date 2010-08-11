@@ -127,7 +127,7 @@ collect({event, end_json, _Next}, [[Acc]], _Opts) ->
 %%   the head of the accumulator and deal with it when we receive it's paired value    
 collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
     Key = event(PreKey, Opts),
-    case key_repeats(Key, Current) of
+    case decode_key_repeats(Key, Current) of
         true -> erlang:error(badarg)
         ; false -> collect(Next(), [Key] ++ Acc, Opts)
     end;
@@ -140,6 +140,14 @@ collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
     collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
 collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
     collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
+
+%% if our first returned event is {incomplete, ...} try to force end and return the
+%%   Event if one is returned    
+collect({incomplete, More}, [[]], Opts) ->
+    case More(end_stream) of
+        {event, Event, _Next} -> event(Event, Opts)
+        ; _ -> erlang:error(badarg)
+    end;
 
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
@@ -172,6 +180,12 @@ event({float, Float}, _Opts) ->
 event({literal, Literal}, _Opts) ->
     Literal.
     
+
+decode_key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
+decode_key_repeats(Key, [_|Rest]) -> decode_key_repeats(Key, Rest);
+decode_key_repeats(_Key, []) -> false.
+
+    
     
 %% convert eep0018 representation to jsx events. note special casing for the empty object
 
@@ -188,7 +202,7 @@ term_to_events(Term) ->
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
-    case key_repeats(EncodedKey, Acc) of
+    case encode_key_repeats(EncodedKey, Acc) of
         false -> proplist_to_events(Rest, Event ++ EncodedKey ++ Acc)
         ; true -> erlang:error(badarg)
     end;
@@ -222,6 +236,16 @@ key_to_event(Key) when is_atom(Key) ->
     [{key, json_escape(erlang:atom_to_binary(Key, utf8))}];
 key_to_event(Key) when is_binary(Key) ->
     [{key, json_escape(Key)}].
+
+
+encode_key_repeats([Key], SoFar) -> encode_key_repeats(Key, SoFar, 0).
+
+encode_key_repeats(Key, [Key|_], 0) -> true;
+encode_key_repeats(Key, [end_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level + 1);
+encode_key_repeats(Key, [start_object|_], 0) -> false;
+encode_key_repeats(Key, [start_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level - 1);
+encode_key_repeats(Key, [_|Rest], Level) -> encode_key_repeats(Key, Rest, Level);
+encode_key_repeats(_, [], 0) -> false.
 
     
 %% conversion of floats to 'nice' decimal output. erlang's float implementation is almost
@@ -393,16 +417,48 @@ to_hex(10) -> $a;
 to_hex(X) -> X + $0.
 
 
-%% common functions
-
-key_repeats([{key, Key}], [{key, Key}|_Rest]) -> true;
-key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
-key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
-key_repeats(_Key, []) -> false.
-
-
 %% eunit tests
 -ifdef(test).
+
+decode_test_() ->
+    [
+        {"empty object", ?_assert(json_to_term(<<"{}">>, []) =:= [{}])},
+        {"empty array", ?_assert(json_to_term(<<"[]">>, []) =:= [])},
+        {"simple object", ?_assert(json_to_term(<<"{\"a\": true, \"b\": true, \"c\": true}">>, [{label, atom}]) =:= [{a, true}, {b, true}, {c, true}])},
+        {"simple array", ?_assert(json_to_term(<<"[true,true,true]">>, []) =:= [true, true, true])},
+        {"nested structures", ?_assert(json_to_term(<<"{\"list\":[{\"list\":[{}, {}],\"object\":{}}, []],\"object\":{}}">>, [{label, atom}]) =:= [{list, [[{list, [[{}], [{}]]}, {object, [{}]}],[]]}, {object, [{}]}])},
+        {"numbers", ?_assert(json_to_term(<<"[-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0]">>, []) =:= [-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0])},
+        {"numbers (all floats)", ?_assert(json_to_term(<<"[-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0]">>, [{float, true}]) =:= [-10000000000.0, -1.0, 0.0, 0.0, 1.0, 10000000000.0, 1000000000.0])},
+        {"strings", ?_assert(json_to_term(<<"[\"a string\"]">>, []) =:= [<<"a string">>])},
+        {"literals", ?_assert(json_to_term(<<"[true,false,null]">>, []) =:= [true,false,null])},
+        {"naked true", ?_assert(json_to_term(<<"true">>, [{strict, false}]) =:= true)},
+        {"naked short number", ?_assert(json_to_term(<<"1">>, [{strict, false}]) =:= 1)},
+        {"float", ?_assert(json_to_term(<<"1.0">>, [{strict, false}]) =:= 1.0)},
+        {"naked string", ?_assert(json_to_term(<<"\"hello world\"">>, [{strict, false}]) =:= <<"hello world">>)},
+        {"comments", ?_assert(json_to_term(<<"[ /* a comment in an empty array */ ]">>, [{comments, true}]) =:= [])}
+    ].
+    
+encode_test_() ->
+    [
+        {"empty object", ?_assert(term_to_json([{}], []) =:= <<"{}">>)},
+        {"empty array", ?_assert(term_to_json([], []) =:= <<"[]">>)},
+        {"simple object", ?_assert(term_to_json([{a, true}, {b, true}, {c, true}], []) =:= <<"{\"a\":true,\"b\":true,\"c\":true}">>)},
+        {"simple array", ?_assert(term_to_json([true, true, true], []) =:= <<"[true,true,true]">>)},
+        {"nested structures", ?_assert(term_to_json([{list, [[{list, [[{}], [{}]]}, {object, [{}]}],[]]}, {object, [{}]}], []) =:= <<"{\"list\":[{\"list\":[{},{}],\"object\":{}},[]],\"object\":{}}">>)},
+        {"numbers", ?_assert(term_to_json([-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0], []) =:= <<"[-1.0e10,-1,0.0,0,1,10000000000,1.0e9]">>)},
+        {"strings", ?_assert(term_to_json([<<"a string">>], []) =:= <<"[\"a string\"]">>)},
+        {"literals", ?_assert(term_to_json([true,false,null], []) =:= <<"[true,false,null]">>)},
+        {"naked true", ?_assert(term_to_json(true, [{strict, false}]) =:= <<"true">>)},
+        {"naked number", ?_assert(term_to_json(1, [{strict, false}]) =:= <<"1">>)},
+        {"float", ?_assert(term_to_json(1.0, [{strict, false}]) =:= <<"1.0">>)},
+        {"naked string", ?_assert(term_to_json(<<"hello world">>, [{strict, false}]) =:= <<"\"hello world\"">>)}
+    ].
+    
+repeated_keys_test_() ->
+    [
+        {"encode", ?_assertError(badarg, term_to_json([{k, true}, {k, false}], []))},
+        {"decode", ?_assertError(badarg, json_to_term(<<"{\"k\": true, \"k\": false}">>, []))}
+    ].
 
 escape_test_() ->
     [
@@ -426,16 +482,6 @@ nice_decimal_test_() ->
         {"max normalized float", ?_assert(float_to_decimal((2 - math:pow(2, -52)) * math:pow(2, 1023)) =:= "1.7976931348623157e308")},
         {"min denormalized float", ?_assert(float_to_decimal(math:pow(2, -1074)) =:= "5.0e-324")},
         {"max denormalized float", ?_assert(float_to_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) =:= "2.225073858507201e-308")}
-    ].
-    
-key_repeats_test_() ->
-    [
-        {"encoded key repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"key">>}, {key, <<"trailing key">>}]) =:= true)},
-        {"encoded key no repeat", ?_assert(key_repeats([{key, <<"key">>}], [{key, <<>>}, {key, <<"notkey">>}, {key, <<"trailing key">>}]) =:= false)},
-        {"decoded key (atom) repeat", ?_assert(key_repeats(key, [{notkey, true}, {key, true}, {trailing_key, true}]) =:= true)},
-        {"decoded key (binary) repeat", ?_assert(key_repeats(<<"key">>, [{<<"notkey">>, true}, {<<"key">>, true}, {<<"trailing key">>, true}]) =:= true)},
-        {"decoded key (atom) no repeat", ?_assert(key_repeats(key, [{notkey, true}, {definitely_not_key, true}, {trailing_key, true}]) =:= false)},
-        {"decoded key (binary) no repeat", ?_assert(key_repeats(<<"key">>, [{<<"notkey">>, true}, {<<"definitely not key">>, true}, {<<"trailing key">>, true}]) =:= false)}
     ].
 
 -endif.

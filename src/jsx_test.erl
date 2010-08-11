@@ -42,20 +42,24 @@ test() -> erlang:error(notest).
 -else.
 
 jsx_decoder_test_() ->
-    jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}]).
+    jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}], fun decode/2).
     
-jsx_decoder_gen([_Test|Rest], []) ->
-    jsx_decoder_gen(Rest, [utf8, utf16, {utf16, little}, utf32, {utf32, little}]);
-jsx_decoder_gen([], _) ->
+jsx_incremental_test_() ->
+    jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}], fun incremental_decode/2).
+
+    
+jsx_decoder_gen([_Test|Rest], [], F) ->
+    jsx_decoder_gen(Rest, [utf8, utf16, {utf16, little}, utf32, {utf32, little}], F);
+jsx_decoder_gen([], _, _) ->
     [];    
-jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
+jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings], F) ->
     Name = lists:flatten(proplists:get_value(name, Test) ++ " :: " ++ io_lib:format("~p", [Encoding])),
     JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
     JSX = proplists:get_value(jsx, Test),
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assert(decode(JSON, Flags) =:= JSX)} | jsx_decoder_gen(Tests, Encodings)]
+            [{Name, ?_assert(F(JSON, Flags) =:= JSX)} | jsx_decoder_gen(Tests, Encodings, F)]
         end
     }.
 
@@ -120,5 +124,43 @@ incremental_decode_loop({event, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
 incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
-    
+
+
+multi_decode_test_() ->
+    [
+        {"multiple values in a single stream", ?_assert(multi_decode(multi_json_body(), []) =:= multi_test_result())}
+    ].
+
+	
+multi_decode(JSON, Flags) ->
+    P = jsx:parser(Flags ++ [{multi_term, true}]),
+    multi_decode_loop(P(JSON), [[]]).
+
+multi_decode_loop({incomplete, _Next}, [[]|Acc]) ->
+    lists:reverse(Acc);
+multi_decode_loop({event, end_json, Next}, [S|Acc]) ->
+    multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
+multi_decode_loop({event, E, Next}, [S|Acc]) ->
+    multi_decode_loop(Next(), [[E] ++ S] ++ Acc).
+	
+	
+multi_json_body() ->
+    <<"0 1 -1 1e1 0.7 0.7e-1 true false null {} [] [1, 2, 3] \"hope this works\"">>.
+
+multi_test_result() ->
+    [ [{integer, "0"}],
+        [{integer, "1"}],
+        [{integer, "-1"}],
+        [{float, "1.0e1"}],
+        [{float, "0.7"}],
+        [{float, "0.7e-1"}],
+        [{literal, true}],
+        [{literal, false}],
+        [{literal, null}],
+        [start_object, end_object],
+        [start_array, end_array],
+        [start_array, {integer, "1"}, {integer, "2"}, {integer, "3"}, end_array],
+        [{string, "hope this works"}]
+    ].
+
 -endif.

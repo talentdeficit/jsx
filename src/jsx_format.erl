@@ -81,6 +81,8 @@ parse_opts([space|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{space = 1});
 parse_opts([{output_encoding, Val}|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{output_encoding = Val});
+parse_opts([_|Rest], Opts) ->
+    parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
     Opts.
 
