@@ -41,9 +41,6 @@ test() -> erlang:error(notest).
 
 -else.
 
-fake_test_() ->
-    [ {"fake test", ?_assert(true)} ].
-
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}]).
     
@@ -96,22 +93,6 @@ parse_tests([{json, Path}|Rest], Dir, Acc) when is_list(Path) ->
 parse_tests([KV|Rest], Dir, Acc) ->
     parse_tests(Rest, Dir, [KV] ++ Acc);
 parse_tests([], _Dir, Acc) ->
-    Acc.
-
-
-decoder_tests([Test|Rest], Encoding, Acc) ->
-    Name = lists:flatten(proplists:get_value(name, Test) ++ "::" ++ io_lib:format("~p", [Encoding])),
-    JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
-    JSX = proplists:get_value(jsx, Test),
-    Flags = proplists:get_value(jsx_flags, Test, []),
-    decoder_tests(Rest, 
-        Encoding, 
-        [{"incremental " ++ Name, ?_assert(incremental_decode(JSON, Flags) =:= JSX)}] 
-            ++ [{Name, ?_assert(decode(JSON, Flags) =:= JSX)}] 
-            ++ Acc
-    );  
-decoder_tests([], _Encoding, Acc) ->
-    io:format("~p~n", [Acc]),
     Acc.
 
 
