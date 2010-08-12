@@ -71,6 +71,26 @@ jsx is stream based and allows the parsing of naked, unwrapped json values. toge
 	  | {event, jsx_event(), fun(() -> jsx_result)}
 	
 	jsx_parser(binary()) -> jsx_result()
+	
+	
+	eep0018() = eep0018_object() | eep0018_array()
+
+    eep0018_array() = [eep0018_term()]
+    eep0018_object() = [{eep0018_key(), eep0018_term()}]
+
+    eep0018_key() = binary() | atom()
+
+    eep0018_term() = eep0018_array() 
+      | eep0018_object() 
+      | eep0018_string() 
+      | eep0018_number() 
+      | true 
+      | false 
+      | null
+
+    eep0018_string() = binary()
+
+    eep0018_number() = float() | integer()
 
 
 ### functions ###
