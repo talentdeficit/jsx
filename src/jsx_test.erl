@@ -42,24 +42,28 @@ test() -> erlang:error(notest).
 -else.
 
 jsx_decoder_test_() ->
-    jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}], fun decode/2).
+    jsx_decoder_gen(load_tests(?eunit_test_path)).
     
-jsx_incremental_test_() ->
-    jsx_decoder_gen(load_tests("./test/cases"), [utf8, utf16, {utf16, little}, utf32, {utf32, little}], fun incremental_decode/2).
-
     
-jsx_decoder_gen([_Test|Rest], [], F) ->
-    jsx_decoder_gen(Rest, [utf8, utf16, {utf16, little}, utf32, {utf32, little}], F);
-jsx_decoder_gen([], _, _) ->
-    [];    
-jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings], F) ->
+jsx_decoder_gen([]) -> [];    
+jsx_decoder_gen(Tests) -> jsx_decoder_gen(Tests, [utf8, utf16, {utf16, little}, utf32, {utf32, little}]).    
+    
+jsx_decoder_gen([_Test|Rest], []) ->
+    jsx_decoder_gen(Rest);
+jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Name = lists:flatten(proplists:get_value(name, Test) ++ " :: " ++ io_lib:format("~p", [Encoding])),
     JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
     JSX = proplists:get_value(jsx, Test),
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assert(F(JSON, Flags) =:= JSX)} | jsx_decoder_gen(Tests, Encodings, F)]
+            [{Name, ?_assert(decode(JSON, Flags) =:= JSX)} 
+                | {generator, 
+                        fun() -> [{Name ++ " incremental", ?_assert(incremental_decode(JSON, Flags) =:= JSX)}
+                            | jsx_decoder_gen(Tests, Encodings)]
+                        end
+                }
+            ]
         end
     }.
 
