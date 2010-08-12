@@ -242,7 +242,7 @@ encode_key_repeats([Key], SoFar) -> encode_key_repeats(Key, SoFar, 0).
 
 encode_key_repeats(Key, [Key|_], 0) -> true;
 encode_key_repeats(Key, [end_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level + 1);
-encode_key_repeats(Key, [start_object|_], 0) -> false;
+encode_key_repeats(_, [start_object|_], 0) -> false;
 encode_key_repeats(Key, [start_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level - 1);
 encode_key_repeats(Key, [_|Rest], Level) -> encode_key_repeats(Key, Rest, Level);
 encode_key_repeats(_, [], 0) -> false.
