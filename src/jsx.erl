@@ -31,8 +31,10 @@
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
 
+
 %% types for function specifications
 -include("./include/jsx_types.hrl").
+
 
 %% opts record
 -record(opts, {
@@ -41,6 +43,7 @@
     multi_term = false,
     encoding = auto
 }).
+
 
 
 -spec parser() -> jsx_parser().

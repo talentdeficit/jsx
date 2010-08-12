@@ -28,13 +28,18 @@
 
 -include("./include/jsx_types.hrl").
 
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 
 
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
 
 is_json(JSON, Opts) ->
     Encoding = proplists:get_value(encoding, Opts, utf8),
-    P = jsx:parser([{encoding, Encoding}]),
+    Comments = proplists:get_value(comments, Opts, false),
+    P = jsx:parser([{encoding, Encoding}, {comments, Comments}]),
     case proplists:get_value(strict, Opts, true) of
         true -> collect_strict(P(JSON), Opts)
         ; false -> collect(P(JSON), Opts)
@@ -63,8 +68,51 @@ collect({event, {key, Key}, Next}, Keys) ->
                 
 collect({event, _, Next}, Keys) ->
     collect(Next(), Keys);
+
+%% needed to parse numbers that don't have trailing whitespace in less strict mode    
+collect({incomplete, More}, Keys) ->
+    collect(More(end_stream), Keys);
+    
 collect(_, _) ->
     false.
+    
+    
+
+%% eunit tests
+-ifdef(test).
+
+true_test_() ->
+    [
+        {"empty object", ?_assert(is_json(<<"{}">>, []) =:= true)},
+        {"empty array", ?_assert(is_json(<<"[]">>, []) =:= true)},
+        {"whitespace", ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>, []) =:= true)},
+        {"nested terms", ?_assert(is_json(<<"[ { \"key\": [ {}, {}, {} ], \"more key\": [{}] }, {}, [[[]]] ]">>, []) =:= true)},
+        {"numbers", ?_assert(is_json(<<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>, []) =:= true)},
+        {"strings", ?_assert(is_json(<<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>, []) =:= true)},
+        {"literals", ?_assert(is_json(<<"[ true, false, null ]">>, []) =:= true)}
+    ].
+
+false_test_() ->
+    [
+        {"naked true", ?_assert(is_json(<<"true">>, []) =:= false)},
+        {"naked number", ?_assert(is_json(<<"1">>, []) =:= false)},
+        {"naked string", ?_assert(is_json(<<"\"i am not json\"">>, []) =:= false)},
+        {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
+        {"trailing comma", ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)},
+        {"unquoted key", ?_assert(is_json(<<"{ key: false }">>, []) =:= false)},
+        {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, []) =:= false)}
+    ].
+    
+less_strict_test_() ->
+    [
+        {"naked true", ?_assert(is_json(<<"true">>, [{strict, false}]) =:= true)},
+        {"naked number", ?_assert(is_json(<<"1">>, [{strict, false}]) =:= true)},
+        {"naked string", ?_assert(is_json(<<"\"i am not json\"">>, [{strict, false}]) =:= true)},
+        {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, [{comments, true}]) =:= true)}
+    ].
+        
+    
+-endif.
 
     
     

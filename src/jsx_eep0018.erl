@@ -28,6 +28,10 @@
 
 -include("./include/jsx_types.hrl").
 
+-ifdef(test).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 
 
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> json().
@@ -40,24 +44,32 @@ json_to_term(JSON, Opts) ->
     end.
     
 
+%% the jsx formatter (pretty printer) can do most of the heavy lifting in converting erlang
+%%  terms to json strings, but it expects a jsx event iterator. luckily, the mapping from
+%%  erlang terms to jsx events is straightforward and the iterator can be faked with an
+%%  anonymous function
+
 -spec term_to_json(JSON::json(), Opts::encoder_opts()) -> binary().
 
 term_to_json(List, Opts) ->
     case proplists:get_value(strict, Opts, true) of
         true when is_list(List) -> continue
-        ; false -> continue
         ; true -> erlang:error(badarg)
+        ; false -> continue
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
     jsx:format(event_generator(lists:reverse(term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
 
+
+%% fake the jsx api with a closure to be passed to the pretty printer
+
 event_generator([]) ->
-    fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> ok end} end} end;    
+    fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> event_generator([]) end} end} end;    
 event_generator([Next|Rest]) ->
     fun() -> {event, Next, event_generator(Rest)} end.
     
 
-%% internal for json_to_term
+%% parse opts for the decoder
 
 opts_to_jsx_opts(Opts) ->
     opts_to_jsx_opts(Opts, []).
@@ -77,13 +89,18 @@ opts_to_jsx_opts([_|Rest], Acc) ->
     opts_to_jsx_opts(Rest, Acc);
 opts_to_jsx_opts([], Acc) ->
     Acc.
-  
-  
+
+
+%% ensure the first jsx event we get is start_object or start_array when running
+%%  in strict mode
+
 collect_strict({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
 collect_strict(_, _, _) ->
     erlang:error(badarg).
     
+    
+%% collect decoder events and convert to eep0018 format    
     
 collect({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
@@ -110,7 +127,7 @@ collect({event, end_json, _Next}, [[Acc]], _Opts) ->
 %%   the head of the accumulator and deal with it when we receive it's paired value    
 collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
     Key = event(PreKey, Opts),
-    case key_repeats(Key, Current) of
+    case decode_key_repeats(Key, Current) of
         true -> erlang:error(badarg)
         ; false -> collect(Next(), [Key] ++ Acc, Opts)
     end;
@@ -124,9 +141,19 @@ collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
 collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
     collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
 
+%% if our first returned event is {incomplete, ...} try to force end and return the
+%%   Event if one is returned    
+collect({incomplete, More}, [[]], Opts) ->
+    case More(end_stream) of
+        {event, Event, _Next} -> event(Event, Opts)
+        ; _ -> erlang:error(badarg)
+    end;
+
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
+
+%% helper functions for converting jsx events to eep0018 formats
         
 event({string, String}, _Opts) ->
     unicode:characters_to_binary(String);
@@ -153,8 +180,14 @@ event({float, Float}, _Opts) ->
 event({literal, Literal}, _Opts) ->
     Literal.
     
+
+decode_key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
+decode_key_repeats(Key, [_|Rest]) -> decode_key_repeats(Key, Rest);
+decode_key_repeats(_Key, []) -> false.
+
     
-%% internal for term_to_json
+    
+%% convert eep0018 representation to jsx events. note special casing for the empty object
 
 term_to_events([{}]) ->
     [end_object, start_object];
@@ -169,8 +202,7 @@ term_to_events(Term) ->
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
-    io:format("~p~n~p~n~n", [EncodedKey, Acc]),
-    case key_repeats(EncodedKey, Acc) of
+    case encode_key_repeats(EncodedKey, Acc) of
         false -> proplist_to_events(Rest, Event ++ EncodedKey ++ Acc)
         ; true -> erlang:error(badarg)
     end;
@@ -204,6 +236,16 @@ key_to_event(Key) when is_atom(Key) ->
     [{key, json_escape(erlang:atom_to_binary(Key, utf8))}];
 key_to_event(Key) when is_binary(Key) ->
     [{key, json_escape(Key)}].
+
+
+encode_key_repeats([Key], SoFar) -> encode_key_repeats(Key, SoFar, 0).
+
+encode_key_repeats(Key, [Key|_], 0) -> true;
+encode_key_repeats(Key, [end_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level + 1);
+encode_key_repeats(Key, [start_object|_], 0) -> false;
+encode_key_repeats(Key, [start_object|Rest], Level) -> encode_key_repeats(Key, Rest, Level - 1);
+encode_key_repeats(Key, [_|Rest], Level) -> encode_key_repeats(Key, Rest, Level);
+encode_key_repeats(_, [], 0) -> false.
 
     
 %% conversion of floats to 'nice' decimal output. erlang's float implementation is almost
@@ -300,6 +342,8 @@ pow(B, E, Acc) when E band 1 == 1 -> pow(B * B, E bsr 1, B * Acc);
 pow(B, E, Acc) -> pow(B * B, E bsr 1, Acc).
 
 
+format(0, Digits) ->
+    format(Digits, ignore, ".0");
 format(Dpoint, Digits) when Dpoint =< length(Digits), Dpoint > 0 ->
     format(Digits, Dpoint, []);
 format(Dpoint, Digits) when Dpoint > 0 ->
@@ -373,9 +417,71 @@ to_hex(10) -> $a;
 to_hex(X) -> X + $0.
 
 
-%% common functions
+%% eunit tests
+-ifdef(test).
 
-key_repeats([{key, Key}], [{key, Key}|_Rest]) -> true;
-key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
-key_repeats(Key, [_|Rest]) -> key_repeats(Key, Rest);
-key_repeats(_Key, []) -> false.
+decode_test_() ->
+    [
+        {"empty object", ?_assert(json_to_term(<<"{}">>, []) =:= [{}])},
+        {"empty array", ?_assert(json_to_term(<<"[]">>, []) =:= [])},
+        {"simple object", ?_assert(json_to_term(<<"{\"a\": true, \"b\": true, \"c\": true}">>, [{label, atom}]) =:= [{a, true}, {b, true}, {c, true}])},
+        {"simple array", ?_assert(json_to_term(<<"[true,true,true]">>, []) =:= [true, true, true])},
+        {"nested structures", ?_assert(json_to_term(<<"{\"list\":[{\"list\":[{}, {}],\"object\":{}}, []],\"object\":{}}">>, [{label, atom}]) =:= [{list, [[{list, [[{}], [{}]]}, {object, [{}]}],[]]}, {object, [{}]}])},
+        {"numbers", ?_assert(json_to_term(<<"[-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0]">>, []) =:= [-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0])},
+        {"numbers (all floats)", ?_assert(json_to_term(<<"[-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0]">>, [{float, true}]) =:= [-10000000000.0, -1.0, 0.0, 0.0, 1.0, 10000000000.0, 1000000000.0])},
+        {"strings", ?_assert(json_to_term(<<"[\"a string\"]">>, []) =:= [<<"a string">>])},
+        {"literals", ?_assert(json_to_term(<<"[true,false,null]">>, []) =:= [true,false,null])},
+        {"naked true", ?_assert(json_to_term(<<"true">>, [{strict, false}]) =:= true)},
+        {"naked short number", ?_assert(json_to_term(<<"1">>, [{strict, false}]) =:= 1)},
+        {"float", ?_assert(json_to_term(<<"1.0">>, [{strict, false}]) =:= 1.0)},
+        {"naked string", ?_assert(json_to_term(<<"\"hello world\"">>, [{strict, false}]) =:= <<"hello world">>)},
+        {"comments", ?_assert(json_to_term(<<"[ /* a comment in an empty array */ ]">>, [{comments, true}]) =:= [])}
+    ].
+    
+encode_test_() ->
+    [
+        {"empty object", ?_assert(term_to_json([{}], []) =:= <<"{}">>)},
+        {"empty array", ?_assert(term_to_json([], []) =:= <<"[]">>)},
+        {"simple object", ?_assert(term_to_json([{a, true}, {b, true}, {c, true}], []) =:= <<"{\"a\":true,\"b\":true,\"c\":true}">>)},
+        {"simple array", ?_assert(term_to_json([true, true, true], []) =:= <<"[true,true,true]">>)},
+        {"nested structures", ?_assert(term_to_json([{list, [[{list, [[{}], [{}]]}, {object, [{}]}],[]]}, {object, [{}]}], []) =:= <<"{\"list\":[{\"list\":[{},{}],\"object\":{}},[]],\"object\":{}}">>)},
+        {"numbers", ?_assert(term_to_json([-10000000000.0, -1, 0.0, 0, 1, 10000000000, 1000000000.0], []) =:= <<"[-1.0e10,-1,0.0,0,1,10000000000,1.0e9]">>)},
+        {"strings", ?_assert(term_to_json([<<"a string">>], []) =:= <<"[\"a string\"]">>)},
+        {"literals", ?_assert(term_to_json([true,false,null], []) =:= <<"[true,false,null]">>)},
+        {"naked true", ?_assert(term_to_json(true, [{strict, false}]) =:= <<"true">>)},
+        {"naked number", ?_assert(term_to_json(1, [{strict, false}]) =:= <<"1">>)},
+        {"float", ?_assert(term_to_json(1.0, [{strict, false}]) =:= <<"1.0">>)},
+        {"naked string", ?_assert(term_to_json(<<"hello world">>, [{strict, false}]) =:= <<"\"hello world\"">>)}
+    ].
+    
+repeated_keys_test_() ->
+    [
+        {"encode", ?_assertError(badarg, term_to_json([{k, true}, {k, false}], []))},
+        {"decode", ?_assertError(badarg, json_to_term(<<"{\"k\": true, \"k\": false}">>, []))}
+    ].
+
+escape_test_() ->
+    [
+        {"json string escaping", ?_assert(json_escape(<<"\"\\\b\f\n\r\t">>) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>)},
+        {"json string hex escape", ?_assert(json_escape(<<1, 2, 3, 11, 26, 30, 31>>) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>)}
+    ].
+    
+nice_decimal_test_() ->
+    [
+        {"0.0", ?_assert(float_to_decimal(0.0) =:= "0.0")},
+        {"1.0", ?_assert(float_to_decimal(1.0) =:= "1.0")},
+        {"-1.0", ?_assert(float_to_decimal(-1.0) =:= "-1.0")},
+        {"3.1234567890987654321", ?_assert(float_to_decimal(3.1234567890987654321) =:= "3.1234567890987655")},
+        {"1.0e23", ?_assert(float_to_decimal(1.0e23) =:= "1.0e23")},
+        {"0.3", ?_assert(float_to_decimal(3.0/10.0) =:= "0.3")},
+        {"0.0001", ?_assert(float_to_decimal(0.0001) =:= "1.0e-4")},
+        {"0.00000001", ?_assert(float_to_decimal(0.00000001) =:= "1.0e-8")},
+        {"1.0e-323", ?_assert(float_to_decimal(1.0e-323) =:= "1.0e-323")},
+        {"1.0e308", ?_assert(float_to_decimal(1.0e308) =:= "1.0e308")},
+        {"min normalized float", ?_assert(float_to_decimal(math:pow(2, -1022)) =:= "2.2250738585072014e-308")},
+        {"max normalized float", ?_assert(float_to_decimal((2 - math:pow(2, -52)) * math:pow(2, 1023)) =:= "1.7976931348623157e308")},
+        {"min denormalized float", ?_assert(float_to_decimal(math:pow(2, -1074)) =:= "5.0e-324")},
+        {"max denormalized float", ?_assert(float_to_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) =:= "2.225073858507201e-308")}
+    ].
+
+-endif.

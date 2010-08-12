@@ -1,1 +1,3 @@
-[start_array,{string,[32, 119070, 32]},end_array,end_json].
+{name, "multibyte_utf"}.
+{jsx, [start_array,{string,[32,119070,32]},end_array,end_json]}.
+{json, "multibyte_utf.json"}.
