@@ -4,7 +4,7 @@ compile:
 expand:
 	./priv/backends.escript create
     
-test: compile
+test:
 	./rebar eunit
 
 clean:
