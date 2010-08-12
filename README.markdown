@@ -278,4 +278,4 @@ jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endia
 
 [1]: http://lloyd.github.com/yajl
 [2]: http://talentdeficit.github.com/jsx
-[3]: http://eep0018
+[3]: http://www.erlang.org/eeps/eep-0018.html
