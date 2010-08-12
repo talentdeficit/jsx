@@ -67,8 +67,8 @@ parser(OptsList) ->
     end.
     
     
--spec term_to_json(JSON::json()) -> binary().
--spec term_to_json(JSON::json(), Opts::encoder_opts()) -> binary().
+-spec term_to_json(JSON::eep0018()) -> binary().
+-spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
 
 term_to_json(JSON) ->
     term_to_json(JSON, []).
