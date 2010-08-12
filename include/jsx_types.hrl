@@ -80,7 +80,7 @@
 
 -type encoder_opts() :: [encoder_opt()].
 -type encoder_opt() :: {strict, true | false}
-    | {encoding, auto | supported_utf()}
+    | {encoding, supported_utf()}
     | {space, integer()}
     | space
     | {indent, integer()}
