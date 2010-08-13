@@ -51,25 +51,25 @@
                            | {error, badjson}
                            | ok.
 
--type json() :: json_object() | json_array().
+-type eep0018() :: eep0018_object() | eep0018_array().
 
--type json_array() :: [json_term()].
+-type eep0018_array() :: [eep0018_term()].
 
--type json_object() :: [{json_key(), json_term()}].
+-type eep0018_object() :: [{eep0018_key(), eep0018_term()}].
 
--type json_key() :: binary() | atom().
+-type eep0018_key() :: binary() | atom().
 
--type json_term() :: json_array()
-                   | json_object()
-                   | json_string()
-                   | json_number()
-                   | true
-                   | false
-                   | null.
+-type eep0018_term() :: eep0018_array()
+                      | eep0018_object()
+                      | eep0018_string()
+                      | eep0018_number()
+                      | true
+                      | false
+                      | null.
 
--type json_string() :: binary().
+-type eep0018_string() :: binary().
 
--type json_number() :: float() | integer().
+-type eep0018_number() :: float() | integer().
 
 -type supported_utf() :: utf8
                        | utf16
@@ -80,7 +80,7 @@
 -type encoder_opts() :: [encoder_opt()].
 
 -type encoder_opt() :: {strict, true | false}
-                     | {encoding, auto | supported_utf()}
+                     | {encoding, supported_utf()}
                      | {space, integer()}
                      | space
                      | {indent, integer()}
@@ -113,7 +113,8 @@
 
 -file("priv/jsx_decoder_template.erl", 36).
 
--spec parse(JSON :: json(), Opts :: jsx_opts()) -> jsx_parser_result().
+-spec parse(JSON :: eep0018(), Opts :: jsx_opts()) ->
+               jsx_parser_result().
 
 parse(JSON, Opts) ->
     start(JSON, [], Opts).
@@ -232,7 +233,7 @@ done(<<>>, Opts) ->
      fun() ->
             {incomplete,
              fun(end_stream) ->
-                    done(<<>>, Opts);
+                    {error,badjson};
                 (Stream) ->
                     done(Stream, Opts)
              end}

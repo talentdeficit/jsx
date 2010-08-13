@@ -36,7 +36,7 @@
 
 
 
--spec parse(JSON::json(), Opts::jsx_opts()) -> jsx_parser_result().
+-spec parse(JSON::eep0018(), Opts::jsx_opts()) -> jsx_parser_result().
 
 parse(JSON, Opts) ->
     start(JSON, [], Opts).
@@ -97,7 +97,7 @@ done(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
 done(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
     maybe_comment(Rest, fun(Resume) -> done(Resume, Opts) end);
 done(<<>>, Opts) ->
-    {event, end_json, fun() -> {incomplete, fun(end_stream) -> done(<<>>, Opts); (Stream) -> done(Stream, Opts) end} end};
+    {event, end_json, fun() -> {incomplete, fun(end_stream) -> {error, badjson}; (Stream) -> done(Stream, Opts) end} end};
 done(Bin, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> {incomplete, fun(end_stream) -> {error, badjson}; (Stream) -> done(<<Bin/binary, Stream/binary>>, Opts) end}
