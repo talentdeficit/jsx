@@ -30,6 +30,7 @@
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
+-export([eventify/1]).
 
 
 %% types for function specifications
@@ -104,7 +105,17 @@ format(JSON) ->
     format(JSON, []).    
 
 format(JSON, Opts) ->
-    jsx_format:format(JSON, Opts).    
+    jsx_format:format(JSON, Opts).
+    
+
+-spec eventify(List::list()) -> jsx_parser_result().
+
+%% fake the jsx api with a closure to be passed to the pretty printer
+
+eventify([]) ->
+    fun() -> {incomplete, fun(end_stream) -> eventify([]) end} end;    
+eventify([Next|Rest]) ->
+    fun() -> {event, Next, eventify(Rest)} end.  
 
 
 %% ----------------------------------------------------------------------------

@@ -58,15 +58,7 @@ term_to_json(List, Opts) ->
         ; false -> continue
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
-    jsx:format(event_generator(lists:reverse(term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
-
-
-%% fake the jsx api with a closure to be passed to the pretty printer
-
-event_generator([]) ->
-    fun() -> {event, end_json, fun() -> {incomplete, fun(end_stream) -> event_generator([]) end} end} end;    
-event_generator([Next|Rest]) ->
-    fun() -> {event, Next, event_generator(Rest)} end.
+    jsx:format(jsx:eventify(lists:reverse([end_json] ++ term_to_events(List))), [{output_encoding, Encoding}] ++ Opts).
     
 
 %% parse opts for the decoder
