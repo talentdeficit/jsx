@@ -110,10 +110,11 @@ format(JSON, Opts) ->
 
 -spec eventify(List::list()) -> jsx_parser_result().
 
-%% fake the jsx api with a closure to be passed to the pretty printer
+%% fake the jsx api for any list, useful if you want to serialize a structure to
+%%   json using the pretty printer, or verify a sequence could be valid json
 
 eventify([]) ->
-    fun() -> {incomplete, fun(end_stream) -> eventify([]) end} end;    
+    fun() -> {incomplete, fun(List) when is_list(List) -> eventify(List); (_) -> erlang:error(badarg) end} end;    
 eventify([Next|Rest]) ->
     fun() -> {event, Next, eventify(Rest)} end.  
 
