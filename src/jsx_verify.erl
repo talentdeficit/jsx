@@ -41,8 +41,8 @@ is_json(JSON, Opts) ->
     Comments = proplists:get_value(comments, Opts, false),
     P = jsx:parser([{encoding, Encoding}, {comments, Comments}]),
     case proplists:get_value(strict, Opts, true) of
-        true -> collect_strict(P(JSON), Opts)
-        ; false -> collect(P(JSON), Opts)
+        true -> collect_strict(P(JSON), [[]])
+        ; false -> collect(P(JSON), [[]])
     end.
     
 
@@ -53,25 +53,34 @@ collect_strict({event, start_array, Next}, Keys) ->
     collect(Next(), Keys);
 collect_strict(_, _) ->
     false.
-    
+
 
 collect({event, end_json, _Next}, _Keys) ->
     true;
-        
+
+
+%% allocate new key accumulator at start_object, discard it at end_object    
+collect({event, start_object, Next}, Keys) -> collect(Next(), [[]|Keys]);
+collect({event, end_object, Next}, [_|Keys]) -> collect(Next(), [Keys]);
+
+
 %% check to see if key has already been encountered, if not add it to the key accumulator
 %%   and continue, else return false 
-collect({event, {key, Key}, Next}, Keys) ->
-    case lists:member(Key, Keys) of
+collect({event, {key, Key}, Next}, [Current|Keys]) ->
+    case lists:member(Key, Current) of
         true -> false
-        ; false -> collect(Next(), [Key] ++ Keys)
+        ; false -> collect(Next(), [[Key] ++ Current] ++ Keys)
     end;
+
                 
 collect({event, _, Next}, Keys) ->
     collect(Next(), Keys);
 
+
 %% needed to parse numbers that don't have trailing whitespace in less strict mode    
 collect({incomplete, More}, Keys) ->
     collect(More(end_stream), Keys);
+
     
 collect(_, _) ->
     false.
@@ -89,7 +98,8 @@ true_test_() ->
         {"nested terms", ?_assert(is_json(<<"[ { \"key\": [ {}, {}, {} ], \"more key\": [{}] }, {}, [[[]]] ]">>, []) =:= true)},
         {"numbers", ?_assert(is_json(<<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>, []) =:= true)},
         {"strings", ?_assert(is_json(<<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>, []) =:= true)},
-        {"literals", ?_assert(is_json(<<"[ true, false, null ]">>, []) =:= true)}
+        {"literals", ?_assert(is_json(<<"[ true, false, null ]">>, []) =:= true)},
+        {"nested objects", ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []) =:= true)}
     ].
 
 false_test_() ->
@@ -100,6 +110,7 @@ false_test_() ->
         {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
         {"trailing comma", ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)},
         {"unquoted key", ?_assert(is_json(<<"{ key: false }">>, []) =:= false)},
+        {"repeated key", ?_assert(is_json(<<"{\"key\": true, \"key\": true}">>, []) =:= false)},
         {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, []) =:= false)}
     ].
     
