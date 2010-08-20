@@ -24,17 +24,18 @@
 -module(jsx_eep0018).
 -author("alisdairsullivan@yahoo.ca").
 
+
 -export([json_to_term/2, term_to_json/2]).
 
--include("./include/jsx_types.hrl").
+
+-include("./include/jsx_eep0018.hrl").
+
 
 -ifdef(test).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
 
-
--spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().
 
 json_to_term(JSON, Opts) ->
     P = jsx:parser(opts_to_jsx_opts(Opts)),
@@ -48,9 +49,6 @@ json_to_term(JSON, Opts) ->
 %%  terms to json strings, but it expects a jsx event iterator. luckily, the mapping from
 %%  erlang terms to jsx events is straightforward and the iterator can be faked with an
 %%  anonymous function
-
--spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
-
 term_to_json(List, Opts) ->
     case proplists:get_value(strict, Opts, true) of
         true when is_list(List) -> continue
@@ -62,7 +60,6 @@ term_to_json(List, Opts) ->
     
 
 %% parse opts for the decoder
-
 opts_to_jsx_opts(Opts) ->
     opts_to_jsx_opts(Opts, []).
     
@@ -85,18 +82,15 @@ opts_to_jsx_opts([], Acc) ->
 
 %% ensure the first jsx event we get is start_object or start_array when running
 %%  in strict mode
-
 collect_strict({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
 collect_strict(_, _, _) ->
     erlang:error(badarg).
     
     
-%% collect decoder events and convert to eep0018 format    
-    
+%% collect decoder events and convert to eep0018 format     
 collect({event, Start, Next}, Acc, Opts) when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
-
 %% special case for empty object
 collect({event, end_object, Next}, [[], Parent|Rest], Opts) when is_list(Parent) ->
     collect(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
@@ -110,11 +104,9 @@ collect({event, end_object, Next}, [[], Key, Parent|Rest], Opts) ->
     collect(Next(), [[{Key, [{}]}] ++ Parent] ++ Rest, Opts);
 collect({event, End, Next}, [Current, Key, Parent|Rest], Opts)
         when End =:= end_object; End =:= end_array ->
-    collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);
-      
+    collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);      
 collect({event, end_json, _Next}, [[Acc]], _Opts) ->
-    Acc;
-    
+    Acc;  
 %% key can only be emitted inside of a json object, so just insert it directly into
 %%   the head of the accumulator and deal with it when we receive it's paired value    
 collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
@@ -123,7 +115,6 @@ collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
         true -> erlang:error(badarg)
         ; false -> collect(Next(), [Key] ++ Acc, Opts)
     end;
-
 %% check acc to see if we're inside an object or an array. because inside an object
 %%   context the events that fall this far are always preceded by a key (which are
 %%   binaries or atoms), if Current is a list, we're inside an array, else, an
@@ -132,7 +123,6 @@ collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
     collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
 collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
     collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
-
 %% if our first returned event is {incomplete, ...} try to force end and return the
 %%   Event if one is returned    
 collect({incomplete, More}, [[]], Opts) ->
@@ -140,13 +130,11 @@ collect({incomplete, More}, [[]], Opts) ->
         {event, Event, _Next} -> event(Event, Opts)
         ; _ -> erlang:error(badarg)
     end;
-
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
 
-%% helper functions for converting jsx events to eep0018 formats
-        
+%% helper functions for converting jsx events to eep0018 formats 
 event({string, String}, _Opts) ->
     unicode:characters_to_binary(String);
 event({key, Key}, Opts) ->
@@ -180,7 +168,6 @@ decode_key_repeats(_Key, []) -> false.
     
     
 %% convert eep0018 representation to jsx events. note special casing for the empty object
-
 term_to_events([{}]) ->
     [end_object, start_object];
 term_to_events([First|_] = List) when is_tuple(First) ->
@@ -347,7 +334,6 @@ format(Dpoint, Digits) when Dpoint > 0 ->
 format(Dpoint, Digits) when Dpoint < 0 ->
     format(Digits, 1, []) ++ "e" ++ integer_to_list(Dpoint - 1).
 
-
 format([], 0, Acc) ->
     lists:reverse("0." ++ Acc);
 format([], ignore, Acc) ->
@@ -364,7 +350,6 @@ to_ascii(X) -> [X + 48].    %% ascii "1" is [49], "2" is [50], etc...
 %% json string escaping, for utf8 binaries. escape the json control sequences to their
 %%  json equivalent, escape other control characters to \uXXXX sequences, everything
 %%  else should be a legal json string component
-
 json_escape(String) ->
     json_escape(String, <<>>).
 
@@ -399,6 +384,7 @@ json_escape(_, _) ->
 json_escape_sequence(C) when C < 16#20 ->
     <<_:8, A:4, B:4>> = <<C:16>>,   % first two hex digits are always zero
     <<$\\, $u, $0, $0, (to_hex(A)), (to_hex(B))>>.
+
 
 to_hex(15) -> $f;
 to_hex(14) -> $e;

@@ -24,17 +24,18 @@
 -module(jsx_verify).
 -author("alisdairsullivan@yahoo.ca").
 
+
 -export([is_json/2]).
 
--include("./include/jsx_types.hrl").
+
+-include("./include/jsx_verify.hrl").
+
 
 -ifdef(test).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
 
-
--spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
 
 is_json(JSON, Opts) ->
     Encoding = proplists:get_value(encoding, Opts, utf8),

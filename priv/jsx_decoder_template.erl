@@ -29,14 +29,13 @@
 -module(?name).
 -author("alisdairsullivan@yahoo.ca").
 
+
 -export([parse/2]).
 
+
 -include("./include/jsx_decoder.hrl").
--include("./include/jsx_types.hrl").
 
 
-
--spec parse(JSON::eep0018(), Opts::jsx_opts()) -> jsx_parser_result().
 
 parse(JSON, Opts) ->
     start(JSON, [], Opts).
@@ -70,6 +69,7 @@ start(Bin, Stack, Opts) ->
         ; false -> {error, badjson}
     end.
 
+
 maybe_done(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Stack, Opts);
 maybe_done(<<?end_object/?encoding, Rest/binary>>, [object|Stack], Opts) ->
@@ -91,7 +91,8 @@ maybe_done(Bin, Stack, Opts) ->
         true -> {incomplete, fun(end_stream) -> {error, badjson}; (Stream) -> maybe_done(<<Bin/binary, Stream/binary>>, Stack, Opts) end}
         ; false -> {error, badjson}
     end.
-    
+
+
 done(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
     done(Rest, Opts);
 done(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
@@ -243,7 +244,7 @@ partial_utf(<<X, Rest/binary>>) when X >= 16#f0, X =< 16#f4 ->
     end;
 partial_utf(_) -> false.    
 -endif.    
-    
+
 -ifdef(utf16).
 partial_utf(<<>>) -> true;
 %% this case is not strictly true, there are single bytes that should be rejected, but
@@ -348,6 +349,7 @@ escaped_unicode(Bin, Stack, Opts, String, Acc) ->
         ; false -> {error, badjson}
     end.
 
+
 %% upon encountering a low pair json/hex encoded value, check to see if there's a high
 %%   value already in the accumulator
 check_acc_for_surrogate([D, C, B, A, $u, ?rsolidus|Rest])
@@ -360,6 +362,7 @@ check_acc_for_surrogate([D, C, B, A, $u, ?rsolidus|Rest])
     end;
 check_acc_for_surrogate(_) ->
     false.
+
 
 %% stole this from the unicode spec    
 surrogate_to_codepoint(High, Low) ->

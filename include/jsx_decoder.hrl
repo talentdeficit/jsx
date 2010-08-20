@@ -20,6 +20,13 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
+-include("./include/jsx_common.hrl").
+
+
+
+-spec parse(JSON::eep0018(), Opts::jsx_opts()) -> jsx_parser_result().
+
+
 %% option flags
 
 -define(comments_enabled(X), {_, true, _, _, _} = X).

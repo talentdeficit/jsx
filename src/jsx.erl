@@ -24,6 +24,7 @@
 -module(jsx).
 -author("alisdairsullivan@yahoo.ca").
 
+
 %% the core parser api
 -export([parser/0, parser/1]).
 -export([term_to_json/1, term_to_json/2]).
@@ -34,21 +35,9 @@
 
 
 %% types for function specifications
--include("./include/jsx_types.hrl").
+-include("./include/jsx.hrl").
 
 
-%% opts record
--record(opts, {
-    comments = false,
-    escaped_unicode = codepoint,
-    multi_term = false,
-    encoding = auto
-}).
-
-
-
--spec parser() -> jsx_parser().
--spec parser(Opts::jsx_opts()) -> jsx_parser().
 
 parser() ->
     parser([]).
@@ -67,9 +56,6 @@ parser(OptsList) ->
         ; Opts -> fun(Stream) -> F(Stream, Opts) end
     end.
     
-    
--spec term_to_json(JSON::eep0018()) -> binary().
--spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
 
 term_to_json(JSON) ->
     term_to_json(JSON, []).
@@ -78,18 +64,12 @@ term_to_json(JSON, Opts) ->
     jsx_eep0018:term_to_json(JSON, Opts).
 
 
--spec json_to_term(JSON::binary()) -> eep0018().
--spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().    
-
 json_to_term(JSON) ->
     json_to_term(JSON, []).
 
 json_to_term(JSON, Opts) ->
     jsx_eep0018:json_to_term(JSON, Opts).
 
-
--spec is_json(JSON::binary()) -> true | false.
--spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
 
 is_json(JSON) ->
     is_json(JSON, []).    
@@ -98,9 +78,6 @@ is_json(JSON, Opts) ->
     jsx_verify:is_json(JSON, Opts).
 
 
--spec format(JSON::binary()) -> binary() | iolist().
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
-
 format(JSON) ->
     format(JSON, []).    
 
@@ -108,11 +85,8 @@ format(JSON, Opts) ->
     jsx_format:format(JSON, Opts).
     
 
--spec eventify(List::list()) -> jsx_parser_result().
-
 %% fake the jsx api for any list, useful if you want to serialize a structure to
 %%   json using the pretty printer, or verify a sequence could be valid json
-
 eventify([]) ->
     fun() -> {incomplete, fun(List) when is_list(List) -> eventify(List); (_) -> erlang:error(badarg) end} end;    
 eventify([Next|Rest]) ->

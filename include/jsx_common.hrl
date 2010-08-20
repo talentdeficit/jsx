@@ -21,8 +21,10 @@
 %% THE SOFTWARE.
 
 
-%% unsure of how to specify a binary with a complex structure like utfx encoded
-%%   binaries. this should be further limited somehow probably.
+
+-define(is_utf_encoding(X),
+    X == utf8; X == utf16; X == utf32; X == {utf16, little}; X == {utf32, little}
+).
 
 
 -type jsx_opts() :: [jsx_opt()].
@@ -33,7 +35,6 @@
 
 
 %% events emitted by the parser and component types
-
 -type unicode_codepoint() :: 0..16#10ffff.
 -type unicode_string() :: [unicode_codepoint()].
 
@@ -52,7 +53,6 @@
     
     
 %% this probably doesn't work properly
-
 -type jsx_parser() :: fun((binary()) -> jsx_parser_result()).
 
 -type jsx_parser_result() :: {event, jsx_event(), fun(() -> jsx_parser_result())}
@@ -60,7 +60,11 @@
     | {error, badjson}
     | ok.
 
-    
+
+-type supported_utf() :: utf8 | utf16 | {utf16, little} | utf32 | {utf32, little}.
+
+
+%% eep0018 json specification
 -type eep0018() :: eep0018_object() | eep0018_array().
 
 -type eep0018_array() :: [eep0018_term()].
@@ -75,9 +79,6 @@
 -type eep0018_number() :: float() | integer().
 
 
--type supported_utf() :: utf8 | utf16 | {utf16, little} | utf32 | {utf32, little}.
-
-
 -type encoder_opts() :: [encoder_opt()].
 -type encoder_opt() :: {strict, true | false}
     | {encoding, supported_utf()}
@@ -85,7 +86,6 @@
     | space
     | {indent, integer()}
     | indent.
-
 
 
 -type decoder_opts() :: [decoder_opt()].

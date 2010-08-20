@@ -8,9 +8,7 @@
 
 -file("./include/jsx_decoder.hrl", 1).
 
--file("priv/jsx_decoder_template.erl", 35).
-
--file("./include/jsx_types.hrl", 1).
+-file("./include/jsx_common.hrl", 1).
 
 -type jsx_opts() :: [jsx_opt()].
 
@@ -51,6 +49,12 @@
                            | {error, badjson}
                            | ok.
 
+-type supported_utf() :: utf8
+                       | utf16
+                       | {utf16, little}
+                       | utf32
+                       | {utf32, little}.
+
 -type eep0018() :: eep0018_object() | eep0018_array().
 
 -type eep0018_array() :: [eep0018_term()].
@@ -70,12 +74,6 @@
 -type eep0018_string() :: binary().
 
 -type eep0018_number() :: float() | integer().
-
--type supported_utf() :: utf8
-                       | utf16
-                       | {utf16, little}
-                       | utf32
-                       | {utf32, little}.
 
 -type encoder_opts() :: [encoder_opt()].
 
@@ -111,10 +109,12 @@
                     | indent
                     | {output_encoding, supported_utf()}.
 
--file("priv/jsx_decoder_template.erl", 36).
+-file("./include/jsx_decoder.hrl", 24).
 
 -spec parse(JSON :: eep0018(), Opts :: jsx_opts()) ->
                jsx_parser_result().
+
+-file("priv/jsx_decoder_template.erl", 35).
 
 parse(JSON, Opts) ->
     start(JSON, [], Opts).

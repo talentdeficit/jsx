@@ -24,10 +24,11 @@
 -module(jsx_format).
 -author("alisdairsullivan@yahoo.ca").
 
+
 -export([format/2]).
 
 
--include("./include/jsx_types.hrl").
+-include("./include/jsx_format.hrl").
 
 
 -ifdef(test).
@@ -35,33 +36,10 @@
 -endif.
 
 
--record(opts, {
-    space = 0,
-    indent = 0,
-    output_encoding = utf8,
-    strict = true
-}).
-
-
-
--define(newline, $\n).
--define(space, 16#20).  %% ascii code for space
--define(quote, $\").
--define(comma, $,).
--define(colon, $:).
--define(start_object, ${).
--define(end_object, $}).
--define(start_array, $[).
--define(end_array, $]).
-
-
-
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
     
 format(JSON, Opts) when is_binary(JSON) ->
     P = jsx:parser(extract_parser_opts(Opts)),
     format(fun() -> P(JSON) end, Opts);
-    
 format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #opts{}),
     {Continue, String} = format_something(F(), Opts, 0),
@@ -125,7 +103,8 @@ format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
                 Level
             )
     end.
-    
+
+
 format_array({event, end_array, Next}, Acc, _Opts, _Level) ->
     {Next, Acc};
 format_array(Event, Acc, Opts, Level) ->
@@ -137,10 +116,6 @@ format_array(Event, Acc, Opts, Level) ->
             format_array(Else, [Acc, indent(Opts, Level), Value, ?comma, space(Opts)], Opts, Level)
     end.
 
-
--define(is_utf_encoding(X),
-    X == utf8; X == utf16; X == utf32; X == {utf16, little}; X == {utf32, little}
-).
 
 encode(Acc, Opts) when is_list(Acc) ->
     case Opts#opts.output_encoding of
