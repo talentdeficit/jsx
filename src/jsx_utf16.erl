@@ -1,5 +1,10 @@
 -file("priv/jsx_decoder_template.erl", 1).
 
+
+%% @hidden hide this module from edoc, exported functions are internal to jsx
+%%   and may be altered or removed without notice
+
+
 -module(jsx_utf16).
 
 -author("alisdairsullivan@yahoo.ca").

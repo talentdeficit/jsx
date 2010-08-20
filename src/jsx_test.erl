@@ -21,25 +21,30 @@
 %% THE SOFTWARE.
 
 
+%% @hidden hide this module from edoc, exported functions are internal to jsx
+%%   and may be altered or removed without notice
+
+
 -module(jsx_test).
 -author("alisdairsullivan@yahoo.ca").
+
 
 -ifndef(test).
 -export([test/0]).
 -endif.
 
+
 -ifdef(test).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+
     
 %% if not compiled with test support
-
 -ifndef(test).
-
 test() -> erlang:error(notest).
-
 -else.
+
 
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests(?eunit_test_path)).
