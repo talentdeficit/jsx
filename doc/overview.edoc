@@ -27,7 +27,7 @@ erlang has a number of json libraries, some of them very good, but all of them t
 
 jsx is not an end to end json parser. jsx takes a json document and produces a generator that returns a jsx event and a new generator. a jsx event is an atom or tuple that represents a json structural element (like the start or end of an object or array) or a json value (like a string or a number). this provides a simple, easy to consume, iterative api that makes it easy to produce arbitrarily complex representations of the json document
 
-the representation of jsx events was chosen for pragmatic reasons. strings, integers and floats are encoded in json as strings of unicode characters and many erlang functions operate on lists so returning them as lists of unicode codepoints is both efficient and convenient. structural elements are converted to descriptive atoms for ease of matching and clarity. json literals (`true`, `false` and `null`) are encoded as atoms for ease of matching and wrapped in a tagged tuple to differentiate them from structural elements
+the representation of jsx events was chosen for pragmatic reasons. strings, integers and floats are encoded in json as strings of unicode characters and many erlang functions operate on lists so returning them as lists of unicode codepoints is both efficient and convenient. structural elements are converted to descriptive atoms for ease of matching and clarity. json literals (`true', `false' and `null') are encoded as atoms for ease of matching and wrapped in a tagged tuple to differentiate them from structural elements
 
 in cases where an incomplete json document is supplied to the parser, upon reaching the end of the document the generator may also return a new function that allows another chunk of the json document to be parsed as if parsing were never interrupted. this is useful for parsing very large json documents (to avoid holding the entire document in memory) or for parsing as data is made available (like over a network or from storage)
 
@@ -53,7 +53,7 @@ jsx is wicked fast. sort of. it's as fast as possible without sacrificing a usea
         | {literal, false}
         | {literal, null}
         | end_json
-          Character -- a unicode codepoint represented by an erlang integer
+      Character -- a unicode codepoint represented by an erlang integer
       Next -- a function of arity zero that, when invoked, returns the next event
 '''
 

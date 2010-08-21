@@ -130,35 +130,34 @@ parser() ->
 %% @doc
 %% produces a function which takes a binary which may or may not represent an encoded json document and returns a generator
 %%
-%% ```
 %%      options:
-%%
-%%        {comments, true | false}
-%%          if true, json documents that contain c style (/* ... */) comments
+%%      <ul>
+%%        <li>{comments, true | false}
+%%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
-%%          false
+%%          false</p></li>
 %%    
-%%        {encoded_unicode, ascii | codepoint | none}
-%%          if a \uXXXX escape sequence is encountered within a key or string,
+%%        <li>{encoded_unicode, ascii | codepoint | none}
+%%          <p>if a \uXXXX escape sequence is encountered within a key or string,
 %%          this option controls how it is interpreted. none makes no attempt
 %%          to interpret the value, leaving it unconverted. ascii will convert
 %%          any value that falls within the ascii range. codepoint will convert
 %%          any value that is a valid unicode codepoint. note that unicode
 %%          non-characters (including badly formed surrogates) will never be
-%%          converted. codepoint is the default
+%%          converted. codepoint is the default</p></li>
 %%
-%%        {encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          attempt to parse the binary using the specified encoding. auto will
-%%          auto detect any supported encoding and is the default
+%%        <li>{encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>attempt to parse the binary using the specified encoding. auto will
+%%          auto detect any supported encoding and is the default</p></li>
 %%
-%%        {multi_term, true | false}
-%%          usually, documents will be parsed in full before the end_json
+%%        <li>{multi_term, true | false}
+%%          <p>usually, documents will be parsed in full before the end_json
 %%          event is emitted. setting this option to true will instead emit
 %%          the end_json event as soon as a valid document is parsed and then
 %%          reset the parser to it's initial state and attempt to parse the
 %%          remainder as a new json document. this allows streams containing
-%%          multiple documents to be parsed correctly
-%% '''
+%%          multiple documents to be parsed correctly</p></li>
+%%      </ul>
 %% @end
 
 parser(OptsList) ->
@@ -186,32 +185,42 @@ json_to_term(JSON) ->
 %% @doc
 %% produces an eep0018 representation of a binary encoded json document
 %%
-%% ```
 %%      options:
-%% 
-%%        {strict, true | false}
-%%          by default, attempting to convert unwrapped json values (numbers, strings and
+%%      <ul>
+%%        <li>{strict, true | false}
+%%          <p>by default, attempting to convert unwrapped json values (numbers, strings and
 %%          the atoms true, false and null) result in a badarg exception. if strict equals
 %%          false, these are instead decoded to their equivalent eep0018 value. default is
-%%          false
+%%          false</p>
+%%        
+%%          <p>note that there is a problem of ambiguity when parsing unwrapped json
+%%          numbers that requires special handling</p>
+%%
+%%          <p>an unwrapped json number has no unambiguous end marker like a json object,
+%%          array or string. `1', `12' and `123' may all represent either a complete json
+%%          number or just the beginning of one. in this case, the parser will always
+%%          return `{incomplete, More}' rather than potentially terminate before input
+%%          is exhausted. to force termination, `More/1' may be called with the atom
+%%          `end_stream' as it's argument. note also that numbers followed by whitespace
+%%          will be parsed correctly</p></li>
 %%     
-%%        {encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          assume the binary is encoded using the specified binary. default is auto, which
-%%          attempts to autodetect the encoding
+%%        <li>{encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>assume the binary is encoded using the specified binary. default is auto, which
+%%          attempts to autodetect the encoding</p></li>
 %%     
-%%        {comments, true | false}
-%%          if true, json documents that contain c style (/* ... */) comments
+%%        <li>{comments, true | false}
+%%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
-%%          false
+%%          false</p></li>
 %%     
-%%        {label, atom | existing_atom | binary}
-%%          json keys (labels) are decoded to utf8 encoded binaries, atoms or 
+%%        <li>{label, atom | existing_atom | binary}
+%%          <p>json keys (labels) are decoded to utf8 encoded binaries, atoms or 
 %%          existing_atoms (atom if it exists, binary otherwise) as specified by 
-%%          this option. default is binary
+%%          this option. default is binary</p></li>
 %%         
-%%        {float, true | false}
-%%          return all numbers as floats. default is false
-%% '''
+%%        <li>{float, true | false}
+%%          <p>return all numbers as floats. default is false</p></li>
+%%      </ul>
 %% @end
 
 json_to_term(JSON, Opts) ->
@@ -227,31 +236,29 @@ term_to_json(JSON) ->
 %% @spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary()
 %% @doc
 %% takes the erlang representation of a json object (as defined in eep0018) and returns a (binary encoded) json string
-%%
-%% ```    
+%%   
 %%      options:
-%%      
-%%        {strict, true | false}
-%%          by default, attempting to convert unwrapped json values (numbers, 
+%%      <ul>
+%%        <li>{strict, true | false}
+%%          <p>by default, attempting to convert unwrapped json values (numbers, 
 %%          strings and the atoms true, false and null) result in a badarg exception. 
-%%          if strict equals false, these are instead json encoded. default is false
+%%          if strict equals false, these are instead json encoded. default is false</p></li>
 %%        
-%%          note that there is a problem of ambiguity when parsing unwrapped json
-%%          numbers that requires special handling, see the [[notes|technotes]]
+%%        <li>{encoding, utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>the encoding of the resulting binary. default is utf8</p></li>
 %%        
-%%        {encoding, utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          the encoding of the resulting binary. default is utf8
-%%        
-%%        space
-%%        {space, N}
-%%          place N spaces after each colon and comma in the resulting binary. space 
-%%          implies {space, 1}. default is zero
+%%        <li>space
+%%          <p>space is equivalent to {space, 1}</p></li>
+%%
+%%        <li>{space, N}
+%%          <p>place N spaces after each colon and comma in the resulting binary. default is zero</p></li>
 %%          
-%%        indent 
-%%          {indent, N}
-%%          indent each 'level' of the json structure by N spaces. indent implies 
-%%          {indent, 1}. default is zero
-%% '''
+%%        <li>indent
+%%          <p>indent is equivalent to {indent, 1}</p></li>
+%%
+%%        <li>{indent, N}
+%%          <p>indent each 'level' of the json structure by N spaces. default is zero</p></li>
+%%      </ul>
 %% @end        
 
 term_to_json(JSON, Opts) ->
@@ -268,23 +275,22 @@ is_json(JSON) ->
 %% @doc
 %% returns true if the binary is an encoded json document, false otherwise
 %%
-%% ```
 %%      options:
-%%
-%%        {strict, true | false}
-%%          by default,  unwrapped json values (numbers, strings and the atoms 
+%%      <ul>
+%%        <li>{strict, true | false}
+%%          <p>by default,  unwrapped json values (numbers, strings and the atoms 
 %%          true, false and null) return false. if strict equals true, is_json
-%%          returns true. default is false
+%%          returns true. default is false</p></li>
 %%  
-%%        {encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          assume the binary is encoded using the specified binary. default is auto, 
-%%          which attempts to autodetect the encoding
+%%        <li>{encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>assume the binary is encoded using the specified binary. default is auto, 
+%%          which attempts to autodetect the encoding</p></li>
 %%  
-%%        {comments, true | false}
-%%          if true, json documents that contain c style (/* ... */) comments
+%%        <li>{comments, true | false}
+%%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
-%%          false
-%% '''
+%%          false</p></li>
+%%      </ul>
 %% @end
 
 is_json(JSON, Opts) ->
@@ -301,36 +307,37 @@ format(JSON) ->
 %% @doc
 %% formats a binary encoded json string according to the options chose. the defaults will produced a string stripped of all whitespace
 %%
-%% ```
 %%      options:
-%%
-%%        {strict, true | false}
-%%          by default,  unwrapped json values (numbers, strings and the atoms 
+%%      <ul>
+%%        <li>{strict, true | false}
+%%          <p>by default,  unwrapped json values (numbers, strings and the atoms 
 %%          true, false and null) result in an error. if strict equals true, they
-%%          are treated as valid json. default is false
+%%          are treated as valid json. default is false</p></li>
 %%  
-%%        {encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          assume the binary is encoded using the specified binary. default is auto, 
-%%          which attempts to autodetect the encoding
+%%        <li>{encoding, auto | utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>assume the binary is encoded using the specified binary. default is auto, 
+%%          which attempts to autodetect the encoding</p></li>
 %%    
-%%        {output_encoding, utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
-%%          the encoding of the resulting binary. default is utf8
+%%        <li>{output_encoding, utf8 | utf16 | {utf16, little} | utf32 | {utf32, little} }
+%%          <p>the encoding of the resulting binary. default is utf8</p></li>
 %%    
-%%        {comments, true | false}
-%%          if true, json documents that contain c style (/* ... */) comments
+%%        <li>{comments, true | false}
+%%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
-%%          false 
-%%    
-%%        space
-%%          {space, N}
-%%          place N spaces after each colon and comma in the resulting binary. space 
-%%          implies {space, 1}. default is zero
+%%          false</p></li>
 %%
-%%        indent 
-%%          {indent, N}
-%%          indent each 'level' of the json structure by N spaces. indent implies 
-%%          {indent, 1}. default is zero
-%% '''
+%%        <li>space
+%%          <p>space is equivalent to {space, 1}</p></li>
+%%
+%%        <li>{space, N}
+%%          <p>place N spaces after each colon and comma in the resulting binary. default is zero</p></li>
+%%          
+%%        <li>indent
+%%          <p>indent is equivalent to {indent, 1}</p></li>
+%%
+%%        <li>{indent, N}
+%%          <p>indent each 'level' of the json structure by N spaces. default is zero</p></li>
+%%      </ul>
 %% @end
 
 format(JSON, Opts) ->
