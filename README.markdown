@@ -58,7 +58,7 @@ jsx is stream based and allows the parsing of naked, unwrapped json values. toge
 
 ### notes ###
 
-don't edit the various jsx\_utfx.erl files in the src dir directly, see /priv/jsx\_decoder.erl for why
+don't edit the various jsx\_utfx.erl files in the src dir directly, see comments in those files for why
 
 jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endian). future support is planned for erlang iolists
 

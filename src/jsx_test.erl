@@ -154,7 +154,7 @@ multi_decode_loop({event, E, Next}, [S|Acc]) ->
 	
 	
 multi_json_body() ->
-    <<"0 1 -1 1e1 0.7 0.7e-1 true false null {} [] [1, 2, 3] \"hope this works\"">>.
+    <<"0 1 -1 1e1 0.7 0.7e-1 truefalsenull {} {\"key\": \"value\"}[] [1, 2, 3]\"hope this works\"">>.
 
 multi_test_result() ->
     [ [{integer, "0"}],
@@ -167,6 +167,7 @@ multi_test_result() ->
         [{literal, false}],
         [{literal, null}],
         [start_object, end_object],
+        [start_object, {key, "key"}, {string, "value"}, end_object],
         [start_array, end_array],
         [start_array, {integer, "1"}, {integer, "2"}, {integer, "3"}, end_array],
         [{string, "hope this works"}]
