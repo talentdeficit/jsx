@@ -1,10 +1,7 @@
 compile:
 	./rebar compile
-	
-expand:
-	./priv/backends.escript create
     
-test:
+test: force
 	./rebar eunit
 
 clean:
@@ -12,3 +9,5 @@ clean:
 	
 install: compile
 	./rebar -f install
+	
+force:
