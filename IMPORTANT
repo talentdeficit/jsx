@@ -1,1 +1,0 @@
-don't edit the jsx_utfx.erl source files directly, edit /priv/jsx_decoder.erl and run `./priv/backends.escript create` to regenerate the jsx_utfx.erl source files.
