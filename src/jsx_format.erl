@@ -45,7 +45,7 @@ format(JSON, Opts) when is_binary(JSON) ->
     P = jsx:parser(extract_parser_opts(Opts)),
     format(fun() -> P(JSON) end, Opts);
 format(F, OptsList) when is_function(F) ->
-    Opts = parse_opts(OptsList, #opts{}),
+    Opts = parse_opts(OptsList, #format_opts{}),
     {Continue, String} = format_something(F(), Opts, 0),
     case Continue() of
         {event, end_json, _} -> encode(String, Opts)
@@ -54,15 +54,15 @@ format(F, OptsList) when is_function(F) ->
 
 
 parse_opts([{indent, Val}|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{indent = Val});
+    parse_opts(Rest, Opts#format_opts{indent = Val});
 parse_opts([indent|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{indent = 1});
+    parse_opts(Rest, Opts#format_opts{indent = 1});
 parse_opts([{space, Val}|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{space = Val});
+    parse_opts(Rest, Opts#format_opts{space = Val});
 parse_opts([space|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{space = 1});
+    parse_opts(Rest, Opts#format_opts{space = 1});
 parse_opts([{output_encoding, Val}|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{output_encoding = Val});
+    parse_opts(Rest, Opts#format_opts{output_encoding = Val});
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
@@ -122,7 +122,7 @@ format_array(Event, Acc, Opts, Level) ->
 
 
 encode(Acc, Opts) when is_list(Acc) ->
-    case Opts#opts.output_encoding of
+    case Opts#format_opts.output_encoding of
         iolist -> Acc
         ; UTF when ?is_utf_encoding(UTF) -> unicode:characters_to_binary(Acc, utf8, UTF)
         ; _ -> erlang:throw(badarg)
@@ -136,7 +136,7 @@ encode(_, Number) ->
 
 
 indent(Opts, Level) ->
-    case Opts#opts.indent of
+    case Opts#format_opts.indent of
         0 -> []
         ; X when X > 0 ->
             Indent = [ ?space || _ <- lists:seq(1, X) ],
@@ -150,7 +150,7 @@ indent(Indent, N, Acc) ->
     
     
 space(Opts) ->
-    case Opts#opts.space of
+    case Opts#format_opts.space of
         0 -> []
         ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
     end.
