@@ -157,6 +157,7 @@ parse_opts(_, _) ->
     {error, badarg}.
 
 
+
 start(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) -> 
     start(Rest, Stack, Opts);
 start(<<?start_object/?encoding, Rest/binary>>, Stack, Opts) ->
