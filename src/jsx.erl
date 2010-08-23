@@ -48,7 +48,8 @@
 
 %% @type jsx_parser_result() = {event, jsx_event(), (() -> jsx_parser_result())}
 %%    | {incomplete, jsx_parser()}
-%%    | {error, badjson}.
+%%    | {error, badjson}
+%%    | {error, badarg}.
 
 %% @type jsx_event() = start_object
 %%    | end_object
