@@ -24,15 +24,6 @@
 
 
 
-%% opts record
--record(opts, {
-    comments = false,
-    escaped_unicode = codepoint,
-    multi_term = false,
-    encoding = auto
-}).
-
-
 -spec parser() -> jsx_parser().
 -spec parser(Opts::jsx_opts()) -> jsx_parser().
 

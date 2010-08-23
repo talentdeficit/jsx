@@ -30,12 +30,20 @@
 
 
 
--spec parse(JSON::eep0018(), Opts::jsx_opts()) -> jsx_parser_result().
+-spec parser(OptsList::jsx_opts()) -> jsx_parser().
+
+
+%% opts record for decoder
+-record(opts, {
+    comments = false,
+    escaped_unicode = codepoint,
+    multi_term = false,
+    encoding = auto
+}).
 
 
 %% option flags
 
--define(comments_enabled(X), {_, true, _, _, _} = X).
 -define(escaped_unicode_to_ascii(X), {_, _, ascii, _, _} = X).
 -define(escaped_unicode_to_codepoint(X), {_, _, codepoint, _, _} = X).
 -define(multi_term(X), {_, _, _, true, _} = X).
@@ -123,12 +131,36 @@
 -endif.
 
 
--export([parse/2]).
+-export([parser/1]).
 
 
 
-parse(JSON, Opts) ->
-    start(JSON, [], Opts).
+parser(OptsList) ->
+    case parse_opts(OptsList) of 
+        {error, badopt} -> {error, badopt}
+        ; Opts -> fun(JSON) -> start(JSON, [], Opts) end
+    end.
+    
+
+%% converts a proplist into a tuple
+parse_opts(Opts) ->
+    parse_opts(Opts, #opts{}).
+
+parse_opts([], Opts) ->
+    Opts;    
+parse_opts([{comments, Value}|Rest], Opts) ->
+    true = lists:member(Value, [true, false]),
+    parse_opts(Rest, Opts#opts{comments = Value});
+parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
+    true = lists:member(Value, [ascii, codepoint, none]),
+    parse_opts(Rest, Opts#opts{escaped_unicode = Value});
+parse_opts([{multi_term, Value}|Rest], Opts) ->
+    true = lists:member(Value, [true, false]),
+    parse_opts(Rest, Opts#opts{multi_term = Value});
+parse_opts([{encoding, _}|Rest], Opts) ->
+    parse_opts(Rest, Opts);
+parse_opts(_, _) ->
+    {error, badarg}.
 
 
 start(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) -> 
@@ -151,7 +183,7 @@ start(<<?zero/?encoding, Rest/binary>>, Stack, Opts) ->
     zero(Rest, Stack, Opts, "0");
 start(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, Stack, Opts, [S]);
-start(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+start(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Opts) end);
 start(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -170,7 +202,7 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [object|Stack], Opts) ->
     key(Rest, [key|Stack], Opts);
 maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Opts) ->
     value(Rest, Stack, Opts);
-maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
 maybe_done(Rest, [], ?multi_term(Opts)) ->
     {event, end_json, fun() -> start(Rest, [], Opts) end};
@@ -185,7 +217,7 @@ maybe_done(Bin, Stack, Opts) ->
 
 done(<<S/?encoding, Rest/binary>>, Opts) when ?is_whitespace(S) ->
     done(Rest, Opts);
-done(<<?solidus/?encoding, Rest/binary>>, ?comments_enabled(Opts)) ->
+done(<<?solidus/?encoding, Rest/binary>>, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> done(Resume, Opts) end);
 done(<<>>, Opts) ->
     {event, end_json, fun() -> {incomplete, fun(end_stream) -> {error, badjson}; (Stream) -> done(Stream, Opts) end} end};
@@ -202,7 +234,7 @@ object(<<?quote/?encoding, Rest/binary>>, Stack, Opts) ->
     string(Rest, Stack, Opts, []);
 object(<<?end_object/?encoding, Rest/binary>>, [key|Stack], Opts) ->
     {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end};
-object(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+object(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Opts) end);
 object(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -233,7 +265,7 @@ array(<<?start_array/?encoding, Rest/binary>>, Stack, Opts) ->
     {event, start_array, fun() -> array(Rest, [array|Stack], Opts) end};
 array(<<?end_array/?encoding, Rest/binary>>, [array|Stack], Opts) ->
     {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end};
-array(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+array(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Opts) end);
 array(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -262,7 +294,7 @@ value(<<?start_object/?encoding, Rest/binary>>, Stack, Opts) ->
     {event, start_object, fun() -> object(Rest, [key|Stack], Opts) end};
 value(<<?start_array/?encoding, Rest/binary>>, Stack, Opts) ->
     {event, start_array, fun() -> array(Rest, [array|Stack], Opts) end};
-value(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+value(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Opts) end);
 value(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -275,7 +307,7 @@ colon(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) ->
     colon(Rest, Stack, Opts);
 colon(<<?colon/?encoding, Rest/binary>>, [key|Stack], Opts) ->
     value(Rest, [object|Stack], Opts);
-colon(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+colon(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Opts) end);
 colon(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -288,7 +320,7 @@ key(<<S/?encoding, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) ->
     key(Rest, Stack, Opts);        
 key(<<?quote/?encoding, Rest/binary>>, Stack, Opts) ->
     string(Rest, Stack, Opts, []);
-key(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts)) ->
+key(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Opts) end);
 key(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
@@ -488,7 +520,7 @@ zero(<<?decimalpoint/?encoding, Rest/binary>>, Stack, Opts, Acc) ->
     initial_decimal(Rest, Stack, Opts, [?decimalpoint] ++ Acc);
 zero(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {integer, lists:reverse(Acc)}, fun() -> maybe_done(Rest, Stack, Opts) end};
-zero(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts), Acc) ->
+zero(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts, Acc) ->
     maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Opts, Acc) end);
 zero(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
@@ -528,7 +560,7 @@ integer(<<$E/?encoding, Rest/binary>>, Stack, Opts, Acc) ->
     e(Rest, Stack, Opts, "e0." ++ Acc);
 integer(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {integer, lists:reverse(Acc)}, fun() -> maybe_done(Rest, Stack, Opts) end};
-integer(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts), Acc) ->
+integer(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts, Acc) ->
     maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Opts, Acc) end);
 integer(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
@@ -577,7 +609,7 @@ decimal(<<$E/?encoding, Rest/binary>>, Stack, Opts, Acc) ->
     e(Rest, Stack, Opts, "e" ++ Acc);
 decimal(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {float, lists:reverse(Acc)}, fun() -> maybe_done(Rest, Stack, Opts) end};
-decimal(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts), Acc) ->
+decimal(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts, Acc) ->
     maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Opts, Acc) end);
 decimal(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
@@ -631,7 +663,7 @@ exp(<<?zero/?encoding, Rest/binary>>, Stack, Opts, Acc) ->
     exp(Rest, Stack, Opts, [?zero] ++ Acc);
 exp(<<S/?encoding, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {float, lists:reverse(Acc)}, fun() -> maybe_done(Rest, Stack, Opts) end};
-exp(<<?solidus/?encoding, Rest/binary>>, Stack, ?comments_enabled(Opts), Acc) ->
+exp(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts, Acc) ->
     maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Opts, Acc) end);
 exp(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
