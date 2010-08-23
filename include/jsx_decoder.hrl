@@ -42,12 +42,6 @@
 }).
 
 
-%% option flags
-
--define(escaped_unicode_to_ascii(X), {_, _, ascii, _, _} = X).
--define(escaped_unicode_to_codepoint(X), {_, _, codepoint, _, _} = X).
--define(multi_term(X), {_, _, _, true, _} = X).
-
 %% whitespace
 -define(space, 16#20).
 -define(tab, 16#09).
@@ -104,7 +98,7 @@
 ).
 
 
-%% compilation macros for unified decoder
+%% partial codepoint max size differs across encodings
 -ifdef(utf8).
 -define(encoding, utf8).
 -define(partial_codepoint(Bin), byte_size(Bin) < 1).
@@ -204,7 +198,7 @@ maybe_done(<<?comma/?encoding, Rest/binary>>, [array|_] = Stack, Opts) ->
     value(Rest, Stack, Opts);
 maybe_done(<<?solidus/?encoding, Rest/binary>>, Stack, #opts{comments = true} = Opts) ->
     maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
-maybe_done(Rest, [], ?multi_term(Opts)) ->
+maybe_done(Rest, [], #opts{multi_term = true} = Opts) ->
     {event, end_json, fun() -> start(Rest, [], Opts) end};
 maybe_done(Rest, [], Opts) ->
     done(Rest, Opts);
@@ -432,7 +426,7 @@ escape(Bin, Stack, Opts, Acc) ->
 %%   special non-characters). any other option and no conversion is done
 escaped_unicode(<<D/?encoding, Rest/binary>>, 
         Stack, 
-        ?escaped_unicode_to_ascii(Opts), 
+        #opts{escaped_unicode = ascii} = Opts, 
         String, 
         [C, B, A]) 
             when ?is_hex(D) ->
@@ -444,7 +438,7 @@ escaped_unicode(<<D/?encoding, Rest/binary>>,
     end;
 escaped_unicode(<<D/?encoding, Rest/binary>>, 
         Stack, 
-        ?escaped_unicode_to_codepoint(Opts), 
+        #opts{escaped_unicode = codepoint} = Opts, 
         String, 
         [C, B, A]) 
             when ?is_hex(D) ->
