@@ -29,19 +29,19 @@
 -author("alisdairsullivan@yahoo.ca").
 
 
--ifndef(test).
+-ifndef(TEST).
 -export([test/0]).
 -endif.
 
 
--ifdef(test).
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
 
     
 %% if not compiled with test support
--ifndef(test).
+-ifndef(TEST).
 test() -> erlang:error(notest).
 -else.
 

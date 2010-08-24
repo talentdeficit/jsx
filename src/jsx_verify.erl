@@ -35,7 +35,7 @@
 -include("./include/jsx_verify.hrl").
 
 
--ifdef(test).
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
@@ -93,7 +93,7 @@ collect(_, _) ->
     
 
 %% eunit tests
--ifdef(test).
+-ifdef(TEST).
 
 true_test_() ->
     [

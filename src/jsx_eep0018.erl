@@ -35,7 +35,7 @@
 -include("./include/jsx_eep0018.hrl").
 
 
--ifdef(test).
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
@@ -400,7 +400,7 @@ to_hex(X) -> X + $0.
 
 
 %% eunit tests
--ifdef(test).
+-ifdef(TEST).
 
 decode_test_() ->
     [

@@ -35,7 +35,7 @@
 -include("./include/jsx_format.hrl").
 
 
--ifdef(test).
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
@@ -158,7 +158,7 @@ space(Opts) ->
 
 %% eunit tests
 
--ifdef(test).
+-ifdef(TEST).
 
 minify_test_() ->
     [
