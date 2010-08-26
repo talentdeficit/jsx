@@ -26,7 +26,6 @@
 
 
 -module(jsx_verify).
--author("alisdairsullivan@yahoo.ca").
 
 
 -export([is_json/2]).

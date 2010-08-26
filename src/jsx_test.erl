@@ -26,7 +26,6 @@
 
 
 -module(jsx_test).
--author("alisdairsullivan@yahoo.ca").
 
 
 -ifndef(TEST).

@@ -26,7 +26,6 @@
 
 
 -module(jsx_format).
--author("alisdairsullivan@yahoo.ca").
 
 
 -export([format/2]).

@@ -28,7 +28,6 @@
 
 
 -module(jsx).
--author("alisdairsullivan@yahoo.ca").
 
 
 %% the core parser api

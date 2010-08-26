@@ -26,7 +26,6 @@
 
 
 -module(jsx_eep0018).
--author("alisdairsullivan@yahoo.ca").
 
 
 -export([json_to_term/2, term_to_json/2]).
