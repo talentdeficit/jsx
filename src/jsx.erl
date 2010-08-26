@@ -358,7 +358,7 @@ format(JSON) ->
 %%          <p>assume the binary is encoded using the specified binary. default 
 %%          is auto, which attempts to autodetect the encoding</p></li>
 %%    
-%%        <li>{encoding, utf8 
+%%        <li>{output_encoding, utf8 
 %%              | utf16 
 %%              | {utf16, little} 
 %%              | utf32 
