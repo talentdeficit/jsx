@@ -79,7 +79,11 @@ format_something({event, start_object, Next}, Opts, Level) ->
             {Continue, [?start_object, ?end_object]}
         ; Event ->
             {Continue, Object} = format_object(Event, [], Opts, Level + 1),
-            {Continue, [?start_object, Object, indent(Opts, Level), ?end_object]}
+            {Continue, [?start_object, 
+                Object, 
+                indent(Opts, Level), 
+                ?end_object
+            ]}
     end;
 format_something({event, start_array, Next}, Opts, Level) ->
     case Next() of
@@ -99,10 +103,24 @@ format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
     {Continue, Value} = format_something(Next(), Opts, Level),
     case Continue() of
         {event, end_object, NextNext} -> 
-            {NextNext, [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value]}
+            {NextNext, [Acc, 
+                indent(Opts, Level), 
+                encode(string, Key), 
+                ?colon, 
+                space(Opts), 
+                Value
+            ]}
         ; Else -> 
             format_object(Else, 
-                [Acc, indent(Opts, Level), encode(string, Key), ?colon, space(Opts), Value, ?comma, space(Opts)], 
+                [Acc, 
+                    indent(Opts, Level), 
+                    encode(string, Key), 
+                    ?colon, 
+                    space(Opts), 
+                    Value, 
+                    ?comma, 
+                    space(Opts)
+                ], 
                 Opts, 
                 Level
             )
@@ -117,14 +135,24 @@ format_array(Event, Acc, Opts, Level) ->
         {event, end_array, NextNext} ->
             {NextNext, [Acc, indent(Opts, Level), Value]}
         ; Else ->
-            format_array(Else, [Acc, indent(Opts, Level), Value, ?comma, space(Opts)], Opts, Level)
+            format_array(Else, 
+                [Acc, 
+                    indent(Opts, Level),
+                    Value, 
+                    ?comma, 
+                    space(Opts)
+                ], 
+                Opts, 
+                Level
+            )
     end.
 
 
 encode(Acc, Opts) when is_list(Acc) ->
     case Opts#format_opts.output_encoding of
         iolist -> Acc
-        ; UTF when ?is_utf_encoding(UTF) -> unicode:characters_to_binary(Acc, utf8, UTF)
+        ; UTF when ?is_utf_encoding(UTF) -> 
+            unicode:characters_to_binary(Acc, utf8, UTF)
         ; _ -> erlang:throw(badarg)
     end;
 encode(string, String) ->
@@ -162,17 +190,58 @@ space(Opts) ->
 
 minify_test_() ->
     [
-        {"minify object", ?_assert(format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, []) =:= <<"{\"key\":\"value\"}">>)},
-        {"minify array", ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, []) =:= <<"[true,false,null]">>)}
+        {"minify object", 
+            ?_assert(format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, 
+                    []
+                ) =:= <<"{\"key\":\"value\"}">>
+            )
+        },
+        {"minify array", 
+            ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, 
+                    []
+                ) =:= <<"[true,false,null]">>
+            )
+        }
     ].
     
 opts_test_() ->
     [
-        {"unspecified indent/space", ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, [space, indent]) =:= <<"[\n true, \n false, \n null\n]">>)},
-        {"specific indent/space", ?_assert(format(<<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, [{space, 2}, {indent, 4}]) =:= <<"{\n    \"key\":  [],  \n    \"another key\":  true\n}">>)},
-        {"nested structures", ?_assert(format(<<"[{\"key\":\"value\", \"another key\": \"another value\"}, [[true, false, null]]]">>, [{space, 2}, {indent, 2}]) =:= <<"[\n  {\n    \"key\":  \"value\",  \n    \"another key\":  \"another value\"\n  },  \n  [\n    [\n      true,  \n      false,  \n      null\n    ]\n  ]\n]">>)},
-        {"just spaces", ?_assert(format(<<"[1,2,3]">>, [{space, 2}]) =:= <<"[1,  2,  3]">>)},
-        {"just indent", ?_assert(format(<<"[1.0, 2.0, 3.0]">>, [{indent, 2}]) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>)}
+        {"unspecified indent/space", 
+            ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, 
+                    [space, indent]
+                ) =:= <<"[\n true, \n false, \n null\n]">>
+            )
+        },
+        {"specific indent/space", 
+            ?_assert(format(
+                    <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, 
+                    [{space, 2}, {indent, 3}]
+                ) =:= <<"{\n   \"key\":  [],  \n   \"another key\":  true\n}">>
+            )
+        },
+        {"nested structures", 
+            ?_assert(format(
+                    <<"[{\"key\":\"value\", 
+                            \"another key\": \"another value\"
+                        }, 
+                        [[true, false, null]]
+                    ]">>, 
+                    [{space, 2}, {indent, 2}]
+                ) =:= <<"[\n  {\n    \"key\":  \"value\",  \n    \"another key\":  \"another value\"\n  },  \n  [\n    [\n      true,  \n      false,  \n      null\n    ]\n  ]\n]">>
+            )
+        },
+        {"just spaces", 
+            ?_assert(format(<<"[1,2,3]">>, 
+                    [{space, 2}]
+                ) =:= <<"[1,  2,  3]">>
+            )
+        },
+        {"just indent", 
+            ?_assert(format(<<"[1.0, 2.0, 3.0]">>, 
+                    [{indent, 2}]
+                ) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>
+            )
+        }
     ].
     
 -endif.

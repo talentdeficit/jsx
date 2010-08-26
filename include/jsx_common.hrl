@@ -23,5 +23,9 @@
 
 
 -define(is_utf_encoding(X),
-    X == utf8; X == utf16; X == utf32; X == {utf16, little}; X == {utf32, little}
+    X == utf8
+        ; X == utf16
+        ; X == utf32
+        ; X == {utf16, little}
+        ; X == {utf32, little}
 ).

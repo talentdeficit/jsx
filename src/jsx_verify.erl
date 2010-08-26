@@ -68,8 +68,8 @@ collect({event, start_object, Next}, Keys) -> collect(Next(), [[]|Keys]);
 collect({event, end_object, Next}, [_|Keys]) -> collect(Next(), [Keys]);
 
 
-%% check to see if key has already been encountered, if not add it to the key accumulator
-%%   and continue, else return false 
+%% check to see if key has already been encountered, if not add it to the key 
+%%   accumulator and continue, else return false 
 collect({event, {key, Key}, Next}, [Current|Keys]) ->
     case lists:member(Key, Current) of
         true -> false
@@ -81,7 +81,8 @@ collect({event, _, Next}, Keys) ->
     collect(Next(), Keys);
 
 
-%% needed to parse numbers that don't have trailing whitespace in less strict mode    
+%% needed to parse numbers that don't have trailing whitespace in less strict 
+%%   mode    
 collect({incomplete, More}, Keys) ->
     collect(More(end_stream), Keys);
 
@@ -98,32 +99,85 @@ true_test_() ->
     [
         {"empty object", ?_assert(is_json(<<"{}">>, []) =:= true)},
         {"empty array", ?_assert(is_json(<<"[]">>, []) =:= true)},
-        {"whitespace", ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>, []) =:= true)},
-        {"nested terms", ?_assert(is_json(<<"[ { \"key\": [ {}, {}, {} ], \"more key\": [{}] }, {}, [[[]]] ]">>, []) =:= true)},
-        {"numbers", ?_assert(is_json(<<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>, []) =:= true)},
-        {"strings", ?_assert(is_json(<<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>, []) =:= true)},
-        {"literals", ?_assert(is_json(<<"[ true, false, null ]">>, []) =:= true)},
-        {"nested objects", ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []) =:= true)}
+        {"whitespace", 
+            ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>, 
+                    []
+                ) =:= true
+            )
+        },
+        {"nested terms", 
+            ?_assert(is_json(
+                    <<"[{ \"x\": [ {}, {}, {} ], \"y\": [{}] }, {}, [[[]]]]">>, 
+                    []
+                ) =:= true
+            )
+        },
+        {"numbers", 
+            ?_assert(is_json(
+                    <<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>, 
+                    []
+                ) =:= true
+            )
+        },
+        {"strings", 
+            ?_assert(is_json(
+                    <<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>, 
+                    []
+                ) =:= true
+            )
+        },
+        {"literals", 
+            ?_assert(is_json(<<"[ true, false, null ]">>, []) =:= true)
+        },
+        {"nested objects", 
+            ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []) =:= true)
+        }
     ].
 
 false_test_() ->
     [
         {"naked true", ?_assert(is_json(<<"true">>, []) =:= false)},
         {"naked number", ?_assert(is_json(<<"1">>, []) =:= false)},
-        {"naked string", ?_assert(is_json(<<"\"i am not json\"">>, []) =:= false)},
+        {"naked string", 
+            ?_assert(is_json(<<"\"i am not json\"">>, []) =:= false)
+        },
         {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
-        {"trailing comma", ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)},
+        {"trailing comma", 
+            ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)
+        },
         {"unquoted key", ?_assert(is_json(<<"{ key: false }">>, []) =:= false)},
-        {"repeated key", ?_assert(is_json(<<"{\"key\": true, \"key\": true}">>, []) =:= false)},
+        {"repeated key", 
+            ?_assert(is_json(
+                    <<"{\"key\": true, \"key\": true}">>, 
+                    []
+                ) =:= false
+            )
+        },
         {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, []) =:= false)}
     ].
     
 less_strict_test_() ->
     [
-        {"naked true", ?_assert(is_json(<<"true">>, [{strict, false}]) =:= true)},
-        {"naked number", ?_assert(is_json(<<"1">>, [{strict, false}]) =:= true)},
-        {"naked string", ?_assert(is_json(<<"\"i am not json\"">>, [{strict, false}]) =:= true)},
-        {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, [{comments, true}]) =:= true)}
+        {"naked true", 
+            ?_assert(is_json(<<"true">>, [{strict, false}]) =:= true)
+        },
+        {"naked number", 
+            ?_assert(is_json(<<"1">>, [{strict, false}]) =:= true)
+        },
+        {"naked string", 
+            ?_assert(is_json(
+                    <<"\"i am not json\"">>, 
+                    [{strict, false}]
+                ) =:= true
+            )
+        },
+        {"comments", 
+            ?_assert(is_json(
+                    <<"[ /* a comment */ ]">>, 
+                    [{comments, true}]
+                ) =:= true
+            )
+        }
     ].
         
     
