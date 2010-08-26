@@ -32,7 +32,7 @@
 -export([json_to_term/2, term_to_json/2]).
 
 
--include("./include/jsx_eep0018.hrl").
+-include("./include/jsx_common.hrl").
 
 
 -ifdef(TEST).

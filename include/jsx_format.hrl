@@ -20,8 +20,6 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
--include("jsx_common.hrl").
-
 
 
 -record(format_opts, {
@@ -41,6 +39,3 @@
 -define(end_object, $}).
 -define(start_array, $[).
 -define(end_array, $]).
-
-
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().

@@ -40,8 +40,7 @@
 -export([eventify/1]).
 
 
-%% function and type specifications
--include("./include/jsx.hrl").
+-include("./include/jsx_common.hrl").
 
 
 %% @type jsx_parser() = (binary()) -> jsx_parser_result().

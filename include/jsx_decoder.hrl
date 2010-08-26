@@ -26,13 +26,6 @@
 %%   should take that into account
 
 
--include("./include/jsx_common.hrl").
-
-
-
--spec parser(OptsList::jsx_opts()) -> jsx_parser().
-
-
 %% opts record for decoder
 -record(opts, {
     comments = false,

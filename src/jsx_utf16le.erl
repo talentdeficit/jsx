@@ -26,7 +26,10 @@
 
 
 -module(jsx_utf16le).
+
 -define(utf16le, true).
+
+-include("./include/jsx_common.hrl").
 -include("./include/jsx_decoder.hrl").
 
 %% i've noticed you've noticed that there's no source here. very astute. see 
