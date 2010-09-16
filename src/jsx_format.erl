@@ -40,6 +40,8 @@
 -endif.
 
 
+
+-spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
     
 format(JSON, Opts) when is_binary(JSON) ->
     P = jsx:parser(extract_parser_opts(Opts)),

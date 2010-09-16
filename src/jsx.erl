@@ -131,6 +131,8 @@
 %% @spec parser() -> jsx_parser()
 %% @equiv parser([])
 
+-spec parser() -> jsx_parser().
+
 parser() ->
     parser([]).
     
@@ -175,6 +177,8 @@ parser() ->
 %%      </ul>
 %% @end
 
+-spec parser(OptsList::jsx_opts()) -> jsx_parser().
+
 parser(OptsList) ->
     case proplists:get_value(encoding, OptsList, auto) of
         utf8 -> jsx_utf8:parser(OptsList)
@@ -188,6 +192,8 @@ parser(OptsList) ->
 
 %% @spec json_to_term(JSON::binary()) -> eep0018()
 %% @equiv json_to_term(JSON, [])
+
+-spec json_to_term(JSON::binary()) -> eep0018().
 
 json_to_term(JSON) ->
     json_to_term(JSON, []).
@@ -241,12 +247,16 @@ json_to_term(JSON) ->
 %%      </ul>
 %% @end
 
+-spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018(). 
+
 json_to_term(JSON, Opts) ->
     jsx_eep0018:json_to_term(JSON, Opts).
 
 
 %% @spec term_to_json(JSON::eep0018()) -> binary()
 %% @equiv term_to_json(JSON, [])
+
+-spec term_to_json(JSON::eep0018()) -> binary().
 
 term_to_json(JSON) ->
     term_to_json(JSON, []).
@@ -286,7 +296,9 @@ term_to_json(JSON) ->
 %%          <p>indent each 'level' of the json structure by N spaces. default is 
 %%          zero</p></li>
 %%      </ul>
-%% @end        
+%% @end
+
+-spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().        
 
 term_to_json(JSON, Opts) ->
     jsx_eep0018:term_to_json(JSON, Opts).
@@ -294,6 +306,8 @@ term_to_json(JSON, Opts) ->
 
 %% @spec is_json(JSON::binary()) -> true | false
 %% @equiv is_json(JSON, [])
+
+-spec is_json(JSON::binary()) -> true | false.
 
 is_json(JSON) ->
     is_json(JSON, []).
@@ -326,12 +340,16 @@ is_json(JSON) ->
 %%      </ul>
 %% @end
 
+-spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
+
 is_json(JSON, Opts) ->
     jsx_verify:is_json(JSON, Opts).
 
 
 %% @spec format(JSON::binary()) -> binary()
 %% @equiv format(JSON, [])
+
+-spec format(JSON::binary()) -> binary() | iolist().
 
 format(JSON) ->
     format(JSON, []).
@@ -387,6 +405,8 @@ format(JSON) ->
 %%      </ul>
 %% @end
 
+-spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
+
 format(JSON, Opts) ->
     jsx_format:format(JSON, Opts).
     
@@ -395,6 +415,9 @@ format(JSON, Opts) ->
 %% @doc fake the jsx api for any list. useful if you want to serialize a 
 %% structure to json using the pretty printer, or verify a sequence could be 
 %% valid json
+
+-spec eventify(List::list()) -> jsx_parser_result().
+
 eventify([]) ->
     fun() -> 
         {incomplete, fun(List) when is_list(List) -> 

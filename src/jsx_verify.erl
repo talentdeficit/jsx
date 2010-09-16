@@ -40,6 +40,8 @@
 
 
 
+-spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
+
 is_json(JSON, Opts) ->
     Encoding = proplists:get_value(encoding, Opts, utf8),
     Comments = proplists:get_value(comments, Opts, false),

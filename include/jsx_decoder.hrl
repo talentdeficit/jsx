@@ -26,6 +26,8 @@
 %%   this file ?utfxshould take that into account
 
 
+-spec parser(OptsList::jsx_opts()) -> jsx_parser().
+
 %% opts record for decoder
 -record(opts, {
     comments = false,

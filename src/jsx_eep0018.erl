@@ -39,6 +39,8 @@
 
 
 
+-spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().
+
 json_to_term(JSON, Opts) ->
     P = jsx:parser(opts_to_jsx_opts(Opts)),
     case proplists:get_value(strict, Opts, true) of
@@ -51,6 +53,9 @@ json_to_term(JSON, Opts) ->
 %%   converting erlang terms to json strings, but it expects a jsx event 
 %%   iterator. luckily, the mapping from erlang terms to jsx events is 
 %%   straightforward and the iterator can be faked with an anonymous function
+
+-spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
+
 term_to_json(List, Opts) ->
     case proplists:get_value(strict, Opts, true) of
         true when is_list(List) -> continue
