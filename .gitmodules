@@ -1,3 +1,0 @@
-[submodule "deps/nicefloats"]
-	path = deps/nicefloats
-	url = git@github.com:talentdeficit/nicefloats.git
