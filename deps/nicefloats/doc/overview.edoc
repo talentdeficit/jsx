@@ -1,0 +1,33 @@
+@author Alisdair Sullivan <alisdairsullivan@yahoo.ca>
+@copyright 2010 Alisdair Sullivan
+@version really, really beta
+@title nicefloats
+@doc nicefloats is an implementation of the algorithms for pretty printing floating point numbers detailed in "Printing FLoating-Point Numbers Quickly and Accurately" by Burger & Dybvig
+
+
+== contents ==
+
+<ol>
+    <li>{@section introduction}</li>
+    <li>{@section features}</li>
+    <li>{@section usage}</li>
+    <li>{@section contributing}</li>
+</ol>
+
+
+== introduction ==
+
+nicefloats quickly and accurately outputs decimal representations of floating point numbers that, when read back (with `erlang:list_to_float/1' or similar), result in the same floating point value
+
+
+== features ==
+
+nicefloats currently only outputs the shortest possible representation of floating point numbers in base 10.
+
+== usage ==
+
+`nicefloats:format(Float).'
+
+== contributing ==
+
+nicefloats is available on <a href="http://github.com/talentdeficit/nicefloats">github</a>. users are encouraged to fork, edit and make pull requests
