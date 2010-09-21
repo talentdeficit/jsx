@@ -11,8 +11,7 @@
         jsx_utf32le,
 		jsx_eep0018,
 		jsx_format,
-		jsx_verify,
-		jsx_test
+		jsx_verify
     ]},
     {registered, []},
     {applications, [
