@@ -7,7 +7,6 @@ test: force
 clean:
 	./rebar clean
 	
-install: compile
-	./rebar -f install
-	
-force:
+deps:
+    git submodule init
+    git submodule update
