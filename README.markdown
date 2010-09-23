@@ -8,7 +8,7 @@ it also includes an implementation of [eep0018][3], a pretty printer, a verifier
 
 ### i just want to encode/decode json maaaaaan ###
 
-`jsx:term\_to\_json` and `jsx:json\_to\_term` are what you want. see [the wiki][2] or [eep0018][3] for usage examples 
+`jsx:term_to_json` and `jsx:json_to_term` are what you want. see [the wiki][2] or [eep0018][3] for usage examples 
 
 
 ### usage ###
