@@ -1,9 +1,14 @@
-jsx
-===
+jsx (v0.9.0)
+============
 
-jsx is an event based json parser. basically [yajl][1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations. see [the wiki][2] for examples of what it can do.
+jsx is an event based json parser. basically [yajl][1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations. see [the wiki][2] for examples of what it can do
 
-it also includes an implementation of [eep0018][3], a pretty printer, a verifier and a few stray functions to help you write your own json gizmos.
+it also includes an implementation of [eep0018][3], a pretty printer, a verifier and a few stray functions to help you write your own json gizmos
+
+
+### i just want to encode/decode json maaaaaan ###
+
+`jsx:term\_to\_json` and `jsx:json\_to\_term` are what you want. see [the wiki][2] or [eep0018][3] for usage examples 
 
 
 ### usage ###
@@ -53,14 +58,13 @@ jsx is stream based and allows the parsing of naked, unwrapped json values. toge
 ### installation ###
 
 `make` to build jsx
-`make install` to install into `code:root_dir()`
 
 
 ### notes ###
 
-don't edit the various jsx\_utfx.erl files in the src dir directly, see comments in those files for why
+don't edit the various jsx\_utfxx.erl files in the src dir directly, see comments in those files for why
 
-jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endian). future support is planned for erlang iolists
+jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endian). future support is planned for erlang iolists (maybe)
 
 
 

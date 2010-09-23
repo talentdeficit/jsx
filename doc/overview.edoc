@@ -1,6 +1,6 @@
 @author Alisdair Sullivan <alisdairsullivan@yahoo.ca>
 @copyright 2010 Alisdair Sullivan
-@version really, really beta
+@version 0.9.0
 @title jsx
 @doc jsx is a json parser with an easily transformable representation, the ability to parse streams incrementally, low memory overhead and a clean generator based interface. it also includes an implementation of <a href="http://www.erlang.org/eeps/eep-0018.html">eep0018</a>, a json reformatter and a json verifier
 
