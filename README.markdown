@@ -66,6 +66,8 @@ don't edit the various jsx\_utfxx.erl files in the src dir directly, see comment
 
 jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endian). future support is planned for erlang iolists (maybe)
 
+jsx adheres to [semantic versioning][4]
+
 
 
 
@@ -75,3 +77,4 @@ jsx supports utf8, utf16 (little and big endian) and utf32 (little and big endia
 [1]: http://lloyd.github.com/yajl
 [2]: http://www.github.com/talentdeficit/jsx/wiki
 [3]: http://www.erlang.org/eeps/eep-0018.html
+[4]: http://semver.org/
