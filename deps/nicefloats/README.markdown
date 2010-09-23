@@ -1,5 +1,5 @@
-nicefloats
-==========
+nicefloats (v0.9.0)
+===================
 
 an erlang implementation of nice decimal representations of floating point numbers, based on "Printing FLoating-Point Numbers Quickly and Accurately" by Burger & Dybvig
 
