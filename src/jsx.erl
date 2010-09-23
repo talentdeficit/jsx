@@ -23,7 +23,7 @@
 
 %% @author Alisdair Sullivan <alisdairsullivan@yahoo.ca>
 %% @copyright 2010 Alisdair Sullivan
-%% @version really, really beta
+%% @version 0.9.0
 %% @doc this module defines the interface to the jsx json parsing library
 
 -module(jsx).

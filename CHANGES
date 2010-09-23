@@ -1,0 +1,6 @@
+0.9.0
+=====
+
+* updated rebar to latest (git commit: a43381fe0bd3d6929b31)
+* integrated all tests into most relevant modules, there's now no useless .beam files to pollute production code
+* finalized api. no public function exports or function options will be REMOVED, though some may still be added 
