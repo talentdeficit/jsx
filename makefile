@@ -6,7 +6,3 @@ test: force
 
 clean:
 	./rebar clean
-	
-deps:
-    git submodule init
-    git submodule update
