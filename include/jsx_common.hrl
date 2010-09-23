@@ -36,12 +36,12 @@
     | {escaped_unicode, ascii | codepoint | none}
     | {multi_term, true | false}
     | {encoding, auto 
-        | utf8 
-        | utf16 
-        | {utf16, little} 
-        | utf32 
-        | {utf32, little} 
-    }.
+    | utf8 
+    | utf16 
+    | {utf16, little} 
+    | utf32 
+    | {utf32, little} 
+}.
 
 
 %% events emitted by the parser and component types
