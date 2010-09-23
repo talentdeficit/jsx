@@ -1,7 +1,7 @@
 compile:
 	./rebar compile
     
-test: force
+test:
 	./rebar eunit
 
 clean:
