@@ -32,6 +32,7 @@
 -record(opts, {
     comments = false,
     escaped_unicode = codepoint,
+    unquoted_keys = false,
     multi_term = false,
     encoding = auto
 }).
@@ -143,6 +144,9 @@ parse_opts([{comments, Value}|Rest], Opts) ->
 parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
     true = lists:member(Value, [ascii, codepoint, none]),
     parse_opts(Rest, Opts#opts{escaped_unicode=Value});
+parse_opts([{unquoted_keys, Value}|Rest], Opts) ->
+    true = lists:member(Value, [true, false]),
+    parse_opts(Rest, Opts#opts{unquoted_keys=Value});
 parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{multi_term=Value});
@@ -247,6 +251,9 @@ object(<<?end_object/?utfx, Rest/binary>>, [key|Stack], Opts) ->
     {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end};
 object(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
     maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Opts) end);
+object(<<S/?utfx, Rest/binary>>, Stack, #opts{unquoted_keys=true}=Opts)
+    when ?is_noncontrol(S) ->
+    unquoted_key(Rest, Stack, Opts, [S]);
 object(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -353,6 +360,9 @@ key(<<?quote/?utfx, Rest/binary>>, Stack, Opts) ->
     string(Rest, Stack, Opts, []);
 key(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
     maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Opts) end);
+key(<<S/?utfx, Rest/binary>>, Stack, #opts{unquoted_keys=true}=Opts)
+    when ?is_noncontrol(S) ->
+    unquoted_key(Rest, Stack, Opts, [S]);
 key(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -360,6 +370,33 @@ key(Bin, Stack, Opts) ->
                     {error, badjson}
                 ; (Stream) -> 
                     key(<<Bin/binary, Stream/binary>>, Stack, Opts)
+            end}
+        ; false -> {error, badjson}
+    end.
+
+
+unquoted_key(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
+    when ?is_whitespace(S) ->
+    {event, {key, lists:reverse(Acc)}, fun() -> colon(Rest, Stack, Opts) end};
+unquoted_key(<<?colon/?utfx, Rest/binary>>, [key|Stack], Opts, Acc) ->
+    {event,
+        {key, lists:reverse(Acc)},
+        fun() -> value(Rest, [object|Stack], Opts) end
+    };
+unquoted_key(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
+    when ?is_noncontrol(S) ->
+    unquoted_key(Rest, Stack, Opts, [S] ++ Acc);
+unquoted_key(Bin, Stack, Opts, Acc) ->
+    case partial_utf(Bin) of 
+        true -> 
+            {incomplete, fun(end_stream) -> 
+                    {error, badjson}
+                ; (Stream) -> 
+                    unquoted_key(<<Bin/binary, Stream/binary>>, 
+                        Stack,
+                        Opts,
+                        Acc
+                    )
             end}
         ; false -> {error, badjson}
     end.
