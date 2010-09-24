@@ -34,6 +34,7 @@
 -type jsx_opts() :: [jsx_opt()].
 -type jsx_opt() :: {comments, true | false}
     | {escaped_unicode, ascii | codepoint | none}
+    | {unquoted_keys, true | false}
     | {multi_term, true | false}
     | {encoding, auto 
     | utf8 
@@ -109,6 +110,7 @@
 -type decoder_opts() :: [decoder_opt()].
 -type decoder_opt() :: {strict, true | false}
     | {comments, true | false}
+    | {unquoted_keys, true | false}
     | {encoding, supported_utf()}
     | {label, atom | binary | existing_atom}
     | {float, true | false}.
@@ -117,12 +119,14 @@
 -type verify_opts() :: [verify_opt()].
 -type verify_opt() :: {strict, true | false}
     | {encoding, auto | supported_utf()}
+    | {unquoted_keys, true | false}
     | {comments, true | false}.
 
 
 -type format_opts() :: [format_opt()].
 -type format_opt() :: {strict, true | false}
     | {encoding, auto | supported_utf()}
+    | {unquoted_keys, true | false}
     | {comments, true | false}
     | {space, integer()}
     | space
