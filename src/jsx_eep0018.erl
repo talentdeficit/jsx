@@ -69,7 +69,9 @@ term_to_json(List, Opts) ->
     
 
 extract_parser_opts(Opts) ->
-    [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
+    [ {K, V} || {K, V} <- 
+        Opts, lists:member(K, [comments, encoding, unquoted_keys])
+    ].
 
 
 %% ensure the first jsx event we get is start_object or start_array when running

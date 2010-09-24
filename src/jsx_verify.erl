@@ -51,8 +51,10 @@ is_json(JSON, Opts) ->
 
 
 extract_parser_opts(Opts) ->
-    [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
-    
+    [ {K, V} || {K, V} <- 
+        Opts, lists:member(K, [comments, encoding, unquoted_keys])
+    ].
+
 
 %% enforce only arrays and objects at top level
 collect_strict({event, start_object, Next}, Keys) ->
