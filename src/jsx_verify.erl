@@ -43,13 +43,15 @@
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
 
 is_json(JSON, Opts) ->
-    Encoding = proplists:get_value(encoding, Opts, utf8),
-    Comments = proplists:get_value(comments, Opts, false),
-    P = jsx:parser([{encoding, Encoding}, {comments, Comments}]),
+    P = jsx:parser(extract_parser_opts(Opts)),
     case proplists:get_value(strict, Opts, true) of
         true -> collect_strict(P(JSON), [[]])
         ; false -> collect(P(JSON), [[]])
     end.
+
+
+extract_parser_opts(Opts) ->
+    [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
     
 
 %% enforce only arrays and objects at top level

@@ -42,7 +42,7 @@
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().
 
 json_to_term(JSON, Opts) ->
-    P = jsx:parser(opts_to_jsx_opts(Opts)),
+    P = jsx:parser(extract_parser_opts(Opts)),
     case proplists:get_value(strict, Opts, true) of
         true -> collect_strict(P(JSON), [[]], Opts)
         ; false -> collect(P(JSON), [[]], Opts)
@@ -68,27 +68,8 @@ term_to_json(List, Opts) ->
     ).
     
 
-%% parse opts for the decoder
-opts_to_jsx_opts(Opts) ->
-    opts_to_jsx_opts(Opts, []).
-    
-opts_to_jsx_opts([{encoding, Val}|Rest], Acc) ->
-    case lists:member(Val, 
-        [auto, utf8, utf16, {utf16, little}, utf32, {utf32, little}]
-    ) of
-        true -> opts_to_jsx_opts(Rest, [{encoding, Val}] ++ Acc)
-        ; false -> opts_to_jsx_opts(Rest, Acc)
-    end;
-opts_to_jsx_opts([{comments, Val}|Rest], Acc) ->
-    case Val of
-        true -> opts_to_jsx_opts(Rest, [{comments, true}] ++ Acc)
-        ; false -> opts_to_jsx_opts(Rest, [{comments, false}] ++ Acc)
-        ; _ -> opts_to_jsx_opts(Rest, Acc)
-    end;
-opts_to_jsx_opts([_|Rest], Acc) ->
-    opts_to_jsx_opts(Rest, Acc);
-opts_to_jsx_opts([], Acc) ->
-    Acc.
+extract_parser_opts(Opts) ->
+    [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
 
 
 %% ensure the first jsx event we get is start_object or start_array when running
