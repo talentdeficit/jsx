@@ -72,7 +72,9 @@ parse_opts([], Opts) ->
 
 
 extract_parser_opts(Opts) ->
-    [ {K, V} || {K, V} <- Opts, lists:member(K, [comments, encoding]) ].
+    [ {K, V} || {K, V} <- 
+        Opts, lists:member(K, [comments, encoding, unquoted_keys])
+    ].
     
 
 format_something({event, start_object, Next}, Opts, Level) ->
