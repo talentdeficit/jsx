@@ -181,9 +181,15 @@ less_strict_test_() ->
                     [{comments, true}]
                 ) =:= true
             )
+        },
+        {"unquoted keys",
+            ?_assert(is_json(
+                    <<"{unquotedkey : true}">>,
+                    [{unquoted_keys, true}]
+                ) =:= true
+            )
         }
-    ].
-        
+    ].    
     
 -endif.
 
