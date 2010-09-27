@@ -201,7 +201,9 @@ parser(OptsList) ->
 -spec json_to_term(JSON::binary()) -> eep0018().
 
 json_to_term(JSON) ->
-    json_to_term(JSON, []).
+    try json_to_term(JSON, [])
+    catch error:badarg -> erlang:error(badarg)
+    end.
     
 %% @spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018()
 %% @doc
@@ -255,7 +257,9 @@ json_to_term(JSON) ->
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018(). 
 
 json_to_term(JSON, Opts) ->
-    jsx_eep0018:json_to_term(JSON, Opts).
+    try jsx_eep0018:json_to_term(JSON, [])
+    catch error:badarg -> erlang:error(badarg)
+    end.
 
 
 %% @spec term_to_json(JSON::eep0018()) -> binary()
@@ -264,7 +268,9 @@ json_to_term(JSON, Opts) ->
 -spec term_to_json(JSON::eep0018()) -> binary().
 
 term_to_json(JSON) ->
-    term_to_json(JSON, []).
+    try term_to_json(JSON, [])
+    catch error:badarg -> erlang:error(badarg)
+    end.
     
 %% @spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary()
 %% @doc
@@ -306,7 +312,9 @@ term_to_json(JSON) ->
 -spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().        
 
 term_to_json(JSON, Opts) ->
-    jsx_eep0018:term_to_json(JSON, Opts).
+    try jsx_eep0018:term_to_json(JSON, Opts)
+    catch error:badarg -> erlang:error(badarg)
+    end.
 
 
 %% @spec is_json(JSON::binary()) -> true | false
