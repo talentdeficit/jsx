@@ -50,7 +50,7 @@
 
 %% @type jsx_parser_result() = {event, jsx_event(), (() -> jsx_parser_result())}
 %%    | {incomplete, jsx_parser()}
-%%    | {error, badjson}
+%%    | {error, {badjson, binary()}}
 %%    | {error, badarg}.
 
 %% @type jsx_event() = start_object
@@ -490,7 +490,7 @@ detect_encoding(<<X>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf8:parser(Opts))(<<X>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, badjson}
+                    catch error:function_clause -> {error, {badjson, <<X>>}}
                 end
             ; (Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) 
         end
@@ -501,7 +501,7 @@ detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf16:parser(Opts))(<<0, X>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, badjson}
+                    catch error:function_clause -> {error, {badjson, <<0, X>>}}
                 end
             ; (Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) 
         end
@@ -512,7 +512,7 @@ detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf16le:parser(Opts))(<<X, 0>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, badjson}
+                    catch error:function_clause -> {error, {badjson, <<X, 0>>}}
                 end
             ; (Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts)
         end
@@ -521,7 +521,7 @@ detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
 %% not enough input, request more
 detect_encoding(Bin, Opts) ->
     {incomplete,
-        fun(end_stream) -> {error, badjson}
+        fun(end_stream) -> {error, {badjson, Bin}}
             ; (Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
         end
     }.

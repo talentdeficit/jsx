@@ -183,11 +183,11 @@ start(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     start(<<Bin/binary, Stream/binary>>, Stack, Opts) 
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -211,11 +211,11 @@ maybe_done(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     maybe_done(<<Bin/binary, Stream/binary>>, Stack, Opts) 
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -226,7 +226,7 @@ done(<<?solidus/?utfx, Rest/binary>>, #opts{comments=true}=Opts) ->
 done(<<>>, Opts) ->
     {event, end_json, fun() -> 
         {incomplete, fun(end_stream) -> 
-                {error, badjson}
+                {error, {badjson, <<>>}}
             ; (Stream) -> 
                 done(Stream, Opts) 
         end} 
@@ -235,11 +235,11 @@ done(Bin, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     done(<<Bin/binary, Stream/binary>>, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -258,11 +258,11 @@ object(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     object(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -294,11 +294,11 @@ array(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     array(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -328,11 +328,11 @@ value(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     value(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -346,11 +346,11 @@ colon(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     colon(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -367,11 +367,11 @@ key(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     key(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -390,7 +390,7 @@ unquoted_key(Bin, Stack, Opts, Acc) ->
     case partial_utf(Bin) of 
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     unquoted_key(<<Bin/binary, Stream/binary>>, 
                         Stack,
@@ -398,7 +398,7 @@ unquoted_key(Bin, Stack, Opts, Acc) ->
                         Acc
                     )
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -423,11 +423,11 @@ string(Bin, Stack, Opts, Acc) ->
     case partial_utf(Bin) of 
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     string(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
     
@@ -506,11 +506,11 @@ escape(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     escape(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -571,7 +571,7 @@ escaped_unicode(Bin, Stack, Opts, String, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     escaped_unicode(<<Bin/binary, Stream/binary>>, 
                         Stack, 
@@ -580,7 +580,7 @@ escaped_unicode(Bin, Stack, Opts, String, Acc) ->
                         Acc
                     ) 
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -613,11 +613,11 @@ negative(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     negative(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -656,11 +656,11 @@ zero(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     zero(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -711,11 +711,11 @@ integer(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true ->
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     integer(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -728,7 +728,7 @@ initial_decimal(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true ->
             {incomplete, fun(end_stream) ->
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     initial_decimal(<<Bin/binary, Stream/binary>>,
                         Stack,
@@ -736,7 +736,7 @@ initial_decimal(Bin, Stack, Opts, Acc) ->
                         Acc
                     ) 
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -785,11 +785,11 @@ decimal(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     decimal(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -803,11 +803,11 @@ e(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) ->
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     e(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -818,11 +818,11 @@ ex(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) ->
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     ex(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -863,11 +863,11 @@ exp(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true ->
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) -> 
                     exp(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -877,11 +877,11 @@ tr(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     tr(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -891,11 +891,11 @@ tru(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     tru(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -905,11 +905,11 @@ true(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     true(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -919,11 +919,11 @@ fa(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     fa(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
     
 
@@ -933,11 +933,11 @@ fal(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     fal(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}        
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
     
 
@@ -947,11 +947,11 @@ fals(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     fals(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
     
 
@@ -961,11 +961,11 @@ false(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     false(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -975,11 +975,11 @@ nu(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     nu(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -989,11 +989,11 @@ nul(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     nul(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -1003,11 +1003,11 @@ null(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     null(<<Bin/binary, Stream/binary>>, Stack, Opts)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -1022,11 +1022,11 @@ maybe_comment(Bin, Resume) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) -> 
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     maybe_comment(<<Bin/binary, Stream/binary>>, Resume)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -1038,11 +1038,11 @@ comment(Bin, Resume) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) ->
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     comment(<<Bin/binary, Stream/binary>>, Resume)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.
 
 
@@ -1054,9 +1054,9 @@ maybe_comment_done(Bin, Resume) ->
     case ?partial_codepoint(Bin) of
         true -> 
             {incomplete, fun(end_stream) ->
-                    {error, badjson}
+                    {error, {badjson, Bin}}
                 ; (Stream) ->
                     maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume)
             end}
-        ; false -> {error, badjson}
+        ; false -> {error, {badjson, Bin}}
     end.

@@ -65,7 +65,9 @@ the decoder can also return two other tuples:
       the parser and resumes parsing as if never interrupted. the semantics 
       are as if the new binary were appended to the already parsed binary
       
-    {error, badjson}
+    {error, {badjson, Bin}}
+      Bin -- the remainder of the input at the point of the error. the first
+      byte of the binary is the byte that failed to match
 '''
     
 `incomplete' is returned when input is exhausted. `error' is returned when invalid json input is detected. how obvious

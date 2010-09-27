@@ -69,7 +69,7 @@
 -type jsx_parser_result() :: 
     {event, jsx_event(), fun(() -> jsx_parser_result())}
     | {incomplete, jsx_parser()}
-    | {error, badjson}.
+    | {error, {badjson, binary()}}.
 
 
 -type supported_utf() :: utf8 

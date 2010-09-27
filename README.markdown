@@ -13,7 +13,7 @@ it also includes an implementation of [eep0018][3], a pretty printer, a verifier
 
 ### usage ###
 
-jsx provides an iterator based api that returns tuples of the form `{event, Event, Next}` where `Event` is an atom or tuple (see below) representing the json structure or value encountered. `Next` is a zero arity function that returns the next tuple in the sequence when called. it is stream based, and can also return the tuple `{incomplete, More}` to signify that input is exhausted. `More` is an arity one function that, when called with another binary, attempts to continue parsing treating the new binary as the tail of the preceding binary. errors in the json document are represented by the tuple `{error, badjson}`
+jsx provides an iterator based api that returns tuples of the form `{event, Event, Next}` where `Event` is an atom or tuple (see below) representing the json structure or value encountered. `Next` is a zero arity function that returns the next tuple in the sequence when called. it is stream based, and can also return the tuple `{incomplete, More}` to signify that input is exhausted. `More` is an arity one function that, when called with another binary, attempts to continue parsing treating the new binary as the tail of the preceding binary. errors in the json document are represented by the tuple `{error, {badjson, Bin}}`
 
 the following module
 
