@@ -72,6 +72,7 @@
 %% @type jsx_opt() = {comments, true | false}
 %%    | {escaped_unicode, ascii | codepoint | none}
 %%    | {multi_term, true | false}
+%%    | {unquoted_keys, true | false}
 %%    | {encoding, auto | supported_utf()}.
 
 %% @type supported_utf() = utf8 
@@ -238,7 +239,7 @@ json_to_term(JSON) ->
 %%          }
 %%          <p>assume the binary is encoded using the specified binary. default 
 %%          is auto, which attempts to autodetect the encoding</p></li>
-%%     
+%% 
 %%        <li>{comments, true | false}
 %%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
@@ -257,7 +258,7 @@ json_to_term(JSON) ->
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018(). 
 
 json_to_term(JSON, Opts) ->
-    try jsx_eep0018:json_to_term(JSON, [])
+    try jsx_eep0018:json_to_term(JSON, Opts)
     catch error:badarg -> erlang:error(badarg)
     end.
 
@@ -345,7 +346,7 @@ is_json(JSON) ->
 %%          }
 %%          <p>assume the binary is encoded using the specified binary. default 
 %%          is auto, which attempts to autodetect the encoding</p></li>
-%%  
+%%
 %%        <li>{comments, true | false}
 %%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
@@ -396,7 +397,7 @@ format(JSON) ->
 %%              | {utf32, little} 
 %%          }
 %%          <p>the encoding of the resulting binary. default is utf8</p></li>
-%%    
+%%
 %%        <li>{comments, true | false}
 %%          <p>if true, json documents that contain c style (/* ... */) comments
 %%          will be parsed as if they did not contain any comments. default is
