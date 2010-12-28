@@ -23,7 +23,7 @@
 
 %% this is the implementation of the utf backends for the jsx decoder. it's 
 %%   included by the various jsx_utfxx.erl frontends and all modifications to 
-%%   this file ?utfxshould take that into account
+%%   this file should take that into account
 
 
 -spec parser(OptsList::jsx_opts()) -> jsx_parser().
