@@ -1,14 +1,14 @@
 jsx (v0.9.0)
 ============
 
-jsx is an event based json parser. basically [yajl][1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations. see [the wiki][2] for examples of what it can do
+jsx is an event based json parser. basically [yajl][1], but in erlang. born from a need for a stream based, incremental parser capable of outputting a number of representations.
 
 it also includes an implementation of [eep0018][3], a pretty printer, a verifier and a few stray functions to help you write your own json gizmos
 
 
 ### i just want to encode/decode json maaaaaan ###
 
-`jsx:term_to_json` and `jsx:json_to_term` are what you want. see [the wiki][2] or [eep0018][3] for usage examples 
+`jsx:term_to_json` and `jsx:json_to_term` are what you want. see [eep0018][3] for usage examples 
 
 
 ### usage ###
@@ -75,6 +75,5 @@ jsx adheres to [semantic versioning][4]
 
 
 [1]: http://lloyd.github.com/yajl
-[2]: http://www.github.com/talentdeficit/jsx/wiki
 [3]: http://www.erlang.org/eeps/eep-0018.html
 [4]: http://semver.org/
