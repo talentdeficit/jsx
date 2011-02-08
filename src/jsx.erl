@@ -547,21 +547,33 @@ jsx_decoder_test_() ->
     
     
 jsx_decoder_gen([]) -> [];    
-jsx_decoder_gen(Tests) -> jsx_decoder_gen(Tests, [utf8, utf16, {utf16, little}, utf32, {utf32, little}]).    
+jsx_decoder_gen(Tests) -> 
+    jsx_decoder_gen(Tests, [utf8,
+        utf16,
+        {utf16, little},
+        utf32,
+        {utf32, little}
+    ]).    
     
 jsx_decoder_gen([_Test|Rest], []) ->
     jsx_decoder_gen(Rest);
 jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
-    Name = lists:flatten(proplists:get_value(name, Test) ++ " :: " ++ io_lib:format("~p", [Encoding])),
-    JSON = unicode:characters_to_binary(proplists:get_value(json, Test), unicode, Encoding),
+    Name = lists:flatten(proplists:get_value(name, Test) ++ " :: " ++
+        io_lib:format("~p", [Encoding])
+    ),
+    JSON = unicode:characters_to_binary(proplists:get_value(json, Test),
+        unicode,
+        Encoding
+    ),
     JSX = proplists:get_value(jsx, Test),
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
             [{Name, ?_assert(decode(JSON, Flags) =:= JSX)} 
                 | {generator, 
-                        fun() -> [{Name ++ " incremental", ?_assert(incremental_decode(JSON, Flags) =:= JSX)}
-                            | jsx_decoder_gen(Tests, Encodings)]
+                        fun() -> [{Name ++ " incremental", ?_assert(
+                                incremental_decode(JSON, Flags) =:= JSX)
+                            } | jsx_decoder_gen(Tests, Encodings)]
                         end
                 }
             ]
@@ -577,7 +589,8 @@ load_tests(Path) ->
 load_tests([], _Dir, Acc) ->
     lists:reverse(Acc);
 load_tests([Test|Rest], Dir, Acc) ->
-    %% should alert about badly formed tests eventually, but for now just skip over them
+    %% should alert about badly formed tests eventually, but for now just skip
+    %% over them
     case file:consult(Dir ++ "/" ++ Test) of
         {ok, TestSpec} ->
             try
@@ -633,7 +646,9 @@ incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
 
 multi_decode_test_() ->
     [
-        {"multiple values in a single stream", ?_assert(multi_decode(multi_json_body(), []) =:= multi_test_result())}
+        {"multiple values in a single stream", ?_assert(
+            multi_decode(multi_json_body(), []) =:= multi_test_result()
+        )}
     ].
 
 	
@@ -653,7 +668,7 @@ multi_json_body() ->
     <<"0 1 -1 1e1 0.7 0.7e-1 truefalsenull {} {\"key\": \"value\"}[] [1, 2, 3]\"hope this works\"">>.
 
 multi_test_result() ->
-    [ [{integer, "0"}],
+    [[{integer, "0"}],
         [{integer, "1"}],
         [{integer, "-1"}],
         [{float, "1.0e1"}],
@@ -668,5 +683,14 @@ multi_test_result() ->
         [start_array, {integer, "1"}, {integer, "2"}, {integer, "3"}, end_array],
         [{string, "hope this works"}]
     ].
+
+read_file_test_() ->
+    {setup, 
+        fun() -> ok = file:write_file("test.json", <<"{}"/utf8>>) end,
+        fun(_) -> ok = file:delete("test.json") end,
+        [{"read a json binary off a file on disk", ?_assert(
+            read_file("test.json") =:= [{}]
+    )}]}.
+
     
 -endif.
