@@ -133,17 +133,16 @@ collect({incomplete, More}, Acc, Opts) ->
     case More(end_stream) of
         {event, Event, _Next} -> event(Event, Opts)
         ; _ ->
-            io:format("hi"), 
             case proplists:get_value(stream, Opts, false) of
                 true -> 
                     {incomplete, 
                         fun(JSON) -> collect(More(JSON), Acc, Opts) end
                     }
-                ; false -> erlang:error(badarg), io:format("hello!")
+                ; false -> erlang:error(badarg)
             end
     end;
 %% any other event is an error
-collect(_, _, _) -> io:format(":("), erlang:error(badarg).
+collect(_, _, _) -> erlang:error(badarg).
     
 
 %% helper functions for converting jsx events to eep0018 formats 
