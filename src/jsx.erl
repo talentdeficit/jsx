@@ -684,13 +684,6 @@ multi_test_result() ->
         [{string, "hope this works"}]
     ].
 
-read_file_test_() ->
-    {setup, 
-        fun() -> ok = file:write_file("test.json", <<"{}"/utf8>>) end,
-        fun(_) -> ok = file:delete("test.json") end,
-        [{"read a json binary off a file on disk", ?_assert(
-            read_file("test.json") =:= [{}]
-    )}]}.
 
     
 -endif.
