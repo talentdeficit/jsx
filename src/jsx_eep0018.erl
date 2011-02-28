@@ -79,8 +79,12 @@ extract_parser_opts(Opts) ->
 collect_strict({event, Start, Next}, Acc, Opts) 
     when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
-collect_strict(_, _, _) ->
-    erlang:error(badarg).
+collect_strict({incomplete, More}, Acc, Opts) ->
+    case proplists:get_value(stream, Opts, false) of
+        true ->  {incomplete, fun(JSON) -> collect(More(JSON), Acc, Opts) end}
+        ; false -> erlang:error(badarg)
+    end;
+collect_strict(_, _, _) -> erlang:error(badarg).
     
     
 %% collect decoder events and convert to eep0018 format     
@@ -123,19 +127,23 @@ collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
     collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
 collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
     collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
-%% if our first returned event is {incomplete, ...} try to force end and return 
+%% if our returned event is {incomplete, ...} try to force end and return 
 %%   the Event if one is returned    
-collect({incomplete, More}, [[]], Opts) ->
+collect({incomplete, More}, Acc, Opts) ->
     case More(end_stream) of
         {event, Event, _Next} -> event(Event, Opts)
-        ; _ -> 
+        ; _ ->
+            io:format("hi"), 
             case proplists:get_value(stream, Opts, false) of
-                true -> {incomplete, More}
-                ; false -> erlang:error(badarg)
+                true -> 
+                    {incomplete, 
+                        fun(JSON) -> collect(More(JSON), Acc, Opts) end
+                    }
+                ; false -> erlang:error(badarg), io:format("hello!")
             end
     end;
 %% any other event is an error
-collect(_, _, _) -> erlang:error(badarg).
+collect(_, _, _) -> io:format(":("), erlang:error(badarg).
     
 
 %% helper functions for converting jsx events to eep0018 formats 
@@ -450,6 +458,16 @@ escape_test_() ->
                     <<1, 2, 3, 11, 26, 30, 31>>
                 ) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
             )
+        }
+    ].
+    
+stream_test_() ->
+    [
+        {"streaming mode",
+            ?_assert(begin
+                    {incomplete, F} = json_to_term(<<"{">>, [{stream, true}]),
+                    F(<<"}">>)
+                end =:= [{}])
         }
     ].
 
