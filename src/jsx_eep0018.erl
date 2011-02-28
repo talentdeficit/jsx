@@ -128,7 +128,11 @@ collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
 collect({incomplete, More}, [[]], Opts) ->
     case More(end_stream) of
         {event, Event, _Next} -> event(Event, Opts)
-        ; _ -> erlang:error(badarg)
+        ; _ -> 
+            case proplists:get_value(stream, Opts, false) of
+                true -> {incomplete, More}
+                ; false -> erlang:error(badarg)
+            end
     end;
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
