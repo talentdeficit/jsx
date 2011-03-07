@@ -141,15 +141,21 @@ parse_opts([], Opts) ->
 parse_opts([{comments, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{comments=Value});
+parse_opts([comments|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{comments=true});
 parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
     true = lists:member(Value, [ascii, codepoint, none]),
     parse_opts(Rest, Opts#opts{escaped_unicode=Value});
 parse_opts([{unquoted_keys, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{unquoted_keys=Value});
+parse_opts([unquoted_keys|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{unquoted_keys=true});
 parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{multi_term=Value});
+parse_opts([multi_term|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{multi_term=true});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts(_, _) ->

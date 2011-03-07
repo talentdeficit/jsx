@@ -51,9 +51,19 @@ is_json(JSON, Opts) ->
 
 
 extract_parser_opts(Opts) ->
-    [ {K, V} || {K, V} <- 
-        Opts, lists:member(K, [comments, encoding, unquoted_keys])
-    ].
+    extract_parser_opts(Opts, []).
+
+extract_parser_opts([], Acc) -> Acc;    
+extract_parser_opts([{K,V}|Rest], Acc) ->
+    case lists:member(K, [comments, encoding, unquoted_keys]) of
+        true -> [{K,V}] ++ Acc
+        ; false -> extract_parser_opts(Rest, Acc)
+    end;
+extract_parser_opts([K|Rest], Acc) ->
+    case lists:member(K, [comments, encoding, unquoted_keys]) of
+        true -> [K] ++ Acc
+        ; false -> extract_parser_opts(Rest, Acc)
+    end.
 
 
 %% enforce only arrays and objects at top level

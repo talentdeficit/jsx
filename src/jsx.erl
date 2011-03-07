@@ -258,11 +258,14 @@ json_to_term(JSON) ->
 
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018(). 
 
+%json_to_term(JSON, Opts) ->
+%    try jsx_eep0018:json_to_term(JSON, Opts)
+%    %% rethrow exception so internals aren't confusingly exposed to users
+%    catch error:badarg -> erlang:error(badarg)
+%    end.
+    
 json_to_term(JSON, Opts) ->
-    try jsx_eep0018:json_to_term(JSON, Opts)
-    %% rethrow exception so internals aren't confusingly exposed to users
-    catch error:badarg -> erlang:error(badarg)
-    end.
+    jsx_eep0018:json_to_term(JSON, Opts).
 
 
 %% @spec term_to_json(JSON::eep0018()) -> binary()
