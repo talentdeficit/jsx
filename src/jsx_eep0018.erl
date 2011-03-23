@@ -221,7 +221,7 @@ list_to_events([], Acc) ->
 term_to_event(List) when is_list(List) ->
     term_to_events(List);
 term_to_event(Float) when is_float(Float) ->
-    [{float, nicefloats:format(Float)}];
+    [{float, jsx_utils:nice_decimal(Float)}];
 term_to_event(Integer) when is_integer(Integer) ->
     [{integer, erlang:integer_to_list(Integer)}];
 term_to_event(String) when is_binary(String) -> 

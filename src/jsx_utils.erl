@@ -1,7 +1,6 @@
 %% The MIT License
 
 %% Copyright (c) 2010 Alisdair Sullivan <alisdairsullivan@yahoo.ca>
-%%               2007 Bob Ippolito <bob@mochimedia.com>
 
 %% Permission is hereby granted, free of charge, to any person obtaining a copy
 %% of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +21,17 @@
 %% THE SOFTWARE.
 
 
+-module(jsx_utils).
+
+-export([nice_decimal/1]).
+
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
+
+
 %% conversion of floats to 'nice' decimal output. erlang's float implementation 
 %%   is almost but not quite ieee 754. it converts negative zero to plain zero 
 %%   silently, and throws exceptions for any operations that would produce NaN 
@@ -30,64 +40,25 @@
 %%   operations produce badarg exceptions. with that in mind, this function 
 %%   makes no attempt to handle special values (except for zero)
 
-%% although this is a from scratch implementation of burger & dybvig's algorithm
-%%   bob ippolito's implementation in mochiweb did provide signifigant guidance
-%%   and is reflected in the choice of license and copyright attribution
-
-
--module(nicefloats).
-
--export([format/1, format/2]).
-
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
-
--record(opts, {
-    exp_limit = 6,
-    base = 10
-}).
-
-
--spec format(Float::float()) -> string().
-
-format(Float) when is_float(Float) ->
-    format(Float, []).
-
--spec format(Float::float(), OptsList::list()) -> string().
-
-format(Float, OptsList) when is_float(Float) ->
-    nice_decimal(Float, parse_opts(OptsList)).
-    
-
-parse_opts(OptsList) ->
-    parse_opts(OptsList, #opts{}).
-    
-parse_opts([{exp_limit, Val}|Rest], Opts) when is_integer(Val), Val >= 0 ->
-    parse_opts(Rest, Opts#opts{exp_limit = Val});
-parse_opts([{base, N}|Rest], Opts) when is_integer(N), N >= 2, N =< 16 ->
-    parse_opts(Rest, Opts#opts{base = N});
-parse_opts([], Opts) ->
-    Opts;
-parse_opts(_, _) ->
-    {error, badarg}.
-
-
 %% algorithm from "Printing Floating-Point Numbers Quickly and Accurately" by 
 %%   Burger & Dybvig
-nice_decimal(0.0, _) -> "0.0";
-nice_decimal(Num, Opts) ->
+
+
+-spec nice_decimal(Float::float()) -> string().
+
+nice_decimal(0.0) -> "0.0";
+nice_decimal(Num) ->
     {F, E} = extract(<<Num:64/float>>),
     {R, S, MP, MM} = initial_vals(F, E),
-    K = ceiling((math:log(abs(Num)) / math:log(Opts#opts.base)) - 1.0e-10),
+    K = ceiling((math:log(abs(Num)) / math:log(10)) - 1.0e-10),
     Round = F band 1 =:= 0,
-    {Dpoint, Digits} = scale(R, S, MP, MM, K, Opts#opts.base, Round),
+    {Dpoint, Digits} = scale(R, S, MP, MM, K, 10, Round),
     if Num >= 0 -> digits_to_list(Dpoint, Digits)
         ; Num < 0 -> "-" ++ digits_to_list(Dpoint, Digits)
     end.
 
+
+%% internal functions
 
 extract(<<_:1, 0:11, Frac:52>>) -> {Frac, -1074};
 extract(<<_:1, Exp:11, Frac:52>>) -> {Frac + (1 bsl 52), Exp - 1075}.
@@ -206,36 +177,36 @@ to_ascii(X) -> [X + 48].    %% ascii "1" is [49], "2" is [50], etc...
     
 nice_decimal_test_() ->
     [
-        {"0.0", ?_assert(format(0.0) =:= "0.0")},
-        {"1.0", ?_assert(format(1.0) =:= "1.0")},
-        {"-1.0", ?_assert(format(-1.0) =:= "-1.0")},
+        {"0.0", ?_assert(nice_decimal(0.0) =:= "0.0")},
+        {"1.0", ?_assert(nice_decimal(1.0) =:= "1.0")},
+        {"-1.0", ?_assert(nice_decimal(-1.0) =:= "-1.0")},
         {"3.1234567890987654321", 
             ?_assert(
-                format(3.1234567890987654321) =:= "3.1234567890987655")
+                nice_decimal(3.1234567890987654321) =:= "3.1234567890987655")
         },
-        {"1.0e23", ?_assert(format(1.0e23) =:= "1.0e23")},
-        {"0.3", ?_assert(format(3.0/10.0) =:= "0.3")},
-        {"0.0001", ?_assert(format(0.0001) =:= "1.0e-4")},
-        {"0.00000001", ?_assert(format(0.00000001) =:= "1.0e-8")},
-        {"1.0e-323", ?_assert(format(1.0e-323) =:= "1.0e-323")},
-        {"1.0e308", ?_assert(format(1.0e308) =:= "1.0e308")},
+        {"1.0e23", ?_assert(nice_decimal(1.0e23) =:= "1.0e23")},
+        {"0.3", ?_assert(nice_decimal(3.0/10.0) =:= "0.3")},
+        {"0.0001", ?_assert(nice_decimal(0.0001) =:= "1.0e-4")},
+        {"0.00000001", ?_assert(nice_decimal(0.00000001) =:= "1.0e-8")},
+        {"1.0e-323", ?_assert(nice_decimal(1.0e-323) =:= "1.0e-323")},
+        {"1.0e308", ?_assert(nice_decimal(1.0e308) =:= "1.0e308")},
         {"min normalized float", 
             ?_assert(
-                format(math:pow(2, -1022)) =:= "2.2250738585072014e-308"
+                nice_decimal(math:pow(2, -1022)) =:= "2.2250738585072014e-308"
             )
         },
         {"max normalized float", 
             ?_assert(
-                format((2 - math:pow(2, -52)) * math:pow(2, 1023)) 
+                nice_decimal((2 - math:pow(2, -52)) * math:pow(2, 1023)) 
                     =:= "1.7976931348623157e308"
             )
         },
         {"min denormalized float", 
-            ?_assert(format(math:pow(2, -1074)) =:= "5.0e-324")
+            ?_assert(nice_decimal(math:pow(2, -1074)) =:= "5.0e-324")
         },
         {"max denormalized float", 
             ?_assert(
-                format((1 - math:pow(2, -52)) * math:pow(2, -1022)) 
+                nice_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) 
                     =:= "2.225073858507201e-308"
             )
         }
