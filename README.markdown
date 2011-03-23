@@ -57,7 +57,7 @@ jsx is stream based and allows the parsing of naked, unwrapped json values. toge
 
 ### installation ###
 
-`make` to build jsx
+`./rebar compile` to build jsx, `./rebar eunit` to check to make sure it actually works
 
 
 ### notes ###
