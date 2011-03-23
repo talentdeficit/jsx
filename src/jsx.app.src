@@ -9,9 +9,9 @@
         jsx_utf16le,
         jsx_utf32,
         jsx_utf32le,
-		jsx_eep0018,
-		jsx_format,
-		jsx_verify
+		    jsx_eep0018,
+		    jsx_format,
+		    jsx_verify
     ]},
     {registered, []},
     {applications, [
