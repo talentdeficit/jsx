@@ -30,7 +30,6 @@
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
--export([eventify/1]).
 
 
 -include("./include/jsx_common.hrl").
@@ -117,20 +116,6 @@ format(JSON, Opts) ->
     jsx_format:format(JSON, Opts).
 
 
--spec eventify(List::list()) -> jsx_parser_result().
-
-eventify([]) ->
-    fun() -> 
-        {incomplete, fun(List) when is_list(List) -> 
-                eventify(List)
-            ; (_) ->
-                erlang:error(badarg) 
-        end}
-    end;    
-eventify([Next|Rest]) ->
-    fun() -> {event, Next, eventify(Rest)} end.  
-
-    
 
 -ifdef(TEST).
 

@@ -60,10 +60,22 @@ term_to_json(List, Opts) ->
         ; false -> continue
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
-    jsx:format(jsx:eventify(lists:reverse([end_json] ++ term_to_events(List))), 
+    jsx:format(eventify(lists:reverse([end_json] ++ term_to_events(List))), 
         [{output_encoding, Encoding}] ++ Opts
     ).
-    
+
+
+eventify([]) ->
+    fun() -> 
+        {incomplete, fun(List) when is_list(List) -> 
+                eventify(List)
+            ; (_) ->
+                erlang:error(badarg) 
+        end}
+    end;    
+eventify([Next|Rest]) ->
+    fun() -> {event, Next, eventify(Rest)} end.  
+
 
 extract_parser_opts(Opts) ->
     extract_parser_opts(Opts, []).
