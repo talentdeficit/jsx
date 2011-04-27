@@ -164,7 +164,7 @@ encode(Acc, Opts) when is_list(Acc) ->
         iolist -> Acc
         ; UTF when ?is_utf_encoding(UTF) -> 
             unicode:characters_to_binary(Acc, utf8, UTF)
-        ; _ -> erlang:throw(badarg)
+        ; _ -> erlang:error(badarg)
     end;
 encode(string, String) ->
     [?quote, String, ?quote];

@@ -218,7 +218,7 @@ proplist_to_events([{Key, Term}|Rest], Acc) ->
 proplist_to_events([], Acc) ->
     [end_object] ++ Acc;
 proplist_to_events(_, _) ->
-    erlang:throw(badarg).
+    erlang:error(badarg).
     
     
 list_to_events([Term|Rest], Acc) ->
