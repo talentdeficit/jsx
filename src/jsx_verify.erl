@@ -41,7 +41,7 @@
 
 is_json(JSON, Opts) ->
     P = jsx:parser(extract_parser_opts(Opts)),
-    case proplists:get_value(strict, Opts, true) of
+    case proplists:get_value(strict, Opts, false) of
         true -> collect_strict(P(JSON), [[]])
         ; false -> collect(P(JSON), [[]])
     end.
@@ -149,10 +149,10 @@ true_test_() ->
 
 false_test_() ->
     [
-        {"naked true", ?_assert(is_json(<<"true">>, []) =:= false)},
-        {"naked number", ?_assert(is_json(<<"1">>, []) =:= false)},
+        {"naked true", ?_assert(is_json(<<"true">>, []) =:= true)},
+        {"naked number", ?_assert(is_json(<<"1">>, []) =:= true)},
         {"naked string", 
-            ?_assert(is_json(<<"\"i am not json\"">>, []) =:= false)
+            ?_assert(is_json(<<"\"i am not really json\"">>, []) =:= true)
         },
         {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
         {"trailing comma", 

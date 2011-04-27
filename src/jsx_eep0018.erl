@@ -40,7 +40,7 @@
 
 json_to_term(JSON, Opts) ->
     P = jsx:parser(extract_parser_opts(Opts)),
-    case proplists:get_value(strict, Opts, true) of
+    case proplists:get_value(strict, Opts, false) of
         true -> collect_strict(P(JSON), [[]], Opts)
         ; false -> collect(P(JSON), [[]], Opts)
     end.
@@ -54,7 +54,7 @@ json_to_term(JSON, Opts) ->
 -spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
 
 term_to_json(List, Opts) ->
-    case proplists:get_value(strict, Opts, true) of
+    case proplists:get_value(strict, Opts, false) of
         true when is_list(List) -> continue
         ; true -> erlang:error(badarg)
         ; false -> continue
@@ -371,18 +371,22 @@ decode_test_() ->
             )
         },
         {"naked true", 
-            ?_assert(json_to_term(<<"true">>, [{strict, false}]) =:= true)
+            ?_assert(json_to_term(<<"true">>, []) =:= true)
         },
         {"naked short number", 
-            ?_assert(json_to_term(<<"1">>, [{strict, false}]) =:= 1)
+            ?_assert(json_to_term(<<"1">>, []) =:= 1)
         },
-        {"float", ?_assert(json_to_term(<<"1.0">>, [{strict, false}]) =:= 1.0)},
+        {"naked float", ?_assert(json_to_term(<<"1.0">>, []) =:= 1.0)},
         {"naked string", 
             ?_assert(json_to_term(<<"\"hello world\"">>, 
-                    [{strict, false}]
+                    []
                 ) =:= <<"hello world">>
             )
         },
+        {"strict mode", ?_assertError(badarg, json_to_term(<<"1.0">>,
+                [{strict, true}]
+            )
+        )},
         {"comments", 
             ?_assert(json_to_term(<<"[ /* a comment in an empty array */ ]">>, 
                     [{comments, true}]
@@ -428,24 +432,28 @@ encode_test_() ->
             )
         },
         {"literals", 
-            ?_assert(term_to_json([true,false,null], 
+            ?_assert(term_to_json([true,false,null],
                     []
                 ) =:= <<"[true,false,null]">>
             )
         },
         {"naked true", 
-            ?_assert(term_to_json(true, [{strict, false}]) =:= <<"true">>)
+            ?_assert(term_to_json(true, []) =:= <<"true">>)
         },
         {"naked number", 
-            ?_assert(term_to_json(1, [{strict, false}]) =:= <<"1">>)
+            ?_assert(term_to_json(1, []) =:= <<"1">>)
         },
-        {"float", ?_assert(term_to_json(1.0, [{strict, false}]) =:= <<"1.0">>)},
+        {"float", ?_assert(term_to_json(1.0, []) =:= <<"1.0">>)},
         {"naked string", 
-            ?_assert(term_to_json(<<"hello world">>, 
-                    [{strict, false}]
+            ?_assert(term_to_json(<<"hello world">>,
+                    []
                 ) =:= <<"\"hello world\"">>
             )
-        }
+        },
+        {"strict mode", ?_assertError(badarg, term_to_json(true,
+                [{strict, true}]
+            )
+        )}
     ].
     
 repeated_keys_test_() ->

@@ -26,7 +26,7 @@
     space = 0,
     indent = 0,
     output_encoding = utf8,
-    strict = true
+    strict = false
 }).
 
 

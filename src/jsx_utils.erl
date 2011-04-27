@@ -222,7 +222,9 @@ detect_encoding(<<X>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf8:parser(Opts))(<<X>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, {badjson, <<X>>}}
+                catch
+                    error:function_clause -> {error, {badjson, <<X>>}}
+                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
                 end
             ; (Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) 
         end
@@ -233,7 +235,9 @@ detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf16:parser(Opts))(<<0, X>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, {badjson, <<0, X>>}}
+                catch
+                    error:function_clause -> {error, {badjson, <<0, X>>}}
+                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
                 end
             ; (Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) 
         end
@@ -244,7 +248,9 @@ detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
                 try
                     {incomplete, Next} = (jsx_utf16le:parser(Opts))(<<X, 0>>),
                     Next(end_stream)
-                    catch error:function_clause -> {error, {badjson, <<X, 0>>}}
+                catch
+                    error:function_clause -> {error, {badjson, <<X, 0>>}}
+                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
                 end
             ; (Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts)
         end
