@@ -39,7 +39,7 @@
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().
 
 json_to_term(JSON, Opts) ->
-    P = jsx:parser(extract_parser_opts(Opts)),
+    P = jsx:decoder(extract_parser_opts(Opts)),
     case proplists:get_value(strict, Opts, false) of
         true -> collect_strict(P(JSON), [[]], Opts)
         ; false -> collect(P(JSON), [[]], Opts)

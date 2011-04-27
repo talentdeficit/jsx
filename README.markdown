@@ -22,7 +22,7 @@ the following module
     -export([simple_decode/1]).
 
     simple_decode(JSON) when is_binary(JSON) ->
-        P = jsx:parser(),
+        P = jsx:decoder(),
         decode(P(JSON), []).
 
     decode({event, end_json, _Next}, Acc) -> 

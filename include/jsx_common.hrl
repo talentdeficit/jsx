@@ -64,11 +64,11 @@
     
     
 %% this probably doesn't work properly
--type jsx_parser() :: fun((binary()) -> jsx_parser_result()).
+-type jsx_decoder() :: fun((binary()) -> jsx_decoder_result()).
 
--type jsx_parser_result() :: 
-    {event, jsx_event(), fun(() -> jsx_parser_result())}
-    | {incomplete, jsx_parser()}
+-type jsx_decoder_result() :: 
+    {event, jsx_event(), fun(() -> jsx_decoder_result())}
+    | {incomplete, jsx_decoder()}
     | {error, {badjson, binary()}}.
 
 

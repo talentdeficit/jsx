@@ -26,6 +26,7 @@
 
 %% the core parser api
 -export([parser/0, parser/1]).
+-export([decoder/0, decoder/1]).
 -export([term_to_json/1, term_to_json/2]).
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
@@ -40,21 +41,32 @@
 -endif.
 
 
--spec parser() -> jsx_parser().
+-spec parser() -> jsx_decoder().
 
-parser() ->
-    parser([]).
-    
+parser() -> decoder([]).
 
--spec parser(OptsList::jsx_opts()) -> jsx_parser().
 
-parser(OptsList) ->
+-spec parser(OptsList::jsx_opts()) -> jsx_decoder().
+
+parser(OptsList) -> decoder(OptsList).    
+
+
+
+-spec decoder() -> jsx_decoder().
+
+decoder() -> decoder([]).
+
+
+-spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
+
+
+decoder(OptsList) ->
     case proplists:get_value(encoding, OptsList, auto) of
-        utf8 -> jsx_utf8:parser(OptsList)
-        ; utf16 -> jsx_utf16:parser(OptsList)
-        ; utf32 -> jsx_utf32:parser(OptsList)
-        ; {utf16, little} -> jsx_utf16le:parser(OptsList)
-        ; {utf32, little} -> jsx_utf32le:parser(OptsList)
+        utf8 -> jsx_utf8:decoder(OptsList)
+        ; utf16 -> jsx_utf16:decoder(OptsList)
+        ; utf32 -> jsx_utf32:decoder(OptsList)
+        ; {utf16, little} -> jsx_utf16le:decoder(OptsList)
+        ; {utf32, little} -> jsx_utf32le:decoder(OptsList)
         ; auto -> jsx_utils:detect_encoding(OptsList)
     end.
 
@@ -196,7 +208,7 @@ parse_tests([], _Dir, Acc) ->
 
 
 decode(JSON, Flags) ->
-    P = jsx:parser(Flags),
+    P = jsx:decoder(Flags),
     decode_loop(P(JSON), []).
 
 decode_loop({event, end_json, _Next}, Acc) ->
@@ -208,7 +220,7 @@ decode_loop({event, E, Next}, Acc) ->
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = jsx:parser(Flags),
+	P = jsx:decoder(Flags),
 	incremental_decode_loop(P(C), Rest, []).
 
 incremental_decode_loop({incomplete, Next}, <<>>, Acc) ->
@@ -230,7 +242,7 @@ multi_decode_test_() ->
 
 	
 multi_decode(JSON, Flags) ->
-    P = jsx:parser(Flags ++ [{multi_term, true}]),
+    P = jsx:decoder(Flags ++ [{multi_term, true}]),
     multi_decode_loop(P(JSON), [[]]).
 
 multi_decode_loop({incomplete, _Next}, [[]|Acc]) ->

@@ -41,7 +41,7 @@
 -spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
     
 format(JSON, Opts) when is_binary(JSON) ->
-    P = jsx:parser(extract_parser_opts(Opts)),
+    P = jsx:decoder(extract_parser_opts(Opts)),
     format(fun() -> P(JSON) end, Opts);
 format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #format_opts{}),

@@ -26,7 +26,7 @@
 %%   this file should take that into account
 
 
--spec parser(OptsList::jsx_opts()) -> jsx_parser().
+-spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
 
 %% opts record for decoder
 -record(opts, {
@@ -121,11 +121,11 @@
 -endif.
 
 
--export([parser/1]).
+-export([decoder/1]).
 
 
 
-parser(OptsList) ->
+decoder(OptsList) ->
     case parse_opts(OptsList) of 
         {error, badopt} -> {error, badopt}
         ; Opts -> fun(JSON) -> start(JSON, [], Opts) end

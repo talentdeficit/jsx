@@ -40,7 +40,7 @@
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
 
 is_json(JSON, Opts) ->
-    P = jsx:parser(extract_parser_opts(Opts)),
+    P = jsx:decoder(extract_parser_opts(Opts)),
     case proplists:get_value(strict, Opts, false) of
         true -> collect_strict(P(JSON), [[]])
         ; false -> collect(P(JSON), [[]])
