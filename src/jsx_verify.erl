@@ -28,7 +28,7 @@
 -export([is_json/2]).
 
 
--include("./include/jsx_common.hrl").
+-include("jsx_common.hrl").
 
 
 -ifdef(TEST).
