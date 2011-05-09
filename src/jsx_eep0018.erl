@@ -28,7 +28,7 @@
 -export([json_to_term/2, term_to_json/2]).
 
 
--include("./include/jsx_common.hrl").
+-include("jsx_common.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

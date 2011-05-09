@@ -28,8 +28,8 @@
 -export([format/2]).
 
 
--include("./include/jsx_common.hrl").
--include("./include/jsx_format.hrl").
+-include("jsx_common.hrl").
+-include("jsx_format.hrl").
 
 
 -ifdef(TEST).
