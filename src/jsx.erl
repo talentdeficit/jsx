@@ -76,7 +76,7 @@ decoder(OptsList) ->
 json_to_term(JSON) ->
     try json_to_term(JSON, [])
     %% rethrow exception so internals aren't confusingly exposed to users
-    catch error:badarg -> erlang:error(badarg)
+    catch error:badarg -> erlang:error(badarg,[JSON])
     end.
     
 
@@ -91,7 +91,7 @@ json_to_term(JSON, Opts) ->
 term_to_json(JSON) ->
     try term_to_json(JSON, [])
     %% rethrow exception so internals aren't confusingly exposed to users
-    catch error:badarg -> erlang:error(badarg)
+    catch error:badarg -> erlang:error(badarg,[JSON])
     end.
 
 
@@ -100,7 +100,7 @@ term_to_json(JSON) ->
 term_to_json(JSON, Opts) ->
     try jsx_eep0018:term_to_json(JSON, Opts)
     %% rethrow exception so internals aren't confusingly exposed to users
-    catch error:badarg -> erlang:error(badarg)
+    catch error:badarg -> erlang:error(badarg,[JSON,Opts])
     end.
 
 
