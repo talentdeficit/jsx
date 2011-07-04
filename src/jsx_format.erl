@@ -73,12 +73,12 @@ extract_parser_opts(Opts) ->
 
 extract_parser_opts([], Acc) -> Acc;     
 extract_parser_opts([{K,V}|Rest], Acc) ->
-    case lists:member(K, [comments, encoding, unquoted_keys]) of
+    case lists:member(K, [encoding]) of
         true -> [{K,V}] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
     end;
 extract_parser_opts([K|Rest], Acc) ->
-    case lists:member(K, [comments, encoding, unquoted_keys]) of
+    case lists:member(K, [encoding]) of
         true -> [K] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
     end.

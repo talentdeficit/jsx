@@ -30,9 +30,7 @@
 
 %% opts record for decoder
 -record(opts, {
-    comments = false,
     escaped_unicode = codepoint,
-    unquoted_keys = false,
     multi_term = false,
     encoding = auto
 }).
@@ -71,8 +69,6 @@
 -define(negative, 16#2D).
 -define(positive, 16#2B).
 
-%% comments
--define(star, 16#2a).
 
 
 %% some useful guards
@@ -137,20 +133,10 @@ parse_opts(Opts) ->
     parse_opts(Opts, #opts{}).
 
 parse_opts([], Opts) ->
-    Opts;    
-parse_opts([{comments, Value}|Rest], Opts) ->
-    true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{comments=Value});
-parse_opts([comments|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{comments=true});
+    Opts;
 parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
     true = lists:member(Value, [ascii, codepoint, none]),
     parse_opts(Rest, Opts#opts{escaped_unicode=Value});
-parse_opts([{unquoted_keys, Value}|Rest], Opts) ->
-    true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{unquoted_keys=Value});
-parse_opts([unquoted_keys|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{unquoted_keys=true});
 parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
     parse_opts(Rest, Opts#opts{multi_term=Value});
@@ -183,8 +169,6 @@ start(<<?zero/?utfx, Rest/binary>>, Stack, Opts) ->
     zero(Rest, Stack, Opts, "0");
 start(<<S/?utfx, Rest/binary>>, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, Stack, Opts, [S]);
-start(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> start(Resume, Stack, Opts) end);
 start(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -207,8 +191,6 @@ maybe_done(<<?comma/?utfx, Rest/binary>>, [object|Stack], Opts) ->
     key(Rest, [key|Stack], Opts);
 maybe_done(<<?comma/?utfx, Rest/binary>>, [array|_] = Stack, Opts) ->
     value(Rest, Stack, Opts);
-maybe_done(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> maybe_done(Resume, Stack, Opts) end);
 maybe_done(Rest, [], #opts{multi_term=true}=Opts) ->
     {event, end_json, fun() -> start(Rest, [], Opts) end};
 maybe_done(Rest, [], Opts) ->
@@ -227,8 +209,6 @@ maybe_done(Bin, Stack, Opts) ->
 
 done(<<S/?utfx, Rest/binary>>, Opts) when ?is_whitespace(S) ->
     done(Rest, Opts);
-done(<<?solidus/?utfx, Rest/binary>>, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> done(Resume, Opts) end);
 done(<<>>, Opts) ->
     {event, end_json, fun() -> 
         {incomplete, fun(end_stream) -> 
@@ -255,11 +235,6 @@ object(<<?quote/?utfx, Rest/binary>>, Stack, Opts) ->
     string(Rest, Stack, Opts, []);
 object(<<?end_object/?utfx, Rest/binary>>, [key|Stack], Opts) ->
     {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end};
-object(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> object(Resume, Stack, Opts) end);
-object(<<S/?utfx, Rest/binary>>, Stack, #opts{unquoted_keys=true}=Opts)
-    when ?is_noncontrol(S) ->
-    unquoted_key(Rest, Stack, Opts, [S]);
 object(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -294,8 +269,6 @@ array(<<?start_array/?utfx, Rest/binary>>, Stack, Opts) ->
     {event, start_array, fun() -> array(Rest, [array|Stack], Opts) end};
 array(<<?end_array/?utfx, Rest/binary>>, [array|Stack], Opts) ->
     {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end};
-array(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> array(Resume, Stack, Opts) end);
 array(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -328,8 +301,6 @@ value(<<?start_object/?utfx, Rest/binary>>, Stack, Opts) ->
     {event, start_object, fun() -> object(Rest, [key|Stack], Opts) end};
 value(<<?start_array/?utfx, Rest/binary>>, Stack, Opts) ->
     {event, start_array, fun() -> array(Rest, [array|Stack], Opts) end};
-value(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> value(Resume, Stack, Opts) end);
 value(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -346,8 +317,6 @@ colon(<<S/?utfx, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) ->
     colon(Rest, Stack, Opts);
 colon(<<?colon/?utfx, Rest/binary>>, [key|Stack], Opts) ->
     value(Rest, [object|Stack], Opts);
-colon(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> colon(Resume, Stack, Opts) end);
 colon(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -364,11 +333,6 @@ key(<<S/?utfx, Rest/binary>>, Stack, Opts) when ?is_whitespace(S) ->
     key(Rest, Stack, Opts);        
 key(<<?quote/?utfx, Rest/binary>>, Stack, Opts) ->
     string(Rest, Stack, Opts, []);
-key(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts) ->
-    maybe_comment(Rest, fun(Resume) -> key(Resume, Stack, Opts) end);
-key(<<S/?utfx, Rest/binary>>, Stack, #opts{unquoted_keys=true}=Opts)
-    when ?is_noncontrol(S) ->
-    unquoted_key(Rest, Stack, Opts, [S]);
 key(Bin, Stack, Opts) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -376,33 +340,6 @@ key(Bin, Stack, Opts) ->
                     {error, {badjson, Bin}}
                 ; (Stream) -> 
                     key(<<Bin/binary, Stream/binary>>, Stack, Opts)
-            end}
-        ; false -> {error, {badjson, Bin}}
-    end.
-
-
-unquoted_key(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when ?is_whitespace(S) ->
-    {event, {key, lists:reverse(Acc)}, fun() -> colon(Rest, Stack, Opts) end};
-unquoted_key(<<?colon/?utfx, Rest/binary>>, [key|Stack], Opts, Acc) ->
-    {event,
-        {key, lists:reverse(Acc)},
-        fun() -> value(Rest, [object|Stack], Opts) end
-    };
-unquoted_key(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when ?is_noncontrol(S) ->
-    unquoted_key(Rest, Stack, Opts, [S] ++ Acc);
-unquoted_key(Bin, Stack, Opts, Acc) ->
-    case partial_utf(Bin) of 
-        true -> 
-            {incomplete, fun(end_stream) -> 
-                    {error, {badjson, Bin}}
-                ; (Stream) -> 
-                    unquoted_key(<<Bin/binary, Stream/binary>>, 
-                        Stack,
-                        Opts,
-                        Acc
-                    )
             end}
         ; false -> {error, {badjson, Bin}}
     end.
@@ -649,8 +586,6 @@ zero(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {integer, lists:reverse(Acc)}, fun() -> 
         maybe_done(Rest, Stack, Opts)
     end};
-zero(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts, Acc) ->
-    maybe_comment(Rest, fun(Resume) -> zero(Resume, Stack, Opts, Acc) end);
 zero(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
             {event, {integer, lists:reverse(Acc)}, fun() ->
@@ -700,12 +635,6 @@ integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {integer, lists:reverse(Acc)}, fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
-integer(<<?solidus/?utfx, Rest/binary>>, 
-    Stack, 
-    #opts{comments=true}=Opts, 
-    Acc
-) ->
-    maybe_comment(Rest, fun(Resume) -> integer(Resume, Stack, Opts, Acc) end);
 integer(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
             {event, {integer, lists:reverse(Acc)}, fun() ->
@@ -774,12 +703,6 @@ decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {float, lists:reverse(Acc)}, fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
-decimal(<<?solidus/?utfx, Rest/binary>>, 
-    Stack,
-    #opts{comments=true}=Opts,
-    Acc
-) ->
-    maybe_comment(Rest, fun(Resume) -> decimal(Resume, Stack, Opts, Acc) end);
 decimal(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
             {event, {float, lists:reverse(Acc)}, fun() ->
@@ -856,8 +779,6 @@ exp(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {event, {float, lists:reverse(Acc)}, fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
-exp(<<?solidus/?utfx, Rest/binary>>, Stack, #opts{comments=true}=Opts, Acc) ->
-    maybe_comment(Rest, fun(Resume) -> exp(Resume, Stack, Opts, Acc) end);
 exp(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
             {event, {float, lists:reverse(Acc)}, fun() ->
@@ -1012,57 +933,6 @@ null(Bin, Stack, Opts) ->
                     {error, {badjson, Bin}}
                 ; (Stream) ->
                     null(<<Bin/binary, Stream/binary>>, Stack, Opts)
-            end}
-        ; false -> {error, {badjson, Bin}}
-    end.
-
-
-%% comments are c style, ex: /* blah blah */ 
-%%   any unicode character is valid in a comment except the */ sequence which 
-%%   ends the comment. they're implemented as a closure called when the comment 
-%%   ends that returns execution to the point where the comment began. comments 
-%%   are not reported in any way, simply parsed.
-maybe_comment(<<?star/?utfx, Rest/binary>>, Resume) ->
-    comment(Rest, Resume);
-maybe_comment(Bin, Resume) ->
-    case ?partial_codepoint(Bin) of
-        true -> 
-            {incomplete, fun(end_stream) -> 
-                    {error, {badjson, Bin}}
-                ; (Stream) ->
-                    maybe_comment(<<Bin/binary, Stream/binary>>, Resume)
-            end}
-        ; false -> {error, {badjson, Bin}}
-    end.
-
-
-comment(<<?star/?utfx, Rest/binary>>, Resume) ->
-    maybe_comment_done(Rest, Resume);
-comment(<<_/?utfx, Rest/binary>>, Resume) ->
-    comment(Rest, Resume);
-comment(Bin, Resume) ->
-    case ?partial_codepoint(Bin) of
-        true -> 
-            {incomplete, fun(end_stream) ->
-                    {error, {badjson, Bin}}
-                ; (Stream) ->
-                    comment(<<Bin/binary, Stream/binary>>, Resume)
-            end}
-        ; false -> {error, {badjson, Bin}}
-    end.
-
-
-maybe_comment_done(<<?solidus/?utfx, Rest/binary>>, Resume) ->
-    Resume(Rest);
-maybe_comment_done(<<_/?utfx, Rest/binary>>, Resume) ->
-    comment(Rest, Resume);
-maybe_comment_done(Bin, Resume) ->
-    case ?partial_codepoint(Bin) of
-        true -> 
-            {incomplete, fun(end_stream) ->
-                    {error, {badjson, Bin}}
-                ; (Stream) ->
-                    maybe_comment_done(<<Bin/binary, Stream/binary>>, Resume)
             end}
         ; false -> {error, {badjson, Bin}}
     end.

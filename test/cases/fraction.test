@@ -17,4 +17,3 @@
  {float,"4.2"},
  end_array,end_json]}.
 {json, "fraction.json"}.
-{jsx_flags, [{comments,true}]}.

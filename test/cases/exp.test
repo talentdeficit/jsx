@@ -12,4 +12,3 @@
  {float,"4.2e70"},
  end_array,end_json]}.
 {json, "exp.json"}.
-{jsx_flags, [{comments,true}]}.

@@ -12,4 +12,3 @@
  {integer,"42"},
  end_array,end_json]}.
 {json, "integer.json"}.
-{jsx_flags, [{comments,true}]}.

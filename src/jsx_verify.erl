@@ -52,12 +52,12 @@ extract_parser_opts(Opts) ->
 
 extract_parser_opts([], Acc) -> Acc;    
 extract_parser_opts([{K,V}|Rest], Acc) ->
-    case lists:member(K, [comments, encoding, unquoted_keys]) of
+    case lists:member(K, [encoding]) of
         true -> [{K,V}] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
     end;
 extract_parser_opts([K|Rest], Acc) ->
-    case lists:member(K, [comments, encoding, unquoted_keys]) of
+    case lists:member(K, [encoding]) of
         true -> [K] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
     end.
@@ -158,15 +158,13 @@ false_test_() ->
         {"trailing comma", 
             ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)
         },
-        {"unquoted key", ?_assert(is_json(<<"{ key: false }">>, []) =:= false)},
         {"repeated key", 
             ?_assert(is_json(
                     <<"{\"key\": true, \"key\": true}">>, 
                     []
                 ) =:= false
             )
-        },
-        {"comments", ?_assert(is_json(<<"[ /* a comment */ ]">>, []) =:= false)}
+        }
     ].
     
 less_strict_test_() ->
@@ -181,20 +179,6 @@ less_strict_test_() ->
             ?_assert(is_json(
                     <<"\"i am not json\"">>, 
                     [{strict, false}]
-                ) =:= true
-            )
-        },
-        {"comments", 
-            ?_assert(is_json(
-                    <<"[ /* a comment */ ]">>, 
-                    [{comments, true}]
-                ) =:= true
-            )
-        },
-        {"unquoted keys",
-            ?_assert(is_json(
-                    <<"{unquotedkey : true}">>,
-                    [{unquoted_keys, true}]
                 ) =:= true
             )
         }

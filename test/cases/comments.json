@@ -1,1 +1,0 @@
-/*preceding comment*/ [/*array open comment*/ "a string"/*string comment*/, 1/*number comment*/, {/*object open comment*/"key"/*post key comment*/:/*colon comment*/[], /*pre key comment*/"another key": 0/*object close comment*/}, true/*literal comment*/] /*concluding comment*/

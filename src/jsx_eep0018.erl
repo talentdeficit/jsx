@@ -386,13 +386,7 @@ decode_test_() ->
         {"strict mode", ?_assertError(badarg, json_to_term(<<"1.0">>,
                 [{strict, true}]
             )
-        )},
-        {"comments", 
-            ?_assert(json_to_term(<<"[ /* a comment in an empty array */ ]">>, 
-                    [{comments, true}]
-                ) =:= []
-            )
-        }
+        )}
     ].
     
 encode_test_() ->
