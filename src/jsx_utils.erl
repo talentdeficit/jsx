@@ -23,7 +23,7 @@
 
 -module(jsx_utils).
 
--export([nice_decimal/1, detect_encoding/1, detect_encoding/2]).
+-export([nice_decimal/1, detect_encoding/1, detect_encoding/2, pow/2]).
 
 
 -ifdef(TEST).
