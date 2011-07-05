@@ -25,8 +25,7 @@
 -record(format_opts, {
     space = 0,
     indent = 0,
-    output_encoding = utf8,
-    strict = false
+    output_encoding = utf8
 }).
 
 

@@ -123,13 +123,11 @@
 
 
 -type verify_opts() :: [verify_opt()].
--type verify_opt() :: {strict, true | false}
-    | {encoding, auto | supported_utf()}.
+-type verify_opt() :: {encoding, auto | supported_utf()}.
 
 
 -type format_opts() :: [format_opt()].
--type format_opt() :: {strict, true | false}
-    | {encoding, auto | supported_utf()}
+-type format_opt() :: {encoding, auto | supported_utf()}
     | {space, integer()}
     | space
     | {indent, integer()}

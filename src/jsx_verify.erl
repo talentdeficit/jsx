@@ -38,11 +38,7 @@
 is_json(JSON, OptsList) when is_binary(JSON) ->
     P = jsx:decoder(extract_parser_opts(OptsList)),
     is_json(fun() -> P(JSON) end, OptsList);
-is_json(F, OptsList) when is_function(F) ->
-    case proplists:get_value(strict, OptsList, false) of
-        true -> collect_strict(F(), [[]])
-        ; false -> collect(F(), [[]])
-    end.
+is_json(F, _OptsList) when is_function(F) -> collect(F(), [[]]).
 
 
 extract_parser_opts(Opts) ->
@@ -60,14 +56,6 @@ extract_parser_opts([K|Rest], Acc) ->
         ; false -> extract_parser_opts(Rest, Acc)
     end.
 
-
-%% enforce only arrays and objects at top level
-collect_strict({event, start_object, Next}, Keys) ->
-    collect(Next(), Keys);
-collect_strict({event, start_array, Next}, Keys) ->
-    collect(Next(), Keys);
-collect_strict(_, _) ->
-    false.
 
 
 collect({event, end_json, _Next}, _Keys) ->
@@ -166,18 +154,18 @@ false_test_() ->
         }
     ].
     
-less_strict_test_() ->
+naked_value_test_() ->
     [
         {"naked true", 
-            ?_assert(is_json(<<"true">>, [{strict, false}]) =:= true)
+            ?_assert(is_json(<<"true">>, []) =:= true)
         },
         {"naked number", 
-            ?_assert(is_json(<<"1">>, [{strict, false}]) =:= true)
+            ?_assert(is_json(<<"1">>, []) =:= true)
         },
         {"naked string", 
             ?_assert(is_json(
                     <<"\"i am not json\"">>, 
-                    [{strict, false}]
+                    []
                 ) =:= true
             )
         }
