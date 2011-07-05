@@ -35,12 +35,12 @@
 -type jsx_opt() :: {escaped_unicode, ascii | codepoint | none}
     | {multi_term, true | false}
     | {encoding, auto 
-    | utf8 
-    | utf16 
-    | {utf16, little} 
-    | utf32 
-    | {utf32, little} 
-}.
+        | utf8
+        | utf16
+        | {utf16, little}
+        | utf32
+        | {utf32, little}
+    }.
 
 
 %% events emitted by the parser and component types
@@ -60,14 +60,24 @@
     | {literal, false}
     | {literal, null}.
     
+
+-type jsx_iterator() :: jsx_decoder() | jsx_encoder().
+
     
 %% this probably doesn't work properly
--type jsx_decoder() :: fun((binary()) -> jsx_decoder_result()).
+-type jsx_decoder() :: fun((binary()) -> jsx_iterator_result()).
 
--type jsx_decoder_result() :: 
-    {event, jsx_event(), fun(() -> jsx_decoder_result())}
-    | {incomplete, jsx_decoder()}
+-type jsx_encoder() :: fun((list(jsx_event())) -> jsx_iterator_result()).
+
+-type jsx_iterator_result() :: 
+    {event, jsx_event(), fun(() -> jsx_iterator_result())}
+    | {incomplete, jsx_iterator()}
     | {error, {badjson, binary()}}.
+
+
+
+    
+
 
 
 -type supported_utf() :: utf8 

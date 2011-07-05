@@ -32,17 +32,13 @@
 -include("jsx_format.hrl").
 
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
 
-
-
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
+-spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist()
+        ; (F::jsx_iterator(), Opts::format_opts()) -> binary() | iolist().
     
-format(JSON, Opts) when is_binary(JSON) ->
-    P = jsx:decoder(extract_parser_opts(Opts)),
-    format(fun() -> P(JSON) end, Opts);
+format(JSON, OptsList) when is_binary(JSON) ->
+    P = jsx:decoder(extract_parser_opts(OptsList)),
+    format(fun() -> P(JSON) end, OptsList);
 format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #format_opts{}),
     {Continue, String} = format_something(F(), Opts, 0),
@@ -198,6 +194,7 @@ space(Opts) ->
 %% eunit tests
 
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 minify_test_() ->
     [

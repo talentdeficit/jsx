@@ -31,19 +31,17 @@
 -include("jsx_common.hrl").
 
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
-
-
--spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
-
-is_json(JSON, Opts) ->
-    P = jsx:decoder(extract_parser_opts(Opts)),
-    case proplists:get_value(strict, Opts, false) of
-        true -> collect_strict(P(JSON), [[]])
-        ; false -> collect(P(JSON), [[]])
+    
+-spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
+        ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
+    
+is_json(JSON, OptsList) when is_binary(JSON) ->
+    P = jsx:decoder(extract_parser_opts(OptsList)),
+    is_json(fun() -> P(JSON) end, OptsList);
+is_json(F, OptsList) when is_function(F) ->
+    case proplists:get_value(strict, OptsList, false) of
+        true -> collect_strict(F(), [[]])
+        ; false -> collect(F(), [[]])
     end.
 
 
@@ -107,6 +105,7 @@ collect(_, _) ->
 
 %% eunit tests
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 true_test_() ->
     [
