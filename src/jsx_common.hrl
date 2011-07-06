@@ -24,10 +24,10 @@
 
 -define(is_utf_encoding(X),
     X == utf8
-        ; X == utf16
-        ; X == utf32
-        ; X == {utf16, little}
-        ; X == {utf32, little}
+    ; X == utf16
+    ; X == utf32
+    ; X == {utf16, little}
+    ; X == {utf32, little}
 ).
 
 
@@ -35,11 +35,11 @@
 -type jsx_opt() :: {escaped_unicode, ascii | codepoint | none}
     | {multi_term, true | false}
     | {encoding, auto 
-        | utf8
-        | utf16
-        | {utf16, little}
-        | utf32
-        | {utf32, little}
+    | utf8
+    | utf16
+    | {utf16, little}
+    | utf32
+    | {utf32, little}
     }.
 
 
@@ -123,7 +123,9 @@
 
 
 -type verify_opts() :: [verify_opt()].
--type verify_opt() :: {encoding, auto | supported_utf()}.
+-type verify_opt() :: {encoding, auto | supported_utf()}
+    | {repeated_keys, true | false}
+    | {naked_values, true | false}.
 
 
 -type format_opts() :: [format_opt()].

@@ -29,6 +29,7 @@
 
 
 -include("jsx_common.hrl").
+-include("jsx_verify.hrl").
 
 
     
@@ -38,7 +39,17 @@
 is_json(JSON, OptsList) when is_binary(JSON) ->
     P = jsx:decoder(extract_parser_opts(OptsList)),
     is_json(fun() -> P(JSON) end, OptsList);
-is_json(F, _OptsList) when is_function(F) -> collect(F(), [[]]).
+is_json(F, OptsList) when is_function(F) ->
+    Opts = parse_opts(OptsList, #verify_opts{}),
+    case Opts#verify_opts.naked_values of
+        true -> collect(F(), Opts, [[]])
+        ; false ->
+            case F() of
+                {event, start_object, Next} -> collect(Next(), Opts, [[]])
+                ; {event, start_array, Next} -> collect(Next(), Opts, [[]])
+                ; _ -> false
+            end
+    end.
 
 
 extract_parser_opts(Opts) ->
@@ -57,36 +68,58 @@ extract_parser_opts([K|Rest], Acc) ->
     end.
 
 
+parse_opts([{repeated_keys, Val}|Rest], Opts) ->
+    parse_opts(Rest, Opts#verify_opts{repeated_keys = Val});
+parse_opts([repeated_keys|Rest], Opts) ->
+    parse_opts(Rest, Opts#verify_opts{repeated_keys = true});
+parse_opts([{naked_values, Val}|Rest], Opts) ->
+    parse_opts(Rest, Opts#verify_opts{naked_values = Val});
+parse_opts([naked_values|Rest], Opts) ->
+    parse_opts(Rest, Opts#verify_opts{naked_values = true});
+parse_opts([_|Rest], Opts) ->
+    parse_opts(Rest, Opts);
+parse_opts([], Opts) ->
+    Opts.
 
-collect({event, end_json, _Next}, _Keys) ->
+
+
+collect({event, end_json, _Next}, _Opts, _Keys) ->
     true;
 
 
 %% allocate new key accumulator at start_object, discard it at end_object    
-collect({event, start_object, Next}, Keys) -> collect(Next(), [[]|Keys]);
-collect({event, end_object, Next}, [_|Keys]) -> collect(Next(), [Keys]);
+collect({event, start_object, Next},
+        Opts = #verify_opts{repeated_keys = false},
+        Keys) ->
+    collect(Next(), Opts, [[]|Keys]);
+collect({event, end_object, Next},
+        Opts = #verify_opts{repeated_keys = false},
+        [_|Keys]) ->
+    collect(Next(), Opts, [Keys]);
 
 
 %% check to see if key has already been encountered, if not add it to the key 
 %%   accumulator and continue, else return false 
-collect({event, {key, Key}, Next}, [Current|Keys]) ->
+collect({event, {key, Key}, Next},
+        Opts = #verify_opts{repeated_keys = false},
+        [Current|Keys]) ->
     case lists:member(Key, Current) of
         true -> false
-        ; false -> collect(Next(), [[Key] ++ Current] ++ Keys)
+        ; false -> collect(Next(), Opts, [[Key] ++ Current] ++ Keys)
     end;
 
                 
-collect({event, _, Next}, Keys) ->
-    collect(Next(), Keys);
+collect({event, _, Next}, Opts, Keys) ->
+    collect(Next(), Opts, Keys);
 
 
 %% needed to parse numbers that don't have trailing whitespace in less strict 
 %%   mode    
-collect({incomplete, More}, Keys) ->
-    collect(More(end_stream), Keys);
+collect({incomplete, More}, Opts, Keys) ->
+    collect(More(end_stream), Opts, Keys);
 
     
-collect(_, _) ->
+collect(_, _, _) ->
     false.
     
     
@@ -144,12 +177,23 @@ false_test_() ->
         {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
         {"trailing comma", 
             ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)
-        },
-        {"repeated key", 
+        }
+    ].
+
+repeated_keys_test_() ->
+    [
+        {"repeated key forbidden", 
             ?_assert(is_json(
                     <<"{\"key\": true, \"key\": true}">>, 
-                    []
+                    [{repeated_keys, false}]
                 ) =:= false
+            )
+        },
+        {"repeated key allowed", 
+            ?_assert(is_json(
+                    <<"{\"key\": true, \"key\": true}">>, 
+                    [{repeated_keys, true}]
+                ) =:= true
             )
         }
     ].
@@ -163,10 +207,19 @@ naked_value_test_() ->
             ?_assert(is_json(<<"1">>, []) =:= true)
         },
         {"naked string", 
+            ?_assert(is_json(<<"\"i am not json\"">>, []) =:= true)
+        },
+        {"naked true", 
+            ?_assert(is_json(<<"true">>, [{naked_values, false}]) =:= false)
+        },
+        {"naked number", 
+            ?_assert(is_json(<<"1">>, [{naked_values, false}]) =:= false)
+        },
+        {"naked string", 
             ?_assert(is_json(
-                    <<"\"i am not json\"">>, 
-                    []
-                ) =:= true
+                <<"\"i am not json\"">>, 
+                [{naked_values, false}]
+                ) =:= false
             )
         }
     ].    
