@@ -565,30 +565,30 @@ negative(Bin, Stack, Opts, Acc) ->
 
 
 zero(<<?end_object/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 zero(<<?end_array/?utfx, Rest/binary>>, [array|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 zero(<<?comma/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         key(Rest, [key|Stack], Opts)
     end};
 zero(<<?comma/?utfx, Rest/binary>>, [array|_] = Stack, Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         value(Rest, Stack, Opts)
     end};
 zero(<<?decimalpoint/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    initial_decimal(Rest, Stack, Opts, [?decimalpoint] ++ Acc);
+    initial_decimal(Rest, Stack, Opts, {Acc, []});
 zero(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         maybe_done(Rest, Stack, Opts)
     end};
 zero(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
-            {event, {integer, lists:reverse(Acc)}, fun() ->
+            {event, format_number(Acc), fun() ->
                 {event, end_json, fun() -> zero(<<>>, [], Opts, Acc) end}
             end}
         ; (Stream) -> zero(Stream, [], Opts, Acc)
@@ -608,36 +608,34 @@ zero(Bin, Stack, Opts, Acc) ->
 integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, Stack, Opts, [S] ++ Acc);
 integer(<<?end_object/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 integer(<<?end_array/?utfx, Rest/binary>>, [array|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 integer(<<?comma/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         key(Rest, [key|Stack], Opts)
     end};
 integer(<<?comma/?utfx, Rest/binary>>, [array|_] = Stack, Opts, Acc) ->
-    {event, {integer, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         value(Rest, Stack, Opts)
     end};
 integer(<<?decimalpoint/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    initial_decimal(Rest, Stack, Opts, [?decimalpoint] ++ Acc);
+    initial_decimal(Rest, Stack, Opts, {Acc, []});
 integer(<<?zero/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
     integer(Rest, Stack, Opts, [?zero] ++ Acc);
-integer(<<$e/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    e(Rest, Stack, Opts, "e0." ++ Acc);
-integer(<<$E/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    e(Rest, Stack, Opts, "e0." ++ Acc);
+integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when S =:= $e; S =:= $E ->
+    e(Rest, Stack, Opts, {lists:reverse(Acc), [], []});
 integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
-    {event, {integer, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
 integer(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
-            {event, {integer, lists:reverse(Acc)}, fun() ->
+            {event, format_number(Acc), fun() ->
                 {event, end_json, fun() -> integer(<<>>, [], Opts, Acc) end}
             end}
         ; (Stream) -> integer(Stream, [], Opts, Acc)
@@ -654,11 +652,9 @@ integer(Bin, Stack, Opts, Acc) ->
     end.
 
 
-initial_decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when ?is_nonzero(S) ->
-    decimal(Rest, Stack, Opts, [S] ++ Acc);
-initial_decimal(<<?zero/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    decimal(Rest, Stack, Opts, [?zero] ++ Acc);
+initial_decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac})
+        when S =:= ?zero; ?is_nonzero(S) ->
+    decimal(Rest, Stack, Opts, {Int, [S] ++ Frac});
 initial_decimal(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true ->
@@ -675,37 +671,35 @@ initial_decimal(Bin, Stack, Opts, Acc) ->
     end.
 
 
-decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_nonzero(S) ->
-    decimal(Rest, Stack, Opts, [S] ++ Acc);
+decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac})
+        when S=:= ?zero; ?is_nonzero(S) ->
+    decimal(Rest, Stack, Opts, {Int, [S] ++ Frac});
 decimal(<<?end_object/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 decimal(<<?end_array/?utfx, Rest/binary>>, [array|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 decimal(<<?comma/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         key(Rest, [key|Stack], Opts)
     end};
 decimal(<<?comma/?utfx, Rest/binary>>, [array|_] = Stack, Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         value(Rest, Stack, Opts)
     end};
-decimal(<<?zero/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    decimal(Rest, Stack, Opts, [?zero] ++ Acc);
-decimal(<<$e/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    e(Rest, Stack, Opts, "e" ++ Acc);
-decimal(<<$E/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    e(Rest, Stack, Opts, "e" ++ Acc);
+decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac})
+        when S =:= $e; S =:= $E ->
+    e(Rest, Stack, Opts, {Int, Frac, []});
 decimal(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
 decimal(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
-            {event, {float, lists:reverse(Acc)}, fun() ->
+            {event, format_number(Acc), fun() ->
                 {event, end_json, fun() -> decimal(<<>>, [], Opts, Acc) end}
             end}
         ; (Stream) -> decimal(Stream, [], Opts, Acc)
@@ -722,12 +716,12 @@ decimal(Bin, Stack, Opts, Acc) ->
     end.
 
 
-e(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Stack, Opts, [S] ++ Acc);   
-e(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when S =:= ?positive; S =:= ?negative ->
-    ex(Rest, Stack, Opts, [S] ++ Acc);
+e(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac, Exp})
+        when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Stack, Opts, {Int, Frac, [S] ++ Exp});   
+e(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac, Exp})
+        when S =:= ?positive; S =:= ?negative ->
+    ex(Rest, Stack, Opts, {Int, Frac, [S] ++ Exp});
 e(Bin, Stack, Opts, Acc) ->  
     case ?partial_codepoint(Bin) of
         true -> 
@@ -740,9 +734,9 @@ e(Bin, Stack, Opts, Acc) ->
     end.
 
 
-ex(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
-    when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Stack, Opts, [S] ++ Acc);
+ex(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac, Exp})
+        when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Stack, Opts, {Int, Frac, [S] ++ Exp});
 ex(Bin, Stack, Opts, Acc) ->  
     case ?partial_codepoint(Bin) of
         true -> 
@@ -755,33 +749,32 @@ ex(Bin, Stack, Opts, Acc) ->
     end.
 
 
-exp(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_nonzero(S) ->
-    exp(Rest, Stack, Opts, [S] ++ Acc);
+exp(<<S/?utfx, Rest/binary>>, Stack, Opts, {Int, Frac, Exp})
+        when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Stack, Opts, {Int, Frac, [S] ++ Exp});
 exp(<<?end_object/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_object, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 exp(<<?end_array/?utfx, Rest/binary>>, [array|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() -> 
+    {event, format_number(Acc), fun() -> 
         {event, end_array, fun() -> maybe_done(Rest, Stack, Opts) end}
     end};
 exp(<<?comma/?utfx, Rest/binary>>, [object|Stack], Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         key(Rest, [key|Stack], Opts)
     end};
 exp(<<?comma/?utfx, Rest/binary>>, [array|_] = Stack, Opts, Acc) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         value(Rest, Stack, Opts)
     end};
-exp(<<?zero/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    exp(Rest, Stack, Opts, [?zero] ++ Acc);
 exp(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
-    {event, {float, lists:reverse(Acc)}, fun() ->
+    {event, format_number(Acc), fun() ->
         maybe_done(Rest, Stack, Opts)
     end};
 exp(<<>>, [], Opts, Acc) ->
     {incomplete, fun(end_stream) ->
-            {event, {float, lists:reverse(Acc)}, fun() ->
+            {event, format_number(Acc), fun() ->
                 {event, end_json, fun() -> exp(<<>>, [], Opts, Acc) end}
             end}
         ; (Stream) -> exp(Stream, [], Opts, Acc)
@@ -796,6 +789,18 @@ exp(Bin, Stack, Opts, Acc) ->
             end}
         ; false -> {error, {badjson, Bin}}
     end.
+
+
+format_number(Int) when is_list(Int) ->
+    {integer, list_to_integer(lists:reverse(Int))};
+format_number({Int, Frac}) ->
+    {float, list_to_float(lists:reverse(Frac ++ "." ++ Int))};
+format_number({Int, [], Exp}) ->
+    {float, list_to_float(lists:reverse(Exp ++ "e0." ++ Int))};
+format_number({Int, Frac, Exp}) ->
+    {float, list_to_float(lists:reverse(Exp ++ "e" ++ Frac ++ "." ++ Int))}.
+            
+         
 
 
 tr(<<$r/?utfx, Rest/binary>>, Stack, Opts) ->
