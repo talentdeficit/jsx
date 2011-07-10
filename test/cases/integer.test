@@ -1,14 +1,14 @@
 {name, "integer"}.
 {jsx, [start_array,start_array,
- {integer,"20"},
+ {integer,20},
  end_array,
- {integer,"20"},
+ {integer,20},
  start_object,
  {key,"key"},
- {integer,"20"},
+ {integer,20},
  {key,"another key"},
- {integer,"20"},
+ {integer,20},
  end_object,
- {integer,"42"},
+ {integer,42},
  end_array,end_json]}.
 {json, "integer.json"}.
