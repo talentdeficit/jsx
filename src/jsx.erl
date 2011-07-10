@@ -46,7 +46,7 @@
 parser() -> decoder([]).
 
 
--spec parser(OptsList::jsx_opts()) -> jsx_decoder().
+-spec parser(OptsList::jsx_decoder_opts()) -> jsx_decoder().
 
 parser(OptsList) -> decoder(OptsList).    
 
@@ -57,7 +57,7 @@ parser(OptsList) -> decoder(OptsList).
 decoder() -> decoder([]).
 
 
--spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
+-spec decoder(OptsList::jsx_decoder_opts()) -> jsx_decoder().
 
 
 decoder(OptsList) ->

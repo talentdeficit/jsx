@@ -26,7 +26,7 @@
 %%   this file should take that into account
 
 
--spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
+-spec decoder(OptsList::jsx_decoder_opts()) -> jsx_decoder().
 
 %% opts record for decoder
 -record(opts, {
