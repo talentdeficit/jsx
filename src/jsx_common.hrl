@@ -60,6 +60,9 @@
     | {literal, true}
     | {literal, false}
     | {literal, null}.
+
+
+-type jsx_encodeable() :: jsx_event() | [jsx_encodeable()].
     
 
 -type jsx_iterator() :: jsx_decoder() | jsx_encoder().
@@ -68,12 +71,14 @@
 %% this probably doesn't work properly
 -type jsx_decoder() :: fun((binary()) -> jsx_iterator_result()).
 
--type jsx_encoder() :: fun((list(jsx_event())) -> jsx_iterator_result()).
+
+
+-type jsx_encoder() :: fun((jsx_encodeable()) -> jsx_iterator_result()).
 
 -type jsx_iterator_result() :: 
     {event, jsx_event(), fun(() -> jsx_iterator_result())}
     | {incomplete, jsx_iterator()}
-    | {error, {badjson, binary()}}.
+    | {error, {badjson, any()}}.
 
 
 
