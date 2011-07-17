@@ -27,6 +27,7 @@
 %% the core parser api
 -export([parser/0, parser/1]).
 -export([decoder/0, decoder/1]).
+-export([encoder/0]).
 -export([term_to_json/1, term_to_json/2]).
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
@@ -69,6 +70,11 @@ decoder(OptsList) ->
         ; {utf32, little} -> jsx_utf32le:decoder(OptsList)
         ; auto -> jsx_utils:detect_encoding(OptsList)
     end.
+
+
+-spec encoder() -> jsx_encoder().
+
+encoder() -> jsx_encoder:encoder().
 
 
 -spec json_to_term(JSON::binary()) -> eep0018().
