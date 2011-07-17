@@ -4,6 +4,7 @@
     {vsn, "0.9.0"},
     {modules, [
         jsx,
+        jsx_encoder,
         jsx_utf8,
         jsx_utf16,
         jsx_utf16le,
