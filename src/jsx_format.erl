@@ -33,12 +33,19 @@
 
 
 
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist()
-        ; (F::jsx_iterator(), Opts::format_opts()) -> binary() | iolist().
+-spec format(JSON::binary(), Opts::format_opts()) ->
+            binary() | iolist()
+        ; (Terms::list(jsx_encodeable()), Opts::format_opts()) ->
+            binary() | iolist()
+        ; (F::jsx_iterator(), Opts::format_opts()) ->
+            binary() | iolist().
     
 format(JSON, OptsList) when is_binary(JSON) ->
     P = jsx:decoder(extract_parser_opts(OptsList)),
     format(fun() -> P(JSON) end, OptsList);
+format(Terms, OptsList) when is_list(Terms) ->
+    P = jsx:encoder(),
+    format(fun() -> P(Terms) end, OptsList);
 format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #format_opts{}),
     {Continue, String} = format_something(F(), Opts, 0),
