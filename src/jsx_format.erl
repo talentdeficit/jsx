@@ -212,7 +212,7 @@ minify_test_() ->
             )
         },
         {"minify array", 
-            ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, 
+            ?_assert(format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, 
                     []
                 ) =:= <<"[true,false,null]">>
             )
@@ -257,6 +257,17 @@ opts_test_() ->
                 ) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>
             )
         }
+    ].
+
+terms_test_() ->
+    [
+        {"terms",
+            ?_assert(format([start_object,
+                {key, "key"},
+                {string, "value"},
+                end_object
+            ], []) =:= <<"{\"key\":\"value\"}">>
+        )}
     ].
     
 -endif.
