@@ -110,25 +110,30 @@ term_to_json(JSON, Opts) ->
     end.
 
 
--spec is_json(JSON::binary()) -> true | false.
+-spec is_json(JSON::binary()) -> true | false
+        ; (Terms::list(jsx_encodeable())) -> true | false.
 
 is_json(JSON) ->
     is_json(JSON, []).
     
 
--spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false.
+-spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
+        ; (Terms::list(jsx_encodeable()), Opts::verify_opts()) -> true | false.
 
 is_json(JSON, Opts) ->
     jsx_verify:is_json(JSON, Opts).
 
 
--spec format(JSON::binary()) -> binary() | iolist().
+-spec format(JSON::binary()) -> binary() | iolist()
+        ; (Terms::list(jsx_encodeable())) -> binary() | iolist().
 
 format(JSON) ->
     format(JSON, []).
 
 
--spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist().
+-spec format(JSON::binary(), Opts::format_opts()) -> binary() | iolist()
+        ; (Terms::list(jsx_encodeable()), Opts::format_opts()) ->
+            binary() | iolist().
 
 format(JSON, Opts) ->
     jsx_format:format(JSON, Opts).

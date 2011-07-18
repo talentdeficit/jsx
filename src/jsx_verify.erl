@@ -34,11 +34,15 @@
 
     
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
+        ; (Terms::list(jsx_encodeable()), Opts::verify_opts()) -> true | false
         ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
     
 is_json(JSON, OptsList) when is_binary(JSON) ->
     P = jsx:decoder(extract_parser_opts(OptsList)),
     is_json(fun() -> P(JSON) end, OptsList);
+is_json(Terms, OptsList) when is_list(Terms) ->
+    P = jsx:encoder(),
+    is_json(fun() -> P(Terms) end, OptsList);
 is_json(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #verify_opts{}),
     case Opts#verify_opts.naked_values of
@@ -222,7 +226,18 @@ naked_value_test_() ->
                 ) =:= false
             )
         }
-    ].    
+    ].
+    
+terms_test_() ->
+    [
+        {"terms",
+            ?_assert(is_json([start_object,
+                {key, "key"},
+                {string, "value"},
+                end_object
+            ], []) =:= true
+        )}
+    ].   
     
 -endif.
 
