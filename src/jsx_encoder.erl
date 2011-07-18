@@ -59,6 +59,12 @@ list_or_object([start_object|Forms], Stack) ->
     {event, start_object, fun() -> key(Forms, [object] ++ Stack) end};
 list_or_object([start_array|Forms], Stack) ->
     {event, start_array, fun() -> value(Forms, [array] ++ Stack) end};
+list_or_object([], Stack) ->
+    {incomplete, fun(end_stream) -> 
+            {error, {badjson, []}}
+        ; (Stream) -> 
+            list_or_object(Stream, Stack) 
+    end};
 list_or_object(Forms, _) -> {error, {badjson, Forms}}.
 
  
@@ -66,6 +72,12 @@ key([{key, Key}|Forms], Stack) when is_list(Key) ->
     {event, {key, Key}, fun() -> value(Forms, Stack) end};
 key([end_object|Forms], [object|Stack]) ->
     {event, end_object, fun() -> maybe_done(Forms, Stack) end};
+key([], Stack) ->
+    {incomplete, fun(end_stream) -> 
+            {error, {badjson, []}}
+        ; (Stream) -> 
+            key(Stream, Stack) 
+    end};
 key(Forms, _) -> {error, {badjson, Forms}}.
 
 
@@ -83,6 +95,12 @@ value([start_array|Forms], Stack) ->
     {event, start_array, fun() -> value(Forms, [array] ++ Stack) end};
 value([end_array|Forms], [array|Stack]) ->
     {event, end_array, fun() -> maybe_done(Forms, Stack) end};
+value([], Stack) ->
+    {incomplete, fun(end_stream) -> 
+            {error, {badjson, []}}
+        ; (Stream) -> 
+            value(Stream, Stack) 
+    end};
 value(Forms, _) -> {error, {badjson, Forms}}.
 
 
@@ -93,6 +111,12 @@ maybe_done([end_array|Forms], [array|Stack]) ->
     {event, end_array, fun() -> maybe_done(Forms, Stack) end};
 maybe_done(Forms, [object|_] = Stack) -> key(Forms, Stack);
 maybe_done(Forms, [array|_] = Stack) -> value(Forms, Stack);
+maybe_done([], Stack) ->
+    {incomplete, fun(end_stream) -> 
+            {error, {badjson, []}}
+        ; (Stream) -> 
+            maybe_done(Stream, Stack) 
+    end};
 maybe_done(Forms, _) -> {error, {badjson, Forms}}.
 
 
