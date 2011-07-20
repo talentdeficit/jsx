@@ -125,17 +125,41 @@ maybe_done(Forms, _) -> {error, {badjson, Forms}}.
 -include_lib("eunit/include/eunit.hrl").
 
 
-encode(Term) ->
-    case loop((encoder())(Term), []) of
+
+encode(Terms) -> encode_whole(Terms) andalso encode_incremental(Terms).
+
+
+encode_whole(Terms) ->
+    case loop((encoder())(Terms), []) of
         %% unwrap naked values
-        {ok, [Term]} -> true
-        ; {ok, Term} -> true
-        ; {error, badjson} -> false
+        {ok, [Terms]} -> true
+        ; {ok, Terms} -> true
+        ; _ -> false
     end.
 
 
-loop({error, _}, _Acc) ->
-    {error, badjson};
+encode_incremental(Terms) when is_list(Terms) ->
+    encode_incremental(Terms, encoder(), Terms, []);
+%% we could feed naked terms to the regular encoder, but we already do that, so
+%%  cheat instead
+encode_incremental(_) -> true.
+
+encode_incremental([Term], F, Expected, Acc) ->
+    case loop(F([Term]), []) of
+        {ok, R} -> Expected =:= Acc ++ R
+        ; _ -> false
+    end;
+encode_incremental([Term|Terms], F, Expected, Acc) ->
+    case loop(F([Term]), []) of
+        {incomplete, Next, R} ->
+            encode_incremental(Terms, Next, Expected, Acc ++ R)
+        ; _ ->
+            false
+    end.
+
+
+loop({error, _}, _) -> error;
+loop({incomplete, Next}, Acc) -> {incomplete, Next, lists:reverse(Acc)};
 loop({event, end_json, Next}, Acc) ->
     {incomplete, F} = Next(),
     {error, {badjson, []}} = F([]),
@@ -145,7 +169,7 @@ loop({event, Event, Next}, Acc) -> loop(Next(), [Event] ++ Acc).
 
 encode_test_() ->    
     [
-        {"empty object", ?_assert(encode([start_object, end_object]) =:= true)},
+        {"empty object", ?_assert(encode([start_object, end_object]))},
         {"empty array", ?_assert(encode([start_array, end_array]) =:= true)},
         {"nested empty objects", ?_assert(encode([start_object,
             {key, "empty object"},
@@ -155,14 +179,14 @@ encode_test_() ->
             end_object,
             end_object,
             end_object
-        ]) =:= true)},
+        ]))},
         {"nested empty arrays", ?_assert(encode([start_array,
             start_array,
             start_array,
             end_array,
             end_array,
             end_array
-        ]) =:= true)},
+        ]))},
         {"simple object", ?_assert(encode([start_object, 
             {key, "a"},
             {string, "hello"},
@@ -173,22 +197,22 @@ encode_test_() ->
             {key, "d"},
             {literal, true},
             end_object
-        ]) =:= true)},
+        ]))},
         {"simple array", ?_assert(encode([start_array,
             {string, "hello"},
             {integer, "1"},
             {float, "1.0"},
             {literal, true},
             end_array
-        ]) =:= true)},
-        {"unbalanced array", ?_assert(encode([start_array,
+        ]))},
+        {"unbalanced array", ?_assertNot(encode([start_array,
             end_array,
             end_array
-        ]) =:= false)},
-        {"naked string", ?_assert(encode({string, "hello"}) =:= true)},
-        {"naked literal", ?_assert(encode({literal, true}) =:= true)},
-        {"naked integer", ?_assert(encode({integer, "1"}) =:= true)},
-        {"naked float", ?_assert(encode({float, "1.0"}) =:= true)}
+        ]))},
+        {"naked string", ?_assert(encode({string, "hello"}))},
+        {"naked literal", ?_assert(encode({literal, true}))},
+        {"naked integer", ?_assert(encode({integer, "1"}))},
+        {"naked float", ?_assert(encode({float, "1.0"}))}
     ].
 
 -endif.
