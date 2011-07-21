@@ -32,8 +32,8 @@
 
 
 
--type jsx_decoder_opts() :: [jsx_decoder_opt()].
--type jsx_decoder_opt() :: {escaped_unicode, ascii | codepoint | none}
+-type jsx_opts() :: [jsx_opt()].
+-type jsx_opt() :: {escaped_unicode, ascii | codepoint | none}
     | {multi_term, true | false}
     | {encoding, auto 
         | utf8

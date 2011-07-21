@@ -47,7 +47,7 @@
 parser() -> decoder([]).
 
 
--spec parser(OptsList::jsx_decoder_opts()) -> jsx_decoder().
+-spec parser(OptsList::jsx_opts()) -> jsx_decoder().
 
 parser(OptsList) -> decoder(OptsList).    
 
@@ -58,7 +58,7 @@ parser(OptsList) -> decoder(OptsList).
 decoder() -> decoder([]).
 
 
--spec decoder(OptsList::jsx_decoder_opts()) -> jsx_decoder().
+-spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
 
 
 decoder(OptsList) ->
@@ -74,7 +74,12 @@ decoder(OptsList) ->
 
 -spec encoder() -> jsx_encoder().
 
-encoder() -> jsx_encoder:encoder().
+encoder() -> encoder([]).
+
+
+-spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
+
+encoder(Opts) -> jsx_encoder:encoder(Opts).
 
 
 -spec json_to_term(JSON::binary()) -> eep0018().

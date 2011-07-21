@@ -24,16 +24,16 @@
 -module(jsx_encoder).
 
 
--export([encoder/0]).
+-export([encoder/1]).
 
 
 -include("jsx_common.hrl").
 
 
 
--spec encoder() -> jsx_encoder().
+-spec encoder(Opts::jsx_opts()) -> jsx_encoder().
 
-encoder() -> fun(Forms) -> start(Forms) end.
+encoder(_) -> fun(Forms) -> start(Forms) end.
     
 
 -define(ENDJSON,
@@ -130,7 +130,7 @@ encode(Terms) -> encode_whole(Terms) andalso encode_incremental(Terms).
 
 
 encode_whole(Terms) ->
-    case loop((encoder())(Terms), []) of
+    case loop((encoder([]))(Terms), []) of
         %% unwrap naked values
         {ok, [Terms]} -> true
         ; {ok, Terms} -> true
@@ -139,7 +139,7 @@ encode_whole(Terms) ->
 
 
 encode_incremental(Terms) when is_list(Terms) ->
-    encode_incremental(Terms, encoder(), Terms, []);
+    encode_incremental(Terms, encoder([]), Terms, []);
 %% we could feed naked terms to the regular encoder, but we already do that, so
 %%  cheat instead
 encode_incremental(_) -> true.
