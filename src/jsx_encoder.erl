@@ -30,10 +30,16 @@
 -include("jsx_common.hrl").
 
 
+-record(opts, {
+    escaped_unicode = codepoint,
+    multi_term = false,
+    encoding = auto
+}).
+
 
 -spec encoder(Opts::jsx_opts()) -> jsx_encoder().
 
-encoder(_) -> fun(Forms) -> start(Forms) end.
+encoder(Opts) -> fun(Forms) -> start(Forms, Opts) end.
     
 
 -define(ENDJSON,
@@ -43,81 +49,85 @@ encoder(_) -> fun(Forms) -> start(Forms) end.
 ).
 
     
-start({string, String}) when is_list(String) ->
+start({string, String}, _Opts) when is_list(String) ->
     {event, {string, String}, fun() -> ?ENDJSON end};
-start({float, Float}) when is_list(Float) ->
+start({float, Float}, _Opts) when is_list(Float) ->
     {event, {float, Float}, fun() -> ?ENDJSON end};
-start({integer, Int}) when is_list(Int) ->
+start({integer, Int}, _Opts) when is_list(Int) ->
     {event, {integer, Int}, fun() -> ?ENDJSON end};
-start({literal, Atom}) when Atom == true; Atom == false; Atom == null ->
+start({literal, Atom}, _Opts) when Atom == true; Atom == false; Atom == null ->
     {event, {literal, Atom}, fun() -> ?ENDJSON end};
 %% second parameter is a stack to match end_foos to start_foos
-start(Forms) -> list_or_object(Forms, []).
+start(Forms, Opts) -> list_or_object(Forms, [], Opts).
 
 
-list_or_object([start_object|Forms], Stack) ->
-    {event, start_object, fun() -> key(Forms, [object] ++ Stack) end};
-list_or_object([start_array|Forms], Stack) ->
-    {event, start_array, fun() -> value(Forms, [array] ++ Stack) end};
-list_or_object([], Stack) ->
+list_or_object([start_object|Forms], Stack, Opts) ->
+    {event, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
+list_or_object([start_array|Forms], Stack, Opts) ->
+    {event, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
+list_or_object([], Stack, Opts) ->
     {incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
-            list_or_object(Stream, Stack) 
+            list_or_object(Stream, Stack, Opts) 
     end};
-list_or_object(Forms, _) -> {error, {badjson, Forms}}.
+list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
 
  
-key([{key, Key}|Forms], Stack) when is_list(Key) ->
-    {event, {key, Key}, fun() -> value(Forms, Stack) end};
-key([end_object|Forms], [object|Stack]) ->
-    {event, end_object, fun() -> maybe_done(Forms, Stack) end};
-key([], Stack) ->
+key([{key, Key}|Forms], Stack, Opts) when is_list(Key) ->
+    {event, {key, Key}, fun() -> value(Forms, Stack, Opts) end};
+key([end_object|Forms], [object|Stack], Opts) ->
+    {event, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
+key([], Stack, Opts) ->
     {incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
-            key(Stream, Stack) 
+            key(Stream, Stack, Opts) 
     end};
-key(Forms, _) -> {error, {badjson, Forms}}.
+key(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
-value([{string, S}|Forms], Stack) when is_list(S) ->
-    {event, {string, S}, fun() -> maybe_done(Forms, Stack) end};
-value([{float, F}|Forms],  Stack) when is_list(F) ->
-    {event, {float, F}, fun() -> maybe_done(Forms, Stack) end};
-value([{integer, I}|Forms], Stack) when is_list(I) ->
-    {event, {integer, I}, fun() -> maybe_done(Forms, Stack) end};
-value([{literal, L}|Forms], Stack) when L == true; L == false; L == null ->
-    {event, {literal, L}, fun() -> maybe_done(Forms, Stack) end};
-value([start_object|Forms], Stack) ->
-    {event, start_object, fun() -> key(Forms, [object] ++ Stack) end};
-value([start_array|Forms], Stack) ->
-    {event, start_array, fun() -> value(Forms, [array] ++ Stack) end};
-value([end_array|Forms], [array|Stack]) ->
-    {event, end_array, fun() -> maybe_done(Forms, Stack) end};
-value([], Stack) ->
+value([{string, S}|Forms], Stack, Opts) when is_list(S) ->
+    {event, {string, S}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{float, F}|Forms],  Stack, Opts) when is_list(F) ->
+    {event, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{integer, I}|Forms], Stack, Opts) when is_list(I) ->
+    {event, {integer, I}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{literal, L}|Forms], Stack, Opts)
+        when L == true; L == false; L == null ->
+    {event, {literal, L}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([start_object|Forms], Stack, Opts) ->
+    {event, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
+value([start_array|Forms], Stack, Opts) ->
+    {event, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
+value([end_array|Forms], [array|Stack], Opts) ->
+    {event, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([], Stack, Opts) ->
     {incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
-            value(Stream, Stack) 
+            value(Stream, Stack, Opts) 
     end};
-value(Forms, _) -> {error, {badjson, Forms}}.
+value(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
-maybe_done([], []) -> ?ENDJSON;
-maybe_done([end_object|Forms], [object|Stack]) ->
-    {event, end_object, fun() -> maybe_done(Forms, Stack) end};
-maybe_done([end_array|Forms], [array|Stack]) ->
-    {event, end_array, fun() -> maybe_done(Forms, Stack) end};
-maybe_done(Forms, [object|_] = Stack) -> key(Forms, Stack);
-maybe_done(Forms, [array|_] = Stack) -> value(Forms, Stack);
-maybe_done([], Stack) ->
+maybe_done([], [], _) -> ?ENDJSON;
+maybe_done([end_json], [], _) -> ?ENDJSON;
+maybe_done([end_json|Forms], [], #opts{multi_term=true}=Opts) ->
+    {event, end_json, fun() -> start(Forms, Opts) end};
+maybe_done([end_object|Forms], [object|Stack], Opts) ->
+    {event, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
+maybe_done([end_array|Forms], [array|Stack], Opts) ->
+    {event, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
+maybe_done(Forms, [object|_] = Stack, Opts) -> key(Forms, Stack, Opts);
+maybe_done(Forms, [array|_] = Stack, Opts) -> value(Forms, Stack, Opts);
+maybe_done([], Stack, Opts) ->
     {incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
-            maybe_done(Stream, Stack) 
+            maybe_done(Stream, Stack, Opts) 
     end};
-maybe_done(Forms, _) -> {error, {badjson, Forms}}.
+maybe_done(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
 
