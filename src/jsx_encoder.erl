@@ -50,7 +50,7 @@ encoder(Opts) -> fun(Forms) -> start(Forms, Opts) end.
 
     
 start({string, String}, _Opts) when is_list(String) ->
-    {event, {string, String}, fun() -> ?ENDJSON end};
+    {event, {string, json_escape(String)}, fun() -> ?ENDJSON end};
 start({float, Float}, _Opts) when is_list(Float) ->
     {event, {float, Float}, fun() -> ?ENDJSON end};
 start({integer, Int}, _Opts) when is_list(Int) ->
@@ -75,7 +75,7 @@ list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
 
  
 key([{key, Key}|Forms], Stack, Opts) when is_list(Key) ->
-    {event, {key, Key}, fun() -> value(Forms, Stack, Opts) end};
+    {event, {key, json_escape(Key)}, fun() -> value(Forms, Stack, Opts) end};
 key([end_object|Forms], [object|Stack], Opts) ->
     {event, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
 key([], Stack, Opts) ->
@@ -88,7 +88,7 @@ key(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
 value([{string, S}|Forms], Stack, Opts) when is_list(S) ->
-    {event, {string, S}, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {event, {string, json_escape(S)}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{float, F}|Forms],  Stack, Opts) when is_list(F) ->
     {event, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{integer, I}|Forms], Stack, Opts) when is_list(I) ->
@@ -128,6 +128,61 @@ maybe_done([], Stack, Opts) ->
             maybe_done(Stream, Stack, Opts) 
     end};
 maybe_done(Forms, _, _) -> {error, {badjson, Forms}}.
+
+
+%% json string escaping. escape the json control sequences to 
+%%  their json equivalent, escape other control characters to \uXXXX sequences, 
+%%  everything else should be a legal json string component
+json_escape(String) ->
+    json_escape(String, []).
+
+%% double quote    
+json_escape([$\"|Rest], Acc) -> 
+    json_escape(Rest, [$\", $\\] ++ Acc);
+%% backslash \ reverse solidus
+json_escape([$\\|Rest], Acc) -> 
+    json_escape(Rest, [$\\, $\\] ++ Acc);
+%% backspace
+json_escape([$\b|Rest], Acc) -> 
+    json_escape(Rest, [$b, $\\] ++ Acc);
+%% form feed
+json_escape([$\f|Rest], Acc) -> 
+    json_escape(Rest, [$f, $\\] ++ Acc);
+%% newline
+json_escape([$\n|Rest], Acc) -> 
+    json_escape(Rest, [$n, $\\] ++ Acc);
+%% cr
+json_escape([$\r|Rest], Acc) -> 
+    json_escape(Rest, [$r, $\\] ++ Acc);
+%% tab
+json_escape([$\t|Rest], Acc) -> 
+    json_escape(Rest, [$t, $\\] ++ Acc);
+%% other control characters
+json_escape([C|Rest], Acc) when C >= 0, C < $\s -> 
+    json_escape(Rest, json_escape_sequence(C) ++ Acc);
+%% any other legal codepoint
+json_escape([C|Rest], Acc) ->
+    json_escape(Rest, [C] ++ Acc);
+json_escape([], Acc) ->
+    lists:reverse(Acc);
+json_escape(_, _) ->
+    erlang:error(badarg).
+
+
+%% convert a codepoint to it's \uXXXX equiv. for laziness, this only handles 
+%%   codepoints this module might escape, ie, control characters
+json_escape_sequence(C) when C < 16#20 ->
+    <<_:8, A:4, B:4>> = <<C:16>>,   % first two hex digits are always zero
+    [(to_hex(B)), (to_hex(A)), $0, $0, $u, $\\].
+
+
+to_hex(15) -> $f;
+to_hex(14) -> $e;
+to_hex(13) -> $d;
+to_hex(12) -> $c;
+to_hex(11) -> $b;
+to_hex(10) -> $a;
+to_hex(X) -> X + $0.
 
 
 
@@ -223,6 +278,23 @@ encode_test_() ->
         {"naked literal", ?_assert(encode({literal, true}))},
         {"naked integer", ?_assert(encode({integer, "1"}))},
         {"naked float", ?_assert(encode({float, "1.0"}))}
+    ].
+
+
+escape_test_() ->
+    [
+        {"json string escaping", 
+            ?_assert(json_escape(
+                    "\"\\\b\f\n\r\t"
+                ) =:= "\\\"\\\\\\b\\f\\n\\r\\t"
+            )
+        },
+        {"json string hex escape", 
+            ?_assert(json_escape(
+                    [1, 2, 3, 11, 26, 30, 31]
+                ) =:= "\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f"
+            )
+        }
     ].
 
 -endif.
