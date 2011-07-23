@@ -173,8 +173,10 @@ encode(string, String) ->
     [?quote, String, ?quote];
 encode(literal, Literal) ->
     erlang:atom_to_list(Literal);
-encode(_, Number) ->
-    Number.
+encode(integer, Integer) ->
+    erlang:integer_to_list(Integer);
+encode(float, Float) ->
+    jsx_utils:nice_decimal(Float).
 
 
 indent(Opts, Level) ->

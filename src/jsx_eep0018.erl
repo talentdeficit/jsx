@@ -176,18 +176,13 @@ event({key, Key}, Opts) ->
             try list_to_existing_atom(Key) 
             catch error:badarg -> unicode:characters_to_binary(Key) end
     end;
-%% special case for negative zero
-event({integer, "-0"}, _Opts) ->
-    erlang:float(erlang:list_to_integer("-0"));
 event({integer, Integer}, Opts) ->
     case proplists:get_value(float, Opts, false) of
-        true -> erlang:float(erlang:list_to_integer(Integer))
-        ; false -> erlang:list_to_integer(Integer)
+        true -> erlang:float(Integer)
+        ; false -> Integer
     end;
-event({float, Float}, _Opts) ->
-    erlang:list_to_float(Float);
-event({literal, Literal}, _Opts) ->
-    Literal.
+event({float, Float}, _Opts) -> Float;
+event({literal, Literal}, _Opts) -> Literal.
     
 
 decode_key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
@@ -230,9 +225,9 @@ list_to_events([], Acc) ->
 term_to_event(List) when is_list(List) ->
     term_to_events(List);
 term_to_event(Float) when is_float(Float) ->
-    [{float, jsx_utils:nice_decimal(Float)}];
+    [{float, Float}];
 term_to_event(Integer) when is_integer(Integer) ->
-    [{integer, erlang:integer_to_list(Integer)}];
+    [{integer, Integer}];
 term_to_event(String) when is_binary(String) -> 
     [{string, json_escape(String)}];
 term_to_event(true) -> [{literal, true}];
