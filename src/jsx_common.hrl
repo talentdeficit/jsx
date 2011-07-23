@@ -33,7 +33,7 @@
 
 
 -type jsx_opts() :: [jsx_opt()].
--type jsx_opt() :: {escaped_unicode, ascii | codepoint | none}
+-type jsx_opt() :: {escaped_unicode, ascii | codepoint | replace | none}
     | {multi_term, true | false}
     | {encoding, auto 
         | utf8

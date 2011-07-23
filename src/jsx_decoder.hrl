@@ -135,7 +135,7 @@ parse_opts(Opts) ->
 parse_opts([], Opts) ->
     Opts;
 parse_opts([{escaped_unicode, Value}|Rest], Opts) ->
-    true = lists:member(Value, [ascii, codepoint, none]),
+    true = lists:member(Value, [ascii, codepoint, replace, none]),
     parse_opts(Rest, Opts#opts{escaped_unicode=Value});
 parse_opts([{multi_term, Value}|Rest], Opts) ->
     true = lists:member(Value, [true, false]),
@@ -458,13 +458,17 @@ escape(Bin, Stack, Opts, Acc) ->
 
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped 
-%%   unicode codepoint sequences. if the ascii option is present, the sequence 
-%%   is converted to a codepoint and inserted into the string if it represents 
-%%   an ascii value. if the codepoint option is present the sequence is 
-%%   converted and inserted as long as it represents a valid unicode codepoint. 
-%%   this means non-characters representable in 16 bits are not converted (the 
-%5   utf16 surrogates and the two special non-characters). any other option and 
-%%   no conversion is done
+%%   unicode codepoint sequences.
+%% if the ascii option is present, the sequence is converted to a codepoint 
+%%   and inserted into the string if it represents an ascii value. 
+%% if the codepoint option is present the sequence is converted and inserted 
+%%   as long as it represents a valid unicode codepoint. this means 
+%%   non-characters representable in 16 bits are not converted (the utf16 
+%%   surrogates and the two special non-characters). 
+%% if the replace option is present sequences are converted as in codepoint
+%%   with the exception that the non-characters are replaced with u+fffd, the
+%%   unicode replacement character
+%% any other option and no conversion is done
 escaped_unicode(<<D/?utfx, Rest/binary>>, 
         Stack, 
         #opts{escaped_unicode=ascii}=Opts, 
@@ -503,6 +507,33 @@ escaped_unicode(<<D/?utfx, Rest/binary>>,
             string(Rest, Stack, Opts, [X] ++ String) 
         ; _ ->
             string(Rest, Stack, Opts, [D, C, B, A, $u, ?rsolidus] ++ String)
+    end;
+escaped_unicode(<<D/?utfx, Rest/binary>>, 
+        Stack, 
+        #opts{escaped_unicode=replace}=Opts, 
+        String, 
+        [C, B, A]) 
+    when ?is_hex(D) ->
+    case erlang:list_to_integer([A, B, C, D], 16) of
+        X when X >= 16#dc00, X =< 16#dfff ->
+            case check_acc_for_surrogate(String) of
+                false ->
+                    string(Rest, 
+                        Stack, 
+                        Opts, 
+                        [16#fffd] ++ String
+                    )
+                ; {Y, NewString} ->
+                    string(Rest, 
+                        Stack, 
+                        Opts, 
+                        [surrogate_to_codepoint(Y, X)] ++ NewString
+                    )
+            end
+        ; X when X < 16#d800; X > 16#dfff, X < 16#fffe ->
+            string(Rest, Stack, Opts, [X] ++ String) 
+        ; _ ->
+            string(Rest, Stack, Opts, [16#fffd] ++ String)
     end;
 escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A]) 
     when ?is_hex(D) ->
