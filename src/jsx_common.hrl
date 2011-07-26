@@ -86,8 +86,6 @@
 
 
 %% json specification
--type jsx_term() :: jsx_object() | jsx_array().
-
 -type jsx_array() :: [jsx_term()] | [].
 -type jsx_object() :: [{jsx_key(), jsx_term()}] | [{}].
 
