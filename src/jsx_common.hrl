@@ -113,7 +113,9 @@
 
 -type decoder_opts() :: [decoder_opt()].
 -type decoder_opt() :: {strict, true | false}
+    | {stream, true | false}
     | {encoding, supported_utf()}.
+
 
 -type verify_opts() :: [verify_opt()].
 -type verify_opt() :: {encoding, auto | supported_utf()}
