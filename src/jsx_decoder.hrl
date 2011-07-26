@@ -572,7 +572,6 @@ low_surrogate(Bin, Stack, Opts, String, Acc, High) ->
 
 %% stole this from the unicode spec    
 surrogate_to_codepoint(High, Low) ->
-    io:format("~p ~p~n", [High, Low]),
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
 
 
