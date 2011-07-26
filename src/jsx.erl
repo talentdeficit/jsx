@@ -82,7 +82,7 @@ encoder() -> encoder([]).
 encoder(Opts) -> jsx_encoder:encoder(Opts).
 
 
--spec json_to_term(JSON::binary()) -> eep0018().
+-spec json_to_term(JSON::binary()) -> jsx_term().
 
 json_to_term(JSON) ->
     try json_to_term(JSON, [])
@@ -91,13 +91,13 @@ json_to_term(JSON) ->
     end.
     
 
--spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018(). 
+-spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> jsx_term(). 
     
 json_to_term(JSON, Opts) ->
-    jsx_eep0018:json_to_term(JSON, Opts).
+    jsx_terms:json_to_term(JSON, Opts).
 
 
--spec term_to_json(JSON::eep0018()) -> binary().
+-spec term_to_json(JSON::jsx_term()) -> binary().
 
 term_to_json(JSON) ->
     try term_to_json(JSON, [])
@@ -106,10 +106,10 @@ term_to_json(JSON) ->
     end.
 
 
--spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().        
+-spec term_to_json(JSON::jsx_term(), Opts::encoder_opts()) -> binary().        
 
 term_to_json(JSON, Opts) ->
-    try jsx_eep0018:term_to_json(JSON, Opts)
+    try jsx_terms:term_to_json(JSON, Opts)
     %% rethrow exception so internals aren't confusingly exposed to users
     catch error:badarg -> erlang:error(badarg, [JSON, Opts])
     end.
@@ -227,11 +227,11 @@ decode(JSON, Flags) ->
     P = jsx:decoder(Flags),
     decode_loop(P(JSON), []).
 
-decode_loop({event, end_json, _Next}, Acc) ->
+decode_loop({jsx, end_json, _Next}, Acc) ->
     lists:reverse([end_json] ++ Acc);
-decode_loop({incomplete, More}, Acc) ->
+decode_loop({jsx, incomplete, More}, Acc) ->
     decode_loop(More(end_stream), Acc);
-decode_loop({event, E, Next}, Acc) ->
+decode_loop({jsx, E, Next}, Acc) ->
     decode_loop(Next(), [E] ++ Acc).
 
     
@@ -239,13 +239,13 @@ incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx:decoder(Flags),
 	incremental_decode_loop(P(C), Rest, []).
 
-incremental_decode_loop({incomplete, Next}, <<>>, Acc) ->
+incremental_decode_loop({jsx, incomplete, Next}, <<>>, Acc) ->
     incremental_decode_loop(Next(end_stream), <<>>, Acc);	
-incremental_decode_loop({incomplete, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
+incremental_decode_loop({jsx, incomplete, Next}, <<C:1/binary, Rest/binary>>, Acc) ->
 	incremental_decode_loop(Next(C), Rest, Acc);	
-incremental_decode_loop({event, end_json, _Next}, _Rest, Acc) ->
+incremental_decode_loop({jsx, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
-incremental_decode_loop({event, Event, Next}, Rest, Acc) ->
+incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
 
 
@@ -261,11 +261,11 @@ multi_decode(JSON, Flags) ->
     P = jsx:decoder(Flags ++ [{multi_term, true}]),
     multi_decode_loop(P(JSON), [[]]).
 
-multi_decode_loop({incomplete, _Next}, [[]|Acc]) ->
+multi_decode_loop({jsx, incomplete, _Next}, [[]|Acc]) ->
     lists:reverse(Acc);
-multi_decode_loop({event, end_json, Next}, [S|Acc]) ->
+multi_decode_loop({jsx, end_json, Next}, [S|Acc]) ->
     multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
-multi_decode_loop({event, E, Next}, [S|Acc]) ->
+multi_decode_loop({jsx, E, Next}, [S|Acc]) ->
     multi_decode_loop(Next(), [[E] ++ S] ++ Acc).
 	
 	
@@ -283,10 +283,10 @@ multi_test_result() ->
         [{literal, false}],
         [{literal, null}],
         [start_object, end_object],
-        [start_object, {key, "key"}, {string, "value"}, end_object],
+        [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object],
         [start_array, end_array],
         [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
-        [{string, "hope this works"}]
+        [{string, <<"hope this works">>}]
     ].
 
 

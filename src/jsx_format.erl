@@ -50,7 +50,7 @@ format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #format_opts{}),
     {Continue, String} = format_something(F(), Opts, 0),
     case Continue() of
-        {event, end_json, _} -> encode(String, Opts)
+        {jsx, end_json, _} -> encode(String, Opts)
         ; _ -> {error, badarg}
     end.
 
@@ -87,9 +87,9 @@ extract_parser_opts([K|Rest], Acc) ->
     end.
     
 
-format_something({event, start_object, Next}, Opts, Level) ->
+format_something({jsx, start_object, Next}, Opts, Level) ->
     case Next() of
-        {event, end_object, Continue} ->
+        {jsx, end_object, Continue} ->
             {Continue, [?start_object, ?end_object]}
         ; Event ->
             {Continue, Object} = format_object(Event, [], Opts, Level + 1),
@@ -99,24 +99,24 @@ format_something({event, start_object, Next}, Opts, Level) ->
                 ?end_object
             ]}
     end;
-format_something({event, start_array, Next}, Opts, Level) ->
+format_something({jsx, start_array, Next}, Opts, Level) ->
     case Next() of
-        {event, end_array, Continue} ->
+        {jsx, end_array, Continue} ->
             {Continue, [?start_array, ?end_array]}
         ; Event ->
             {Continue, Object} = format_array(Event, [], Opts, Level + 1),
             {Continue, [?start_array, Object, indent(Opts, Level), ?end_array]}
     end;
-format_something({event, {Type, Value}, Next}, _Opts, _Level) ->
+format_something({jsx, {Type, Value}, Next}, _Opts, _Level) ->
     {Next, [encode(Type, Value)]}.
     
     
-format_object({event, end_object, Next}, Acc, _Opts, _Level) ->
+format_object({jsx, end_object, Next}, Acc, _Opts, _Level) ->
     {Next, Acc};
-format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
+format_object({jsx, {key, Key}, Next}, Acc, Opts, Level) ->
     {Continue, Value} = format_something(Next(), Opts, Level),
     case Continue() of
-        {event, end_object, NextNext} -> 
+        {jsx, end_object, NextNext} -> 
             {NextNext, [Acc, 
                 indent(Opts, Level), 
                 encode(string, Key), 
@@ -141,12 +141,12 @@ format_object({event, {key, Key}, Next}, Acc, Opts, Level) ->
     end.
 
 
-format_array({event, end_array, Next}, Acc, _Opts, _Level) ->
+format_array({jsx, end_array, Next}, Acc, _Opts, _Level) ->
     {Next, Acc};
 format_array(Event, Acc, Opts, Level) ->
     {Continue, Value} = format_something(Event, Opts, Level),
     case Continue() of
-        {event, end_array, NextNext} ->
+        {jsx, end_array, NextNext} ->
             {NextNext, [Acc, indent(Opts, Level), Value]}
         ; Else ->
             format_array(Else, 
@@ -265,8 +265,8 @@ terms_test_() ->
     [
         {"terms",
             ?_assert(format([start_object,
-                {key, "key"},
-                {string, "value"},
+                {key, <<"key">>},
+                {string, <<"value">>},
                 end_object
             ], []) =:= <<"{\"key\":\"value\"}">>
         )}

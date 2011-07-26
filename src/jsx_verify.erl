@@ -49,8 +49,8 @@ is_json(F, OptsList) when is_function(F) ->
         true -> collect(F(), Opts, [[]])
         ; false ->
             case F() of
-                {event, start_object, Next} -> collect(Next(), Opts, [[]])
-                ; {event, start_array, Next} -> collect(Next(), Opts, [[]])
+                {jsx, start_object, Next} -> collect(Next(), Opts, [[]])
+                ; {jsx, start_array, Next} -> collect(Next(), Opts, [[]])
                 ; _ -> false
             end
     end.
@@ -87,16 +87,16 @@ parse_opts([], Opts) ->
 
 
 
-collect({event, end_json, _Next}, _Opts, _Keys) ->
+collect({jsx, end_json, _Next}, _Opts, _Keys) ->
     true;
 
 
 %% allocate new key accumulator at start_object, discard it at end_object    
-collect({event, start_object, Next},
+collect({jsx, start_object, Next},
         Opts = #verify_opts{repeated_keys = false},
         Keys) ->
     collect(Next(), Opts, [[]|Keys]);
-collect({event, end_object, Next},
+collect({jsx, end_object, Next},
         Opts = #verify_opts{repeated_keys = false},
         [_|Keys]) ->
     collect(Next(), Opts, [Keys]);
@@ -104,7 +104,7 @@ collect({event, end_object, Next},
 
 %% check to see if key has already been encountered, if not add it to the key 
 %%   accumulator and continue, else return false 
-collect({event, {key, Key}, Next},
+collect({jsx, {key, Key}, Next},
         Opts = #verify_opts{repeated_keys = false},
         [Current|Keys]) ->
     case lists:member(Key, Current) of
@@ -112,15 +112,15 @@ collect({event, {key, Key}, Next},
         ; false -> collect(Next(), Opts, [[Key] ++ Current] ++ Keys)
     end;
 
-                
-collect({event, _, Next}, Opts, Keys) ->
-    collect(Next(), Opts, Keys);
-
 
 %% needed to parse numbers that don't have trailing whitespace in less strict 
 %%   mode    
-collect({incomplete, More}, Opts, Keys) ->
+collect({jsx, incomplete, More}, Opts, Keys) ->
     collect(More(end_stream), Opts, Keys);
+
+                
+collect({jsx, _, Next}, Opts, Keys) ->
+    collect(Next(), Opts, Keys);
 
     
 collect(_, _, _) ->
@@ -232,8 +232,8 @@ terms_test_() ->
     [
         {"terms",
             ?_assert(is_json([start_object,
-                {key, "key"},
-                {string, "value"},
+                {key, <<"key">>},
+                {string, <<"value">>},
                 end_object
             ], []) =:= true
         )}
