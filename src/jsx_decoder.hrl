@@ -468,6 +468,10 @@ escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A])
         %% non-characters, you're not allowed to exchange these
         ; X when X == 16#fffe; X == 16#ffff ->
             {error, {badjson, <<D/?utfx, Rest/binary>>}}
+        %% allowing interchange of null bytes allows attackers to forge
+        %%   malicious streams
+        ; X when X == 16#0000 ->
+            {error, {badjson, <<D/?utfx, Rest/binary>>}}
         %% anything else
         ; X ->
             string(Rest, Stack, Opts, <<String/binary, X/utf8>>)
