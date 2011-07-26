@@ -1,7 +1,0 @@
-{name, "unicode_unconverted"}.
-{jsx, [start_array,
- {string,"arabic letter alef: "},
- {string,"\\u0627"},
- end_array,end_json]}.
-{json, "unicode_unconverted.json"}.
-{jsx_flags, [{escaped_unicode,ascii}]}.

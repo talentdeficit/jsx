@@ -22,7 +22,7 @@
 
 
 
--module(jsx_eep0018).
+-module(jsx_terms).
 
 
 -export([json_to_term/2, term_to_json/2]).
@@ -35,8 +35,8 @@
 -endif.
 
 
-
--spec json_to_term(JSON::binary(), Opts::decoder_opts()) -> eep0018().
+-spec json_to_term(JSON::binary(), Opts::decoder_opts()) ->
+    jsx_term() | {jsx, incomplete, fun()}.
 
 json_to_term(JSON, Opts) ->
     P = jsx:decoder(extract_parser_opts(Opts)),
@@ -47,11 +47,10 @@ json_to_term(JSON, Opts) ->
     
 
 %% the jsx formatter (pretty printer) can do most of the heavy lifting in 
-%%   converting erlang terms to json strings, but it expects a jsx event 
-%%   iterator. luckily, the mapping from erlang terms to jsx events is 
-%%   straightforward and the iterator can be faked with an anonymous function
+%%   converting erlang terms to json strings
 
--spec term_to_json(JSON::eep0018(), Opts::encoder_opts()) -> binary().
+-spec term_to_json(JSON::jsx_term(), Opts::encoder_opts()) ->
+    binary() | {jsx, incomplete, fun()}.
 
 term_to_json(List, Opts) ->
     case proplists:get_value(strict, Opts, false) of
@@ -60,21 +59,12 @@ term_to_json(List, Opts) ->
         ; false -> continue
     end,
     Encoding = proplists:get_value(encoding, Opts, utf8),
-    jsx:format(eventify(lists:reverse([end_json] ++ term_to_events(List))), 
-        [{output_encoding, Encoding}] ++ Opts
-    ).
-
-
-eventify([]) ->
-    fun() -> 
-        {incomplete, fun(List) when is_list(List) -> 
-                eventify(List)
-            ; (_) ->
-                erlang:error(badarg) 
-        end}
-    end;    
-eventify([Next|Rest]) ->
-    fun() -> {event, Next, eventify(Rest)} end.  
+    FOpts = [{output_encoding, Encoding}] ++ Opts,
+    case term_to_events(List) of
+        L when is_tuple(L) -> jsx:format(L, FOpts)
+        ; L when is_list(L) -> jsx:format(lists:reverse(L), FOpts)
+    end.
+ 
 
 
 extract_parser_opts(Opts) ->
@@ -85,113 +75,90 @@ extract_parser_opts([{K,V}|Rest], Acc) ->
     case lists:member(K, [encoding]) of
         true -> [{K,V}] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
-    end;
-extract_parser_opts([K|Rest], Acc) ->
-    case lists:member(K, [encoding]) of
-        true -> [K] ++ Acc
-        ; false -> extract_parser_opts(Rest, Acc)
     end.
+
+
 
 %% ensure the first jsx event we get is start_object or start_array when running
 %%  in strict mode
-collect_strict({event, Start, Next}, Acc, Opts) 
-    when Start =:= start_object; Start =:= start_array ->
+collect_strict({jsx, Start, Next}, Acc, Opts) 
+        when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
-collect_strict({incomplete, More}, Acc, Opts) ->
+collect_strict({jsx, incomplete, More}, Acc, Opts) ->
     case proplists:get_value(stream, Opts, false) of
-        true ->  {incomplete, fun(JSON) -> collect(More(JSON), Acc, Opts) end}
+        true -> {jsx, incomplete, fun(JSON) ->
+                collect_strict(More(JSON), Acc, Opts)
+            end}
         ; false -> erlang:error(badarg)
     end;
 collect_strict(_, _, _) -> erlang:error(badarg).
     
     
 %% collect decoder events and convert to eep0018 format     
-collect({event, Start, Next}, Acc, Opts) 
-    when Start =:= start_object; Start =:= start_array ->
+collect({jsx, Start, Next}, Acc, Opts) 
+        when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
 %% special case for empty object
-collect({event, end_object, Next}, [[], Parent|Rest], Opts) 
-    when is_list(Parent) ->
+collect({jsx, end_object, Next}, [[], Parent|Rest], Opts) 
+        when is_list(Parent) ->
     collect(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
 %% reverse the array/object accumulator before prepending it to it's parent
-collect({event, end_object, Next}, [Current, Parent|Rest], Opts) 
-    when is_list(Parent) ->
+collect({jsx, end_object, Next}, [Current, Parent|Rest], Opts) 
+        when is_list(Parent) ->
     collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
-collect({event, end_array, Next}, [Current, Parent|Rest], Opts) 
-    when is_list(Parent) ->
+collect({jsx, end_array, Next}, [Current, Parent|Rest], Opts) 
+        when is_list(Parent) ->
     collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
 %% special case for empty object
-collect({event, end_object, Next}, [[], Key, Parent|Rest], Opts) ->
+collect({jsx, end_object, Next}, [[], Key, Parent|Rest], Opts) ->
     collect(Next(), [[{Key, [{}]}] ++ Parent] ++ Rest, Opts);
-collect({event, End, Next}, [Current, Key, Parent|Rest], Opts)
-    when End =:= end_object; End =:= end_array ->
+collect({jsx, End, Next}, [Current, Key, Parent|Rest], Opts)
+        when End =:= end_object; End =:= end_array ->
     collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);      
-collect({event, end_json, _Next}, [[Acc]], _Opts) ->
+collect({jsx, end_json, _Next}, [[Acc]], _Opts) ->
     Acc;  
 %% key can only be emitted inside of a json object, so just insert it directly 
 %%   into the head of the accumulator and deal with it when we receive it's 
 %%   paired value    
-collect({event, {key, _} = PreKey, Next}, [Current|_] = Acc, Opts) ->
+collect({jsx, {key, _} = PreKey, Next}, Acc, Opts) ->
     Key = event(PreKey, Opts),
-    case decode_key_repeats(Key, Current) of
-        true -> erlang:error(badarg)
-        ; false -> collect(Next(), [Key] ++ Acc, Opts)
-    end;
-%% check acc to see if we're inside an object or an array. because inside an 
-%%   object context the events that fall this far are always preceded by a key 
-%%   (which are binaries or atoms), if Current is a list, we're inside an array, 
-%%   else, an object
-collect({event, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
-    collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
-collect({event, Event, Next}, [Key, Current|Rest], Opts) ->
-    collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
-%% if our returned event is {incomplete, ...} try to force end and return 
+    collect(Next(), [Key] ++ Acc, Opts);
+%% if our returned event is {jsx, incomplete, ...} try to force end and return 
 %%   the Event if one is returned    
-collect({incomplete, More}, Acc, Opts) ->
+collect({jsx, incomplete, More}, Acc, Opts) ->
     case More(end_stream) of
-        {event, Event, _Next} -> event(Event, Opts)
+        {jsx, Event, _Next} -> event(Event, Opts)
         ; _ ->
             case proplists:get_value(stream, Opts, false) of
                 true -> 
-                    {incomplete, 
+                    {jsx, incomplete, 
                         fun(JSON) -> collect(More(JSON), Acc, Opts) end
                     }
                 ; false -> erlang:error(badarg)
             end
     end;
+%% check acc to see if we're inside an object or an array. because inside an 
+%%   object context the events that fall this far are always preceded by a key 
+%%   (which are binaries or atoms), if Current is a list, we're inside an array, 
+%%   else, an object
+collect({jsx, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
+    collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
+collect({jsx, Event, Next}, [Key, Current|Rest], Opts) ->
+    collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
 
-%% helper functions for converting jsx events to eep0018 formats 
-event({string, String}, _Opts) ->
-    unicode:characters_to_binary(String);
-event({key, Key}, Opts) ->
-    case proplists:get_value(label, Opts, binary) of
-        binary -> unicode:characters_to_binary(Key)
-        ; atom -> 
-            try list_to_atom(Key) 
-            catch error:badarg -> unicode:characters_to_binary(Key) end
-        ; existing_atom -> 
-            try list_to_existing_atom(Key) 
-            catch error:badarg -> unicode:characters_to_binary(Key) end
-    end;
-event({integer, Integer}, Opts) ->
-    case proplists:get_value(float, Opts, false) of
-        true -> erlang:float(Integer)
-        ; false -> Integer
-    end;
+%% helper functions for converting jsx events to term format 
+event({string, String}, _Opts) -> String;
+event({key, Key}, _Opts) -> Key;
+event({integer, Integer}, _Opts) -> Integer;
 event({float, Float}, _Opts) -> Float;
 event({literal, Literal}, _Opts) -> Literal.
-    
-
-decode_key_repeats(Key, [{Key, _Value}|_Rest]) -> true;
-decode_key_repeats(Key, [_|Rest]) -> decode_key_repeats(Key, Rest);
-decode_key_repeats(_Key, []) -> false.
 
     
     
-%% convert eep0018 representation to jsx events. note special casing for the 
+%% convert term format representation to jsx events. note special casing for the 
 %%   empty object
 term_to_events([{}]) ->
     [end_object, start_object];
@@ -200,16 +167,14 @@ term_to_events([First|_] = List) when is_tuple(First) ->
 term_to_events(List) when is_list(List) ->
     list_to_events(List, [start_array]);
 term_to_events(Term) ->
-    term_to_event(Term). 
+    [Res] = term_to_event(Term),
+    Res. 
        
     
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
-    case encode_key_repeats(EncodedKey, Acc) of
-        false -> proplist_to_events(Rest, Event ++ EncodedKey ++ Acc)
-        ; true -> erlang:error(badarg)
-    end;
+    proplist_to_events(Rest, Event ++ EncodedKey ++ Acc);
 proplist_to_events([], Acc) ->
     [end_object] ++ Acc;
 proplist_to_events(_, _) ->
@@ -236,26 +201,9 @@ term_to_event(null) -> [{literal, null}];
 term_to_event(_) -> erlang:error(badarg).
 
 
-key_to_event(Key) when is_atom(Key) ->
-    [{key, json_escape(erlang:atom_to_binary(Key, utf8))}];
 key_to_event(Key) when is_binary(Key) ->
     [{key, json_escape(Key)}].
 
-
-encode_key_repeats([Key], SoFar) -> encode_key_repeats(Key, SoFar, 0).
-
-encode_key_repeats(Key, [Key|_], 0) -> 
-    true;
-encode_key_repeats(Key, [end_object|Rest], Level) -> 
-    encode_key_repeats(Key, Rest, Level + 1);
-encode_key_repeats(_, [start_object|_], 0) -> 
-    false;
-encode_key_repeats(Key, [start_object|Rest], Level) -> 
-    encode_key_repeats(Key, Rest, Level - 1);
-encode_key_repeats(Key, [_|Rest], Level) -> 
-    encode_key_repeats(Key, Rest, Level);
-encode_key_repeats(_, [], 0) -> 
-    false.
 
 
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
@@ -322,9 +270,8 @@ decode_test_() ->
         {"empty array", ?_assert(json_to_term(<<"[]">>, []) =:= [])},
         {"simple object", 
             ?_assert(json_to_term(
-                    <<"{\"a\": true, \"b\": true, \"c\": true}">>, 
-                    [{label, atom}]
-                ) =:= [{a, true}, {b, true}, {c, true}]
+                <<"{\"a\": true, \"b\": true, \"c\": true}">>, []
+                ) =:= [{<<"a">>, true}, {<<"b">>, true}, {<<"c">>, true}]
             )
         },
         {"simple array", 
@@ -335,9 +282,11 @@ decode_test_() ->
         },
         {"nested structures", 
             ?_assert(json_to_term(
-                    <<"{\"x\":[{\"x\":[{}, {}],\"y\":{}}, []],\"y\":{}}">>, 
-                    [{label, atom}]
-                ) =:= [{x, [[{x, [[{}], [{}]]}, {y, [{}]}],[]]}, {y, [{}]}]
+                    <<"{\"x\":[{\"x\":[{}, {}],\"y\":{}}, []],\"y\":{}}">>, []
+                ) =:= [{<<"x">>, 
+                            [[{<<"x">>, [[{}], [{}]]}, {<<"y">>, [{}]}],[]]},
+                        {<<"y">>, [{}]}
+                ]
             )
         },
         {"numbers", 
@@ -345,13 +294,6 @@ decode_test_() ->
                     <<"[-100000000.0, -1, 0.0, 0, 1, 100000000, 10000000.0]">>, 
                     []
                 ) =:= [-100000000.0, -1, 0.0, 0, 1, 100000000, 10000000.0]
-            )
-        },
-        {"numbers (all floats)", 
-            ?_assert(json_to_term(
-                    <<"[-100000000.0, -1, 0.0, 0, 1, 1000, 10000000.0]">>, 
-                    [{float, true}]
-                ) =:= [-100000000.0, -1.0, 0.0, 0.0, 1.0, 1000.0, 10000000.0]
             )
         },
         {"strings", 
@@ -389,9 +331,9 @@ encode_test_() ->
         {"empty object", ?_assert(term_to_json([{}], []) =:= <<"{}">>)},
         {"empty array", ?_assert(term_to_json([], []) =:= <<"[]">>)},
         {"simple object", 
-            ?_assert(term_to_json([{a, true}, {b, true}, {c, true}], 
+            ?_assert(term_to_json([{<<"a">>, true}, {<<"b">>, true}], 
                     []
-                ) =:= <<"{\"a\":true,\"b\":true,\"c\":true}">>
+                ) =:= <<"{\"a\":true,\"b\":true}">>
             )
         },
         {"simple array", 
@@ -402,7 +344,9 @@ encode_test_() ->
         },
         {"nested structures", 
             ?_assert(term_to_json(
-                    [{x, [[{x, [[{}], [{}]]}, {y, [{}]}],[]]}, {y, [{}]}], 
+                    [{<<"x">>, 
+                            [[{<<"x">>, [[{}], [{}]]}, {<<"y">>, [{}]}],[]]},
+                        {<<"y">>, [{}]}], 
                     []
                 ) =:= <<"{\"x\":[{\"x\":[{},{}],\"y\":{}},[]],\"y\":{}}">>
             )
@@ -444,20 +388,6 @@ encode_test_() ->
             )
         )}
     ].
-    
-repeated_keys_test_() ->
-    [
-        {"encode", 
-            ?_assertError(badarg, term_to_json([{k, true}, {k, false}], []))
-        },
-        {"decode", 
-            ?_assertError(badarg, json_to_term(
-                    <<"{\"k\": true, \"k\": false}">>, 
-                    []
-                )
-            )
-        }
-    ].
 
 escape_test_() ->
     [
@@ -479,7 +409,7 @@ stream_test_() ->
     [
         {"streaming mode",
             ?_assert(begin
-                    {incomplete, F} = json_to_term(<<"{">>, [{stream, true}]),
+                    {jsx, incomplete, F} = json_to_term(<<"{">>, [{stream, true}]),
                     F(<<"}">>)
                 end =:= [{}])
         }

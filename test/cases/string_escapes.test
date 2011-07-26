@@ -1,12 +1,12 @@
 {name, "string_escapes"}.
 {jsx, [start_array,
- {string,"\""},
- {string,"\\"},
- {string,"/"},
- {string,"\b"},
- {string,"\f"},
- {string,"\n"},
- {string,"\r"},
- {string,"\t"},
+ {string,<<"\"">>},
+ {string,<<"\\">>},
+ {string,<<"/">>},
+ {string,<<"\b">>},
+ {string,<<"\f">>},
+ {string,<<"\n">>},
+ {string,<<"\r">>},
+ {string,<<"\t">>},
  end_array,end_json]}.
 {json, "string_escapes.json"}.

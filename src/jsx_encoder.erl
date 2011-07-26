@@ -31,7 +31,6 @@
 
 
 -record(opts, {
-    escaped_unicode = codepoint,
     multi_term = false,
     encoding = auto
 }).
@@ -43,30 +42,30 @@ encoder(Opts) -> fun(Forms) -> start(Forms, Opts) end.
     
 
 -define(ENDJSON,
-    {event, end_json, fun() -> 
-        {incomplete, fun(Forms) -> {error, {badjson, Forms}} end} 
+    {jsx, end_json, fun() -> 
+        {jsx, incomplete, fun(Forms) -> {error, {badjson, Forms}} end} 
     end}
 ).
 
     
-start({string, String}, _Opts) when is_list(String) ->
-    {event, {string, json_escape(String)}, fun() -> ?ENDJSON end};
-start({float, Float}, _Opts) when is_list(Float) ->
-    {event, {float, Float}, fun() -> ?ENDJSON end};
-start({integer, Int}, _Opts) when is_list(Int) ->
-    {event, {integer, Int}, fun() -> ?ENDJSON end};
+start({string, String}, _Opts) when is_binary(String) ->
+    {jsx, {string, json_escape(String)}, fun() -> ?ENDJSON end};
+start({float, Float}, _Opts) when is_float(Float) ->
+    {jsx, {float, Float}, fun() -> ?ENDJSON end};
+start({integer, Int}, _Opts) when is_integer(Int) ->
+    {jsx, {integer, Int}, fun() -> ?ENDJSON end};
 start({literal, Atom}, _Opts) when Atom == true; Atom == false; Atom == null ->
-    {event, {literal, Atom}, fun() -> ?ENDJSON end};
+    {jsx, {literal, Atom}, fun() -> ?ENDJSON end};
 %% second parameter is a stack to match end_foos to start_foos
 start(Forms, Opts) -> list_or_object(Forms, [], Opts).
 
 
 list_or_object([start_object|Forms], Stack, Opts) ->
-    {event, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
+    {jsx, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
 list_or_object([start_array|Forms], Stack, Opts) ->
-    {event, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
+    {jsx, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
 list_or_object([], Stack, Opts) ->
-    {incomplete, fun(end_stream) -> 
+    {jsx, incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
             list_or_object(Stream, Stack, Opts) 
@@ -74,12 +73,12 @@ list_or_object([], Stack, Opts) ->
 list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
 
  
-key([{key, Key}|Forms], Stack, Opts) when is_list(Key) ->
-    {event, {key, json_escape(Key)}, fun() -> value(Forms, Stack, Opts) end};
+key([{key, Key}|Forms], Stack, Opts) when is_binary(Key) ->
+    {jsx, {key, json_escape(Key)}, fun() -> value(Forms, Stack, Opts) end};
 key([end_object|Forms], [object|Stack], Opts) ->
-    {event, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
 key([], Stack, Opts) ->
-    {incomplete, fun(end_stream) -> 
+    {jsx, incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
             key(Stream, Stack, Opts) 
@@ -87,23 +86,23 @@ key([], Stack, Opts) ->
 key(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
-value([{string, S}|Forms], Stack, Opts) when is_list(S) ->
-    {event, {string, json_escape(S)}, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([{float, F}|Forms],  Stack, Opts) when is_list(F) ->
-    {event, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([{integer, I}|Forms], Stack, Opts) when is_list(I) ->
-    {event, {integer, I}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{string, S}|Forms], Stack, Opts) when is_binary(S) ->
+    {jsx, {string, json_escape(S)}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{float, F}|Forms],  Stack, Opts) when is_float(F) ->
+    {jsx, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
+value([{integer, I}|Forms], Stack, Opts) when is_integer(I) ->
+    {jsx, {integer, I}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{literal, L}|Forms], Stack, Opts)
         when L == true; L == false; L == null ->
-    {event, {literal, L}, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, {literal, L}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([start_object|Forms], Stack, Opts) ->
-    {event, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
+    {jsx, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
 value([start_array|Forms], Stack, Opts) ->
-    {event, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
+    {jsx, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
 value([end_array|Forms], [array|Stack], Opts) ->
-    {event, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([], Stack, Opts) ->
-    {incomplete, fun(end_stream) -> 
+    {jsx, incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
             value(Stream, Stack, Opts) 
@@ -114,15 +113,15 @@ value(Forms, _, _) -> {error, {badjson, Forms}}.
 maybe_done([], [], _) -> ?ENDJSON;
 maybe_done([end_json], [], _) -> ?ENDJSON;
 maybe_done([end_json|Forms], [], #opts{multi_term=true}=Opts) ->
-    {event, end_json, fun() -> start(Forms, Opts) end};
+    {jsx, end_json, fun() -> start(Forms, Opts) end};
 maybe_done([end_object|Forms], [object|Stack], Opts) ->
-    {event, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
 maybe_done([end_array|Forms], [array|Stack], Opts) ->
-    {event, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
 maybe_done(Forms, [object|_] = Stack, Opts) -> key(Forms, Stack, Opts);
 maybe_done(Forms, [array|_] = Stack, Opts) -> value(Forms, Stack, Opts);
 maybe_done([], Stack, Opts) ->
-    {incomplete, fun(end_stream) -> 
+    {jsx, incomplete, fun(end_stream) -> 
             {error, {badjson, []}}
         ; (Stream) -> 
             maybe_done(Stream, Stack, Opts) 
@@ -130,41 +129,42 @@ maybe_done([], Stack, Opts) ->
 maybe_done(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
-%% json string escaping. escape the json control sequences to 
+
+%% json string escaping, for utf8 binaries. escape the json control sequences to 
 %%  their json equivalent, escape other control characters to \uXXXX sequences, 
 %%  everything else should be a legal json string component
 json_escape(String) ->
-    json_escape(String, []).
+    json_escape(String, <<>>).
 
 %% double quote    
-json_escape([$\"|Rest], Acc) -> 
-    json_escape(Rest, [$\", $\\] ++ Acc);
+json_escape(<<$\", Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $\">>);
 %% backslash \ reverse solidus
-json_escape([$\\|Rest], Acc) -> 
-    json_escape(Rest, [$\\, $\\] ++ Acc);
+json_escape(<<$\\, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $\\>>);
 %% backspace
-json_escape([$\b|Rest], Acc) -> 
-    json_escape(Rest, [$b, $\\] ++ Acc);
+json_escape(<<$\b, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $b>>);
 %% form feed
-json_escape([$\f|Rest], Acc) -> 
-    json_escape(Rest, [$f, $\\] ++ Acc);
+json_escape(<<$\f, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $f>>);
 %% newline
-json_escape([$\n|Rest], Acc) -> 
-    json_escape(Rest, [$n, $\\] ++ Acc);
+json_escape(<<$\n, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $n>>);
 %% cr
-json_escape([$\r|Rest], Acc) -> 
-    json_escape(Rest, [$r, $\\] ++ Acc);
+json_escape(<<$\r, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $r>>);
 %% tab
-json_escape([$\t|Rest], Acc) -> 
-    json_escape(Rest, [$t, $\\] ++ Acc);
+json_escape(<<$\t, Rest/binary>>, Acc) -> 
+    json_escape(Rest, <<Acc/binary, $\\, $t>>);
 %% other control characters
-json_escape([C|Rest], Acc) when C >= 0, C < $\s -> 
-    json_escape(Rest, json_escape_sequence(C) ++ Acc);
+json_escape(<<C/utf8, Rest/binary>>, Acc) when C >= 0, C < $\s -> 
+    json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% any other legal codepoint
-json_escape([C|Rest], Acc) ->
-    json_escape(Rest, [C] ++ Acc);
-json_escape([], Acc) ->
-    lists:reverse(Acc);
+json_escape(<<C/utf8, Rest/binary>>, Acc) ->
+    json_escape(Rest, <<Acc/binary, C/utf8>>);
+json_escape(<<>>, Acc) ->
+    Acc;
 json_escape(_, _) ->
     erlang:error(badarg).
 
@@ -173,7 +173,7 @@ json_escape(_, _) ->
 %%   codepoints this module might escape, ie, control characters
 json_escape_sequence(C) when C < 16#20 ->
     <<_:8, A:4, B:4>> = <<C:16>>,   % first two hex digits are always zero
-    [(to_hex(B)), (to_hex(A)), $0, $0, $u, $\\].
+    <<$\\, $u, $0, $0, (to_hex(A)), (to_hex(B))>>.
 
 
 to_hex(15) -> $f;
@@ -183,6 +183,7 @@ to_hex(12) -> $c;
 to_hex(11) -> $b;
 to_hex(10) -> $a;
 to_hex(X) -> X + $0.
+
 
 
 
@@ -216,7 +217,7 @@ encode_incremental([Term], F, Expected, Acc) ->
     end;
 encode_incremental([Term|Terms], F, Expected, Acc) ->
     case loop(F([Term]), []) of
-        {incomplete, Next, R} ->
+        {jsx, incomplete, Next, R} ->
             encode_incremental(Terms, Next, Expected, Acc ++ R)
         ; _ ->
             false
@@ -224,12 +225,12 @@ encode_incremental([Term|Terms], F, Expected, Acc) ->
 
 
 loop({error, _}, _) -> error;
-loop({incomplete, Next}, Acc) -> {incomplete, Next, lists:reverse(Acc)};
-loop({event, end_json, Next}, Acc) ->
-    {incomplete, F} = Next(),
+loop({jsx, incomplete, Next}, Acc) -> {jsx, incomplete, Next, lists:reverse(Acc)};
+loop({jsx, end_json, Next}, Acc) ->
+    {jsx, incomplete, F} = Next(),
     {error, {badjson, []}} = F([]),
     {ok, lists:reverse(Acc)};
-loop({event, Event, Next}, Acc) -> loop(Next(), [Event] ++ Acc).
+loop({jsx, Event, Next}, Acc) -> loop(Next(), [Event] ++ Acc).
 
 
 encode_test_() ->    
@@ -237,9 +238,9 @@ encode_test_() ->
         {"empty object", ?_assert(encode([start_object, end_object]))},
         {"empty array", ?_assert(encode([start_array, end_array]) =:= true)},
         {"nested empty objects", ?_assert(encode([start_object,
-            {key, "empty object"},
+            {key, <<"empty object">>},
             start_object,
-            {key, "empty object"},
+            {key, <<"empty object">>},
             start_object,
             end_object,
             end_object,
@@ -253,20 +254,20 @@ encode_test_() ->
             end_array
         ]))},
         {"simple object", ?_assert(encode([start_object, 
-            {key, "a"},
-            {string, "hello"},
-            {key, "b"},
-            {integer, "1"},
-            {key, "c"},
-            {float, "1.0"},
-            {key, "d"},
+            {key, <<"a">>},
+            {string, <<"hello">>},
+            {key, <<"b">>},
+            {integer, 1},
+            {key, <<"c">>},
+            {float, 1.0},
+            {key, <<"d">>},
             {literal, true},
             end_object
         ]))},
         {"simple array", ?_assert(encode([start_array,
-            {string, "hello"},
-            {integer, "1"},
-            {float, "1.0"},
+            {string, <<"hello">>},
+            {integer, 1},
+            {float, 1.0},
             {literal, true},
             end_array
         ]))},
@@ -274,10 +275,10 @@ encode_test_() ->
             end_array,
             end_array
         ]))},
-        {"naked string", ?_assert(encode({string, "hello"}))},
+        {"naked string", ?_assert(encode({string, <<"hello">>}))},
         {"naked literal", ?_assert(encode({literal, true}))},
-        {"naked integer", ?_assert(encode({integer, "1"}))},
-        {"naked float", ?_assert(encode({float, "1.0"}))}
+        {"naked integer", ?_assert(encode({integer, 1}))},
+        {"naked float", ?_assert(encode({float, 1.0}))}
     ].
 
 
@@ -285,14 +286,14 @@ escape_test_() ->
     [
         {"json string escaping", 
             ?_assert(json_escape(
-                    "\"\\\b\f\n\r\t"
-                ) =:= "\\\"\\\\\\b\\f\\n\\r\\t"
+                    <<"\"\\\b\f\n\r\t">>
+                ) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>
             )
         },
         {"json string hex escape", 
             ?_assert(json_escape(
-                    [1, 2, 3, 11, 26, 30, 31]
-                ) =:= "\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f"
+                    <<1, 2, 3, 11, 26, 30, 31>>
+                ) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
             )
         }
     ].

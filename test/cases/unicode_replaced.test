@@ -1,7 +1,0 @@
-{name, "unicode_replaced"}.
-{jsx, [start_array,
- {string,"non-character: "},
- {string,[16#fffd]},
- end_array,end_json]}.
-{json, "unicode_replaced.json"}.
-{jsx_flags, [{escaped_unicode,replace}]}.

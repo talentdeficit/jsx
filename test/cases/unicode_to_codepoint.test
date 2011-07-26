@@ -1,7 +1,6 @@
 {name, "unicode_to_codepoint"}.
 {jsx, [start_array,
- {string,"arabic letter alef: "},
- {string,[1575]},
+ {string,<<"arabic letter alef: ">>},
+ {string,<<1575/utf8>>},
  end_array,end_json]}.
 {json, "unicode_to_codepoint.json"}.
-{jsx_flags, [{escaped_unicode,codepoint}]}.

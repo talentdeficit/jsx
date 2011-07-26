@@ -217,10 +217,10 @@ detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
 %%   data to conclusively determine the encoding correctly. below is an attempt 
 %%   to solve the problem
 detect_encoding(<<X>>, Opts) when X =/= 0 ->
-    {incomplete,
+    {jsx, incomplete,
         fun(end_stream) ->
                 try
-                    {incomplete, Next} = (jsx_utf8:decoder(Opts))(<<X>>),
+                    {jsx, incomplete, Next} = (jsx_utf8:decoder(Opts))(<<X>>),
                     Next(end_stream)
                 catch
                     error:function_clause -> {error, {badjson, <<X>>}}
@@ -230,10 +230,10 @@ detect_encoding(<<X>>, Opts) when X =/= 0 ->
         end
     };
 detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
-    {incomplete,
+    {jsx, incomplete,
         fun(end_stream) ->
                 try
-                    {incomplete, Next} = (jsx_utf16:decoder(Opts))(<<0, X>>),
+                    {jsx, incomplete, Next} = (jsx_utf16:decoder(Opts))(<<0, X>>),
                     Next(end_stream)
                 catch
                     error:function_clause -> {error, {badjson, <<0, X>>}}
@@ -243,10 +243,10 @@ detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
         end
     };
 detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
-    {incomplete,
+    {jsx, incomplete,
         fun(end_stream) ->
                 try
-                    {incomplete, Next} = (jsx_utf16le:decoder(Opts))(<<X, 0>>),
+                    {jsx, incomplete, Next} = (jsx_utf16le:decoder(Opts))(<<X, 0>>),
                     Next(end_stream)
                 catch
                     error:function_clause -> {error, {badjson, <<X, 0>>}}
@@ -258,7 +258,7 @@ detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
     
 %% not enough input, request more
 detect_encoding(Bin, Opts) ->
-    {incomplete,
+    {jsx, incomplete,
         fun(end_stream) -> {error, {badjson, Bin}}
             ; (Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
         end

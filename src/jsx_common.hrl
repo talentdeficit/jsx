@@ -33,8 +33,7 @@
 
 
 -type jsx_opts() :: [jsx_opt()].
--type jsx_opt() :: {escaped_unicode, ascii | codepoint | replace | none}
-    | {multi_term, true | false}
+-type jsx_opt() :: {multi_term, true | false}
     | {encoding, auto 
         | utf8
         | utf16
@@ -44,19 +43,15 @@
     }.
 
 
-%% events emitted by the parser and component types
--type unicode_codepoint() :: 0..16#10ffff.
--type unicode_string() :: [unicode_codepoint()].
-
 -type jsx_event() :: start_object
     | end_object
     | start_array
     | end_array
     | end_json
-    | {key, unicode_string()}
-    | {string, unicode_string()}
-    | {integer, unicode_string()}
-    | {float, unicode_string()}
+    | {key, binary()}
+    | {string, binary()}
+    | {integer, integer()}
+    | {float, float()}
     | {literal, true}
     | {literal, false}
     | {literal, null}.
@@ -76,13 +71,9 @@
 -type jsx_encoder() :: fun((jsx_encodeable()) -> jsx_iterator_result()).
 
 -type jsx_iterator_result() :: 
-    {event, jsx_event(), fun(() -> jsx_iterator_result())}
-    | {incomplete, jsx_iterator()}
+    {jsx, jsx_event(), fun(() -> jsx_iterator_result())}
+    | {jsx, incomplete, jsx_iterator()}
     | {error, {badjson, any()}}.
-
-
-
-    
 
 
 
@@ -93,23 +84,22 @@
     | {utf32, little}.
 
 
-%% eep0018 json specification
--type eep0018() :: eep0018_object() | eep0018_array().
 
--type eep0018_array() :: [eep0018_term()].
--type eep0018_object() :: [{eep0018_key(), eep0018_term()}].
+%% json specification
+-type jsx_array() :: [jsx_term()] | [].
+-type jsx_object() :: [{jsx_key(), jsx_term()}] | [{}].
 
--type eep0018_key() :: binary() | atom().
+-type jsx_key() :: binary().
 
--type eep0018_term() :: eep0018_array() 
-    | eep0018_object() 
-    | eep0018_string() 
-    | eep0018_number() 
+-type jsx_term() :: jsx_array() 
+    | jsx_object() 
+    | jsx_string() 
+    | jsx_number() 
     | true | false | null.
 
--type eep0018_string() :: binary().
+-type jsx_string() :: binary().
 
--type eep0018_number() :: float() | integer().
+-type jsx_number() :: float() | integer().
 
 
 -type encoder_opts() :: [encoder_opt()].
@@ -123,10 +113,7 @@
 
 -type decoder_opts() :: [decoder_opt()].
 -type decoder_opt() :: {strict, true | false}
-    | {encoding, supported_utf()}
-    | {label, atom | binary | existing_atom}
-    | {float, true | false}.
-
+    | {encoding, supported_utf()}.
 
 -type verify_opts() :: [verify_opt()].
 -type verify_opt() :: {encoding, auto | supported_utf()}

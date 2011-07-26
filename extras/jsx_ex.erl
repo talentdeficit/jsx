@@ -28,7 +28,7 @@ simple_decode(JSON) when is_binary(JSON) ->
     P = jsx:decoder(),
     decode(P(JSON), []).
 
-decode({event, end_json, _Next}, Acc) -> 
+decode({jsx, end_json, _Next}, Acc) -> 
     lists:reverse(Acc);    
-decode({event, Event, Next}, Acc) -> 
+decode({jsx, Event, Next}, Acc) -> 
     decode(Next(), [Event] ++ Acc).
