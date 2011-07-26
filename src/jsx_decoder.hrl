@@ -540,14 +540,16 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], High)
         when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         X when X >= 16#dc00, X =< 16#dfff ->
-            string(Rest,
-                Stack,
-                Opts,
-                <<String/binary, (surrogate_to_codepoint(High, X))/utf8>>
-            )
+            V = surrogate_to_codepoint(High, X),
+            case V rem 16#10000 of
+                X when X == 16#fffe; X == 16#ffff ->
+                    {error, {badjson, <<D/?utfx, Rest/binary>>}}
+                ; _ ->
+                    string(Rest, Stack, Opts, <<String/binary, V/utf8>>)
+            end
         %% not a low surrogate, bad bad bad
-        ; X ->
-            {error, {badjson, <<X/?utfx, Rest/binary>>}}
+        ; _ ->
+            {error, {badjson, <<D/?utfx, Rest/binary>>}}
     end;
 low_surrogate(<<S/?utfx, Rest/binary>>, Stack, Opts, String, Acc, High) 
         when ?is_hex(S) ->
