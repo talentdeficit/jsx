@@ -160,6 +160,9 @@ json_escape(<<$\t, Rest/binary>>, Acc) ->
 %% other control characters
 json_escape(<<C/utf8, Rest/binary>>, Acc) when C >= 0, C < $\s -> 
     json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+%% escape u+2028 and u+2029 to avoid problems with jsonp
+json_escape(<<C/utf8, Rest/binary>>, Acc) when C == 16#2028; C == 16#2029 ->
+    json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Acc) ->
     json_escape(Rest, <<Acc/binary, C/utf8>>);
@@ -169,11 +172,10 @@ json_escape(_, _) ->
     erlang:error(badarg).
 
 
-%% convert a codepoint to it's \uXXXX equiv. for laziness, this only handles 
-%%   codepoints this module might escape, ie, control characters
-json_escape_sequence(C) when C < 16#20 ->
-    <<_:8, A:4, B:4>> = <<C:16>>,   % first two hex digits are always zero
-    <<$\\, $u, $0, $0, (to_hex(A)), (to_hex(B))>>.
+%% convert a codepoint to it's \uXXXX equiv.
+json_escape_sequence(X) ->
+    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
+    <<$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>.
 
 
 to_hex(15) -> $f;

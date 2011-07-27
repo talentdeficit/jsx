@@ -466,7 +466,11 @@ escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A])
         X when X >= 16#d800, X =< 16#dbff ->
             low_surrogate(Rest, Stack, Opts, String, X)
         %% non-characters, you're not allowed to exchange these
-        ; X when X == 16#fffe; X == 16#ffff ->
+        ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
+            {error, {badjson, <<D/?utfx, Rest/binary>>}}
+        %% allowing interchange of null bytes allows attackers to forge
+        %%   malicious streams
+        ; X when X == 16#0000 ->
             {error, {badjson, <<D/?utfx, Rest/binary>>}}
         %% anything else
         ; X ->
@@ -536,14 +540,17 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], High)
         when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         X when X >= 16#dc00, X =< 16#dfff ->
-            string(Rest,
-                Stack,
-                Opts,
-                <<String/binary, (surrogate_to_codepoint(High, X))/utf8>>
-            )
+            V = surrogate_to_codepoint(High, X),
+            case V rem 16#10000 of
+                Y when Y == 16#fffe; Y == 16#ffff ->
+                    {error, {badjson, <<D/?utfx, Rest/binary>>}}
+                ; Y ->
+                    io:format("~p ~p~n", [V, Y]),
+                    string(Rest, Stack, Opts, <<String/binary, V/utf8>>)
+            end
         %% not a low surrogate, bad bad bad
-        ; X ->
-            {error, {badjson, <<X/?utfx, Rest/binary>>}}
+        ; _ ->
+            {error, {badjson, <<D/?utfx, Rest/binary>>}}
     end;
 low_surrogate(<<S/?utfx, Rest/binary>>, Stack, Opts, String, Acc, High) 
         when ?is_hex(S) ->
@@ -568,7 +575,6 @@ low_surrogate(Bin, Stack, Opts, String, Acc, High) ->
 
 %% stole this from the unicode spec    
 surrogate_to_codepoint(High, Low) ->
-    io:format("~p ~p~n", [High, Low]),
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
 
 

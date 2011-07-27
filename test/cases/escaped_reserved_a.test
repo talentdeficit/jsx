@@ -1,0 +1,3 @@
+{name, "escaped reserved a"}.
+{jsx, {error, badjson}}.
+{json, "escaped_reserved_a.json"}.

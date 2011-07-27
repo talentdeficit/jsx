@@ -174,10 +174,10 @@ jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assert(decode(JSON, Flags) =:= JSX)} 
+            [{Name, ?_assertEqual(decode(JSON, Flags), JSX)} 
                 | {generator, 
-                        fun() -> [{Name ++ " incremental", ?_assert(
-                                incremental_decode(JSON, Flags) =:= JSX)
+                        fun() -> [{Name ++ " incremental", ?_assertEqual(
+                                incremental_decode(JSON, Flags), JSX)
                             } | jsx_decoder_gen(Tests, Encodings)]
                         end
                 }
@@ -232,7 +232,9 @@ decode_loop({jsx, end_json, _Next}, Acc) ->
 decode_loop({jsx, incomplete, More}, Acc) ->
     decode_loop(More(end_stream), Acc);
 decode_loop({jsx, E, Next}, Acc) ->
-    decode_loop(Next(), [E] ++ Acc).
+    decode_loop(Next(), [E] ++ Acc);
+decode_loop({error, {badjson, _Error}}, _Acc) ->
+    {error, badjson}.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
@@ -246,7 +248,10 @@ incremental_decode_loop({jsx, incomplete, Next}, <<C:1/binary, Rest/binary>>, Ac
 incremental_decode_loop({jsx, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
 incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
-	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
+	incremental_decode_loop(Next(), Rest, [Event] ++ Acc);
+incremental_decode_loop({error, {badjson, _Error}}, _Rest, _Acc) ->
+    {error, badjson}.
+
 
 
 multi_decode_test_() ->
@@ -288,6 +293,7 @@ multi_test_result() ->
         [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
         [{string, <<"hope this works">>}]
     ].
+
 
 
     
