@@ -232,7 +232,9 @@ decode_loop({jsx, end_json, _Next}, Acc) ->
 decode_loop({jsx, incomplete, More}, Acc) ->
     decode_loop(More(end_stream), Acc);
 decode_loop({jsx, E, Next}, Acc) ->
-    decode_loop(Next(), [E] ++ Acc).
+    decode_loop(Next(), [E] ++ Acc);
+decode_loop({error, {badjson, _Error}}, _Acc) ->
+    {error, badjson}.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
@@ -247,6 +249,17 @@ incremental_decode_loop({jsx, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
 incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
+
+
+bad_escapes_test_() ->
+    [
+        {"null byte",
+            ?_assertEqual({error, badjson}, decode(<<"\"\\u0000\"">>, []))
+        },
+        {"escaped noncharacter",
+            ?_assertEqual({error, badjson}, decode(<<"\"\\ud83f\\udfff\"">>, []))
+        }
+    ].
 
 
 multi_decode_test_() ->
@@ -288,6 +301,7 @@ multi_test_result() ->
         [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
         [{string, <<"hope this works">>}]
     ].
+
 
 
     
