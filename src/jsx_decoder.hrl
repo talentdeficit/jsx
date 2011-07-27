@@ -400,7 +400,11 @@ string(Bin, Stack, Opts, Acc) ->
                 ; (Stream) -> 
                     string(<<Bin/binary, Stream/binary>>, Stack, Opts, Acc)
             end}
-        ; false -> {error, {badjson, Bin}}
+        ; false ->
+            case Opts#opts.loose_unicode of
+                true -> noncharacter(Bin, Stack, Opts, Acc)
+                ; false -> {error, {badjson, Bin}}
+            end
     end.
 
     
@@ -449,13 +453,101 @@ partial_utf(_) -> false.
 -endif.
 
 -ifdef(utf32).
-partial_utf(<<_:32>>) -> false;
-partial_utf(_) -> true.
+partial_utf(<<>>) -> true;
+partial_utf(<<_>>) -> true;
+partial_utf(<<_, _>>) -> true;
+partial_utf(<<_, _, _>>) -> true;
+partial_utf(_) -> false.
 -endif.
 
 -ifdef(utf32le).
-partial_utf(<<_:32>>) -> false;
-partial_utf(_) -> true.
+partial_utf(<<>>) -> true;
+partial_utf(<<_>>) -> true;
+partial_utf(<<_, _>>) -> true;
+partial_utf(<<_, _, _>>) -> true;
+partial_utf(_) -> false.
+-endif.
+
+
+-ifdef(utf8).
+%% non-characters erlang doesn't recognize as non-characters, idiotically
+noncharacter(<<S/utf8, Rest/binary>>, Stack, Opts, Acc)
+        when ?is_noncontrol(S) ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% u+fffe and u+ffff
+noncharacter(<<239, 191, X, Rest/binary>>, Stack, Opts, Acc) 
+        when X == 190; X == 191 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
+noncharacter(<<237, X, _, Rest/binary>>, Stack, Opts, Acc) when X >= 160 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+noncharacter(Bin, _Stack, _Opts, _Acc) ->
+    {error, {badjson, Bin}}.
+-endif.
+
+-ifdef(utf16).
+%% non-characters blah blah
+noncharacter(<<S/utf16, Rest/binary>>, Stack, Opts, Acc)
+        when ?is_noncontrol(S) ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% u+ffff and u+fffe
+noncharacter(<<255, X, Rest/binary>>, Stack, Opts, Acc)
+        when X == 253; X == 254 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
+noncharacter(<<X, _, Rest/binary>>, Stack, Opts, Acc)
+        when X >= 216, X =< 223 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+noncharacter(Bin, _Stack, _Opts, _Acc) ->
+    {error, {badjson, Bin}}.
+-endif.
+
+-ifdef(utf16le).
+noncharacter(<<S/utf16-little, Rest/binary>>, Stack, Opts, Acc)
+        when ?is_noncontrol(S) ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% u+ffff and u+fffe
+noncharacter(<<X, 255, Rest/binary>>, Stack, Opts, Acc)
+        when X == 253; X == 254 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
+noncharacter(<<_, X, Rest/binary>>, Stack, Opts, Acc)
+        when X >= 216, X =< 223 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+noncharacter(Bin, _Stack, _Opts, _Acc) ->
+    {error, {badjson, Bin}}.
+-endif.
+
+-ifdef(utf32).
+noncharacter(<<S/utf32, Rest/binary>>, Stack, Opts, Acc)
+        when ?is_noncontrol(S) ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% u+ffff and u+fffe
+noncharacter(<<0, 0, 255, X, Rest/binary>>, Stack, Opts, Acc)
+        when X == 254; X == 255 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
+noncharacter(<<0, 0, X, _, Rest/binary>>, Stack, Opts, Acc)
+        when X >= 216, X =< 223 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+noncharacter(Bin, _Stack, _Opts, _Acc) ->
+    {error, {badjson, Bin}}.
+-endif.
+
+-ifdef(utf32le).
+noncharacter(<<S/utf32-little, Rest/binary>>, Stack, Opts, Acc)
+        when ?is_noncontrol(S) ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% u+ffff and u+fffe
+noncharacter(<<X, 255, 0, 0, Rest/binary>>, Stack, Opts, Acc)
+        when X == 254; X == 255 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
+noncharacter(<<_, X, 0, 0, Rest/binary>>, Stack, Opts, Acc)
+        when X >= 216, X =< 223 ->
+    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+noncharacter(Bin, _Stack, _Opts, _Acc) ->
+    {error, {badjson, Bin}}.
 -endif.
 
 
