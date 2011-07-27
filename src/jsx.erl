@@ -248,32 +248,10 @@ incremental_decode_loop({jsx, incomplete, Next}, <<C:1/binary, Rest/binary>>, Ac
 incremental_decode_loop({jsx, end_json, _Next}, _Rest, Acc) ->
     lists:reverse([end_json] ++ Acc);
 incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
-	incremental_decode_loop(Next(), Rest, [Event] ++ Acc).
+	incremental_decode_loop(Next(), Rest, [Event] ++ Acc);
+incremental_decode_loop({error, {badjson, _Error}}, _Rest, _Acc) ->
+    {error, badjson}.
 
-
-bad_escapes_test_() ->
-    [
-        {"null byte",
-            ?_assertEqual({error, badjson}, decode(<<"\"\\u0000\"">>, []))
-        },
-        {"escaped noncharacter",
-            ?_assertEqual({error, badjson}, decode(<<"\"\\ud83f\\udfff\"">>, []))
-        },
-        {"noncharacter",
-            ?_assertEqual({error, badjson}, decode(<<"\"\\uffff\"">>, []))
-        },        
-        {"more noncharacters",
-            ?_assertEqual({error, badjson}, decode(<<"\"\\ufdd0\"">>, []))
-        },
-        {"last noncharacter",
-            ?_assertEqual({error, badjson}, decode(<<"\"\\ufdef\"">>, []))
-        },
-        {"ok character",
-            ?_assertEqual([{string, <<239, 183, 176>>}, end_json], 
-                decode(<<"\"\\ufdf0\"">>, [])
-            )
-        }
-    ].
 
 
 multi_decode_test_() ->
