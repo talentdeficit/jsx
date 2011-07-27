@@ -204,10 +204,10 @@ detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
 detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     (jsx_utf32:decoder(Opts))(JSON);
 %% utf16-little null order detection
-detect_encoding(<<X, 0, _, 0, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
+detect_encoding(<<X, 0, _, _, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     (jsx_utf16le:decoder(Opts))(JSON);
 %% utf16-big null order detection
-detect_encoding(<<0, X, 0, _, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
+detect_encoding(<<0, X, _, _, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
     (jsx_utf16:decoder(Opts))(JSON);
 %% utf8 null order detection
 detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
