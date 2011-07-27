@@ -466,7 +466,7 @@ escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A])
         X when X >= 16#d800, X =< 16#dbff ->
             low_surrogate(Rest, Stack, Opts, String, X)
         %% non-characters, you're not allowed to exchange these
-        ; X when X == 16#fffe; X == 16#ffff ->
+        ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
             {error, {badjson, <<D/?utfx, Rest/binary>>}}
         %% allowing interchange of null bytes allows attackers to forge
         %%   malicious streams

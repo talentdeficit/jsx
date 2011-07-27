@@ -174,10 +174,10 @@ jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assert(decode(JSON, Flags) =:= JSX)} 
+            [{Name, ?_assertEqual(decode(JSON, Flags), JSX)} 
                 | {generator, 
-                        fun() -> [{Name ++ " incremental", ?_assert(
-                                incremental_decode(JSON, Flags) =:= JSX)
+                        fun() -> [{Name ++ " incremental", ?_assertEqual(
+                                incremental_decode(JSON, Flags), JSX)
                             } | jsx_decoder_gen(Tests, Encodings)]
                         end
                 }
@@ -258,6 +258,20 @@ bad_escapes_test_() ->
         },
         {"escaped noncharacter",
             ?_assertEqual({error, badjson}, decode(<<"\"\\ud83f\\udfff\"">>, []))
+        },
+        {"noncharacter",
+            ?_assertEqual({error, badjson}, decode(<<"\"\\uffff\"">>, []))
+        },        
+        {"more noncharacters",
+            ?_assertEqual({error, badjson}, decode(<<"\"\\ufdd0\"">>, []))
+        },
+        {"last noncharacter",
+            ?_assertEqual({error, badjson}, decode(<<"\"\\ufdef\"">>, []))
+        },
+        {"ok character",
+            ?_assertEqual([{string, <<239, 183, 176>>}, end_json], 
+                decode(<<"\"\\ufdf0\"">>, [])
+            )
         }
     ].
 
