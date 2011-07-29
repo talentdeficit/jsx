@@ -709,7 +709,7 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], High)
                             string(Rest,
                                 Stack,
                                 Opts,
-                                <<String/binary, 16#fffd/utf8, 16#fffd/utf8>>
+                                <<String/binary, 16#fffd/utf8>>
                             )
                         ; false ->    
                             {error, {badjson, <<D/?utfx, Rest/binary>>}}
