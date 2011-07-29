@@ -32,7 +32,9 @@
 
 -record(opts, {
     multi_term = false,
-    encoding = auto
+    encoding = auto,
+    loose_unicode = false,      %% does nothing, used by decoder
+    escape_forward_slash = false
 }).
 
 
@@ -48,8 +50,8 @@ encoder(Opts) -> fun(Forms) -> start(Forms, Opts) end.
 ).
 
     
-start({string, String}, _Opts) when is_binary(String) ->
-    {jsx, {string, json_escape(String)}, fun() -> ?ENDJSON end};
+start({string, String}, Opts) when is_binary(String) ->
+    {jsx, {string, json_escape(String, Opts)}, fun() -> ?ENDJSON end};
 start({float, Float}, _Opts) when is_float(Float) ->
     {jsx, {float, Float}, fun() -> ?ENDJSON end};
 start({integer, Int}, _Opts) when is_integer(Int) ->
@@ -74,7 +76,7 @@ list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
 
  
 key([{key, Key}|Forms], Stack, Opts) when is_binary(Key) ->
-    {jsx, {key, json_escape(Key)}, fun() -> value(Forms, Stack, Opts) end};
+    {jsx, {key, json_escape(Key, Opts)}, fun() -> value(Forms, Stack, Opts) end};
 key([end_object|Forms], [object|Stack], Opts) ->
     {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
 key([], Stack, Opts) ->
@@ -87,7 +89,7 @@ key(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
 value([{string, S}|Forms], Stack, Opts) when is_binary(S) ->
-    {jsx, {string, json_escape(S)}, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, {string, json_escape(S, Opts)}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{float, F}|Forms],  Stack, Opts) when is_float(F) ->
     {jsx, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{integer, I}|Forms], Stack, Opts) when is_integer(I) ->
@@ -133,42 +135,46 @@ maybe_done(Forms, _, _) -> {error, {badjson, Forms}}.
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
 %%  their json equivalent, escape other control characters to \uXXXX sequences, 
 %%  everything else should be a legal json string component
-json_escape(String) ->
-    json_escape(String, <<>>).
+json_escape(String, Opts) ->
+    json_escape(String, Opts, <<>>).
 
 %% double quote    
-json_escape(<<$\", Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $\">>);
+json_escape(<<$\", Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>);
 %% backslash \ reverse solidus
-json_escape(<<$\\, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $\\>>);
+json_escape(<<$\\, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $\\>>);
 %% backspace
-json_escape(<<$\b, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $b>>);
+json_escape(<<$\b, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $b>>);
 %% form feed
-json_escape(<<$\f, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $f>>);
+json_escape(<<$\f, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $f>>);
 %% newline
-json_escape(<<$\n, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $n>>);
+json_escape(<<$\n, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $n>>);
 %% cr
-json_escape(<<$\r, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $r>>);
+json_escape(<<$\r, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $r>>);
 %% tab
-json_escape(<<$\t, Rest/binary>>, Acc) -> 
-    json_escape(Rest, <<Acc/binary, $\\, $t>>);
+json_escape(<<$\t, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $t>>);
 %% other control characters
-json_escape(<<C/utf8, Rest/binary>>, Acc) when C >= 0, C < $\s -> 
-    json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
+    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+%% escape forward slashes -- optionally -- to faciliate microsoft's retarded
+%%   date format
+json_escape(<<$/, Rest/binary>>, Opts = #opts{escape_forward_slash = true}, Acc) ->
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $/>>);
 %% escape u+2028 and u+2029 to avoid problems with jsonp
-json_escape(<<C/utf8, Rest/binary>>, Acc) when C == 16#2028; C == 16#2029 ->
-    json_escape(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C == 16#2028; C == 16#2029 ->
+    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% any other legal codepoint
-json_escape(<<C/utf8, Rest/binary>>, Acc) ->
-    json_escape(Rest, <<Acc/binary, C/utf8>>);
-json_escape(<<>>, Acc) ->
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
+    json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
+json_escape(<<>>, _Opts, Acc) ->
     Acc;
-json_escape(_, _) ->
+json_escape(_, _, _) ->
     erlang:error(badarg).
 
 
@@ -288,20 +294,26 @@ escape_test_() ->
     [
         {"json string escaping", 
             ?_assert(json_escape(
-                    <<"\"\\\b\f\n\r\t">>
+                    <<"\"\\\b\f\n\r\t">>, #opts{}
                 ) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>
             )
         },
         {"json string hex escape", 
             ?_assert(json_escape(
-                    <<1, 2, 3, 11, 26, 30, 31>>
+                    <<1, 2, 3, 11, 26, 30, 31>>, #opts{}
                 ) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
             )
         },
         {"jsonp protection",
             ?_assert(json_escape(
-                    <<226, 128, 168, 226, 128, 169>>
+                    <<226, 128, 168, 226, 128, 169>>, #opts{}
                 ) =:= <<"\\u2028\\u2029">>
+            )
+        },
+        {"microsoft i hate your date format",
+            ?_assert(json_escape(
+                    <<"/Date(1303502009425)/">>, #opts{escape_forward_slash=true}
+                ) =:= <<"\\/Date(1303502009425)\\/">>
             )
         }
     ].

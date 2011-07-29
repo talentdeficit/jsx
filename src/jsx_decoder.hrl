@@ -32,7 +32,8 @@
 -record(opts, {
     multi_term = false,
     loose_unicode = false,
-    encoding = auto
+    encoding = auto,
+    escape_forward_slash = false    %% does nothing, used by encoder
 }).
 
 
