@@ -490,7 +490,7 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 -ifdef(utf16).
 %% non-characters blah blah
 noncharacter(<<S/utf16, Rest/binary>>, Stack, Opts, Acc)
-        when ?is_noncontrol(S), S < 16#fffe ->
+        when ?is_noncontrol(S) ->
     string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
 %% u+ffff and u+fffe
 noncharacter(<<255, X, Rest/binary>>, Stack, Opts, Acc)
@@ -507,7 +507,7 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 -ifdef(utf16le).
 %% non-characters blah blah
 noncharacter(<<S/utf16-little, Rest/binary>>, Stack, Opts, Acc)
-        when ?is_noncontrol(S), S < 16#fffe ->
+        when ?is_noncontrol(S) ->
     string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
 %% u+ffff and u+fffe
 noncharacter(<<X, 255, Rest/binary>>, Stack, Opts, Acc)
@@ -1173,7 +1173,7 @@ extended_noncharacters_test_() ->
             ?_assertEqual(check_bad(extended_noncharacters()), [])
         },
         {"extended noncharacters - replaced",
-            ?_assertEqual(check_extended_replaced(extended_noncharacters()), [])
+            ?_assertEqual(check_replaced(extended_noncharacters()), [])
         }
     ].
 
@@ -1229,15 +1229,6 @@ check_bad(List) ->
 
 check_replaced(List) ->
     lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false end,
-        check(List, [loose_unicode], [])
-    ).
-
-check_extended_replaced(List) ->
-    Replace = case ?encoding of
-        E when E == utf16; E == utf16le -> <<16#fffd/utf8, 16#fffd/utf8>>
-        ; _ -> <<16#fffd/utf8>>
-    end, 
-    lists:dropwhile(fun({_, [{string, S}|_]}) -> S == Replace ; (_) -> false end,
         check(List, [loose_unicode], [])
     ).
 
