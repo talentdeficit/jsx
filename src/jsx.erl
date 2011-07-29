@@ -294,7 +294,5 @@ multi_test_result() ->
         [{string, <<"hope this works">>}]
     ].
 
-
-
     
 -endif.
