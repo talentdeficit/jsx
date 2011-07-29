@@ -33,7 +33,7 @@
 
 
 -type jsx_opts() :: [jsx_opt()].
--type jsx_opt() :: {multi_term, true | false}
+-type jsx_opt() :: multi_term
     | loose_unicode
     | {encoding, auto 
         | utf8

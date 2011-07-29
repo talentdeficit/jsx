@@ -263,7 +263,7 @@ multi_decode_test_() ->
 
 	
 multi_decode(JSON, Flags) ->
-    P = jsx:decoder(Flags ++ [{multi_term, true}]),
+    P = jsx:decoder(Flags ++ [multi_term]),
     multi_decode_loop(P(JSON), [[]]).
 
 multi_decode_loop({jsx, incomplete, _Next}, [[]|Acc]) ->

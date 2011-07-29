@@ -139,9 +139,6 @@ parse_opts(Opts) ->
 
 parse_opts([], Opts) ->
     Opts;
-parse_opts([{multi_term, Value}|Rest], Opts) ->
-    true = lists:member(Value, [true, false]),
-    parse_opts(Rest, Opts#opts{multi_term=Value});
 parse_opts([multi_term|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{multi_term=true});
 parse_opts([loose_unicode|Rest], Opts) ->
