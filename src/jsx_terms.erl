@@ -119,7 +119,7 @@ collect({jsx, end_json, _Next}, [[Acc]], _Opts) ->
     Acc;  
 %% key can only be emitted inside of a json object, so just insert it directly 
 %%   into the head of the accumulator and deal with it when we receive it's 
-%%   paired value    
+%%   paired value
 collect({jsx, {key, _} = PreKey, Next}, Acc, Opts) ->
     Key = event(PreKey, Opts),
     collect(Next(), [Key] ++ Acc, Opts);
@@ -143,8 +143,21 @@ collect({jsx, incomplete, More}, Acc, Opts) ->
 %%   else, an object
 collect({jsx, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
     collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
+%% delete any prior uses of current key
 collect({jsx, Event, Next}, [Key, Current|Rest], Opts) ->
-    collect(Next(), [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
+    case proplists:is_defined(Key, Current) of
+        true ->
+            Acc = proplists:delete(Key, Current), 
+            collect(Next(),
+                [[{Key, event(Event, Opts)}] ++ Acc] ++ Rest,
+                Opts
+            )
+        ; _ ->
+            collect(Next(),
+                [[{Key, event(Event, Opts)}] ++ Current] ++ Rest,
+                Opts
+            )
+    end;
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
@@ -380,15 +393,33 @@ encode_test_() ->
         },
         {"float", ?_assert(term_to_json(1.0, []) =:= <<"1.0">>)},
         {"naked string", 
-            ?_assert(term_to_json(<<"hello world">>,
-                    []
-                ) =:= <<"\"hello world\"">>
+            ?_assert(term_to_json(<<"hello world">>, []) 
+                =:= <<"\"hello world\"">>
             )
         },
         {"strict mode", ?_assertError(badarg, term_to_json(true,
                 [{strict, true}]
             )
         )}
+    ].
+
+repeated_keys_test_() ->
+    [
+        {"simple repeated key",
+            ?_assert(json_to_term(<<"{\"a\":false,\"a\":true}">>, [])
+                =:= [{<<"a">>, true}]
+            )
+        },
+        {"nested repeated key",
+            ?_assert(json_to_term(<<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>, [])
+                =:= [[{<<"a">>, true}], [{<<"a">>, true}]]
+            )
+        },
+        {"multiple keys",
+            ?_assert(json_to_term(<<"{\"a\":4,\"a\":3,\"a\":2,\"a\":1}">>, [])
+                =:= [{<<"a">>, 1}]
+            )
+        }
     ].
 
 escape_test_() ->
