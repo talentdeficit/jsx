@@ -350,10 +350,10 @@ key(Bin, Stack, Opts) ->
 %% string has an additional parameter, an accumulator (Acc) used to hold the 
 %%   intermediate representation of the string being parsed. using a list of 
 %%   integers representing unicode codepoints is faster than constructing 
-%%   binaries, many of which will be converted back to lists by the user anyways
+%%   binaries, there's a branch kicking around which proves it
 %% string uses partial_utf/1 to cease parsing when invalid encodings are 
 %%   encountered rather than just checking remaining binary size like other 
-%%   states
+%%   states to eliminate certain incomplete states
 string(Bin, Stack, Opts) -> string(Bin, Stack, Opts, []).
 
 string(<<?quote/?utfx, Rest/binary>>, [key|_] = Stack, Opts, Acc) ->
@@ -376,8 +376,7 @@ string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
 string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
         when S > 16#fdef, S < 16#fffe ->
     string(Rest, Stack, Opts, [S] ++ Acc);
-%% i think doing it like this is faster than just putting this clause first.
-%%   yes, i think it's insane too
+%% yes, i think it's insane too
 string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
         when S > 16#ffff andalso
             S =/= 16#1fffe andalso S =/= 16#1ffff andalso
@@ -591,7 +590,6 @@ escape(Bin, Stack, Opts, Acc) ->
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped 
 %%   unicode codepoint sequences.
-%% fuck json escaping. new rule: if it's not a valid codepoint, it's an error
 escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A]) 
         when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
