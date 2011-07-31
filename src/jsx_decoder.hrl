@@ -354,12 +354,12 @@ key(Bin, Stack, Opts) ->
 %% string uses partial_utf/1 to cease parsing when invalid encodings are 
 %%   encountered rather than just checking remaining binary size like other 
 %%   states
-string(Bin, Stack, Opts) -> string(Bin, Stack, Opts, <<>>).
+string(Bin, Stack, Opts) -> string(Bin, Stack, Opts, []).
 
 string(<<?quote/?utfx, Rest/binary>>, [key|_] = Stack, Opts, Acc) ->
-    {jsx, {key, Acc}, fun() -> colon(Rest, Stack, Opts) end};
+    {jsx, {key, unicode:characters_to_binary(lists:reverse(Acc))}, fun() -> colon(Rest, Stack, Opts) end};
 string(<<?quote/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    {jsx, {string, Acc}, fun() -> 
+    {jsx, {string, unicode:characters_to_binary(lists:reverse(Acc))}, fun() -> 
         maybe_done(Rest, Stack, Opts)
     end};
 string(<<?rsolidus/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
@@ -369,11 +369,11 @@ string(<<?rsolidus/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
 %% the range 32..16#fdcf is safe, so allow that
 string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S), S < 16#fdd0 ->
-    string(Rest, Stack, Opts, <<Acc/binary, S/utf8>>);
+    string(Rest, Stack, Opts, [S] ++ Acc);
 %% the range 16#fdf0..16#fffd is also safe
 string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
         when S > 16#fdef, S < 16#fffe ->
-    string(Rest, Stack, Opts, <<Acc/binary, S/utf8>>);
+    string(Rest, Stack, Opts, [S] ++ Acc);
 %% i think doing it like this is faster than just putting this clause first.
 %%   yes, i think it's insane too
 string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
@@ -394,7 +394,7 @@ string(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc)
             S =/= 16#efffe andalso S =/= 16#effff andalso
             S =/= 16#ffffe andalso S =/= 16#fffff andalso
             S =/= 16#10fffe andalso S =/= 16#10ffff ->
-    string(Rest, Stack, Opts, <<Acc/binary, S/utf8>>);
+    string(Rest, Stack, Opts, [S] ++ Acc);
 string(Bin, Stack, Opts, Acc) ->
     case partial_utf(Bin) of 
         true -> 
@@ -476,14 +476,14 @@ partial_utf(_) -> false.
 %% non-characters erlang doesn't recognize as non-characters, idiotically
 noncharacter(<<S/utf8, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S) ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% u+fffe and u+ffff
 noncharacter(<<239, 191, X, Rest/binary>>, Stack, Opts, Acc) 
         when X == 190; X == 191 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% surrogates
 noncharacter(<<237, X, _, Rest/binary>>, Stack, Opts, Acc) when X >= 160 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 noncharacter(Bin, _Stack, _Opts, _Acc) ->
     {error, {badjson, Bin}}.
 -endif.
@@ -492,15 +492,15 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 %% non-characters blah blah
 noncharacter(<<S/utf16, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S) ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% u+ffff and u+fffe
 noncharacter(<<255, X, Rest/binary>>, Stack, Opts, Acc)
         when X == 254; X == 255 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% surrogates
 noncharacter(<<X, _, Rest/binary>>, Stack, Opts, Acc)
         when X >= 216, X =< 223 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 noncharacter(Bin, _Stack, _Opts, _Acc) ->
     {error, {badjson, Bin}}.
 -endif.
@@ -509,15 +509,15 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 %% non-characters blah blah
 noncharacter(<<S/utf16-little, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S) ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% u+ffff and u+fffe
 noncharacter(<<X, 255, Rest/binary>>, Stack, Opts, Acc)
         when X == 254; X == 255 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% surrogates
 noncharacter(<<_, X, Rest/binary>>, Stack, Opts, Acc)
         when X >= 216, X =< 223 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 noncharacter(Bin, _Stack, _Opts, _Acc) ->
     {error, {badjson, Bin}}.
 -endif.
@@ -526,15 +526,15 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 %% non-characters blah blah
 noncharacter(<<S/utf32, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S) ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% u+ffff and u+fffe
 noncharacter(<<0, 0, 255, X, Rest/binary>>, Stack, Opts, Acc)
         when X == 254; X == 255 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% surrogates
 noncharacter(<<0, 0, X, _, Rest/binary>>, Stack, Opts, Acc)
         when X >= 216, X =< 223 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 noncharacter(Bin, _Stack, _Opts, _Acc) ->
     {error, {badjson, Bin}}.
 -endif.
@@ -543,15 +543,15 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 %% non-characters blah blah
 noncharacter(<<S/utf32-little, Rest/binary>>, Stack, Opts, Acc)
         when ?is_noncontrol(S) ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% u+ffff and u+fffe
 noncharacter(<<X, 255, 0, 0, Rest/binary>>, Stack, Opts, Acc)
         when X == 254; X == 255 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 %% surrogates
 noncharacter(<<_, X, 0, 0, Rest/binary>>, Stack, Opts, Acc)
         when X >= 216, X =< 223 ->
-    string(Rest, Stack, Opts, <<Acc/binary, 16#fffd/utf8>>);
+    string(Rest, Stack, Opts, [16#fffd] ++ Acc);
 noncharacter(Bin, _Stack, _Opts, _Acc) ->
     {error, {badjson, Bin}}.
 -endif.
@@ -561,20 +561,20 @@ noncharacter(Bin, _Stack, _Opts, _Acc) ->
 %%   escaped_unicode used to hold the codepoint sequence. unescessary, but nicer 
 %%   than using the string accumulator
 escape(<<$b/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    string(Rest, Stack, Opts, <<Acc/binary, "\b">>);
+    string(Rest, Stack, Opts, "\b" ++ Acc);
 escape(<<$f/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    string(Rest, Stack, Opts, <<Acc/binary, "\f">>);
+    string(Rest, Stack, Opts, "\f" ++ Acc);
 escape(<<$n/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    string(Rest, Stack, Opts, <<Acc/binary, "\n">>);
+    string(Rest, Stack, Opts, "\n" ++ Acc);
 escape(<<$r/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    string(Rest, Stack, Opts, <<Acc/binary, "\r">>);
+    string(Rest, Stack, Opts, "\r" ++ Acc);
 escape(<<$t/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    string(Rest, Stack, Opts, <<Acc/binary, "\t">>);
+    string(Rest, Stack, Opts, "\t" ++ Acc);
 escape(<<$u/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
     escaped_unicode(Rest, Stack, Opts, Acc, []);      
 escape(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
-    string(Rest, Stack, Opts, <<Acc/binary, S/utf8>>);
+    string(Rest, Stack, Opts, [S] ++ Acc);
 escape(Bin, Stack, Opts, Acc) ->
     case ?partial_codepoint(Bin) of
         true -> 
@@ -600,7 +600,7 @@ escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A])
         ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest, Stack, Opts, <<String/binary, 16#fffd/utf8>>)
+                    string(Rest, Stack, Opts, [16#fffd] ++ String)
                 ; false ->    
                     {error, {badjson, <<D/?utfx, Rest/binary>>}}
             end
@@ -609,13 +609,13 @@ escaped_unicode(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A])
         ; X when X == 16#0000 ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest, Stack, Opts, <<String/binary, 16#fffd/utf8>>)
+                    string(Rest, Stack, Opts, [16#fffd] ++ String)
                 ; false ->    
                     {error, {badjson, <<D/?utfx, Rest/binary>>}}
             end
         %% anything else
         ; X ->
-            string(Rest, Stack, Opts, <<String/binary, X/utf8>>)
+            string(Rest, Stack, Opts, [X] ++ String)
     end;
 escaped_unicode(<<S/?utfx, Rest/binary>>, Stack, Opts, String, Acc) 
         when ?is_hex(S) ->
@@ -643,7 +643,7 @@ low_surrogate(<<?rsolidus/?utfx, Rest/binary>>, Stack, Opts, String, High) ->
 low_surrogate(<<S/?utfx, Rest/binary>> = Bin, Stack, Opts, String, _) ->
     case Opts#opts.loose_unicode of
         true ->
-            string(Bin, Stack, Opts, <<String/binary, 16#fffd/utf8>>)
+            string(Bin, Stack, Opts, [16#fffd] ++ String)
         ; false ->
             {error, {badjson, <<S/?utfx, Rest/binary>>}}
     end;
@@ -675,7 +675,7 @@ low_surrogate_u(<<S/?utfx, Rest/binary>> = Bin, Stack, Opts, String, _) ->
             string(<<?rsolidus/?utfx, Bin/binary>>,
                 Stack,
                 Opts,
-                <<String/binary, 16#fffd/utf8>>
+                [16#fffd] ++ String
             )
         ; false ->
             {error, {badjson, <<S/?utfx, Rest/binary>>}}
@@ -710,14 +710,13 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], High)
                             string(Rest,
                                 Stack,
                                 Opts,
-                                <<String/binary, 16#fffd/utf8>>
+                                [16#fffd] ++ String
                             )
                         ; false ->    
                             {error, {badjson, <<D/?utfx, Rest/binary>>}}
                     end
-                ; Y ->
-                    io:format("~p ~p~n", [V, Y]),
-                    string(Rest, Stack, Opts, <<String/binary, V/utf8>>)
+                ; _ ->
+                    string(Rest, Stack, Opts, [V] ++ String)
             end
         %% not a low surrogate, bad bad bad
         ; _ ->
