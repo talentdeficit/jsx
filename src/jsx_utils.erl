@@ -233,7 +233,8 @@ detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
     {jsx, incomplete,
         fun(end_stream) ->
                 try
-                    {jsx, incomplete, Next} = (jsx_utf16:decoder(Opts))(<<0, X>>),
+                    {jsx, incomplete, Next} 
+                        = (jsx_utf16:decoder(Opts))(<<0, X>>),
                     Next(end_stream)
                 catch
                     error:function_clause -> {error, {badjson, <<0, X>>}}
@@ -246,7 +247,8 @@ detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
     {jsx, incomplete,
         fun(end_stream) ->
                 try
-                    {jsx, incomplete, Next} = (jsx_utf16le:decoder(Opts))(<<X, 0>>),
+                    {jsx, incomplete, Next} 
+                        = (jsx_utf16le:decoder(Opts))(<<X, 0>>),
                     Next(end_stream)
                 catch
                     error:function_clause -> {error, {badjson, <<X, 0>>}}

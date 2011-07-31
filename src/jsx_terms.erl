@@ -411,7 +411,9 @@ repeated_keys_test_() ->
             )
         },
         {"nested repeated key",
-            ?_assert(json_to_term(<<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>, [])
+            ?_assert(json_to_term(
+                    <<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>,
+                [])
                 =:= [[{<<"a">>, true}], [{<<"a">>, true}]]
             )
         },
@@ -448,7 +450,9 @@ stream_test_() ->
     [
         {"streaming mode",
             ?_assert(begin
-                    {jsx, incomplete, F} = json_to_term(<<"{">>, [{stream, true}]),
+                    {jsx, incomplete, F} = json_to_term(<<"{">>,
+                        [{stream, true}]
+                    ),
                     F(<<"}">>)
                 end =:= [{}])
         }

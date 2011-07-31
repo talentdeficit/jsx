@@ -76,7 +76,9 @@ list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
 
  
 key([{key, Key}|Forms], Stack, Opts) when is_binary(Key) ->
-    {jsx, {key, json_escape(Key, Opts)}, fun() -> value(Forms, Stack, Opts) end};
+    {jsx, {key, json_escape(Key, Opts)}, fun() ->
+        value(Forms, Stack, Opts)
+    end};
 key([end_object|Forms], [object|Stack], Opts) ->
     {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
 key([], Stack, Opts) ->
@@ -89,7 +91,9 @@ key(Forms, _, _) -> {error, {badjson, Forms}}.
 
 
 value([{string, S}|Forms], Stack, Opts) when is_binary(S) ->
-    {jsx, {string, json_escape(S, Opts)}, fun() -> maybe_done(Forms, Stack, Opts) end};
+    {jsx, {string, json_escape(S, Opts)}, fun() ->
+        maybe_done(Forms, Stack, Opts)
+    end};
 value([{float, F}|Forms],  Stack, Opts) when is_float(F) ->
     {jsx, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
 value([{integer, I}|Forms], Stack, Opts) when is_integer(I) ->
@@ -164,10 +168,11 @@ json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s ->
     json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
-json_escape(<<$/, Rest/binary>>, Opts = #opts{escape_forward_slash = true}, Acc) ->
+json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, $\\, $/>>);
 %% escape u+2028 and u+2029 to avoid problems with jsonp
-json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C == 16#2028; C == 16#2029 ->
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
+        when C == 16#2028; C == 16#2029 ->
     json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
@@ -233,7 +238,8 @@ encode_incremental([Term|Terms], F, Expected, Acc) ->
 
 
 loop({error, _}, _) -> error;
-loop({jsx, incomplete, Next}, Acc) -> {jsx, incomplete, Next, lists:reverse(Acc)};
+loop({jsx, incomplete, Next}, Acc) ->
+    {jsx, incomplete, Next, lists:reverse(Acc)};
 loop({jsx, end_json, Next}, Acc) ->
     {jsx, incomplete, F} = Next(),
     {error, {badjson, []}} = F([]),
@@ -311,8 +317,8 @@ escape_test_() ->
             )
         },
         {"microsoft i hate your date format",
-            ?_assert(json_escape(
-                    <<"/Date(1303502009425)/">>, #opts{escape_forward_slash=true}
+            ?_assert(json_escape(<<"/Date(1303502009425)/">>,
+                    #opts{escape_forward_slash=true}
                 ) =:= <<"\\/Date(1303502009425)\\/">>
             )
         }
