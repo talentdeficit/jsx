@@ -194,16 +194,10 @@ load_tests(Path) ->
 load_tests([], _Dir, Acc) ->
     lists:reverse(Acc);
 load_tests([Test|Rest], Dir, Acc) ->
-    %% should alert about badly formed tests eventually, but for now just skip
-    %% over them
     case file:consult(Dir ++ "/" ++ Test) of
         {ok, TestSpec} ->
-            try
-                ParsedTest = parse_tests(TestSpec, Dir),
-                load_tests(Rest, Dir, [ParsedTest] ++ Acc)
-            catch _:_ ->
-                load_tests(Rest, Dir, Acc)
-            end
+            ParsedTest = parse_tests(TestSpec, Dir),
+            load_tests(Rest, Dir, [ParsedTest] ++ Acc)
         ; {error, _Reason} ->
             load_tests(Rest, Dir, Acc)
     end.

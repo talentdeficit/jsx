@@ -15,9 +15,9 @@
  {float,1.0e1},
  {float,1.0e1},
  {float,1.0e1},
- {float,1.325e478534},
+ {float,1.325e278},
  {integer,-1},
  {float,-1.0e-1},
- {float,3.7e-57834235},
+ {float,3.7e-78},
  end_array,end_json]}.
 {json, "numbers.json"}.

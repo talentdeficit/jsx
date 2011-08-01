@@ -839,7 +839,7 @@ integer(<<?decimalpoint/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
 integer(<<?zero/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
     integer(Rest, Stack, Opts, [?zero] ++ Acc);
 integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when S =:= $e; S =:= $E ->
-    e(Rest, Stack, Opts, {lists:reverse(Acc), [], []});
+    e(Rest, Stack, Opts, {Acc, [], []});
 integer(<<S/?utfx, Rest/binary>>, Stack, Opts, Acc) when ?is_whitespace(S) ->
     {jsx, format_number(Acc), fun() ->
         maybe_done(Rest, Stack, Opts)
