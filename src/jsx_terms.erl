@@ -163,8 +163,8 @@ collect(_, _, _) -> erlang:error(badarg).
     
 
 %% helper functions for converting jsx events to term format 
-event({string, String}, _Opts) -> String;
-event({key, Key}, _Opts) -> Key;
+event({string, String}, _Opts) -> unicode:characters_to_binary(String);
+event({key, Key}, _Opts) -> unicode:characters_to_binary(Key);
 event({integer, Integer}, _Opts) -> Integer;
 event({float, Float}, _Opts) -> Float;
 event({literal, Literal}, _Opts) -> Literal.

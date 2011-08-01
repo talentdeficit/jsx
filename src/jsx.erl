@@ -282,10 +282,10 @@ multi_test_result() ->
         [{literal, false}],
         [{literal, null}],
         [start_object, end_object],
-        [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object],
+        [start_object, {key, "key"}, {string, "value"}, end_object],
         [start_array, end_array],
         [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
-        [{string, <<"hope this works">>}]
+        [{string, "hope this works"}]
     ].
 
     

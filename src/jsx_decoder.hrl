@@ -357,11 +357,11 @@ key(Bin, Stack, Opts) ->
 string(Bin, Stack, Opts) -> string(Bin, Stack, Opts, []).
 
 string(<<?quote/?utfx, Rest/binary>>, [key|_] = Stack, Opts, Acc) ->
-    {jsx, {key, unicode:characters_to_binary(lists:reverse(Acc))}, fun() ->
+    {jsx, {key, lists:reverse(Acc)}, fun() ->
         colon(Rest, Stack, Opts)
     end};
 string(<<?quote/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
-    {jsx, {string, unicode:characters_to_binary(lists:reverse(Acc))}, fun() -> 
+    {jsx, {string, lists:reverse(Acc)}, fun() -> 
         maybe_done(Rest, Stack, Opts)
     end};
 string(<<?rsolidus/?utfx, Rest/binary>>, Stack, Opts, Acc) ->
@@ -1228,7 +1228,7 @@ check_bad(List) ->
     ).
 
 check_replaced(List) ->
-    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) ->
+    lists:dropwhile(fun({_, [{string, [16#fffd]}|_]}) ->
                 true
             ; (_) -> 
                 false 

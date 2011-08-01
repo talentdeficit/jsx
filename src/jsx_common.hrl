@@ -43,15 +43,15 @@
         | utf32
         | {utf32, little}
     }.
-
+    
 
 -type jsx_event() :: start_object
     | end_object
     | start_array
     | end_array
     | end_json
-    | {key, binary()}
-    | {string, binary()}
+    | {key, list()}
+    | {string, list()}
     | {integer, integer()}
     | {float, float()}
     | {literal, true}
