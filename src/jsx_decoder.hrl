@@ -568,7 +568,8 @@ escaped_unicode(Bin, Stack, Opts, String, Acc) ->
 
 low_surrogate(<<?rsolidus/?utfx, Rest/binary>>, Stack, Opts, String, High) ->
     low_surrogate_u(Rest, Stack, Opts, String, High);
-%% not an escaped codepoint, our high codepoint is illegal
+%% not an escaped codepoint, our high codepoint is illegal. dispatch back to
+%%   string to handle
 low_surrogate(<<S/?utfx, Rest/binary>> = Bin, Stack, Opts, String, _) ->
     case Opts#opts.loose_unicode of
         true ->
@@ -608,15 +609,10 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], H)
     case erlang:list_to_integer([A, B, C, D], 16) of
         X when X >= 16#dc00, X =< 16#dfff ->
             V = surrogate_to_codepoint(H, X),
-            case V rem 16#10000 of
-                Y when Y == 16#fffe; Y == 16#ffff ->
+            case V rem 16#10000 of Y when Y == 16#fffe; Y == 16#ffff ->
                     case Opts#opts.loose_unicode of
                         true ->
-                            string(Rest,
-                                Stack,
-                                Opts,
-                                [16#fffd] ++ String
-                            )
+                            string(Rest, Stack, Opts, [16#fffd] ++ String)
                         ; false ->    
                             {error, {badjson, <<D/?utfx, Rest/binary>>}}
                     end
@@ -627,11 +623,7 @@ low_surrogate(<<D/?utfx, Rest/binary>>, Stack, Opts, String, [C, B, A], H)
         ; _ ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest,
-                        Stack,
-                        Opts,
-                        [16#fffd, 16#fffd] ++ String
-                    )
+                    string(Rest, Stack, Opts, [16#fffd, 16#fffd] ++ String)
                 ; false ->    
                     {error, {badjson, <<D/?utfx, Rest/binary>>}}
             end
