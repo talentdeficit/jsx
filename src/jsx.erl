@@ -199,7 +199,7 @@ load_tests([Test|Rest], Dir, Acc) ->
             ParsedTest = parse_tests(TestSpec, Dir),
             load_tests(Rest, Dir, [ParsedTest] ++ Acc)
         ; {error, _Reason} ->
-            load_tests(Rest, Dir, Acc)
+            erlang:error(Test)
     end.
 
 
