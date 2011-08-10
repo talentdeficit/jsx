@@ -22,6 +22,16 @@
 
 
 
+%% opts record for decoder/encoder
+-record(opts, {
+    loose_unicode = false,
+    encoding = auto,
+    escape_forward_slash = false,   %% does nothing, used by encoder
+    iterate = false
+}).
+
+
+
 -define(is_utf_encoding(X),
     X == utf8
     ; X == utf16

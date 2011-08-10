@@ -28,6 +28,7 @@
 
 -export([decoder/1]).
 
+
 %% exported solely to facilitate stupid trick i shouldn't be using
 -export([start/4,
     maybe_done/4,
@@ -65,19 +66,13 @@
 ]).
 
 
--include("jsx_opts.hrl").
 
+-spec decoder(Opts::#opts{}) -> jsx_decoder().
 
--spec decoder(OptsList::jsx_opts()) -> jsx_decoder().
-
-decoder(OptsList) ->
-    case parse_opts(OptsList) of 
-        {error, badopt} -> {error, badopt}
-        ; Opts -> 
-            case Opts#opts.iterate of
-                true -> fun(JSON) -> start(JSON, iterate, [], Opts) end
-                ; false -> fun(JSON) -> start(JSON, [], [], Opts) end
-            end
+decoder(Opts) ->
+    case Opts#opts.iterate of
+        true -> fun(JSON) -> start(JSON, iterate, [], Opts) end
+        ; false -> fun(JSON) -> start(JSON, [], [], Opts) end
     end.
 
 
@@ -956,7 +951,7 @@ check([H|T], Opts, Acc) ->
 
 
 decode(JSON, Opts) ->
-    F = decoder([iterate] ++ Opts),
+    F = jsx:decoder([iterate] ++ Opts),
     loop(F(JSON), []).
 
 

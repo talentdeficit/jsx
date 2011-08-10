@@ -56,13 +56,18 @@ decoder() -> decoder([]).
 
 
 decoder(OptsList) ->
-    case proplists:get_value(encoding, OptsList, auto) of
-        utf8 -> jsx_utf8:decoder(OptsList)
-        ; utf16 -> jsx_utf16:decoder(OptsList)
-        ; utf32 -> jsx_utf32:decoder(OptsList)
-        ; {utf16, little} -> jsx_utf16le:decoder(OptsList)
-        ; {utf32, little} -> jsx_utf32le:decoder(OptsList)
-        ; auto -> jsx_utils:detect_encoding(OptsList)
+    case parse_opts(OptsList) of
+        {error, badarg} -> {error, badarg}
+        ; Opts ->
+            case Opts#opts.encoding of
+                utf8 -> jsx_utf8:decoder(Opts)
+                ; utf16 -> jsx_utf16:decoder(Opts)
+                ; utf32 -> jsx_utf32:decoder(Opts)
+                ; {utf16, little} -> jsx_utf16le:decoder(Opts)
+                ; {utf32, little} -> jsx_utf32le:decoder(Opts)
+                ; auto -> jsx_utils:detect_encoding(Opts)
+                ; _ -> {error, badarg}
+            end
     end.
 
 
@@ -71,9 +76,13 @@ decoder(OptsList) ->
 encoder() -> encoder([]).
 
 
--spec encoder(Opts::jsx_opts()) -> jsx_encoder().
+-spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
 
-encoder(Opts) -> jsx_encoder:encoder(Opts).
+encoder(OptsList) ->
+    case parse_opts(OptsList) of
+        {error, badarg} -> {error, badarg}
+        ; Opts -> jsx_encoder:encoder(Opts)
+    end.
 
 
 -spec json_to_term(JSON::binary()) -> jsx_term().
@@ -137,6 +146,26 @@ format(JSON) ->
 format(JSON, Opts) ->
     jsx_format:format(JSON, Opts).
 
+
+
+parse_opts(Opts) ->
+    parse_opts(Opts, #opts{}).
+
+parse_opts([], Opts) ->
+    Opts;
+parse_opts([loose_unicode|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{loose_unicode=true});
+parse_opts([iterate|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{iterate=true});
+parse_opts([escape_forward_slash|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escape_forward_slash=true});
+parse_opts([{encoding, Encoding}|Rest], Opts)
+        when Encoding =:= utf8; Encoding =:= utf16; Encoding =:= utf32;
+            Encoding =:= {utf16,little}; Encoding =:= {utf32,little};
+            Encoding =:= auto ->
+    parse_opts(Rest, Opts#opts{encoding=Encoding});
+parse_opts(_, _) ->
+    {error, badarg}.
 
 
 -ifdef(TEST).

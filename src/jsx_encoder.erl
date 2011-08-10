@@ -23,6 +23,10 @@
 
 -module(jsx_encoder).
 
+
+-include("jsx_common.hrl").
+
+
 -export([start/3,
     list_or_object/4,
     key/4,
@@ -34,14 +38,9 @@
 -export([encoder/1]).
 
 
--include("jsx_common.hrl").
--include("jsx_opts.hrl").
+-spec encoder(Opts::#opts{}) -> jsx_encoder().
 
-
--spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
-
-encoder(OptsList) ->
-    Opts = parse_opts(OptsList),
+encoder(Opts) ->
     case Opts#opts.iterate of
         true ->
             fun(Forms) -> start(Forms, iterate, Opts) end
@@ -217,7 +216,7 @@ encode(Terms) ->
 
 
 encode_simple(Terms) ->    
-    case (encoder([]))(Terms) of
+    case (jsx:encoder([]))(Terms) of
         {jsx, Terms, _} ->
             true
         %% matches [foo, end_json], aka naked terms
@@ -229,7 +228,7 @@ encode_simple(Terms) ->
 
 
 encode_iterative(Terms) ->
-    case loop((encoder([iterate]))(Terms), []) of
+    case loop((jsx:encoder([iterate]))(Terms), []) of
         {ok, Terms} ->
             true
         %% matches naked terms
