@@ -41,7 +41,7 @@
             binary() | iolist().
     
 format(JSON, OptsList) when is_binary(JSON) ->
-    P = jsx:decoder(extract_parser_opts(OptsList)),
+    P = jsx:decoder([iterate] ++ extract_parser_opts(OptsList)),
     format(fun() -> P(JSON) end, OptsList);
 format(Terms, OptsList) when is_list(Terms); is_tuple(Terms) ->
     P = jsx:encoder(),

@@ -174,13 +174,19 @@ jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assertEqual(decode(JSON, Flags), JSX)} 
-                | {generator, 
+            [{Name ++ " iterative",
+                ?_assertEqual(iterative_decode(JSON, Flags), JSX)} 
+                    | {generator, 
                         fun() -> [{Name ++ " incremental", ?_assertEqual(
                                 incremental_decode(JSON, Flags), JSX)
-                            } | jsx_decoder_gen(Tests, Encodings)]
-                        end
-                }
+                            } | {generator,
+                                fun() ->
+                                    [{Name, ?_assertEqual(
+                                        decode(JSON, Flags), JSX)
+                                    } | jsx_decoder_gen(Tests, Encodings)]
+                            end}
+                        ]
+                    end}
             ]
         end
     }.
@@ -219,20 +225,33 @@ parse_tests([], _Dir, Acc) ->
 
 decode(JSON, Flags) ->
     P = jsx:decoder(Flags),
-    decode_loop(P(JSON), []).
+    case P(JSON) of
+        {error, {badjson, _}} -> {error, badjson}
+        ; {jsx, incomplete, More} ->
+            case More(end_stream) of
+                {error, {badjson, _}} -> {error, badjson}
+                ; {jsx, T, _} -> T
+            end
+        ; {jsx, T, _} -> T
+    end.
 
-decode_loop({jsx, end_json, _Next}, Acc) ->
+
+iterative_decode(JSON, Flags) ->
+    P = jsx:decoder([iterate] ++ Flags),
+    iterative_decode_loop(P(JSON), []).
+
+iterative_decode_loop({jsx, end_json, _Next}, Acc) ->
     lists:reverse([end_json] ++ Acc);
-decode_loop({jsx, incomplete, More}, Acc) ->
-    decode_loop(More(end_stream), Acc);
-decode_loop({jsx, E, Next}, Acc) ->
-    decode_loop(Next(), [E] ++ Acc);
-decode_loop({error, {badjson, _Error}}, _Acc) ->
+iterative_decode_loop({jsx, incomplete, More}, Acc) ->
+    iterative_decode_loop(More(end_stream), Acc);
+iterative_decode_loop({jsx, E, Next}, Acc) ->
+    iterative_decode_loop(Next(), [E] ++ Acc);
+iterative_decode_loop({error, {badjson, _Error}}, _Acc) ->
     {error, badjson}.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = jsx:decoder(Flags),
+	P = jsx:decoder([iterate] ++ Flags),
 	incremental_decode_loop(P(C), Rest, []).
 
 incremental_decode_loop({jsx, incomplete, Next}, <<>>, Acc) ->
@@ -257,7 +276,7 @@ multi_decode_test_() ->
 
 	
 multi_decode(JSON, Flags) ->
-    P = jsx:decoder(Flags ++ [multi_term]),
+    P = jsx:decoder([multi_term, iterate] ++ Flags),
     multi_decode_loop(P(JSON), [[]]).
 
 multi_decode_loop({jsx, incomplete, _Next}, [[]|Acc]) ->

@@ -34,8 +34,45 @@
     array/4,
     value/4,
     colon/4,
-    key/4
+    key/4,
+    string/5,
+    escape/5,
+    escaped_unicode/6,
+    low_surrogate/6,
+    low_surrogate_u/6,
+    low_surrogate/7,
+    negative/5,
+    zero/5,
+    integer/5,
+    initial_decimal/5,
+    decimal/5,
+    e/5,
+    ex/5,
+    exp/5,
+    tr/4,
+    tru/4,
+    true/4,
+    fa/4,
+    fal/4,
+    fals/4,
+    false/4,
+    nu/4,
+    nul/4,
+    null/4,
+    bad_json/2
 ]).
+
+
+
+%% opts record for decoder
+-record(opts, {
+    multi_term = false,
+    loose_unicode = false,
+    encoding = auto,
+    escape_forward_slash = false,   %% does nothing, used by encoder
+    iterate = false
+}).
+
 
 
 -export([decoder/1]).
@@ -45,17 +82,13 @@
 decoder(OptsList) ->
     case parse_opts(OptsList) of 
         {error, badopt} -> {error, badopt}
-        ; Opts -> fun(JSON) -> start(JSON, iterate, [], Opts) end
+        ; Opts -> 
+            case Opts#opts.iterate of
+                true -> fun(JSON) -> start(JSON, iterate, [], Opts) end
+                ; false -> fun(JSON) -> start(JSON, [], [], Opts) end
+            end
     end.
 
-  
-%% opts record for decoder
--record(opts, {
-    multi_term = false,
-    loose_unicode = false,
-    encoding = auto,
-    escape_forward_slash = false    %% does nothing, used by encoder
-}).
 
 
 %% converts a proplist into a tuple
@@ -68,6 +101,8 @@ parse_opts([multi_term|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{multi_term=true});
 parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{loose_unicode=true});
+parse_opts([iterate|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{iterate=true});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts(_, _) ->
@@ -217,35 +252,36 @@ partial_utf(_) -> false.
 -endif.
 
 
--define(incomplete(Next),
+incomplete(State, Bin, T, Args) ->
     case ?partial_codepoint(Bin) of
         true ->
-            {jsx, incomplete, fun(end_stream) -> 
-                    {error, {badjson, Bin}}
-                ; (Stream) ->
-                    Next 
-            end}
+            emit([incomplete], {State, Bin, T, Args})
         ; false -> {error, {badjson, Bin}}
-    end
-).
+    end.
 
 %% emit takes a list of `events` to present to client code and formats them
 %%    appropriately
-emit([incomplete], {State, Rest, iterate, Args}) ->
+emit([], {State, Rest, T, Args}) ->
+    erlang:apply(?MODULE, State, [Rest, T] ++ Args);
+emit([incomplete], {State, Rest, T, Args}) ->
     {jsx, incomplete, fun(end_stream) ->
             {error, {badjson, <<>>}}
         ; (Stream) ->
             erlang:apply(?MODULE,
                 State,
-                [<<Rest/binary, Stream/binary>>, iterate] ++ Args
+                [<<Rest/binary, Stream/binary>>, T] ++ Args
             )
     end};
-emit([Event], {State, Rest, iterate, Args}) ->
-    {jsx, Event, fun() ->
-        erlang:apply(?MODULE, State, [Rest, iterate] ++ Args)
-    end};
-emit([Event|Rest], {_State, _Rest, iterate, _Args} = Next) ->
-    {jsx, Event, fun() -> emit(Rest, Next) end}.
+emit([Event|Events], {_State, _Rest, iterate, _Args} = Next) ->
+    {jsx, Event, fun() -> emit(Events, Next) end};
+emit([end_json|Events], {_State, _Rest, T, _Args} = Next) ->
+    {jsx, lists:reverse([end_json] ++ T), fun() -> emit(Events, Next) end};
+emit([Event|Events], {State, Rest, T, Args}) ->
+    emit(Events, {State, Rest, [Event] ++ T, Args}).
+
+
+
+bad_json(Stream, _) -> {error, {badjson, Stream}}.
 
 
 
@@ -270,7 +306,7 @@ start(<<?zero/?utfx, Rest/binary>>, T, Stack, Opts) ->
 start(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, T, Stack, Opts, [S]);
 start(Bin, T, Stack, Opts) ->
-    ?incomplete(start(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(start, Bin, T, [Stack, Opts]).
 
 
 maybe_done(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
@@ -288,7 +324,7 @@ maybe_done(Rest, T, [], #opts{multi_term=true}=Opts) ->
 maybe_done(Rest, T, [], Opts) ->
     done(Rest, T, Opts);
 maybe_done(Bin, T, Stack, Opts) -> 
-    ?incomplete(maybe_done(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(maybe_done, Bin, T, [Stack, Opts]).
 
 
 done(<<S/?utfx, Rest/binary>>, T, Opts) when ?is_whitespace(S) ->
@@ -296,7 +332,7 @@ done(<<S/?utfx, Rest/binary>>, T, Opts) when ?is_whitespace(S) ->
 done(<<>>, T, Opts) ->
     emit([end_json, incomplete], {done, <<>>, T, [Opts]});
 done(Bin, T, Opts) ->
-    ?incomplete(done(<<Bin/binary, Stream/binary>>, T, Opts)).
+    incomplete(done, Bin, T, [Opts]).
 
 
 object(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
@@ -306,7 +342,7 @@ object(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
 object(<<?end_object/?utfx, Rest/binary>>, T, [key|Stack], Opts) ->
     emit([end_object], {maybe_done, Rest, T, [Stack, Opts]});
 object(Bin, T, Stack, Opts) ->
-    ?incomplete(object(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(object, Bin, T, [Stack, Opts]).
 
 
 array(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
@@ -332,7 +368,7 @@ array(<<?start_array/?utfx, Rest/binary>>, T, Stack, Opts) ->
 array(<<?end_array/?utfx, Rest/binary>>, T, [array|Stack], Opts) ->
     emit([end_array], {maybe_done, Rest, T, [Stack, Opts]});
 array(Bin, T, Stack, Opts) ->
-    ?incomplete(array(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(array, Bin, T, [Stack, Opts]).
 
 
 value(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
@@ -356,7 +392,7 @@ value(<<?start_object/?utfx, Rest/binary>>, T, Stack, Opts) ->
 value(<<?start_array/?utfx, Rest/binary>>, T, Stack, Opts) ->
     emit([start_array], {array, Rest, T, [[array|Stack], Opts]});
 value(Bin, T, Stack, Opts) ->
-    ?incomplete(value(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(value, Bin, T, [Stack, Opts]).
 
 
 colon(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
@@ -364,7 +400,7 @@ colon(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
 colon(<<?colon/?utfx, Rest/binary>>, T, [key|Stack], Opts) ->
     value(Rest, T, [object|Stack], Opts);
 colon(Bin, T, Stack, Opts) ->
-    ?incomplete(colon(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(colon, Bin, T, [Stack, Opts]).
 
 
 key(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
@@ -372,7 +408,7 @@ key(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
 key(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
     string(Rest, T, Stack, Opts);
 key(Bin, T, Stack, Opts) ->
-    ?incomplete(key(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(key, Bin, T, [Stack, Opts]).
 
 
 %% string has an additional parameter, an accumulator (Acc) used to hold the 
@@ -423,11 +459,7 @@ string(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc)
 string(Bin, T, Stack, Opts, Acc) ->
     case partial_utf(Bin) of 
         true -> 
-            {jsx, incomplete, fun(end_stream) -> 
-                    {error, {badjson, Bin}}
-                ; (Stream) -> 
-                    string(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)
-            end}
+            emit([incomplete], {string, Bin, T, [Stack, Opts, Acc]})
         ; false ->
             case Opts#opts.loose_unicode of
                 true -> noncharacter(Bin, T, Stack, Opts, Acc)
@@ -543,7 +575,7 @@ escape(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc)
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, T, Stack, Opts, [S] ++ Acc);
 escape(Bin, T, Stack, Opts, Acc) ->
-    ?incomplete(escape(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(escape, Bin, T, [Stack, Opts, Acc]).
 
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped 
@@ -579,9 +611,7 @@ escaped_unicode(<<S/?utfx, Rest/binary>>, T, Stack, Opts, String, Acc)
         when ?is_hex(S) ->
     escaped_unicode(Rest, T, Stack, Opts, String, [S] ++ Acc);
 escaped_unicode(Bin, T, Stack, Opts, String, Acc) ->
-    ?incomplete(
-        escaped_unicode(<<Bin/binary, Stream/binary>>, T, Stack, Opts, String, Acc)
-    ).
+    incomplete(escaped_unicode, Bin, T, [Stack, Opts, String, Acc]).
 
 
 low_surrogate(<<?rsolidus/?utfx, Rest/binary>>, T, Stack, Opts, String, High) ->
@@ -596,9 +626,7 @@ low_surrogate(<<S/?utfx, Rest/binary>> = Bin, T, Stack, Opts, String, _) ->
             {error, {badjson, <<S/?utfx, Rest/binary>>}}
     end;
 low_surrogate(Bin, T, Stack, Opts, String, High) ->
-    ?incomplete(
-        low_surrogate(<<Bin/binary, Stream/binary>>, T, Stack, Opts, String, High) 
-    ).
+    incomplete(low_surrogate, Bin, T, [Stack, Opts, String, High]).
 
 
 low_surrogate_u(<<$u/?utfx, Rest/binary>>, T, Stack, Opts, String, H) ->
@@ -618,9 +646,7 @@ low_surrogate_u(<<S/?utfx, Rest/binary>> = Bin, T, Stack, Opts, String, _) ->
             {error, {badjson, <<S/?utfx, Rest/binary>>}}
     end;
 low_surrogate_u(Bin, T, Stack, Opts, String, H) ->
-    ?incomplete(
-        low_surrogate_u(<<Bin/binary, Stream/binary>>, T, Stack, Opts, String, H)
-    ).
+    incomplete(low_surrogate_u, Bin, T, [Stack, Opts, String, H]).
 
 
 low_surrogate(<<D/?utfx, Rest/binary>>, T, Stack, Opts, String, [C, B, A], H) 
@@ -651,11 +677,7 @@ low_surrogate(<<S/?utfx, Rest/binary>>, T, Stack, Opts, String, Acc, H)
         when ?is_hex(S) ->
     low_surrogate(Rest, T, Stack, Opts, String, [S] ++ Acc, H);
 low_surrogate(Bin, T, Stack, Opts, String, Acc, H) ->
-    ?incomplete(
-        low_surrogate(
-            <<Bin/binary, Stream/binary>>, T, Stack, Opts, String, Acc, H
-        )
-    ).
+    incomplete(low_surrogate, Bin, T, [Stack, Opts, String, Acc, H]).
 
 
 %% stole this from the unicode spec    
@@ -670,7 +692,7 @@ negative(<<$0/?utfx, Rest/binary>>, T, Stack, Opts, Acc) ->
 negative(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_nonzero(S) ->
     integer(Rest, T, Stack, Opts, [S] ++ Acc);
 negative(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(negative(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(negative, Bin, T, [Stack, Opts, Acc]).
 
 
 zero(<<?end_object/?utfx, Rest/binary>>, T, [object|Stack], Opts, Acc) ->
@@ -687,12 +709,13 @@ zero(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
     emit([format_number(Acc)], {maybe_done, Rest, T, [Stack, Opts]});
 zero(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
-            emit([format_number(Acc), end_json],
-                {decimal, <<>>, T, [[], Opts, Acc]})
+            emit([format_number(Acc), end_json, incomplete],
+                {bad_json, <<>>, T, []}
+            )
         ; (Stream) -> zero(Stream, T, [], Opts, Acc)
     end};
 zero(Bin, T, Stack, Opts, Acc) ->
-    ?incomplete(zero(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(zero, Bin, T, [Stack, Opts, Acc]).
 
 
 integer(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_nonzero(S) ->
@@ -715,21 +738,20 @@ integer(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
     emit([format_number(Acc)], {maybe_done, Rest, T, [Stack, Opts]});
 integer(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
-            emit([format_number(Acc), end_json],
-                {decimal, <<>>, T, [[], Opts, Acc]})
+            emit([format_number(Acc), end_json, incomplete],
+                {bad_json, <<>>, T, []}
+            )
         ; (Stream) -> integer(Stream, T, [], Opts, Acc)
     end};
 integer(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(integer(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(integer, Bin, T, [Stack, Opts, Acc]).
 
 
 initial_decimal(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac})
         when S =:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, T, Stack, Opts, {Int, [S] ++ Frac});
 initial_decimal(Bin, T, Stack, Opts, Acc) ->
-    ?incomplete(
-        initial_decimal(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)
-    ).
+    incomplete(initial_decimal, Bin, T, [Stack, Opts, Acc]).
 
 
 decimal(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac})
@@ -750,12 +772,13 @@ decimal(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
     emit([format_number(Acc)], {maybe_done, Rest, T, [Stack, Opts]});
 decimal(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
-            emit([format_number(Acc), end_json],
-                {decimal, <<>>, T, [[], Opts, Acc]})
+            emit([format_number(Acc), end_json, incomplete],
+                {bad_json, <<>>, T, []}
+            )
         ; (Stream) -> decimal(Stream, T, [], Opts, Acc)
     end};
 decimal(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(decimal(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(decimal, Bin, T, [Stack, Opts, Acc]).
 
 
 e(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac, Exp})
@@ -765,14 +788,14 @@ e(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac, Exp})
         when S =:= ?positive; S =:= ?negative ->
     ex(Rest, T, Stack, Opts, {Int, Frac, [S] ++ Exp});
 e(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(e(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(e, Bin, T, [Stack, Opts, Acc]).
 
 
 ex(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac, Exp})
         when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, T, Stack, Opts, {Int, Frac, [S] ++ Exp});
 ex(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(ex(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(ex, Bin, T, [Stack, Opts, Acc]).
 
 
 exp(<<S/?utfx, Rest/binary>>, T, Stack, Opts, {Int, Frac, Exp})
@@ -790,12 +813,13 @@ exp(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
     emit([format_number(Acc)], {maybe_done, Rest, T, [Stack, Opts]});
 exp(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
-            emit([format_number(Acc), end_json],
-                {exp, <<>>, T, [[], Opts, Acc]})
+            emit([format_number(Acc), end_json, incomplete],
+                {bad_json, <<>>, T, []}
+            )
         ; (Stream) -> exp(Stream, T, [], Opts, Acc)
     end};
 exp(Bin, T, Stack, Opts, Acc) ->  
-    ?incomplete(exp(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)).
+    incomplete(exp, Bin, T, [Stack, Opts, Acc]).
 
 
 format_number(Int) when is_list(Int) ->
@@ -811,61 +835,61 @@ format_number({Int, Frac, Exp}) ->
 tr(<<$r/?utfx, Rest/binary>>, T, Stack, Opts) ->
     tru(Rest, T, Stack, Opts);
 tr(Bin, T, Stack, Opts) ->  
-    ?incomplete(tr(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(tr, Bin, T, [Stack, Opts]).
 
 
 tru(<<$u/?utfx, Rest/binary>>, T, Stack, Opts) ->
     true(Rest, T, Stack, Opts);
 tru(Bin, T, Stack, Opts) ->  
-    ?incomplete(tru(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(tru, Bin, T, [Stack, Opts]).
 
 
 true(<<$e/?utfx, Rest/binary>>, T, Stack, Opts) ->
     emit([{literal, true}], {maybe_done, Rest, T, [Stack, Opts]});
 true(Bin, T, Stack, Opts) ->
-    ?incomplete(true(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(true, Bin, T, [Stack, Opts]).
 
 
 fa(<<$a/?utfx, Rest/binary>>, T, Stack, Opts) ->
     fal(Rest, T, Stack, Opts);
 fa(Bin, T, Stack, Opts) ->
-    ?incomplete(fa(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(fa, Bin, T, [Stack, Opts]).
     
 
 fal(<<$l/?utfx, Rest/binary>>, T, Stack, Opts) ->
     fals(Rest, T, Stack, Opts);
 fal(Bin, T, Stack, Opts) ->
-    ?incomplete(fal(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(fal, Bin, T, [Stack, Opts]).
     
 
 fals(<<$s/?utfx, Rest/binary>>, T, Stack, Opts) ->
     false(Rest, T, Stack, Opts);
 fals(Bin, T, Stack, Opts) ->
-    ?incomplete(fals(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(fals, Bin, T, [Stack, Opts]).
     
 
 false(<<$e/?utfx, Rest/binary>>, T, Stack, Opts) ->
     emit([{literal, false}], {maybe_done, Rest, T, [Stack, Opts]});
 false(Bin, T, Stack, Opts) ->
-    ?incomplete(false(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(false, Bin, T, [Stack, Opts]).
 
 
 nu(<<$u/?utfx, Rest/binary>>, T, Stack, Opts) ->
     nul(Rest, T, Stack, Opts);
 nu(Bin, T, Stack, Opts) ->
-    ?incomplete(nu(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(nu, Bin, T, [Stack, Opts]).
 
 
 nul(<<$l/?utfx, Rest/binary>>, T, Stack, Opts) ->
     null(Rest, T, Stack, Opts);
 nul(Bin, T, Stack, Opts) ->
-    ?incomplete(nul(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(nul, Bin, T, [Stack, Opts]).
 
 
 null(<<$l/?utfx, Rest/binary>>, T, Stack, Opts) ->
     emit([{literal, null}], {maybe_done, Rest, T, [Stack, Opts]});
 null(Bin, T, Stack, Opts) ->
-    ?incomplete(null(<<Bin/binary, Stream/binary>>, T, Stack, Opts)).
+    incomplete(null, Bin, T, [Stack, Opts]).
 
 
 
@@ -964,7 +988,7 @@ check([H|T], Opts, Acc) ->
 
 
 decode(JSON, Opts) ->
-    F = decoder(Opts),
+    F = decoder([iterate] ++ Opts),
     loop(F(JSON), []).
 
 

@@ -38,7 +38,7 @@
         ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
     
 is_json(JSON, OptsList) when is_binary(JSON) ->
-    P = jsx:decoder(extract_parser_opts(OptsList)),
+    P = jsx:decoder([iterate] ++ extract_parser_opts(OptsList)),
     is_json(fun() -> P(JSON) end, OptsList);
 is_json(Terms, OptsList) when is_list(Terms) ->
     P = jsx:encoder(),
