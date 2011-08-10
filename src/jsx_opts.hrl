@@ -43,6 +43,8 @@ parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{loose_unicode=true});
 parse_opts([iterate|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{iterate=true});
+parse_opts([escape_forward_slash|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escape_forward_slash=true});
 parse_opts([{encoding, _}|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts(_, _) ->

@@ -44,7 +44,7 @@ format(JSON, OptsList) when is_binary(JSON) ->
     P = jsx:decoder([iterate] ++ extract_parser_opts(OptsList)),
     format(fun() -> P(JSON) end, OptsList);
 format(Terms, OptsList) when is_list(Terms); is_tuple(Terms) ->
-    P = jsx:encoder(),
+    P = jsx:encoder([iterate]),
     format(fun() -> P(Terms) end, OptsList);
 format(F, OptsList) when is_function(F) ->
     Opts = parse_opts(OptsList, #format_opts{}),

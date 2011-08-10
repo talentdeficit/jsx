@@ -23,116 +23,127 @@
 
 -module(jsx_encoder).
 
+-export([start/3,
+    list_or_object/4,
+    key/4,
+    value/4,
+    maybe_done/4,
+    bad_json/2
+]).
 
 -export([encoder/1]).
 
 
 -include("jsx_common.hrl").
+-include("jsx_opts.hrl").
 
 
--record(opts, {
-    multi_term = false,
-    encoding = auto,
-    loose_unicode = false,      %% does nothing, used by decoder
-    escape_forward_slash = false
-}).
+-spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
+
+encoder(OptsList) ->
+    Opts = parse_opts(OptsList),
+    case Opts#opts.iterate of
+        true ->
+            fun(Forms) -> start(Forms, iterate, Opts) end
+        ; false ->
+            fun(Forms) -> start(Forms, [], Opts) end
+    end.
 
 
--spec encoder(Opts::jsx_opts()) -> jsx_encoder().
 
-encoder(Opts) -> fun(Forms) -> start(Forms, Opts) end.
-    
-
--define(ENDJSON,
-    {jsx, end_json, fun() -> 
-        {jsx, incomplete, fun(Forms) -> {error, {badjson, Forms}} end} 
-    end}
-).
-
-    
-start({string, String}, Opts) when is_binary(String) ->
-    {jsx, {string, json_escape(String, Opts)}, fun() -> ?ENDJSON end};
-start({float, Float}, _Opts) when is_float(Float) ->
-    {jsx, {float, Float}, fun() -> ?ENDJSON end};
-start({integer, Int}, _Opts) when is_integer(Int) ->
-    {jsx, {integer, Int}, fun() -> ?ENDJSON end};
-start({literal, Atom}, _Opts) when Atom == true; Atom == false; Atom == null ->
-    {jsx, {literal, Atom}, fun() -> ?ENDJSON end};
-%% second parameter is a stack to match end_foos to start_foos
-start(Forms, Opts) -> list_or_object(Forms, [], Opts).
-
-
-list_or_object([start_object|Forms], Stack, Opts) ->
-    {jsx, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
-list_or_object([start_array|Forms], Stack, Opts) ->
-    {jsx, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
-list_or_object([], Stack, Opts) ->
-    {jsx, incomplete, fun(end_stream) -> 
+%% emit takes a list of `events` to present to client code and formats them
+%%    appropriately
+emit([], {State, Rest, T, Args}) ->
+    erlang:apply(?MODULE, State, [Rest, T] ++ Args);
+emit([incomplete], {State, Rest, T, Args}) ->
+    {jsx, incomplete, fun(end_stream) ->
             {error, {badjson, []}}
-        ; (Stream) -> 
-            list_or_object(Stream, Stack, Opts) 
+        ; (Stream) ->
+            erlang:apply(?MODULE,
+                State,
+                [Rest ++ Stream, T] ++ Args
+            )
     end};
-list_or_object(Forms, _, _) -> {error, {badjson, Forms}}.
+emit([Event|Events], {_State, _Rest, iterate, _Args} = Next) ->
+    {jsx, Event, fun() -> emit(Events, Next) end};
+emit([end_json|Events], {_State, _Rest, T, _Args} = Next) ->
+    {jsx, lists:reverse([end_json] ++ T), fun() -> emit(Events, Next) end};
+emit([Event|Events], {State, Rest, T, Args}) ->
+    emit(Events, {State, Rest, [Event] ++ T, Args}).
+
+
+bad_json(Stream, _) -> {error, {badjson, Stream}}.
+
+    
+start({string, String}, T, Opts) when is_binary(String) ->
+    emit([{string, json_escape(String, Opts)}, end_json, incomplete],
+        {bad_json, [], T, []}
+    );
+start({float, Float}, T, _Opts) when is_float(Float) ->
+    emit([{float, Float}, end_json, incomplete], {bad_json, [], T, []});
+start({integer, Int}, T, _Opts) when is_integer(Int) ->
+    emit([{integer, Int}, end_json, incomplete], {bad_json, [], T, []});
+start({literal, Atom}, T, _Opts) when Atom == true; Atom == false; Atom == null ->
+    emit([{literal, Atom}, end_json, incomplete], {bad_json, [], T, []});
+%% third parameter is a stack to match end_foos to start_foos
+start(Forms, T, Opts) -> list_or_object(Forms, T, [], Opts).
+
+
+list_or_object([start_object|Forms], T, Stack, Opts) ->
+    emit([start_object], {key, Forms, T, [[object] ++ Stack, Opts]});
+list_or_object([start_array|Forms], T, Stack, Opts) ->
+    emit([start_array], {value, Forms, T, [[array] ++ Stack, Opts]});
+list_or_object([], T, Stack, Opts) ->
+    emit([incomplete], {list_or_object, [], T, [Stack, Opts]});
+list_or_object(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
  
-key([{key, Key}|Forms], Stack, Opts) when is_binary(Key) ->
-    {jsx, {key, json_escape(Key, Opts)}, fun() ->
-        value(Forms, Stack, Opts)
-    end};
-key([end_object|Forms], [object|Stack], Opts) ->
-    {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
-key([], Stack, Opts) ->
-    {jsx, incomplete, fun(end_stream) -> 
-            {error, {badjson, []}}
-        ; (Stream) -> 
-            key(Stream, Stack, Opts) 
-    end};
-key(Forms, _, _) -> {error, {badjson, Forms}}.
+key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key) ->
+    emit([{key, json_escape(Key, Opts)}], {value, Forms, T, [Stack, Opts]});
+key([end_object|Forms], T, [object|Stack], Opts) ->
+    emit([end_object], {maybe_done, Forms, T, [Stack, Opts]});
+key([], T, Stack, Opts) ->
+    emit([incomplete], {key, [], T, [Stack, Opts]});
+key(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
 
-value([{string, S}|Forms], Stack, Opts) when is_binary(S) ->
-    {jsx, {string, json_escape(S, Opts)}, fun() ->
-        maybe_done(Forms, Stack, Opts)
-    end};
-value([{float, F}|Forms],  Stack, Opts) when is_float(F) ->
-    {jsx, {float, F}, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([{integer, I}|Forms], Stack, Opts) when is_integer(I) ->
-    {jsx, {integer, I}, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([{literal, L}|Forms], Stack, Opts)
+value([{string, S}|Forms], T, Stack, Opts) when is_binary(S) ->
+    emit([{string, json_escape(S, Opts)}],
+        {maybe_done, Forms, T, [Stack, Opts]}
+    );
+value([{float, F}|Forms], T, Stack, Opts) when is_float(F) ->
+    emit([{float, F}], {maybe_done, Forms, T, [Stack, Opts]});
+value([{integer, I}|Forms], T, Stack, Opts) when is_integer(I) ->
+    emit([{integer, I}], {maybe_done, Forms, T, [Stack, Opts]});
+value([{literal, L}|Forms], T, Stack, Opts)
         when L == true; L == false; L == null ->
-    {jsx, {literal, L}, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([start_object|Forms], Stack, Opts) ->
-    {jsx, start_object, fun() -> key(Forms, [object] ++ Stack, Opts) end};
-value([start_array|Forms], Stack, Opts) ->
-    {jsx, start_array, fun() -> value(Forms, [array] ++ Stack, Opts) end};
-value([end_array|Forms], [array|Stack], Opts) ->
-    {jsx, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
-value([], Stack, Opts) ->
-    {jsx, incomplete, fun(end_stream) -> 
-            {error, {badjson, []}}
-        ; (Stream) -> 
-            value(Stream, Stack, Opts) 
-    end};
-value(Forms, _, _) -> {error, {badjson, Forms}}.
+    emit([{literal, L}], {maybe_done, Forms, T, [Stack, Opts]});
+value([start_object|Forms], T, Stack, Opts) ->
+    emit([start_object], {key, Forms, T, [[object] ++ Stack, Opts]});
+value([start_array|Forms], T, Stack, Opts) ->
+    emit([start_array], {value, Forms, T, [[array] ++ Stack, Opts]});
+value([end_array|Forms], T, [array|Stack], Opts) ->
+    emit([end_array], {maybe_done, Forms, T, [Stack, Opts]});
+value([], T, Stack, Opts) ->
+    emit([incomplete], {value, [], T, [Stack, Opts]});
+value(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
 
-maybe_done([], [], _) -> ?ENDJSON;
-maybe_done([end_json], [], _) -> ?ENDJSON;
-maybe_done([end_json|Forms], [], #opts{multi_term=true}=Opts) ->
-    {jsx, end_json, fun() -> start(Forms, Opts) end};
-maybe_done([end_object|Forms], [object|Stack], Opts) ->
-    {jsx, end_object, fun() -> maybe_done(Forms, Stack, Opts) end};
-maybe_done([end_array|Forms], [array|Stack], Opts) ->
-    {jsx, end_array, fun() -> maybe_done(Forms, Stack, Opts) end};
-maybe_done(Forms, [object|_] = Stack, Opts) -> key(Forms, Stack, Opts);
-maybe_done(Forms, [array|_] = Stack, Opts) -> value(Forms, Stack, Opts);
-maybe_done([], Stack, Opts) ->
-    {jsx, incomplete, fun(end_stream) -> 
-            {error, {badjson, []}}
-        ; (Stream) -> 
-            maybe_done(Stream, Stack, Opts) 
-    end};
-maybe_done(Forms, _, _) -> {error, {badjson, Forms}}.
+maybe_done([], T, [], _Opts) ->
+    emit([end_json, incomplete], {bad_json, [], T, []});
+maybe_done([end_json], T, [], _Opts) ->
+    emit([end_json, incomplete], {bad_json, [], T, []});
+maybe_done([end_json|Forms], T, [], #opts{multi_term=true}=Opts) ->
+    emit([end_json], {start, Forms, T, [Opts]});
+maybe_done([end_object|Forms], T, [object|Stack], Opts) ->
+    emit([end_object], {maybe_done, Forms, T, [Stack, Opts]});
+maybe_done([end_array|Forms], T, [array|Stack], Opts) ->
+    emit([end_array], {maybe_done, Forms, T, [Stack, Opts]});
+maybe_done(Forms, T, [object|_] = Stack, Opts) -> key(Forms, T, Stack, Opts);
+maybe_done(Forms, T, [array|_] = Stack, Opts) -> value(Forms, T, Stack, Opts);
+maybe_done([], T, Stack, Opts) ->
+    emit([incomplete], {maybe_done, [], T, [Stack, Opts]});
+maybe_done(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
 
 
@@ -199,58 +210,49 @@ to_hex(X) -> X + $0.
 
 
 
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 
-
-encode(Terms) -> encode_whole(Terms) andalso encode_incremental(Terms).
-
-
-encode_whole(Terms) ->
-    case loop((encoder([]))(Terms), []) of
-        %% unwrap naked values
-        {ok, [Terms]} -> true
-        ; {ok, Terms} -> true
-        ; _ -> false
-    end.
+encode(Terms) ->
+    encode_simple(Terms) andalso encode_iterative(Terms).
 
 
-encode_incremental(Terms) when is_list(Terms) ->
-    encode_incremental(Terms, encoder([]), Terms, []);
-%% we could feed naked terms to the regular encoder, but we already do that, so
-%%  cheat instead
-encode_incremental(_) -> true.
-
-encode_incremental([Term], F, Expected, Acc) ->
-    case loop(F([Term]), []) of
-        {ok, R} -> Expected =:= Acc ++ R
-        ; _ -> false
-    end;
-encode_incremental([Term|Terms], F, Expected, Acc) ->
-    case loop(F([Term]), []) of
-        {jsx, incomplete, Next, R} ->
-            encode_incremental(Terms, Next, Expected, Acc ++ R)
-        ; _ ->
+encode_simple(Terms) ->    
+    case (encoder([]))(Terms) of
+        {jsx, Terms, _} ->
+            true
+        %% matches [foo, end_json], aka naked terms
+        ; {jsx, [Terms, end_json], _} ->
+            true
+        ; {error, _} ->
             false
     end.
 
 
-loop({error, _}, _) -> error;
-loop({jsx, incomplete, Next}, Acc) ->
-    {jsx, incomplete, Next, lists:reverse(Acc)};
+encode_iterative(Terms) ->
+    case loop((encoder([iterate]))(Terms), []) of
+        {ok, Terms} ->
+            true
+        %% matches naked terms
+        ; {ok, [Terms, end_json]} ->
+            true
+        ; {error, _} ->
+            false
+    end.
+
 loop({jsx, end_json, Next}, Acc) ->
     {jsx, incomplete, F} = Next(),
-    {error, {badjson, []}} = F([]),
-    {ok, lists:reverse(Acc)};
-loop({jsx, Event, Next}, Acc) -> loop(Next(), [Event] ++ Acc).
+    {error, _} = F([]),
+    {ok, lists:reverse([end_json] ++ Acc)};
+loop({jsx, Event, Next}, Acc) ->
+    loop(Next(), [Event] ++ Acc).
 
 
 encode_test_() ->    
     [
-        {"empty object", ?_assert(encode([start_object, end_object]))},
-        {"empty array", ?_assert(encode([start_array, end_array]) =:= true)},
+        {"empty object", ?_assert(encode([start_object, end_object, end_json]))},
+        {"empty array", ?_assert(encode([start_array, end_array, end_json]))},
         {"nested empty objects", ?_assert(encode([start_object,
             {key, <<"empty object">>},
             start_object,
@@ -258,14 +260,16 @@ encode_test_() ->
             start_object,
             end_object,
             end_object,
-            end_object
+            end_object,
+            end_json
         ]))},
         {"nested empty arrays", ?_assert(encode([start_array,
             start_array,
             start_array,
             end_array,
             end_array,
-            end_array
+            end_array,
+            end_json
         ]))},
         {"simple object", ?_assert(encode([start_object, 
             {key, <<"a">>},
@@ -276,18 +280,21 @@ encode_test_() ->
             {float, 1.0},
             {key, <<"d">>},
             {literal, true},
-            end_object
+            end_object,
+            end_json
         ]))},
         {"simple array", ?_assert(encode([start_array,
             {string, <<"hello">>},
             {integer, 1},
             {float, 1.0},
             {literal, true},
-            end_array
+            end_array,
+            end_json
         ]))},
         {"unbalanced array", ?_assertNot(encode([start_array,
             end_array,
-            end_array
+            end_array,
+            end_json
         ]))},
         {"naked string", ?_assert(encode({string, <<"hello">>}))},
         {"naked literal", ?_assert(encode({literal, true}))},
@@ -325,4 +332,3 @@ escape_test_() ->
     ].
 
 -endif.
-    
