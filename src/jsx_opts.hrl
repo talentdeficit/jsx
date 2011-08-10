@@ -23,7 +23,6 @@
 
 %% opts record for decoder/encoder
 -record(opts, {
-    multi_term = false,
     loose_unicode = false,
     encoding = auto,
     escape_forward_slash = false,   %% does nothing, used by encoder
@@ -37,8 +36,6 @@ parse_opts(Opts) ->
 
 parse_opts([], Opts) ->
     Opts;
-parse_opts([multi_term|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{multi_term=true});
 parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{loose_unicode=true});
 parse_opts([iterate|Rest], Opts) ->

@@ -261,47 +261,5 @@ incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
 incremental_decode_loop({error, {badjson, _Error}}, _Rest, _Acc) ->
     {error, badjson}.
 
-
-
-multi_decode_test_() ->
-    [
-        {"multiple values in a single stream", ?_assert(
-            multi_decode(multi_json_body(), []) =:= multi_test_result()
-        )}
-    ].
-
-	
-multi_decode(JSON, Flags) ->
-    P = jsx:decoder([multi_term, iterate] ++ Flags),
-    multi_decode_loop(P(JSON), [[]]).
-
-multi_decode_loop({jsx, incomplete, _Next}, [[]|Acc]) ->
-    lists:reverse(Acc);
-multi_decode_loop({jsx, end_json, Next}, [S|Acc]) ->
-    multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
-multi_decode_loop({jsx, E, Next}, [S|Acc]) ->
-    multi_decode_loop(Next(), [[E] ++ S] ++ Acc).
-	
-	
-multi_json_body() ->
-    <<"0 1 -1 1e1 0.7 0.7e-1 truefalsenull {} {\"key\": \"value\"}[] [1, 2, 3]\"hope this works\"">>.
-
-multi_test_result() ->
-    [[{integer, 0}],
-        [{integer, 1}],
-        [{integer, -1}],
-        [{float, 1.0e1}],
-        [{float, 0.7}],
-        [{float, 0.7e-1}],
-        [{literal, true}],
-        [{literal, false}],
-        [{literal, null}],
-        [start_object, end_object],
-        [start_object, {key, "key"}, {string, "value"}, end_object],
-        [start_array, end_array],
-        [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
-        [{string, "hope this works"}]
-    ].
-
     
 -endif.

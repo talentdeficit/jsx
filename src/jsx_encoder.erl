@@ -133,8 +133,6 @@ maybe_done([], T, [], _Opts) ->
     emit([end_json, incomplete], {bad_json, [], T, []});
 maybe_done([end_json], T, [], _Opts) ->
     emit([end_json, incomplete], {bad_json, [], T, []});
-maybe_done([end_json|Forms], T, [], #opts{multi_term=true}=Opts) ->
-    emit([end_json], {start, Forms, T, [Opts]});
 maybe_done([end_object|Forms], T, [object|Stack], Opts) ->
     emit([end_object], {maybe_done, Forms, T, [Stack, Opts]});
 maybe_done([end_array|Forms], T, [array|Stack], Opts) ->

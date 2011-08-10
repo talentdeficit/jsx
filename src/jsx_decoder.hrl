@@ -289,8 +289,6 @@ maybe_done(<<?comma/?utfx, Rest/binary>>, T, [object|Stack], Opts) ->
     key(Rest, T, [key|Stack], Opts);
 maybe_done(<<?comma/?utfx, Rest/binary>>, T, [array|_] = Stack, Opts) ->
     value(Rest, T, Stack, Opts);
-maybe_done(Rest, T, [], #opts{multi_term=true}=Opts) ->
-    emit([end_json], {start, Rest, T, [[], Opts]});
 maybe_done(Rest, T, [], Opts) ->
     done(Rest, T, Opts);
 maybe_done(Bin, T, Stack, Opts) -> 
