@@ -27,7 +27,7 @@
 %% the core parser api
 -export([parser/0, parser/1]).
 -export([decoder/0, decoder/1]).
--export([encoder/0]).
+-export([encoder/0, encoder/1]).
 -export([term_to_json/1, term_to_json/2]).
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
@@ -35,11 +35,6 @@
 
 
 -include("jsx_common.hrl").
-
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
 
 
 -spec parser() -> jsx_decoder().
@@ -50,7 +45,6 @@ parser() -> decoder([]).
 -spec parser(OptsList::jsx_opts()) -> jsx_decoder().
 
 parser(OptsList) -> decoder(OptsList).    
-
 
 
 -spec decoder() -> jsx_decoder().
@@ -77,7 +71,7 @@ decoder(OptsList) ->
 encoder() -> encoder([]).
 
 
--spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
+-spec encoder(Opts::jsx_opts()) -> jsx_encoder().
 
 encoder(Opts) -> jsx_encoder:encoder(Opts).
 
@@ -146,6 +140,8 @@ format(JSON, Opts) ->
 
 
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
 
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests(?eunit_test_path)).
@@ -174,13 +170,19 @@ jsx_decoder_gen([Test|_] = Tests, [Encoding|Encodings]) ->
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator,
         fun() ->
-            [{Name, ?_assertEqual(decode(JSON, Flags), JSX)} 
-                | {generator, 
+            [{Name ++ " iterative",
+                ?_assertEqual(iterative_decode(JSON, Flags), JSX)} 
+                    | {generator, 
                         fun() -> [{Name ++ " incremental", ?_assertEqual(
                                 incremental_decode(JSON, Flags), JSX)
-                            } | jsx_decoder_gen(Tests, Encodings)]
-                        end
-                }
+                            } | {generator,
+                                fun() ->
+                                    [{Name, ?_assertEqual(
+                                        decode(JSON, Flags), JSX)
+                                    } | jsx_decoder_gen(Tests, Encodings)]
+                            end}
+                        ]
+                    end}
             ]
         end
     }.
@@ -219,20 +221,33 @@ parse_tests([], _Dir, Acc) ->
 
 decode(JSON, Flags) ->
     P = jsx:decoder(Flags),
-    decode_loop(P(JSON), []).
+    case P(JSON) of
+        {error, {badjson, _}} -> {error, badjson}
+        ; {jsx, incomplete, More} ->
+            case More(end_stream) of
+                {error, {badjson, _}} -> {error, badjson}
+                ; {jsx, T, _} -> T
+            end
+        ; {jsx, T, _} -> T
+    end.
 
-decode_loop({jsx, end_json, _Next}, Acc) ->
+
+iterative_decode(JSON, Flags) ->
+    P = jsx:decoder([iterate] ++ Flags),
+    iterative_decode_loop(P(JSON), []).
+
+iterative_decode_loop({jsx, end_json, _Next}, Acc) ->
     lists:reverse([end_json] ++ Acc);
-decode_loop({jsx, incomplete, More}, Acc) ->
-    decode_loop(More(end_stream), Acc);
-decode_loop({jsx, E, Next}, Acc) ->
-    decode_loop(Next(), [E] ++ Acc);
-decode_loop({error, {badjson, _Error}}, _Acc) ->
+iterative_decode_loop({jsx, incomplete, More}, Acc) ->
+    iterative_decode_loop(More(end_stream), Acc);
+iterative_decode_loop({jsx, E, Next}, Acc) ->
+    iterative_decode_loop(Next(), [E] ++ Acc);
+iterative_decode_loop({error, {badjson, _Error}}, _Acc) ->
     {error, badjson}.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = jsx:decoder(Flags),
+	P = jsx:decoder([iterate] ++ Flags),
 	incremental_decode_loop(P(C), Rest, []).
 
 incremental_decode_loop({jsx, incomplete, Next}, <<>>, Acc) ->
@@ -245,48 +260,6 @@ incremental_decode_loop({jsx, Event, Next}, Rest, Acc) ->
 	incremental_decode_loop(Next(), Rest, [Event] ++ Acc);
 incremental_decode_loop({error, {badjson, _Error}}, _Rest, _Acc) ->
     {error, badjson}.
-
-
-
-multi_decode_test_() ->
-    [
-        {"multiple values in a single stream", ?_assert(
-            multi_decode(multi_json_body(), []) =:= multi_test_result()
-        )}
-    ].
-
-	
-multi_decode(JSON, Flags) ->
-    P = jsx:decoder(Flags ++ [multi_term]),
-    multi_decode_loop(P(JSON), [[]]).
-
-multi_decode_loop({jsx, incomplete, _Next}, [[]|Acc]) ->
-    lists:reverse(Acc);
-multi_decode_loop({jsx, end_json, Next}, [S|Acc]) ->
-    multi_decode_loop(Next(), [[]|[lists:reverse(S)] ++ Acc]);
-multi_decode_loop({jsx, E, Next}, [S|Acc]) ->
-    multi_decode_loop(Next(), [[E] ++ S] ++ Acc).
-	
-	
-multi_json_body() ->
-    <<"0 1 -1 1e1 0.7 0.7e-1 truefalsenull {} {\"key\": \"value\"}[] [1, 2, 3]\"hope this works\"">>.
-
-multi_test_result() ->
-    [[{integer, 0}],
-        [{integer, 1}],
-        [{integer, -1}],
-        [{float, 1.0e1}],
-        [{float, 0.7}],
-        [{float, 0.7e-1}],
-        [{literal, true}],
-        [{literal, false}],
-        [{literal, null}],
-        [start_object, end_object],
-        [start_object, {key, "key"}, {string, "value"}, end_object],
-        [start_array, end_array],
-        [start_array, {integer, 1}, {integer, 2}, {integer, 3}, end_array],
-        [{string, "hope this works"}]
-    ].
 
     
 -endif.
