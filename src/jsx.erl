@@ -27,7 +27,7 @@
 %% the core parser api
 -export([parser/0, parser/1]).
 -export([decoder/0, decoder/1]).
--export([encoder/0]).
+-export([encoder/0, encoder/1]).
 -export([term_to_json/1, term_to_json/2]).
 -export([json_to_term/1, json_to_term/2]).
 -export([is_json/1, is_json/2]).
@@ -71,7 +71,7 @@ decoder(OptsList) ->
 encoder() -> encoder([]).
 
 
--spec encoder(OptsList::jsx_opts()) -> jsx_encoder().
+-spec encoder(Opts::jsx_opts()) -> jsx_encoder().
 
 encoder(Opts) -> jsx_encoder:encoder(Opts).
 
