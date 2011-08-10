@@ -23,12 +23,20 @@
 
 -module(jsx_utils).
 
--export([nice_decimal/1, detect_encoding/1, detect_encoding/2]).
+-export([nice_decimal/1, detect_encoding/1, detect_encoding/2, collect/1]).
 
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
+-spec collect(F::function()) -> {jsx, list(), function()}.
+
+collect(F) when is_function(F) ->
+    collect(F(), []).
+
+collect({error, _}, _) -> {error, badarg};
+collect({jsx, incomplete, More}, Acc) ->
+    {jsx, incomplete, fun(Stream) -> collect(More(Stream), Acc) end};
+collect({jsx, end_json, Next}, Acc) ->
+    {jsx, lists:reverse([end_json] ++ Acc), Next};
+collect({jsx, Event, Next}, Acc) -> collect(Next(), [Event] ++ Acc).
 
 
 
@@ -269,6 +277,7 @@ detect_encoding(Bin, Opts) ->
 
 %% eunit tests
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
     
 nice_decimal_test_() ->
     [
