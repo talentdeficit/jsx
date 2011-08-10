@@ -37,11 +37,6 @@
 -include("jsx_common.hrl").
 
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
-
 -spec parser() -> jsx_decoder().
 
 parser() -> decoder([]).
@@ -50,7 +45,6 @@ parser() -> decoder([]).
 -spec parser(OptsList::jsx_opts()) -> jsx_decoder().
 
 parser(OptsList) -> decoder(OptsList).    
-
 
 
 -spec decoder() -> jsx_decoder().
@@ -146,6 +140,8 @@ format(JSON, Opts) ->
 
 
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
 
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests(?eunit_test_path)).
