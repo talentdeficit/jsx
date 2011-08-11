@@ -28,12 +28,19 @@
 -include("jsx_common.hrl").
 
 
--spec json_to_term(JSON::binary(), Opts::decoder_opts()) ->
+-record(decoder_opts, {
+    strict = false,
+    encoding = auto
+}).
+
+
+-spec json_to_term(JSON::binary(), OptsList::decoder_opts()) ->
     jsx_term() | {jsx, incomplete, fun()}.
 
-json_to_term(JSON, Opts) ->
-    P = jsx:decoder([iterate] ++ extract_parser_opts(Opts)),
-    case proplists:get_value(strict, Opts, false) of
+json_to_term(JSON, OptsList) ->
+    Opts = parse_opts(OptsList, #decoder_opts{}),
+    P = jsx:decoder([iterate, {encoding, Opts#decoder_opts.encoding}]),
+    case Opts#decoder_opts.strict of
         true -> collect_strict(P(JSON), [[]], Opts)
         ; false -> collect(P(JSON), [[]], Opts)
     end.
@@ -42,32 +49,72 @@ json_to_term(JSON, Opts) ->
 %% the jsx formatter (pretty printer) can do most of the heavy lifting in 
 %%   converting erlang terms to json strings
 
--spec term_to_json(JSON::jsx_term(), Opts::encoder_opts()) ->
+-record(encoder_opts, {
+    strict = false,
+    encoding = auto,
+    formatter_opts = []
+}).
+
+
+-spec term_to_json(JSON::jsx_term(), OptsList::encoder_opts()) ->
     binary() | {jsx, incomplete, fun()}.
 
-term_to_json(List, Opts) ->
-    case proplists:get_value(strict, Opts, false) of
+term_to_json(List, OptsList) ->
+    Opts = parse_opts(OptsList, #encoder_opts{}),
+    case Opts#encoder_opts.strict of
         true when is_list(List) -> continue
         ; true -> erlang:error(badarg)
         ; false -> continue
     end,
-    Encoding = proplists:get_value(encoding, Opts, utf8),
-    FOpts = [{output_encoding, Encoding}] ++ Opts,
     case term_to_events(List) of
-        L when is_tuple(L) -> jsx:format(L, FOpts)
-        ; L when is_list(L) -> jsx:format(lists:reverse(L), FOpts)
+        L when is_tuple(L) ->
+            jsx:format(L, Opts#encoder_opts.formatter_opts)
+        ; L when is_list(L) ->
+            jsx:format(lists:reverse(L), Opts#encoder_opts.formatter_opts)
     end.
 
 
-extract_parser_opts(Opts) ->
-    extract_parser_opts(Opts, []).
-
-extract_parser_opts([], Acc) -> Acc;     
-extract_parser_opts([{K,V}|Rest], Acc) ->
-    case lists:member(K, [encoding]) of
-        true -> [{K,V}] ++ Acc
-        ; false -> extract_parser_opts(Rest, Acc)
-    end.
+parse_opts([{strict, Val}|Rest], Opts = #decoder_opts{})
+        when Val =:= true; Val =:= false ->
+    parse_opts(Rest, Opts#decoder_opts{strict = Val});
+parse_opts([strict|Rest], Opts = #decoder_opts{}) ->
+    parse_opts(Rest, Opts#decoder_opts{strict = true});
+parse_opts([{strict, Val}|Rest], Opts = #encoder_opts{})
+        when Val =:= true; Val =:= false ->
+    parse_opts(Rest, Opts#encoder_opts{strict = Val});
+parse_opts([strict|Rest], Opts = #encoder_opts{}) ->
+    parse_opts(Rest, Opts#encoder_opts{strict = true});
+parse_opts([{encoding, Val}|Rest], Opts = #decoder_opts{})
+        when Val =:= auto; Val =:= utf8; 
+            Val =:= utf16; Val =:= {utf16,little};
+            Val =:= utf32; Val =:= {utf32,little} ->
+    parse_opts(Rest, Opts#decoder_opts{encoding = Val});
+parse_opts([encoding|Rest], Opts = #decoder_opts{}) ->
+    parse_opts(Rest, Opts#decoder_opts{encoding = auto});
+parse_opts([{encoding, Val}|Rest], Opts = #encoder_opts{})
+        when Val =:= auto; Val =:= utf8; 
+            Val =:= utf16; Val =:= {utf16,little};
+            Val =:= utf32; Val =:= {utf32,little} ->
+    parse_opts(Rest, Opts#encoder_opts{encoding = Val});
+parse_opts([encoding|Rest], Opts = #encoder_opts{}) ->
+    parse_opts(Rest, Opts#encoder_opts{encoding = auto});
+parse_opts([{indent, Val}|Rest], Opts = #encoder_opts{formatter_opts = F})
+        when is_integer(Val) ->
+    parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{indent, Val}] ++ F});
+parse_opts([indent|Rest], Opts = #encoder_opts{formatter_opts = F}) ->
+    parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{indent, 1}] ++ F});
+parse_opts([{space, Val}|Rest], Opts = #encoder_opts{formatter_opts = F})
+        when is_integer(Val) ->
+    parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{space, Val}] ++ F});
+parse_opts([space|Rest], Opts = #encoder_opts{formatter_opts = F}) ->
+    parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{space, 1}] ++ F});
+parse_opts([{output_encoding, Val}|Rest], Opts = #encoder_opts{formatter_opts = F}) 
+        when Val =:= utf8;
+            Val =:= utf16; Val =:= {utf16,little};
+            Val =:= utf32; Val =:= {utf32,little} ->
+    parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{output_encoding, Val}] ++ F});
+parse_opts([], Opts) ->
+    Opts.
 
 
 %% ensure the first jsx event we get is start_object or start_array when running
@@ -75,13 +122,6 @@ extract_parser_opts([{K,V}|Rest], Acc) ->
 collect_strict({jsx, Start, Next}, Acc, Opts) 
         when Start =:= start_object; Start =:= start_array ->
     collect(Next(), [[]|Acc], Opts);
-collect_strict({jsx, incomplete, More}, Acc, Opts) ->
-    case proplists:get_value(stream, Opts, false) of
-        true -> {jsx, incomplete, fun(JSON) ->
-                collect_strict(More(JSON), Acc, Opts)
-            end}
-        ; false -> erlang:error(badarg)
-    end;
 collect_strict(_, _, _) -> erlang:error(badarg).
     
     
@@ -116,17 +156,10 @@ collect({jsx, {key, _} = PreKey, Next}, Acc, Opts) ->
     collect(Next(), [Key] ++ Acc, Opts);
 %% if our returned event is {jsx, incomplete, ...} try to force end and return 
 %%   the Event if one is returned    
-collect({jsx, incomplete, More}, Acc, Opts) ->
+collect({jsx, incomplete, More}, _Acc, Opts) ->
     case More(end_stream) of
         {jsx, Event, _Next} -> event(Event, Opts)
-        ; _ ->
-            case proplists:get_value(stream, Opts, false) of
-                true -> 
-                    {jsx, incomplete, 
-                        fun(JSON) -> collect(More(JSON), Acc, Opts) end
-                    }
-                ; false -> erlang:error(badarg)
-            end
+        ; _ -> erlang:error(badarg)
     end;
 %% check acc to see if we're inside an object or an array. because inside an 
 %%   object context the events that fall this far are always preceded by a key 
@@ -434,18 +467,6 @@ escape_test_() ->
                     <<226, 128, 168, 226, 128, 169>>
                 ) =:= <<"\\u2028\\u2029">>
             )
-        }
-    ].
-    
-stream_test_() ->
-    [
-        {"streaming mode",
-            ?_assert(begin
-                    {jsx, incomplete, F} = json_to_term(<<"{">>,
-                        [{stream, true}]
-                    ),
-                    F(<<"}">>)
-                end =:= [{}])
         }
     ].
 

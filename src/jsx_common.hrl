@@ -125,7 +125,6 @@
 
 -type decoder_opts() :: [decoder_opt()].
 -type decoder_opt() :: {strict, true | false}
-    | {stream, true | false}
     | {encoding, supported_utf()}.
 
 
