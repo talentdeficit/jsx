@@ -21,18 +21,11 @@
 %% THE SOFTWARE.
 
 
-
 -module(jsx_terms).
-
 
 -export([json_to_term/2, term_to_json/2]).
 
-
 -include("jsx_common.hrl").
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
 
 
 -spec json_to_term(JSON::binary(), Opts::decoder_opts()) ->
@@ -64,7 +57,6 @@ term_to_json(List, Opts) ->
         L when is_tuple(L) -> jsx:format(L, FOpts)
         ; L when is_list(L) -> jsx:format(lists:reverse(L), FOpts)
     end.
- 
 
 
 extract_parser_opts(Opts) ->
@@ -76,7 +68,6 @@ extract_parser_opts([{K,V}|Rest], Acc) ->
         true -> [{K,V}] ++ Acc
         ; false -> extract_parser_opts(Rest, Acc)
     end.
-
 
 
 %% ensure the first jsx event we get is start_object or start_array when running
@@ -169,8 +160,7 @@ event({integer, Integer}, _Opts) -> Integer;
 event({float, Float}, _Opts) -> Float;
 event({literal, Literal}, _Opts) -> Literal.
 
-    
-    
+
 %% convert term format representation to jsx events. note special casing for the 
 %%   empty object
 term_to_events([{}]) ->
@@ -181,9 +171,9 @@ term_to_events(List) when is_list(List) ->
     list_to_events(List, [start_array]);
 term_to_events(Term) ->
     [Res] = term_to_event(Term),
-    Res. 
-       
-    
+    Res.
+
+
 proplist_to_events([{Key, Term}|Rest], Acc) ->
     Event = term_to_event(Term),
     EncodedKey = key_to_event(Key),
@@ -192,8 +182,8 @@ proplist_to_events([], Acc) ->
     [end_object] ++ Acc;
 proplist_to_events(_, _) ->
     erlang:error(badarg).
-    
-    
+
+
 list_to_events([Term|Rest], Acc) ->
     list_to_events(Rest, term_to_event(Term) ++ Acc);
 list_to_events([], Acc) ->
@@ -216,7 +206,6 @@ term_to_event(_) -> erlang:error(badarg).
 
 key_to_event(Key) when is_binary(Key) ->
     [{key, json_escape(Key)}].
-
 
 
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
@@ -276,8 +265,10 @@ to_hex(10) -> $a;
 to_hex(X) -> X + $0.
 
 
+
 %% eunit tests
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 decode_test_() ->
     [
