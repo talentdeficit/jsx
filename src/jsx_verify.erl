@@ -66,11 +66,13 @@ extract_parser_opts([K|Rest], Acc) ->
 
 parse_opts(Opts) -> parse_opts(Opts, #verify_opts{}).
 
-parse_opts([{repeated_keys, Val}|Rest], Opts) ->
+parse_opts([{repeated_keys, Val}|Rest], Opts)
+        when Val =:= true; Val =:= false ->
     parse_opts(Rest, Opts#verify_opts{repeated_keys = Val});
 parse_opts([repeated_keys|Rest], Opts) ->
     parse_opts(Rest, Opts#verify_opts{repeated_keys = true});
-parse_opts([{naked_values, Val}|Rest], Opts) ->
+parse_opts([{naked_values, Val}|Rest], Opts)
+        when Val =:= true; Val =:= false ->
     parse_opts(Rest, Opts#verify_opts{naked_values = Val});
 parse_opts([naked_values|Rest], Opts) ->
     parse_opts(Rest, Opts#verify_opts{naked_values = true});
