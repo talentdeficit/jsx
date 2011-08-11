@@ -39,7 +39,7 @@
 
 json_to_term(JSON, OptsList) ->
     Opts = parse_opts(OptsList, #decoder_opts{}),
-    P = jsx:decoder([iterate, {encoding, Opts#decoder_opts.encoding}]),
+    P = jsx:decoder([{encoding, Opts#decoder_opts.encoding}]),
     case Opts#decoder_opts.strict of
         true -> collect_strict(P(JSON), [[]], Opts)
         ; false -> collect(P(JSON), [[]], Opts)
@@ -119,65 +119,69 @@ parse_opts([], Opts) ->
 
 %% ensure the first jsx event we get is start_object or start_array when running
 %%  in strict mode
-collect_strict({jsx, Start, Next}, Acc, Opts) 
+collect_strict({jsx, [Start|Next], Next}, Acc, Opts) 
         when Start =:= start_object; Start =:= start_array ->
-    collect(Next(), [[]|Acc], Opts);
+    collect(Next, [[]|Acc], Opts);
 collect_strict(_, _, _) -> erlang:error(badarg).
     
     
-%% collect decoder events and convert to eep0018 format     
-collect({jsx, Start, Next}, Acc, Opts) 
+%% collect decoder events and convert to eep0018 format 
+collect({jsx, [Start|Next], _}, Acc, Opts) 
         when Start =:= start_object; Start =:= start_array ->
-    collect(Next(), [[]|Acc], Opts);
+    collect(Next, [[]|Acc], Opts);
+collect({jsx, [Event, end_json], _}, _, Opts) ->
+    event(Event, Opts);
+collect([Start|Next], Acc, Opts)
+        when Start =:= start_object; Start =:= start_array ->
+    collect(Next, [[]|Acc], Opts);
 %% special case for empty object
-collect({jsx, end_object, Next}, [[], Parent|Rest], Opts) 
-        when is_list(Parent) ->
-    collect(Next(), [[[{}]] ++ Parent] ++ Rest, Opts);
+collect([end_object|Next], [[], Parent|Rest], Opts)  when is_list(Parent) ->
+    collect(Next, [[[{}]] ++ Parent] ++ Rest, Opts);
 %% reverse the array/object accumulator before prepending it to it's parent
-collect({jsx, end_object, Next}, [Current, Parent|Rest], Opts) 
+collect([end_object|Next], [Current, Parent|Rest], Opts) 
         when is_list(Parent) ->
-    collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
-collect({jsx, end_array, Next}, [Current, Parent|Rest], Opts) 
+    collect(Next, [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
+collect([end_array|Next], [Current, Parent|Rest], Opts) 
         when is_list(Parent) ->
-    collect(Next(), [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
+    collect(Next, [[lists:reverse(Current)] ++ Parent] ++ Rest, Opts);
 %% special case for empty object
-collect({jsx, end_object, Next}, [[], Key, Parent|Rest], Opts) ->
-    collect(Next(), [[{Key, [{}]}] ++ Parent] ++ Rest, Opts);
-collect({jsx, End, Next}, [Current, Key, Parent|Rest], Opts)
+collect([end_object|Next], [[], Key, Parent|Rest], Opts) ->
+    collect(Next, [[{Key, [{}]}] ++ Parent] ++ Rest, Opts);
+collect([End|Next], [Current, Key, Parent|Rest], Opts)
         when End =:= end_object; End =:= end_array ->
-    collect(Next(), [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);      
-collect({jsx, end_json, _Next}, [[Acc]], _Opts) ->
+    collect(Next, [[{Key, lists:reverse(Current)}] ++ Parent] ++ Rest, Opts);      
+collect([end_json], [[Acc]], _Opts) ->
     Acc;  
 %% key can only be emitted inside of a json object, so just insert it directly 
 %%   into the head of the accumulator and deal with it when we receive it's 
 %%   paired value
-collect({jsx, {key, _} = PreKey, Next}, Acc, Opts) ->
+collect([{key, _} = PreKey|Next], Acc, Opts) ->
     Key = event(PreKey, Opts),
-    collect(Next(), [Key] ++ Acc, Opts);
+    collect(Next, [Key] ++ Acc, Opts);
 %% if our returned event is {jsx, incomplete, ...} try to force end and return 
 %%   the Event if one is returned    
 collect({jsx, incomplete, More}, _Acc, Opts) ->
     case More(end_stream) of
-        {jsx, Event, _Next} -> event(Event, Opts)
+        {jsx, [Event, end_json], _Next} -> event(Event, Opts)
         ; _ -> erlang:error(badarg)
     end;
 %% check acc to see if we're inside an object or an array. because inside an 
 %%   object context the events that fall this far are always preceded by a key 
 %%   (which are binaries or atoms), if Current is a list, we're inside an array, 
 %%   else, an object
-collect({jsx, Event, Next}, [Current|Rest], Opts) when is_list(Current) ->
-    collect(Next(), [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
+collect([Event|Next], [Current|Rest], Opts) when is_list(Current) ->
+    collect(Next, [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
 %% delete any prior uses of current key
-collect({jsx, Event, Next}, [Key, Current|Rest], Opts) ->
+collect([Event|Next], [Key, Current|Rest], Opts) ->
     case proplists:is_defined(Key, Current) of
         true ->
             Acc = proplists:delete(Key, Current), 
-            collect(Next(),
+            collect(Next,
                 [[{Key, event(Event, Opts)}] ++ Acc] ++ Rest,
                 Opts
             )
         ; _ ->
-            collect(Next(),
+            collect(Next,
                 [[{Key, event(Event, Opts)}] ++ Current] ++ Rest,
                 Opts
             )
