@@ -34,21 +34,13 @@
         ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
     
 is_json(JSON, OptsList) when is_binary(JSON) ->
-        F = jsx:decoder(extract_parser_opts(OptsList)),
-        verify(F(JSON), parse_opts(OptsList));
+    F = jsx:decoder(extract_parser_opts(OptsList)),
+    verify(F(JSON), parse_opts(OptsList));
 is_json(JSON, OptsList) when is_list(JSON) ->
-    try
-        F = jsx:encoder(extract_parser_opts(OptsList)),
-        verify(F(JSON), parse_opts(OptsList))
-    catch
-        _:_ -> erlang:error(badarg)
-    end;
+    F = jsx:encoder(extract_parser_opts(OptsList)),
+    verify(F(JSON), parse_opts(OptsList));
 is_json(F, OptsList) when is_function(F) ->
-    try
-        verify(jsx_utils:collect(F), parse_opts(OptsList))
-    catch
-        _:_ -> erlang:error(badarg)
-    end.
+    verify(jsx_utils:collect(F), parse_opts(OptsList)).
 
 
 extract_parser_opts(Opts) ->
