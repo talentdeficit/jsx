@@ -21,16 +21,12 @@
 %% THE SOFTWARE.
 
 
-
 -module(jsx_verify).
-
 
 -export([is_json/2]).
 
-
 -include("jsx_common.hrl").
 -include("jsx_verify.hrl").
-
 
     
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
@@ -98,7 +94,6 @@ verify({jsx, [First|Rest], _}, Opts=#verify_opts{naked_values=false}) ->
          ; _ -> false
     end;
 verify({jsx, Terms, _}, Opts) -> verify(Terms, Opts, []).
-
 
 verify([end_json], _Opts, _Keys) -> true;
 
@@ -241,6 +236,3 @@ terms_test_() ->
     ].   
     
 -endif.
-
-    
-    
