@@ -193,6 +193,13 @@ repeated_keys_test_() ->
                     [{repeated_keys, true}]
                 ) =:= true
             )
+        },
+        {"repeated key nested",
+            ?_assert(is_json(
+                    <<"{\"a\": {\"a\": {\"a\": true, \"a\":false}}}">>,
+                    [{repeated_keys, false}]
+                ) =:= false
+            )
         }
     ].
     
