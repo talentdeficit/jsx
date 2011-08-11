@@ -26,7 +26,12 @@
 -export([is_json/2]).
 
 -include("jsx_common.hrl").
--include("jsx_verify.hrl").
+
+
+-record(verify_opts, {
+    repeated_keys = true,
+    naked_values = true
+}).
 
     
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
