@@ -38,21 +38,20 @@
         ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
     
 is_json(JSON, OptsList) when is_binary(JSON) ->
-    P = jsx:decoder([iterate] ++ extract_parser_opts(OptsList)),
-    is_json(fun() -> P(JSON) end, OptsList);
-is_json(Terms, OptsList) when is_list(Terms) ->
-    P = jsx:encoder([iterate]),
-    is_json(fun() -> P(Terms) end, OptsList);
+        F = jsx:decoder(extract_parser_opts(OptsList)),
+        verify(F(JSON), parse_opts(OptsList));
+is_json(JSON, OptsList) when is_list(JSON) ->
+    try
+        F = jsx:encoder(extract_parser_opts(OptsList)),
+        verify(F(JSON), parse_opts(OptsList))
+    catch
+        _:_ -> erlang:error(badarg)
+    end;
 is_json(F, OptsList) when is_function(F) ->
-    Opts = parse_opts(OptsList, #verify_opts{}),
-    case Opts#verify_opts.naked_values of
-        true -> collect(F(), Opts, [[]])
-        ; false ->
-            case F() of
-                {jsx, start_object, Next} -> collect(Next(), Opts, [[]])
-                ; {jsx, start_array, Next} -> collect(Next(), Opts, [[]])
-                ; _ -> false
-            end
+    try
+        verify(jsx_utils:collect(F), parse_opts(OptsList))
+    catch
+        _:_ -> erlang:error(badarg)
     end.
 
 
@@ -72,6 +71,8 @@ extract_parser_opts([K|Rest], Acc) ->
     end.
 
 
+parse_opts(Opts) -> parse_opts(Opts, #verify_opts{}).
+
 parse_opts([{repeated_keys, Val}|Rest], Opts) ->
     parse_opts(Rest, Opts#verify_opts{repeated_keys = Val});
 parse_opts([repeated_keys|Rest], Opts) ->
@@ -80,51 +81,44 @@ parse_opts([{naked_values, Val}|Rest], Opts) ->
     parse_opts(Rest, Opts#verify_opts{naked_values = Val});
 parse_opts([naked_values|Rest], Opts) ->
     parse_opts(Rest, Opts#verify_opts{naked_values = true});
-parse_opts([_|Rest], Opts) ->
+parse_opts([{encoding, _}|Rest], Opts) ->
+    parse_opts(Rest, Opts);
+parse_opts([encoding|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
     Opts.
 
 
+verify({error, {badjson, _}}, _Opts) -> false;
+verify({jsx, incomplete, More}, Opts) -> verify(More(end_stream), Opts);
+verify({jsx, [First|Rest], _}, Opts=#verify_opts{naked_values=false}) ->
+    case First of
+         start_object -> verify(Rest, Opts, [])
+         ; start_array -> verify(Rest, Opts, [])
+         ; _ -> false
+    end;
+verify({jsx, Terms, _}, Opts) -> verify(Terms, Opts, []).
 
-collect({jsx, end_json, _Next}, _Opts, _Keys) ->
-    true;
 
+verify([end_json], _Opts, _Keys) -> true;
 
 %% allocate new key accumulator at start_object, discard it at end_object    
-collect({jsx, start_object, Next},
-        Opts = #verify_opts{repeated_keys = false},
-        Keys) ->
-    collect(Next(), Opts, [[]|Keys]);
-collect({jsx, end_object, Next},
-        Opts = #verify_opts{repeated_keys = false},
-        [_|Keys]) ->
-    collect(Next(), Opts, [Keys]);
-
+verify([start_object|Rest], Opts=#verify_opts{repeated_keys=false}, Keys) ->
+    verify(Rest, Opts, [[]] ++ Keys);
+verify([end_object|Rest], Opts=#verify_opts{repeated_keys=false}, [_|Keys]) ->
+    verify(Rest, Opts, Keys);
 
 %% check to see if key has already been encountered, if not add it to the key 
 %%   accumulator and continue, else return false 
-collect({jsx, {key, Key}, Next},
-        Opts = #verify_opts{repeated_keys = false},
-        [Current|Keys]) ->
+verify([{key, Key}|Rest], Opts=#verify_opts{repeated_keys=false}, [Current|Keys]) ->
     case lists:member(Key, Current) of
         true -> false
-        ; false -> collect(Next(), Opts, [[Key] ++ Current] ++ Keys)
+        ; false -> verify(Rest, Opts, [[Key] ++ Current] ++ Keys)
     end;
-
-
-%% needed to parse numbers that don't have trailing whitespace in less strict 
-%%   mode    
-collect({jsx, incomplete, More}, Opts, Keys) ->
-    collect(More(end_stream), Opts, Keys);
-
                 
-collect({jsx, _, Next}, Opts, Keys) ->
-    collect(Next(), Opts, Keys);
+verify([_|Rest], Opts, Keys) -> verify(Rest, Opts, Keys);
 
-    
-collect(_, _, _) ->
-    false.
+verify(_, _, _) -> false.
     
     
 
@@ -168,16 +162,16 @@ true_test_() ->
         },
         {"nested objects", 
             ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []) =:= true)
+        },
+        {"naked true", ?_assert(is_json(<<"true">>, []) =:= true)},
+        {"naked number", ?_assert(is_json(<<"1">>, []) =:= true)},
+        {"naked string", 
+            ?_assert(is_json(<<"\"i am not really json\"">>, []) =:= true)
         }
     ].
 
 false_test_() ->
     [
-        {"naked true", ?_assert(is_json(<<"true">>, []) =:= true)},
-        {"naked number", ?_assert(is_json(<<"1">>, []) =:= true)},
-        {"naked string", 
-            ?_assert(is_json(<<"\"i am not really json\"">>, []) =:= true)
-        },
         {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
         {"trailing comma", 
             ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)
