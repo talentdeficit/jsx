@@ -159,11 +159,11 @@ collect([{key, _} = PreKey|Next], Acc, Opts) ->
     Key = event(PreKey, Opts),
     collect(Next, [Key] ++ Acc, Opts);
 %% if our returned event is {jsx, incomplete, ...} try to force end and return 
-%%   the Event if one is returned    
+%%   the Event if one is returned, else just return {incomplete, More/1}
 collect({jsx, incomplete, More}, _Acc, Opts) ->
     case More(end_stream) of
         {jsx, [Event, end_json], _Next} -> event(Event, Opts)
-        ; _ -> erlang:error(badarg)
+        ; _ -> {incomplete, More}
     end;
 %% check acc to see if we're inside an object or an array. because inside an 
 %%   object context the events that fall this far are always preceded by a key 
