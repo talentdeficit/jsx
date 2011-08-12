@@ -26,7 +26,7 @@
 -record(opts, {
     loose_unicode = false,
     encoding = auto,
-    escape_forward_slash = false,   %% does nothing, used by encoder
+    escape_forward_slash = false,
     iterate = false
 }).
 
