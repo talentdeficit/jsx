@@ -55,13 +55,13 @@ encoder(Opts) ->
 emit([], {State, Rest, T, Args}) ->
     erlang:apply(?MODULE, State, [Rest, T] ++ Args);
 emit([incomplete], {State, Rest, T, Args}) ->
-    {jsx, incomplete, fun(end_stream) ->
-            {error, {badjson, []}}
-        ; (Stream) ->
+    {jsx, incomplete, fun(Stream)
+        when is_binary(Stream) ->
             erlang:apply(?MODULE,
                 State,
                 [Rest ++ Stream, T] ++ Args
             )
+        ; (Else) -> {error, {badjson, Else}}
     end};
 emit([Event|Events], {_State, _Rest, iterate, _Args} = Next) ->
     {jsx, Event, fun() -> emit(Events, Next) end};

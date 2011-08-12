@@ -218,13 +218,13 @@ partial_utf(_) -> false.
 incomplete(State, Bin, T, Args) ->
     case ?partial_codepoint(Bin) of
         true ->
-            {jsx, incomplete, fun(end_stream) ->
-                    {error, {badjson, end_stream}}
-                ; (Stream) ->
+            {jsx, incomplete, fun(Stream)
+                when is_binary(Stream) ->
                     erlang:apply(?MODULE,
                         State,
                         [<<Bin/binary, Stream/binary>>, T] ++ Args
                     )
+                ; (Else) -> {error, {badjson, Else}}
             end}
         ; false -> {error, {badjson, Bin}}
     end.
@@ -415,10 +415,11 @@ string(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc)
 string(Bin, T, Stack, Opts, Acc) ->
     case partial_utf(Bin) of 
         true ->
-            {jsx, incomplete, fun(end_stream) ->
-                    {error, {badjson, end_stream}}
-                ; (Stream) ->
+            {jsx, incomplete, fun(Stream)
+                when is_binary(Stream) ->
                     string(<<Bin/binary, Stream/binary>>, T, Stack, Opts, Acc)
+                ; (Else) ->
+                    {error, {badjson, Else}}
             end}
         ; false ->
             case Opts#opts.loose_unicode of
@@ -670,8 +671,9 @@ zero(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
 zero(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
             done(<<>>, [format_number(Acc)] ++ T, Opts)
-        ; (Stream) ->
+        ; (Stream) when is_binary(Stream) ->
             zero(Stream, T, [], Opts, Acc)
+        ; (Else) -> {error, {badjson, Else}}
     end};
 zero(Bin, T, Stack, Opts, Acc) ->
     incomplete(zero, Bin, T, [Stack, Opts, Acc]).
@@ -698,8 +700,9 @@ integer(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
 integer(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
             done(<<>>, [format_number(Acc)] ++ T, Opts)
-        ; (Stream) ->
+        ; (Stream) when is_binary(Stream) ->
             integer(Stream, T, [], Opts, Acc)
+        ; (Else) -> {error, {badjson, Else}}
     end};
 integer(Bin, T, Stack, Opts, Acc) ->  
     incomplete(integer, Bin, T, [Stack, Opts, Acc]).
@@ -731,8 +734,9 @@ decimal(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
 decimal(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
             done(<<>>, [format_number(Acc)] ++ T, Opts)
-        ; (Stream) ->
+        ; (Stream) when is_binary(Stream) ->
             decimal(Stream, T, [], Opts, Acc)
+        ; (Else) -> {error, {badjson, Else}}
     end};
 decimal(Bin, T, Stack, Opts, Acc) ->  
     incomplete(decimal, Bin, T, [Stack, Opts, Acc]).
@@ -771,8 +775,9 @@ exp(<<S/?utfx, Rest/binary>>, T, Stack, Opts, Acc) when ?is_whitespace(S) ->
 exp(<<>>, T, [], Opts, Acc) ->
     {jsx, incomplete, fun(end_stream) ->
             done(<<>>, [format_number(Acc)] ++ T, Opts)
-        ; (Stream) ->
+        ; (Stream) when is_binary(Stream) ->
             exp(Stream, T, [], Opts, Acc)
+        ; (Else) -> {error, {badjson, Else}}
     end};
 exp(Bin, T, Stack, Opts, Acc) ->  
     incomplete(exp, Bin, T, [Stack, Opts, Acc]).
@@ -933,7 +938,7 @@ check_replaced(List) ->
     ).
 
 check_good(List) ->
-    lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
+    lists:dropwhile(fun({_, [{string, _}]}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 
@@ -944,13 +949,14 @@ check([H|T], Opts, Acc) ->
 
 
 decode(JSON, Opts) ->
-    F = jsx:decoder([iterate] ++ Opts),
-    loop(F(JSON), []).
+    case (jsx:decoder(Opts))(JSON) of
+        {jsx, Events, _} -> loop(Events, [])
+        ; {error, {badjson, _}} -> {error, badjson}
+    end.
 
 
-loop({jsx, end_json, _}, Acc) -> lists:reverse(Acc);
-loop({jsx, incomplete, More}, Acc) -> loop(More(end_stream), Acc);
-loop({jsx, Event, Next}, Acc) -> loop(Next(), [Event] ++ Acc);
+loop([end_json], Acc) -> lists:reverse(Acc);
+loop([Event|Events], Acc) -> loop(Events, [Event] ++ Acc);
 loop(_, _) -> {error, badjson}.
     
 
