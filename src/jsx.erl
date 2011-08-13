@@ -174,6 +174,30 @@ parse_opts(_, _) ->
 
 jsx_decoder_test_() ->
     jsx_decoder_gen(load_tests(?eunit_test_path)).
+
+
+encoder_decoder_equiv_test_() ->
+    [
+        {"encoder/decoder equivalency",
+            ?_assert(begin {jsx, X, _} = (jsx:decoder())(
+                    <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
+                ), X end =:= begin {jsx, Y, _} = (jsx:encoder())(
+                    [start_array,
+                        {string, <<"a">>},
+                        {integer, 17},
+                        {float, 3.14},
+                        {literal, true},
+                        start_object,
+                        {key, <<"k">>},
+                        {literal, false},
+                        end_object,
+                        start_array,
+                        end_array,
+                        end_array]
+                ), Y end
+            )
+        }
+    ].
     
     
 jsx_decoder_gen([]) -> [];    
