@@ -74,8 +74,11 @@ emit([Event|Events], {State, Rest, T, Args}) ->
 bad_json(Stream, _) -> {error, {badjson, Stream}}.
 
     
-start({string, String}, T, Opts) when is_binary(String) ->
-    emit([{string, json_escape(String, Opts)}, end_json, incomplete],
+start({string, String}, T, Opts) when is_binary(String); is_list(String) ->
+    emit([{string, unicode:characters_to_list(json_escape(String, Opts))},
+            end_json,
+            incomplete
+        ],
         {bad_json, [], T, []}
     );
 start({float, Float}, T, _Opts) when is_float(Float) ->
@@ -97,8 +100,10 @@ list_or_object([], T, Stack, Opts) ->
 list_or_object(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
  
-key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key) ->
-    emit([{key, json_escape(Key, Opts)}], {value, Forms, T, [Stack, Opts]});
+key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key); is_list(Key) ->
+    emit([{key, unicode:characters_to_list(json_escape(Key, Opts))}],
+        {value, Forms, T, [Stack, Opts]}
+    );
 key([end_object|Forms], T, [object|Stack], Opts) ->
     emit([end_object], {maybe_done, Forms, T, [Stack, Opts]});
 key([], T, Stack, Opts) ->
@@ -106,8 +111,8 @@ key([], T, Stack, Opts) ->
 key(Forms, _, _, _) -> {error, {badjson, Forms}}.
 
 
-value([{string, S}|Forms], T, Stack, Opts) when is_binary(S) ->
-    emit([{string, json_escape(S, Opts)}],
+value([{string, S}|Forms], T, Stack, Opts) when is_binary(S); is_list(S) ->
+    emit([{string, unicode:characters_to_list(json_escape(S, Opts))}],
         {maybe_done, Forms, T, [Stack, Opts]}
     );
 value([{float, F}|Forms], T, Stack, Opts) when is_float(F) ->
@@ -147,37 +152,59 @@ maybe_done(Forms, _, _, _) -> {error, {badjson, Forms}}.
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
 %%  their json equivalent, escape other control characters to \uXXXX sequences, 
 %%  everything else should be a legal json string component
-json_escape(String, Opts) ->
-    json_escape(String, Opts, <<>>).
+json_escape(String, Opts) when is_binary(String) ->
+    json_escape(String, Opts, <<>>);
+json_escape(String, Opts) when is_list(String) ->
+    json_escape(String, Opts, []).
 
 %% double quote    
 json_escape(<<$\", Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>);
+json_escape([$\"|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$\", $\\] ++ Acc);
 %% backslash \ reverse solidus
 json_escape(<<$\\, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $\\>>);
+json_escape([$\\|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$\\, $\\] ++ Acc);
 %% backspace
 json_escape(<<$\b, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $b>>);
+json_escape([$\b|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$b, $\\] ++ Acc);
 %% form feed
 json_escape(<<$\f, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $f>>);
+json_escape([$\f|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$f, $\\] ++ Acc);
 %% newline
 json_escape(<<$\n, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $n>>);
+json_escape([$\n|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$n, $\\] ++ Acc);
 %% cr
 json_escape(<<$\r, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $r>>);
+json_escape([$\r|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$r, $\\] ++ Acc);
 %% tab
 json_escape(<<$\t, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $t>>);
+json_escape([$\t|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$t, $\\] ++ Acc);
 %% other control characters
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
     json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+json_escape([C|Rest], Opts, Acc) when C >= 0, C < $\s ->
+    json_escape(Rest, Opts,
+        lists:reverse(unicode:characters_to_list(json_escape_sequence(C)))
+    ++ [Acc]);
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
 json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, $\\, $/>>);
+json_escape([$/|Rest], Opts=#opts{escape_forward_slash=true}, Acc) ->
+    json_escape(Rest, Opts, [$/, $\\] ++ Acc);
 %% escape u+2028 and u+2029 to avoid problems with jsonp
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
         when C == 16#2028; C == 16#2029 ->
@@ -185,8 +212,12 @@ json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
+json_escape([C|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [C] ++ Acc);
 json_escape(<<>>, _Opts, Acc) ->
     Acc;
+json_escape([], _Opts, Acc) ->
+    lists:reverse(Acc);
 json_escape(_, _, _) ->
     erlang:error(badarg).
 
@@ -251,9 +282,9 @@ encode_test_() ->
         {"empty object", ?_assert(encode([start_object, end_object, end_json]))},
         {"empty array", ?_assert(encode([start_array, end_array, end_json]))},
         {"nested empty objects", ?_assert(encode([start_object,
-            {key, <<"empty object">>},
+            {key, "empty object"},
             start_object,
-            {key, <<"empty object">>},
+            {key, "empty object"},
             start_object,
             end_object,
             end_object,
@@ -269,19 +300,19 @@ encode_test_() ->
             end_json
         ]))},
         {"simple object", ?_assert(encode([start_object, 
-            {key, <<"a">>},
-            {string, <<"hello">>},
-            {key, <<"b">>},
+            {key, "a"},
+            {string, "hello"},
+            {key, "b"},
             {integer, 1},
-            {key, <<"c">>},
+            {key, "c"},
             {float, 1.0},
-            {key, <<"d">>},
+            {key, "d"},
             {literal, true},
             end_object,
             end_json
         ]))},
         {"simple array", ?_assert(encode([start_array,
-            {string, <<"hello">>},
+            {string, "hello"},
             {integer, 1},
             {float, 1.0},
             {literal, true},
@@ -293,7 +324,7 @@ encode_test_() ->
             end_array,
             end_json
         ]))},
-        {"naked string", ?_assert(encode({string, <<"hello">>}))},
+        {"naked string", ?_assert(encode({string, "hello"}))},
         {"naked literal", ?_assert(encode({literal, true}))},
         {"naked integer", ?_assert(encode({integer, 1}))},
         {"naked float", ?_assert(encode({float, 1.0}))}
