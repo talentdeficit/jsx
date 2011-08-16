@@ -194,11 +194,14 @@ json_escape([$\t|Rest], Opts, Acc) ->
     json_escape(Rest, Opts, [$t, $\\] ++ Acc);
 %% other control characters
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
-    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+    json_escape(Rest,
+        Opts,
+        <<Acc/binary,
+            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
+        >>
+    );
 json_escape([C|Rest], Opts, Acc) when C >= 0, C < $\s ->
-    json_escape(Rest, Opts,
-        lists:reverse(unicode:characters_to_list(json_escape_sequence(C)))
-    ++ [Acc]);
+    json_escape(Rest, Opts, lists:reverse(json_escape_sequence(C)) ++ Acc);
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
 json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
@@ -208,7 +211,14 @@ json_escape([$/|Rest], Opts=#opts{escape_forward_slash=true}, Acc) ->
 %% escape u+2028 and u+2029 to avoid problems with jsonp
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
         when C == 16#2028; C == 16#2029 ->
-    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
+    json_escape(Rest,
+        Opts,
+        <<Acc/binary,
+            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
+        >>
+    );
+json_escape([C|Rest], Opts, Acc) when C =:= 16#2028; C =:= 16#2029 ->
+    json_escape(Rest, Opts, lists:reverse(json_escape_sequence(C)) ++ Acc);
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
@@ -225,7 +235,7 @@ json_escape(_, _, _) ->
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    <<$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>.
+    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
 
 
 to_hex(15) -> $f;
@@ -331,7 +341,7 @@ encode_test_() ->
     ].
 
 
-escape_test_() ->
+binary_escape_test_() ->
     [
         {"json string escaping", 
             ?_assert(json_escape(
@@ -355,6 +365,35 @@ escape_test_() ->
             ?_assert(json_escape(<<"/Date(1303502009425)/">>,
                     #opts{escape_forward_slash=true}
                 ) =:= <<"\\/Date(1303502009425)\\/">>
+            )
+        }
+    ].
+
+
+string_escape_test_() ->
+    [
+        {"json string escaping", 
+            ?_assert(json_escape(
+                    "\"\\\b\f\n\r\t", #opts{}
+                ) =:= "\\\"\\\\\\b\\f\\n\\r\\t"
+            )
+        },
+        {"json string hex escape", 
+            ?_assert(json_escape(
+                    [1, 2, 3, 11, 26, 30, 31], #opts{}
+                ) =:= "\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f"
+            )
+        },
+        {"jsonp protection",
+            ?_assert(json_escape(
+                    [16#2028, 16#2029], #opts{}
+                ) =:= "\\u2028\\u2029"
+            )
+        },
+        {"microsoft i hate your date format",
+            ?_assert(json_escape("/Date(1303502009425)/",
+                    #opts{escape_forward_slash=true}
+                ) =:= "\\/Date(1303502009425)\\/"
             )
         }
     ].
