@@ -24,7 +24,7 @@
 -module(jsx_encoder).
 
 
--include("jsx_common.hrl").
+-include("../include/jsx_common.hrl").
 
 
 -export([start/3,

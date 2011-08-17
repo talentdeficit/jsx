@@ -25,7 +25,7 @@
 
 -export([json_to_term/2, term_to_json/2]).
 
--include("jsx_common.hrl").
+-include("../include/jsx_common.hrl").
 
 
 -record(decoder_opts, {

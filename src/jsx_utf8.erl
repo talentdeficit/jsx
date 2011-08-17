@@ -26,8 +26,8 @@
 
 -define(utf8, true).
 
--include("jsx_common.hrl").
--include("jsx_decoder.hrl").
+-include("../include/jsx_common.hrl").
+-include("../include/jsx_decoder.hrl").
 
 %% i've noticed you've noticed that there's no source here. very astute. see 
 %%   jsx_decoder_template.hrl in the include directory. any mofications to this

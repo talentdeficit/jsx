@@ -25,7 +25,7 @@
 
 -export([is_json/2]).
 
--include("jsx_common.hrl").
+-include("../include/jsx_common.hrl").
 
 
 -record(verify_opts, {
