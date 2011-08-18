@@ -30,7 +30,8 @@
 
 -record(decoder_opts, {
     strict = false,
-    encoding = auto
+    encoding = auto,
+    repeatable_keys = true
 }).
 
 
@@ -113,6 +114,11 @@ parse_opts([{output_encoding, Val}|Rest], Opts = #encoder_opts{formatter_opts = 
             Val =:= utf16; Val =:= {utf16,little};
             Val =:= utf32; Val =:= {utf32,little} ->
     parse_opts(Rest, Opts#encoder_opts{formatter_opts = [{output_encoding, Val}] ++ F});
+parse_opts([{repeatable_keys, Val}|Rest], Opts = #decoder_opts{})
+        when Val =:= true; Val =:= false ->
+    parse_opts(Rest, Opts#decoder_opts{repeatable_keys = Val});
+parse_opts([repeatable_keys|Rest], Opts = #decoder_opts{}) ->
+    parse_opts(Rest, Opts#decoder_opts{repeatable_keys = true});
 parse_opts([], Opts) ->
     Opts.
 
@@ -172,7 +178,7 @@ collect({jsx, incomplete, More}, _Acc, Opts) ->
 collect([Event|Next], [Current|Rest], Opts) when is_list(Current) ->
     collect(Next, [[event(Event, Opts)] ++ Current] ++ Rest, Opts);
 %% delete any prior uses of current key
-collect([Event|Next], [Key, Current|Rest], Opts) ->
+collect([Event|Next], [Key, Current|Rest], Opts=#decoder_opts{repeatable_keys=false}) ->
     case proplists:is_defined(Key, Current) of
         true ->
             Acc = proplists:delete(Key, Current), 
@@ -186,6 +192,8 @@ collect([Event|Next], [Key, Current|Rest], Opts) ->
                 Opts
             )
     end;
+collect([Event|Next], [Key, Current|Rest], Opts) ->
+    collect(Next, [[{Key, event(Event, Opts)}] ++ Current] ++ Rest, Opts);
 %% any other event is an error
 collect(_, _, _) -> erlang:error(badarg).
     
@@ -434,19 +442,19 @@ encode_test_() ->
 repeated_keys_test_() ->
     [
         {"simple repeated key",
-            ?_assert(json_to_term(<<"{\"a\":false,\"a\":true}">>, [])
+            ?_assert(json_to_term(<<"{\"a\":false,\"a\":true}">>, [{repeatable_keys, false}])
                 =:= [{<<"a">>, true}]
             )
         },
         {"nested repeated key",
             ?_assert(json_to_term(
                     <<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>,
-                [])
+                [{repeatable_keys, false}])
                 =:= [[{<<"a">>, true}], [{<<"a">>, true}]]
             )
         },
         {"multiple keys",
-            ?_assert(json_to_term(<<"{\"a\":4,\"a\":3,\"a\":2,\"a\":1}">>, [])
+            ?_assert(json_to_term(<<"{\"a\":4,\"a\":3,\"a\":2,\"a\":1}">>, [{repeatable_keys, false}])
                 =:= [{<<"a">>, 1}]
             )
         }
