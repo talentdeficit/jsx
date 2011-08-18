@@ -446,6 +446,11 @@ repeated_keys_test_() ->
                 =:= [{<<"a">>, true}]
             )
         },
+        {"simple repeated key - allowed",
+            ?_assert(json_to_term(<<"{\"a\":false,\"a\":true}">>, [])
+                =:= [{<<"a">>, false}, {<<"a">>, true}]
+            )
+        },
         {"nested repeated key",
             ?_assert(json_to_term(
                     <<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>,
@@ -453,9 +458,19 @@ repeated_keys_test_() ->
                 =:= [[{<<"a">>, true}], [{<<"a">>, true}]]
             )
         },
+        {"nested repeated key - allowed",
+            ?_assert(json_to_term(<<"[{\"a\":false,\"a\":true},{\"a\":false,\"a\":true}]">>, [])
+                =:= [[{<<"a">>, false}, {<<"a">>, true}], [{<<"a">>, false}, {<<"a">>, true}]]
+            )
+        },
         {"multiple keys",
             ?_assert(json_to_term(<<"{\"a\":4,\"a\":3,\"a\":2,\"a\":1}">>, [{repeatable_keys, false}])
                 =:= [{<<"a">>, 1}]
+            )
+        },
+        {"multiple keys",
+            ?_assert(json_to_term(<<"{\"a\":4,\"a\":3,\"a\":2,\"a\":1}">>, [])
+                =:= [{<<"a">>, 4}, {<<"a">>, 3}, {<<"a">>, 2}, {<<"a">>, 1}]
             )
         }
     ].
