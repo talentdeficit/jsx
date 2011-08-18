@@ -125,6 +125,8 @@
 
 -type decoder_opts() :: [decoder_opt()].
 -type decoder_opt() :: {strict, true | false}
+    | {repeatable_keys, true | false}
+    | repeatable_keys
     | {encoding, supported_utf()}.
 
 
