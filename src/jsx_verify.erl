@@ -35,17 +35,14 @@
 
     
 -spec is_json(JSON::binary(), Opts::verify_opts()) -> true | false
-        ; (Terms::list(jsx_encodeable()), Opts::verify_opts()) -> true | false
-        ; (F::jsx_iterator(), Opts::verify_opts()) -> true | false.
+        ; (Terms::list(jsx_encodeable()), Opts::verify_opts()) -> true | false.
     
 is_json(JSON, OptsList) when is_binary(JSON) ->
     F = jsx:decoder(extract_parser_opts(OptsList)),
     verify(F(JSON), parse_opts(OptsList));
 is_json(JSON, OptsList) when is_list(JSON) ->
     F = jsx:encoder(extract_parser_opts(OptsList)),
-    verify(F(JSON), parse_opts(OptsList));
-is_json(F, OptsList) when is_function(F) ->
-    verify(jsx_utils:collect(F), parse_opts(OptsList)).
+    verify(F(JSON), parse_opts(OptsList)).
 
 
 extract_parser_opts(Opts) ->

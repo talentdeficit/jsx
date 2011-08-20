@@ -78,12 +78,11 @@
 %% this probably doesn't work properly
 -type jsx_decoder() :: fun((binary()) -> jsx_iterator_result()).
 
-
-
 -type jsx_encoder() :: fun((jsx_encodeable()) -> jsx_iterator_result()).
 
 -type jsx_iterator_result() :: 
     {jsx, jsx_event(), fun(() -> jsx_iterator_result())}
+    | {jsx, [jsx_event()], fun(() -> jsx_iterator_result())}
     | {jsx, incomplete, jsx_iterator()}
     | {error, {badjson, any()}}.
 
