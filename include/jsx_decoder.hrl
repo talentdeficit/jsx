@@ -125,37 +125,42 @@ decoder(Opts) ->
 ).
 
 
-%% partial codepoint max size differs across encodings
--ifdef(utf8).
--define(encoding, utf8).
--define(utfx, utf8).
--define(partial_codepoint(Bin), byte_size(Bin) < 1).
--endif.
+%% utf8 is the default encoding
+-define(utf8, true).
 
 -ifdef(utf16).
+-undef(utf8).
 -define(encoding, utf16).
 -define(utfx, utf16).
 -define(partial_codepoint(Bin), byte_size(Bin) < 2).
 -endif.
 
 -ifdef(utf16le).
+-undef(utf8).
 -define(encoding, utf16le).
 -define(utfx, utf16-little).
 -define(partial_codepoint(Bin), byte_size(Bin) < 2).
 -endif.
     
 -ifdef(utf32).
+-undef(utf8).
 -define(encoding, utf32).
 -define(utfx, utf32).
 -define(partial_codepoint(Bin), byte_size(Bin) < 4).
 -endif.
 
 -ifdef(utf32le).
+-undef(utf8).
 -define(encoding, utf32le).
 -define(utfx, utf32-little).
 -define(partial_codepoint(Bin), byte_size(Bin) < 4).
 -endif.
 
+-ifdef(utf8).
+-define(encoding, utf8).
+-define(utfx, utf8).
+-define(partial_codepoint(Bin), byte_size(Bin) < 1).
+-endif.
 
 %% when parsing strings, the naive detection of partial codepoints is
 %%   insufficient. this incredibly anal function should detect all badly formed
