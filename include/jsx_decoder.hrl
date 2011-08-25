@@ -278,8 +278,6 @@ done(Bin, T, [], Opts) ->
 
 -endif.
 
-start(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
-    start(Rest, T, Stack, Opts);
 start(<<?start_object/?utfx, Rest/binary>>, T, Stack, Opts) ->
     ?emit([start_object], object, Rest, T, [key|Stack], Opts);
 start(<<?start_array/?utfx, Rest/binary>>, T, Stack, Opts) ->
@@ -298,12 +296,12 @@ start(<<?zero/?utfx, Rest/binary>>, T, Stack, Opts) ->
     zero(Rest, T, Stack, Opts, "0");
 start(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, T, Stack, Opts, [S]);
+start(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
+    start(Rest, T, Stack, Opts);
 start(Bin, T, Stack, Opts) ->
     incomplete(start, Bin, T, [Stack, Opts]).
 
 
-maybe_done(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, T, Stack, Opts);
 maybe_done(<<?end_object/?utfx, Rest/binary>>, T, [object|Stack], Opts) ->
     ?emit([end_object], maybe_done, Rest, T, Stack, Opts);
 maybe_done(<<?end_array/?utfx, Rest/binary>>, T, [array|Stack], Opts) ->
@@ -312,24 +310,24 @@ maybe_done(<<?comma/?utfx, Rest/binary>>, T, [object|Stack], Opts) ->
     key(Rest, T, [key|Stack], Opts);
 maybe_done(<<?comma/?utfx, Rest/binary>>, T, [array|_] = Stack, Opts) ->
     value(Rest, T, Stack, Opts);
+maybe_done(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, T, Stack, Opts);
 maybe_done(Rest, T, [], Opts) ->
     done(Rest, T, [], Opts);
 maybe_done(Bin, T, Stack, Opts) -> 
     incomplete(maybe_done, Bin, T, [Stack, Opts]).
 
 
-object(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
-    object(Rest, T, Stack, Opts);
 object(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
     string(Rest, T, Stack, Opts, []);
 object(<<?end_object/?utfx, Rest/binary>>, T, [key|Stack], Opts) ->
     ?emit([end_object], maybe_done, Rest, T, Stack, Opts);
+object(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
+    object(Rest, T, Stack, Opts);
 object(Bin, T, Stack, Opts) ->
     incomplete(object, Bin, T, [Stack, Opts]).
 
-
-array(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
-    array(Rest, T, Stack, Opts);       
+   
 array(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
     string(Rest, T, Stack, Opts, []);
 array(<<$t/?utfx, Rest/binary>>, T, Stack, Opts) ->
@@ -350,12 +348,12 @@ array(<<?start_array/?utfx, Rest/binary>>, T, Stack, Opts) ->
     ?emit([start_array], array, Rest, T, [array|Stack], Opts);
 array(<<?end_array/?utfx, Rest/binary>>, T, [array|Stack], Opts) ->
     maybe_done(Rest, [end_array] ++ T, Stack, Opts);
+array(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
+    array(Rest, T, Stack, Opts);    
 array(Bin, T, Stack, Opts) ->
     incomplete(array, Bin, T, [Stack, Opts]).
 
 
-value(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
-    value(Rest, T, Stack, Opts);
 value(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
     string(Rest, T, Stack, Opts, []);
 value(<<$t/?utfx, Rest/binary>>, T, Stack, Opts) ->
@@ -374,22 +372,24 @@ value(<<?start_object/?utfx, Rest/binary>>, T, Stack, Opts) ->
     ?emit([start_object], object, Rest, T, [key|Stack], Opts);
 value(<<?start_array/?utfx, Rest/binary>>, T, Stack, Opts) ->
     ?emit([start_array], array, Rest, T, [array|Stack], Opts);
+value(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) -> 
+    value(Rest, T, Stack, Opts);
 value(Bin, T, Stack, Opts) ->
     incomplete(value, Bin, T, [Stack, Opts]).
 
 
-colon(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
-    colon(Rest, T, Stack, Opts);
 colon(<<?colon/?utfx, Rest/binary>>, T, [key|Stack], Opts) ->
     value(Rest, T, [object|Stack], Opts);
+colon(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
+    colon(Rest, T, Stack, Opts);
 colon(Bin, T, Stack, Opts) ->
     incomplete(colon, Bin, T, [Stack, Opts]).
 
 
-key(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
-    key(Rest, T, Stack, Opts);        
 key(<<?quote/?utfx, Rest/binary>>, T, Stack, Opts) ->
     string(Rest, T, Stack, Opts, []);
+key(<<S/?utfx, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
+    key(Rest, T, Stack, Opts);        
 key(Bin, T, Stack, Opts) ->
     incomplete(key, Bin, T, [Stack, Opts]).
 
