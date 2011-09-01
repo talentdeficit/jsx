@@ -23,21 +23,7 @@
 
 -module(jsx_utils).
 
--export([nice_decimal/1, detect_encoding/1, detect_encoding/2, collect/1]).
-
-
--spec collect(F::function()) -> {jsx, list(), function()}.
-
-collect(F) when is_function(F) ->
-    collect(F(), []).
-
-collect({error, _}, _) -> {error, badarg};
-collect({jsx, incomplete, More}, Acc) ->
-    {jsx, incomplete, fun(Stream) -> collect(More(Stream), Acc) end};
-collect({jsx, end_json, Next}, Acc) ->
-    {jsx, lists:reverse([end_json] ++ Acc), Next};
-collect({jsx, Event, Next}, Acc) -> collect(Next(), [Event] ++ Acc).
-
+-export([nice_decimal/1]).
 
 
 %% conversion of floats to 'nice' decimal output. erlang's float implementation 
@@ -177,102 +163,6 @@ to_ascii(13) -> "d";
 to_ascii(14) -> "e";
 to_ascii(15) -> "f";
 to_ascii(X) -> [X + 48].    %% ascii "1" is [49], "2" is [50], etc...
-
-
-%% encoding detection   
-%% first check to see if there's a bom, if not, use the rfc4627 method for 
-%%   determining encoding. this function makes some assumptions about the 
-%%   validity of the stream which may delay failure later than if an encoding is 
-%%   explicitly provided
-
-detect_encoding(OptsList) ->
-    fun(Stream) -> detect_encoding(Stream, OptsList) end.
-    
-%% utf8 bom detection    
-detect_encoding(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Opts) -> 
-    (jsx_utf8:decoder(Opts))(Rest);    
-%% utf32-little bom detection (this has to come before utf16-little or it'll 
-%%   match that)
-detect_encoding(<<16#ff, 16#fe, 0, 0, Rest/binary>>, Opts) -> 
-    (jsx_utf32le:decoder(Opts))(Rest);        
-%% utf16-big bom detection
-detect_encoding(<<16#fe, 16#ff, Rest/binary>>, Opts) -> 
-    (jsx_utf16:decoder(Opts))(Rest);
-%% utf16-little bom detection
-detect_encoding(<<16#ff, 16#fe, Rest/binary>>, Opts) -> 
-    (jsx_utf16le:decoder(Opts))(Rest);
-%% utf32-big bom detection
-detect_encoding(<<0, 0, 16#fe, 16#ff, Rest/binary>>, Opts) -> 
-    (jsx_utf32:decoder(Opts))(Rest);
-    
-%% utf32-little null order detection
-detect_encoding(<<X, 0, 0, 0, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
-    (jsx_utf32le:decoder(Opts))(JSON);
-%% utf32-big null order detection
-detect_encoding(<<0, 0, 0, X, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
-    (jsx_utf32:decoder(Opts))(JSON);
-%% utf16-little null order detection
-detect_encoding(<<X, 0, _, _, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
-    (jsx_utf16le:decoder(Opts))(JSON);
-%% utf16-big null order detection
-detect_encoding(<<0, X, _, _, _Rest/binary>> = JSON, Opts) when X =/= 0 ->
-    (jsx_utf16:decoder(Opts))(JSON);
-%% utf8 null order detection
-detect_encoding(<<X, Y, _Rest/binary>> = JSON, Opts) when X =/= 0, Y =/= 0 ->
-    (jsx_utf8:decoder(Opts))(JSON);
-    
-%% a problem, to autodetect naked single digits' encoding, there is not enough 
-%%   data to conclusively determine the encoding correctly. below is an attempt 
-%%   to solve the problem
-detect_encoding(<<X>>, Opts) when X =/= 0 ->
-    {jsx, incomplete,
-        fun(end_stream) ->
-                try
-                    {jsx, incomplete, Next} = (jsx_utf8:decoder(Opts))(<<X>>),
-                    Next(end_stream)
-                catch
-                    error:function_clause -> {error, {badjson, <<X>>}}
-                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
-                end
-            ; (Stream) -> detect_encoding(<<X, Stream/binary>>, Opts) 
-        end
-    };
-detect_encoding(<<0, X>>, Opts) when X =/= 0 ->
-    {jsx, incomplete,
-        fun(end_stream) ->
-                try
-                    {jsx, incomplete, Next} 
-                        = (jsx_utf16:decoder(Opts))(<<0, X>>),
-                    Next(end_stream)
-                catch
-                    error:function_clause -> {error, {badjson, <<0, X>>}}
-                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
-                end
-            ; (Stream) -> detect_encoding(<<0, X, Stream/binary>>, Opts) 
-        end
-    };
-detect_encoding(<<X, 0>>, Opts) when X =/= 0 ->
-    {jsx, incomplete,
-        fun(end_stream) ->
-                try
-                    {jsx, incomplete, Next} 
-                        = (jsx_utf16le:decoder(Opts))(<<X, 0>>),
-                    Next(end_stream)
-                catch
-                    error:function_clause -> {error, {badjson, <<X, 0>>}}
-                    ; error:{badmatch, _} -> {error, {badjson, <<X>>}}
-                end
-            ; (Stream) -> detect_encoding(<<X, 0, Stream/binary>>, Opts)
-        end
-    };
-    
-%% not enough input, request more
-detect_encoding(Bin, Opts) ->
-    {jsx, incomplete,
-        fun(end_stream) -> {error, {badjson, Bin}}
-            ; (Stream) -> detect_encoding(<<Bin/binary, Stream/binary>>, Opts) 
-        end
-    }.
 
 
 %% eunit tests

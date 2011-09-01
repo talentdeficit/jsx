@@ -4,15 +4,8 @@
     {vsn, "0.10.0"},
     {modules, [
         jsx,
-        jsx_encoder,
-        jsx_utf8,
-        jsx_utf16,
-        jsx_utf16le,
-        jsx_utf32,
-        jsx_utf32le,
-		jsx_terms,
-		jsx_format,
-		jsx_verify,
+        jsx_tokenizer,
+        jsx_scanner,
 		jsx_utils
     ]},
     {registered, []},

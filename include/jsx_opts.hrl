@@ -20,14 +20,20 @@
 %% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 %% THE SOFTWARE.
 
+-record(opts, {
+    loose_unicode = false,
+    escape_forward_slash = false
+}).
 
 
--module(jsx_utf8).
+parse_opts(Opts) ->
+    parse_opts(Opts, #opts{}).
 
--include("../include/jsx_common.hrl").
--include("../include/jsx_decoder.hrl").
-
-%% i've noticed you've noticed that there's no source here. very astute. see 
-%%   jsx_decoder_template.hrl in the include directory. any mofications to this
-%%   module should be made there, but keep in mind other modules also include
-%%   that header
+parse_opts([], Opts) ->
+    Opts;
+parse_opts([loose_unicode|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{loose_unicode=true});
+parse_opts([escape_forward_slash|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escape_forward_slash=true});
+parse_opts(_, _) ->
+    {error, badarg}.
