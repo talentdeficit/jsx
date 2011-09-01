@@ -85,13 +85,13 @@
 -ifndef(incomplete).
 -define(incomplete(State, Rest, T, Stack, Opts),
     {ok, lists:reverse(T), fun(Stream) when is_binary(Stream) ->
-            State(<<Stream/binary, Rest/binary>>, [], Stack, Opts)
+            State(<<Rest/binary, Stream/binary>>, [], Stack, Opts)
         end
     }
 ).
 -define(incomplete(State, Rest, T, Stack, Opts, Acc),
-    {ok, T, fun(Stream) when is_binary(Stream) ->
-            State(<<Stream/binary, Rest/binary>>, [], Stack, Opts, Acc)
+    {ok, lists:reverse(T), fun(Stream) when is_binary(Stream) ->
+            State(<<Rest/binary, Stream/binary>>, [], Stack, Opts, Acc)
         end
     }
 ).
@@ -243,6 +243,7 @@ partial_utf(<<X, Rest/binary>>) when X >= 16#f0, X =< 16#f4 ->
         ; _ -> false
     end;
 partial_utf(_) -> false.
+
 
 string(<<?quote, Rest/binary>>, T, [key|_] = Stack, Opts, Acc) ->
     ?event([{key, lists:reverse(Acc)}], colon, Rest, T, Stack, Opts);
