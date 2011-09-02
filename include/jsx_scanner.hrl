@@ -228,20 +228,13 @@ key(Bin, T, Stack, Opts) ->
 %%   insufficient. this incredibly anal function should detect all badly formed
 %%   utf sequences
 partial_utf(<<>>) -> true;
-partial_utf(<<X>>) when X >= 16#c2, X =< 16#df -> true;
-partial_utf(<<X, Rest/binary>>) when X >= 16#e0, X =< 16#ef ->
-    case Rest of
-        <<>> -> true
-        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
-        ; _ -> false
-    end;
-partial_utf(<<X, Rest/binary>>) when X >= 16#f0, X =< 16#f4 ->
-    case Rest of
-        <<>> -> true
-        ; <<Y>> when Y >= 16#80, Y =< 16#bf -> true
-        ; <<Y, Z>> when Y >= 16#80, Y =< 16#bf, Z >= 16#80, Z =< 16#bf -> true
-        ; _ -> false
-    end;
+partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
+partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
+partial_utf(<<X, Y, Z>>) 
+        when X >= 16#f0, X =< 16#f4,
+            Y >= 16#80, Y =< 16#bf,
+            Z >= 16#80, Z =< 16#bf ->
+    true;
 partial_utf(_) -> false.
 
 
@@ -387,24 +380,17 @@ low_surrogate(Bin, T, Stack, Opts, Acc) ->
 
 low_surrogate_u(<<$u, Rest/binary>>, T, Stack, Opts, {High, String}) ->
     low_surrogate_v(Rest, T, Stack, Opts, {[], High, String});
-%% not a low surrogate, dispatch back to string to handle, including the
-%%   rsolidus we parsed previously
-low_surrogate_u(<<S, Rest/binary>> = Bin, T, Stack, Opts, {High, String}) ->
-    case Opts#opts.loose_unicode of
-        true ->
-            string(<<?rsolidus, Bin/binary>>,
-                T,
-                Stack,
-                Opts,
-                [16#fffd] ++ String
-            )
-        ; false ->
-            ?error([<<S, Rest/binary>>, T, Stack, Opts, {High, String}])
-    end;
 low_surrogate_u(<<>>, T, Stack, Opts, Acc) ->
     ?incomplete(low_surrogate_u, <<>>, T, Stack, Opts, Acc);
-low_surrogate_u(Bin, T, Stack, Opts, Acc) ->
-    ?error([Bin, T, Stack, Opts, Acc]).
+%% not a low surrogate, dispatch back to string to handle, including the
+%%   rsolidus we parsed previously
+low_surrogate_u(Bin, T, Stack, Opts, {High, String}) ->
+    case Opts#opts.loose_unicode of
+        true ->
+            string(<<?rsolidus, Bin/binary>>, T, Stack, Opts, [16#fffd] ++ String)
+        ; false ->
+            ?error([Bin, T, Stack, Opts, {High, String}])
+    end.
 
 
 low_surrogate_v(<<D, Rest/binary>>, T, Stack, Opts, {[C, B, A], High, String}) 
@@ -670,10 +656,10 @@ maybe_done(<<?comma, Rest/binary>>, T, [array|_] = Stack, Opts) ->
     value(Rest, T, Stack, Opts);
 maybe_done(<<S, Rest/binary>>, T, Stack, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, T, Stack, Opts);
+maybe_done(<<>>, T, Stack, Opts) when length(Stack) > 0 -> 
+    ?incomplete(maybe_done, <<>>, T, Stack, Opts);
 maybe_done(Rest, T, [], Opts) ->
     ?event([end_json], done, Rest, T, [], Opts);
-maybe_done(<<>>, T, Stack, Opts) -> 
-    ?incomplete(maybe_done, <<>>, T, Stack, Opts);
 maybe_done(Bin, T, Stack, Opts) ->
     ?error([Bin, T, Stack, Opts]).
 
