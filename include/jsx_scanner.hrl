@@ -238,11 +238,11 @@ partial_utf(<<X, Y, Z>>)
 partial_utf(_) -> false.
 
 
-string(<<?quote, Rest/binary>>, T, [key|_] = Stack, Opts, Acc) ->
+string(<<?quote/utf8, Rest/binary>>, T, [key|_] = Stack, Opts, Acc) ->
     ?event([{key, lists:reverse(Acc)}], colon, Rest, T, Stack, Opts);
-string(<<?quote, Rest/binary>>, T, Stack, Opts, Acc) ->
+string(<<?quote/utf8, Rest/binary>>, T, Stack, Opts, Acc) ->
     ?event([{string, lists:reverse(Acc)}], maybe_done, Rest, T, Stack, Opts);
-string(<<?rsolidus, Rest/binary>>, T, Stack, Opts, Acc) ->
+string(<<?rsolidus/utf8, Rest/binary>>, T, Stack, Opts, Acc) ->
     escape(Rest, T, Stack, Opts, Acc);
 %% things get dumb here. erlang doesn't properly restrict unicode non-characters
 %%   so you can't trust the codepoints it returns always
