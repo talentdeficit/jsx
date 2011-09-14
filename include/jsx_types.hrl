@@ -1,14 +1,6 @@
 -type jsx_opts() :: [jsx_opt()].
--type jsx_opt() :: multi_term
-    | loose_unicode
-    | escape_forward_slashes
-    | {encoding, auto 
-        | utf8
-        | utf16
-        | {utf16, little}
-        | utf32
-        | {utf32, little}
-    }.
+-type jsx_opt() :: loose_unicode
+    | escape_forward_slashes.
     
 
 -type jsx_event() :: start_object
