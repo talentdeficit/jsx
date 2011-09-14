@@ -23,7 +23,9 @@
 
 -module(jsx_utils).
 
--export([nice_decimal/1]).
+-export([nice_decimal/1, json_escape/2]).
+
+-include("../include/jsx_opts.hrl").
 
 
 %% conversion of floats to 'nice' decimal output. erlang's float implementation 
@@ -152,17 +154,108 @@ digits_to_list(Digits, 0, Acc) ->
     digits_to_list(Digits, ignore, "." ++ Acc); 
 digits_to_list([Digit|Digits], Dpoint, Acc) ->
     digits_to_list(Digits, 
-        case Dpoint of ignore -> ignore; X -> X - 1 end, to_ascii(Digit) ++ Acc
+        case Dpoint of ignore -> ignore; X -> X - 1 end, [to_hex(Digit)] ++ Acc
     ).
 
 
-to_ascii(10) -> "a";
-to_ascii(11) -> "b";
-to_ascii(12) -> "c";
-to_ascii(13) -> "d";
-to_ascii(14) -> "e";
-to_ascii(15) -> "f";
-to_ascii(X) -> [X + 48].    %% ascii "1" is [49], "2" is [50], etc...
+
+%% json string escaping, for utf8 binaries. escape the json control sequences to 
+%%  their json equivalent, escape other control characters to \uXXXX sequences, 
+%%  everything else should be a legal json string component
+json_escape(String, Opts) when is_binary(String) ->
+    json_escape(String, Opts, <<>>);
+json_escape(String, Opts) when is_list(String) ->
+    json_escape(String, Opts, []).
+
+%% double quote    
+json_escape(<<$\", Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>);
+json_escape([$\"|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$\", $\\] ++ Acc);
+%% backslash \ reverse solidus
+json_escape(<<$\\, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $\\>>);
+json_escape([$\\|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$\\, $\\] ++ Acc);
+%% backspace
+json_escape(<<$\b, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $b>>);
+json_escape([$\b|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$b, $\\] ++ Acc);
+%% form feed
+json_escape(<<$\f, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $f>>);
+json_escape([$\f|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$f, $\\] ++ Acc);
+%% newline
+json_escape(<<$\n, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $n>>);
+json_escape([$\n|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$n, $\\] ++ Acc);
+%% cr
+json_escape(<<$\r, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $r>>);
+json_escape([$\r|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$r, $\\] ++ Acc);
+%% tab
+json_escape(<<$\t, Rest/binary>>, Opts, Acc) -> 
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $t>>);
+json_escape([$\t|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [$t, $\\] ++ Acc);
+%% other control characters
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
+    json_escape(Rest,
+        Opts,
+        <<Acc/binary,
+            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
+        >>
+    );
+json_escape([C|Rest], Opts, Acc) when C >= 0, C < $\s ->
+    json_escape(Rest, Opts, lists:reverse(json_escape_sequence(C)) ++ Acc);
+%% escape forward slashes -- optionally -- to faciliate microsoft's retarded
+%%   date format
+json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $/>>);
+json_escape([$/|Rest], Opts=#opts{escape_forward_slash=true}, Acc) ->
+    json_escape(Rest, Opts, [$/, $\\] ++ Acc);
+%% escape u+2028 and u+2029 to avoid problems with jsonp
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
+        when C == 16#2028; C == 16#2029 ->
+    json_escape(Rest,
+        Opts,
+        <<Acc/binary,
+            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
+        >>
+    );
+json_escape([C|Rest], Opts, Acc) when C =:= 16#2028; C =:= 16#2029 ->
+    json_escape(Rest, Opts, lists:reverse(json_escape_sequence(C)) ++ Acc);
+%% any other legal codepoint
+json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
+    json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
+json_escape([C|Rest], Opts, Acc) ->
+    json_escape(Rest, Opts, [C] ++ Acc);
+json_escape(<<>>, _Opts, Acc) ->
+    Acc;
+json_escape([], _Opts, Acc) ->
+    lists:reverse(Acc);
+json_escape(Rest, Opts, Acc) ->
+    erlang:error(badarg, [Rest, Opts, Acc]).
+
+
+%% convert a codepoint to it's \uXXXX equiv.
+json_escape_sequence(X) ->
+    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
+    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
+
+
+
+to_hex(10) -> $a;
+to_hex(11) -> $b;
+to_hex(12) -> $c;
+to_hex(13) -> $d;
+to_hex(14) -> $e;
+to_hex(15) -> $f;
+to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
 
 %% eunit tests
@@ -202,6 +295,64 @@ nice_decimal_test_() ->
             ?_assert(
                 nice_decimal((1 - math:pow(2, -52)) * math:pow(2, -1022)) 
                     =:= "2.225073858507201e-308"
+            )
+        }
+    ].
+
+
+binary_escape_test_() ->
+    [
+        {"json string escaping", 
+            ?_assert(json_escape(
+                    <<"\"\\\b\f\n\r\t">>, #opts{}
+                ) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>
+            )
+        },
+        {"json string hex escape", 
+            ?_assert(json_escape(
+                    <<1, 2, 3, 11, 26, 30, 31>>, #opts{}
+                ) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
+            )
+        },
+        {"jsonp protection",
+            ?_assert(json_escape(
+                    <<226, 128, 168, 226, 128, 169>>, #opts{}
+                ) =:= <<"\\u2028\\u2029">>
+            )
+        },
+        {"microsoft i hate your date format",
+            ?_assert(json_escape(<<"/Date(1303502009425)/">>,
+                    #opts{escape_forward_slash=true}
+                ) =:= <<"\\/Date(1303502009425)\\/">>
+            )
+        }
+    ].
+
+
+string_escape_test_() ->
+    [
+        {"json string escaping", 
+            ?_assert(json_escape(
+                    "\"\\\b\f\n\r\t", #opts{}
+                ) =:= "\\\"\\\\\\b\\f\\n\\r\\t"
+            )
+        },
+        {"json string hex escape", 
+            ?_assert(json_escape(
+                    [1, 2, 3, 11, 26, 30, 31], #opts{}
+                ) =:= "\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f"
+            )
+        },
+        {"jsonp protection",
+            ?_assert(json_escape(
+                    [16#2028, 16#2029], #opts{}
+                ) =:= "\\u2028\\u2029"
+            )
+        },
+        {"microsoft i hate your date format",
+            ?_assert(json_escape("/Date(1303502009425)/",
+                    #opts{escape_forward_slash=true}
+                ) =:= "\\/Date(1303502009425)\\/"
             )
         }
     ].

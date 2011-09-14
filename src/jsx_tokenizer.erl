@@ -36,6 +36,8 @@ tokenizer(OptsList) ->
 
 -include("../include/jsx_opts.hrl").
 
+-include("../include/jsx_opts_parser.hrl").
+
 -include("../include/jsx_tokenizer.hrl").
 
 -ifdef(TEST).
@@ -105,64 +107,6 @@ encode_test_() ->
         {"naked literal", ?_assert(encode({literal, true}))},
         {"naked integer", ?_assert(encode({integer, 1}))},
         {"naked float", ?_assert(encode({float, 1.0}))}
-    ].
-
-
-binary_escape_test_() ->
-    [
-        {"json string escaping", 
-            ?_assert(json_escape(
-                    <<"\"\\\b\f\n\r\t">>, #opts{}
-                ) =:= <<"\\\"\\\\\\b\\f\\n\\r\\t">>
-            )
-        },
-        {"json string hex escape", 
-            ?_assert(json_escape(
-                    <<1, 2, 3, 11, 26, 30, 31>>, #opts{}
-                ) =:= <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
-            )
-        },
-        {"jsonp protection",
-            ?_assert(json_escape(
-                    <<226, 128, 168, 226, 128, 169>>, #opts{}
-                ) =:= <<"\\u2028\\u2029">>
-            )
-        },
-        {"microsoft i hate your date format",
-            ?_assert(json_escape(<<"/Date(1303502009425)/">>,
-                    #opts{escape_forward_slash=true}
-                ) =:= <<"\\/Date(1303502009425)\\/">>
-            )
-        }
-    ].
-
-
-string_escape_test_() ->
-    [
-        {"json string escaping", 
-            ?_assert(json_escape(
-                    "\"\\\b\f\n\r\t", #opts{}
-                ) =:= "\\\"\\\\\\b\\f\\n\\r\\t"
-            )
-        },
-        {"json string hex escape", 
-            ?_assert(json_escape(
-                    [1, 2, 3, 11, 26, 30, 31], #opts{}
-                ) =:= "\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f"
-            )
-        },
-        {"jsonp protection",
-            ?_assert(json_escape(
-                    [16#2028, 16#2029], #opts{}
-                ) =:= "\\u2028\\u2029"
-            )
-        },
-        {"microsoft i hate your date format",
-            ?_assert(json_escape("/Date(1303502009425)/",
-                    #opts{escape_forward_slash=true}
-                ) =:= "\\/Date(1303502009425)\\/"
-            )
-        }
     ].
 
 -endif.

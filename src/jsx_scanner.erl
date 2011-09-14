@@ -33,6 +33,8 @@ scanner(Opts) ->
 
 -include("../include/jsx_opts.hrl").
 
+-include("../include/jsx_opts_parser.hrl").
+
 -include("../include/jsx_scanner.hrl").
 
 -ifdef(TEST).
