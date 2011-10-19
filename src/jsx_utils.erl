@@ -23,9 +23,24 @@
 
 -module(jsx_utils).
 
--export([nice_decimal/1, json_escape/2]).
+-export([parse_opts/1, nice_decimal/1, json_escape/2]).
 
 -include("../include/jsx_opts.hrl").
+
+
+%% parsing of jsx opts
+
+parse_opts(Opts) ->
+    parse_opts(Opts, #opts{}).
+
+parse_opts([], Opts) ->
+    Opts;
+parse_opts([loose_unicode|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{loose_unicode=true});
+parse_opts([escape_forward_slash|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escape_forward_slash=true});
+parse_opts(_, _) ->
+    {error, badarg}.
 
 
 %% conversion of floats to 'nice' decimal output. erlang's float implementation 
@@ -38,7 +53,6 @@
 
 %% algorithm from "Printing Floating-Point Numbers Quickly and Accurately" by 
 %%   Burger & Dybvig
-
 
 -spec nice_decimal(Float::float()) -> string().
 
@@ -162,6 +176,7 @@ digits_to_list([Digit|Digits], Dpoint, Acc) ->
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
 %%  their json equivalent, escape other control characters to \uXXXX sequences, 
 %%  everything else should be a legal json string component
+
 json_escape(String, Opts) when is_binary(String) ->
     json_escape(String, Opts, <<>>);
 json_escape(String, Opts) when is_list(String) ->

@@ -20,12 +20,13 @@
 -type jsx_encodeable() :: jsx_event() | [jsx_encodeable()].
 
 
--type jsx_iterator() :: jsx_scanner() | jsx_tokenizer().
+-type jsx_iterator() :: jsx_scanner().
 
 
--type jsx_scanner() :: fun((binary()) -> jsx_iterator_result()).
+-type jsx_scanner() :: jsx_decoder() | jsx_tokenizer().
 
 
+-type jsx_decoder() :: fun((binary()) -> jsx_iterator_result()).
 -type jsx_tokenizer() :: fun((jsx_encodeable()) -> jsx_iterator_result()).
 
 

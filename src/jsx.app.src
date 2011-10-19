@@ -5,7 +5,7 @@
     {modules, [
         jsx,
         jsx_tokenizer,
-        jsx_scanner,
+        jsx_decoder,
 		jsx_utils
     ]},
     {registered, []},

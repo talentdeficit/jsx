@@ -36,7 +36,7 @@ scanner() -> scanner([]).
 -spec scanner(OptsList::jsx_opts()) -> jsx_scanner().
 scanner(OptsList) ->
     fun(Stream) when is_binary(Stream) ->
-            (jsx_scanner:scanner(OptsList))(Stream)
+            (jsx_decoder:decoder(OptsList))(Stream)
         ; (Stream) when is_list(Stream); is_tuple(Stream) ->
             (jsx_tokenizer:tokenizer(OptsList))(Stream)
     end.

@@ -32,11 +32,9 @@
 
 -spec tokenizer(OptsList::jsx_opts()) -> jsx_tokenizer().
 tokenizer(OptsList) ->
-    fun(Forms) -> start(Forms, [], [], parse_opts(OptsList)) end.
+    fun(Forms) -> start(Forms, [], [], jsx_utils:parse_opts(OptsList)) end.
 
 -include("../include/jsx_opts.hrl").
-
--include("../include/jsx_opts_parser.hrl").
 
 -include("../include/jsx_tokenizer.hrl").
 
