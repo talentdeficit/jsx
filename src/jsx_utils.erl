@@ -39,6 +39,8 @@ parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{loose_unicode=true});
 parse_opts([escape_forward_slash|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{escape_forward_slash=true});
+parse_opts([explicit_end|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{explicit_end=true});
 parse_opts(_, _) ->
     {error, badarg}.
 

@@ -4,7 +4,7 @@
     {vsn, "0.10.0"},
     {modules, [
         jsx,
-        jsx_tokenizer,
+        jsx_encoder,
         jsx_decoder,
 		jsx_utils
     ]},
