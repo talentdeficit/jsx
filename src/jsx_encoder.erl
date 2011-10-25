@@ -61,22 +61,22 @@ encoder(OptsList) ->
 
 
 
-start({string, String}, [], [], Opts) when is_binary(String); is_list(String) ->
+start([{string, String}], [], [], Opts) when is_binary(String); is_list(String) ->
     {ok,
         [{string,
             unicode:characters_to_list(jsx_utils:json_escape(String, Opts))},
             end_json
         ]
     };
-start({float, Float}, [], [], _Opts) when is_float(Float) ->
+start([{float, Float}], [], [], _Opts) when is_float(Float) ->
     {ok,
         [{float, Float}, end_json]
     };
-start({integer, Int}, [], [], _Opts) when is_integer(Int) ->
+start([{integer, Int}], [], [], _Opts) when is_integer(Int) ->
     {ok,
         [{integer, Int}, end_json]
     };
-start({literal, Atom}, [], [], _Opts)
+start([{literal, Atom}], [], [], _Opts)
         when Atom == true; Atom == false; Atom == null ->
     {ok,
         [{literal, Atom}, end_json]
@@ -84,8 +84,8 @@ start({literal, Atom}, [], [], _Opts)
 %% third parameter is a stack to match end_foos to start_foos
 start(Forms, [], [], Opts) when is_list(Forms) ->
     list_or_object(Forms, [], [], Opts);
-start(Raw, [], [], Opts) ->
-    start(term_to_event(Raw), [], [], Opts).
+start(Forms, T, Stack, Opts) ->
+    ?error([Forms, T, Stack, Opts]).
 
 
 list_or_object([start_object|Forms], T, Stack, Opts) ->
@@ -147,25 +147,13 @@ done([], T, [], _Opts) ->
 done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
-term_to_event(X) when is_integer(X) -> {integer, X};
-term_to_event(X) when is_float(X) -> {float, X};
-term_to_event(String) when is_binary(String) -> {string, String};
-term_to_event(true) -> {literal, true};
-term_to_event(false) -> {literal, false};
-term_to_event(null) -> {literal, null}.
-
-
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 encode(Terms) ->    
     try case (jsx:encoder([]))(Terms) of
-            {ok, Terms} ->
-                true
-            %% matches [foo, end_json], aka naked terms
-            ; {ok, [Terms, end_json]} ->
-                true
+            {ok, Terms} -> true
         end
     catch
         error:badarg -> false
@@ -220,10 +208,18 @@ encode_test_() ->
             end_array,
             end_json
         ]))},
-        {"naked string", ?_assert(encode({string, "hello"}))},
-        {"naked literal", ?_assert(encode({literal, true}))},
-        {"naked integer", ?_assert(encode({integer, 1}))},
-        {"naked float", ?_assert(encode({float, 1.0}))}
+        {"naked string", ?_assert((jsx:scanner())([{string, "hello"}])
+            =:= {ok, [{string, "hello"}, end_json]}
+        )},
+        {"naked literal", ?_assert((jsx:scanner())([{literal, true}])
+            =:= {ok, [{literal, true}, end_json]}
+        )},
+        {"naked integer", ?_assert((jsx:scanner())([{integer, 1}])
+            =:= {ok, [{integer, 1}, end_json]}
+        )},
+        {"naked string", ?_assert((jsx:scanner())([{float, 1.0}])
+            =:= {ok, [{float, 1.0}, end_json]}
+        )}
     ].
 
 -endif.

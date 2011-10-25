@@ -27,6 +27,7 @@
 -export([encoder/0, encoder/1]).
 -export([decoder/0, decoder/1]).
 -export([fold/3, fold/4]).
+-export([format/1, format/2]).
 
 
 %% various semi-useful types with nowhere else to hang out
@@ -61,8 +62,7 @@ scanner() -> scanner([]).
 
 scanner(OptsList) when is_list(OptsList) ->
     fun(JSON) when is_binary(JSON) -> (decoder(OptsList))(JSON)
-        ; (Terms) when is_list(Terms); is_tuple(Terms) ->
-            (encoder(OptsList))(Terms)
+        ; (Terms) when is_list(Terms) -> (encoder(OptsList))(Terms)
     end.
 
 
@@ -76,7 +76,7 @@ decoder() -> decoder([]).
 decoder(OptsList) when is_list(OptsList) -> jsx_decoder:decoder(OptsList).
 
 
--type encoder() :: fun((list() | tuple()) ->
+-type encoder() :: fun((list()) ->
     {ok, events()} | {incomplete, decoder()}).
 
 -spec encoder() -> encoder().
@@ -113,6 +113,14 @@ fold(Fun, Acc, Source, Opts) ->
         {ok, Events} -> lists:foldl(Fun, Acc, Events)
         ; {incomplete, F} -> {incomplete, F}
     end.
+
+
+-spec format(Source::binary()) -> binary().
+-spec format(Source::binary() | list(), Opts::jsx_format:opts()) -> binary().
+
+format(Source) -> format(Source, []).
+
+format(Source, Opts) -> jsx_format:format(Source, Opts).
 
 
 
