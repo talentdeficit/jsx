@@ -28,7 +28,9 @@
 
 -record(opts, {
     output_encoding = utf8,
-    space = 0
+    space = 0,
+    indent = 0,
+    depth = 0
 }).
 
 -type opts() :: [].
@@ -49,10 +51,14 @@ parse_opts(Opts) -> parse_opts(Opts, #opts{}).
 
 parse_opts([{output_encoding, Val}|Rest], Opts) when Val == utf8 ->
     parse_opts(Rest, Opts#opts{output_encoding = Val});
-parse_opts([{space, Val}|Rest], Opts) when is_integer(Val) ->
+parse_opts([{space, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
     parse_opts(Rest, Opts#opts{space = Val});
 parse_opts([space|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{space = 1});
+parse_opts([{indent, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
+    parse_opts(Rest, Opts#opts{indent = Val});
+parse_opts([indent|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{indent = 1});
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
@@ -92,12 +98,13 @@ fold(Event, {start, Acc, Opts}) ->
         ; start_object -> {[object_start], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start], [Acc, ?start_array], Opts}
     end;
-fold(Event, {[object_start|Stack], Acc, Opts}) ->
+fold(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
+    Opts = OldOpts#opts{depth = Depth + 1},
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, encode(string, Key), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, indent(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
         ; end_object ->
-            {Stack, [Acc, ?end_object], Opts}
+            {Stack, [Acc, ?end_object], OldOpts}
     end;
 fold(Event, {[object_value|Stack], Acc, Opts}) ->
     case Event of
@@ -107,30 +114,34 @@ fold(Event, {[object_value|Stack], Acc, Opts}) ->
         ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Opts}
     end;
-fold(Event, {[key|Stack], Acc, Opts}) ->
+fold(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, ?comma, space(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, ?comma, indent_or_space(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
         ; end_object ->
-            {Stack, [Acc, ?end_object], Opts}
+            NewOpts = Opts#opts{depth = Depth - 1},
+            {Stack, [Acc, indent(NewOpts), ?end_object], NewOpts}
     end;
-fold(Event, {[array_start|Stack], Acc, Opts}) ->
+fold(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
+    Opts = OldOpts#opts{depth = Depth + 1},
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, encode(Type, Value)], Opts}
-        ; start_object -> {[object_start, array|Stack], [Acc, ?start_object], Opts}
-        ; start_array -> {[array_start, array|Stack], [Acc, ?start_array], Opts}
-        ; end_array -> {Stack, [Acc, ?end_array], Opts}
+            {[array|Stack], [Acc, indent(Opts), encode(Type, Value)], Opts}
+        ; start_object -> {[object_start, array|Stack], [Acc, indent(Opts), ?start_object], Opts}
+        ; start_array -> {[array_start, array|Stack], [Acc, indent(Opts), ?start_array], Opts}
+        ; end_array -> {Stack, [Acc, ?end_array], OldOpts}
     end;
-fold(Event, {[array|Stack], Acc, Opts}) ->
+fold(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, ?comma, space(Opts), encode(Type, Value)], Opts}
-        ; end_array -> {Stack, [Acc, ?end_array], Opts}
-        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, space(Opts), ?start_object], Opts}
-        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, space(Opts), ?start_array], Opts}
+            {[array|Stack], [Acc, ?comma, indent_or_space(Opts), encode(Type, Value)], Opts}
+        ; end_array ->
+            NewOpts = Opts#opts{depth = Depth - 1},
+            {Stack, [Acc, indent(NewOpts), ?end_array], NewOpts}
+        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_object], Opts}
+        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_array], Opts}
     end;
 fold(end_json, {[], Acc, Opts}) -> encode(Acc, Opts).
 
@@ -155,6 +166,25 @@ space(Opts) ->
     case Opts#opts.space of
         0 -> []
         ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
+    end.
+
+
+indent(Opts) ->
+    case Opts#opts.indent of
+        0 -> []
+        ; X when X > 0 ->
+            Indent = [ ?space || _ <- lists:seq(1, X) ],
+            indent(Indent, Opts#opts.depth, [?newline])
+    end.
+
+indent(_Indent, 0, Acc) -> Acc;
+indent(Indent, N, Acc) -> indent(Indent, N - 1, [Acc, Indent]).
+
+
+indent_or_space(Opts) ->
+    case Opts#opts.indent > 0 of
+        true -> indent(Opts)
+        ; false -> space(Opts)
     end.
 
 
@@ -205,14 +235,14 @@ opts_test_() ->
         {"unspecified indent/space", 
             ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, 
                     [space, indent]
-                ) =:= <<"[\n true, \n false, \n null\n]">>
+                ) =:= <<"[\n true,\n false,\n null\n]">>
             )
         },
         {"specific indent/space", 
             ?_assert(format(
                     <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, 
                     [{space, 2}, {indent, 3}]
-                ) =:= <<"{\n   \"key\":  [],  \n   \"another key\":  true\n}">>
+                ) =:= <<"{\n   \"key\":  [],\n   \"another key\":  true\n}">>
             )
         },
         {"nested structures", 
@@ -223,7 +253,7 @@ opts_test_() ->
                         [[true, false, null]]
                     ]">>, 
                     [{space, 2}, {indent, 2}]
-                ) =:= <<"[\n  {\n    \"key\":  \"value\",  \n    \"another key\":  \"another value\"\n  },  \n  [\n    [\n      true,  \n      false,  \n      null\n    ]\n  ]\n]">>
+                ) =:= <<"[\n  {\n    \"key\":  \"value\",\n    \"another key\":  \"another value\"\n  },\n  [\n    [\n      true,\n      false,\n      null\n    ]\n  ]\n]">>
             )
         },
         {"array spaces", 
