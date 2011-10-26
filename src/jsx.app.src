@@ -6,6 +6,7 @@
         jsx,
         jsx_encoder,
         jsx_decoder,
+        jsx_format,
 		jsx_utils
     ]},
     {registered, []},
