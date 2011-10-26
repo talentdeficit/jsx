@@ -27,7 +27,8 @@
 
 
 -record(opts, {
-    output_encoding = utf8
+    output_encoding = utf8,
+    space = 0
 }).
 
 -type opts() :: [].
@@ -48,6 +49,10 @@ parse_opts(Opts) -> parse_opts(Opts, #opts{}).
 
 parse_opts([{output_encoding, Val}|Rest], Opts) when Val == utf8 ->
     parse_opts(Rest, Opts#opts{output_encoding = Val});
+parse_opts([{space, Val}|Rest], Opts) when is_integer(Val) ->
+    parse_opts(Rest, Opts#opts{space = Val});
+parse_opts([space|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{space = 1});
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
@@ -90,7 +95,7 @@ fold(Event, {start, Acc, Opts}) ->
 fold(Event, {[object_start|Stack], Acc, Opts}) ->
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, encode(string, Key), ?colon], Opts}
+            {[object_value|Stack], [Acc, encode(string, Key), ?colon, space(Opts)], Opts}
         ; end_object ->
             {Stack, [Acc, ?end_object], Opts}
     end;
@@ -105,7 +110,7 @@ fold(Event, {[object_value|Stack], Acc, Opts}) ->
 fold(Event, {[key|Stack], Acc, Opts}) ->
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, ?comma, encode(string, Key), ?colon], Opts}
+            {[object_value|Stack], [Acc, ?comma, space(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
         ; end_object ->
             {Stack, [Acc, ?end_object], Opts}
     end;
@@ -122,10 +127,10 @@ fold(Event, {[array|Stack], Acc, Opts}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, ?comma, encode(Type, Value)], Opts}
+            {[array|Stack], [Acc, ?comma, space(Opts), encode(Type, Value)], Opts}
         ; end_array -> {Stack, [Acc, ?end_array], Opts}
-        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, ?start_object], Opts}
-        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, ?start_array], Opts}
+        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, space(Opts), ?start_object], Opts}
+        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, space(Opts), ?start_array], Opts}
     end;
 fold(end_json, {[], Acc, Opts}) -> encode(Acc, Opts).
 
@@ -144,6 +149,13 @@ encode(integer, Integer) ->
     erlang:integer_to_list(Integer);
 encode(float, Float) ->
     jsx_utils:nice_decimal(Float).
+
+
+space(Opts) ->
+    case Opts#opts.space of
+        0 -> []
+        ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
+    end.
 
 
 %% eunit tests
@@ -184,6 +196,58 @@ basic_test_() ->
                         [[{}]]
                     ]">>, []
                 ) =:= <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+            )
+        }
+    ].
+
+opts_test_() ->
+    [
+        {"unspecified indent/space", 
+            ?_assert(format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, 
+                    [space, indent]
+                ) =:= <<"[\n true, \n false, \n null\n]">>
+            )
+        },
+        {"specific indent/space", 
+            ?_assert(format(
+                    <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, 
+                    [{space, 2}, {indent, 3}]
+                ) =:= <<"{\n   \"key\":  [],  \n   \"another key\":  true\n}">>
+            )
+        },
+        {"nested structures", 
+            ?_assert(format(
+                    <<"[{\"key\":\"value\", 
+                            \"another key\": \"another value\"
+                        }, 
+                        [[true, false, null]]
+                    ]">>, 
+                    [{space, 2}, {indent, 2}]
+                ) =:= <<"[\n  {\n    \"key\":  \"value\",  \n    \"another key\":  \"another value\"\n  },  \n  [\n    [\n      true,  \n      false,  \n      null\n    ]\n  ]\n]">>
+            )
+        },
+        {"array spaces", 
+            ?_assert(format(<<"[1,2,3]">>, 
+                    [{space, 2}]
+                ) =:= <<"[1,  2,  3]">>
+            )
+        },
+        {"object spaces",
+            ?_assert(format(<<"{\"a\":true,\"b\":true,\"c\":true}">>,
+                    [{space, 2}]
+                ) =:= <<"{\"a\":  true,  \"b\":  true,  \"c\":  true}">>
+            )
+        },
+        {"array indent", 
+            ?_assert(format(<<"[1.0, 2.0, 3.0]">>, 
+                    [{indent, 2}]
+                ) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>
+            )
+        },
+        {"object indent",
+            ?_assert(format(<<"{\"a\":true,\"b\":true,\"c\":true}">>,
+                    [{indent, 2}]
+                ) =:= <<"{\n  \"a\":true,\n  \"b\":true,\n  \"c\":true\n}">>
             )
         }
     ].
