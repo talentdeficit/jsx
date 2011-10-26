@@ -155,8 +155,8 @@ basic_test_() ->
     [
         {"empty object", ?_assert(format(<<"{}">>, []) =:= <<"{}">>)},
         {"empty array", ?_assert(format(<<"[]">>, []) =:= <<"[]">>)},
-        {"naked integer", ?_assert(format([{integer, 123}], []) =:= <<"123">>)},
-        {"naked float", ?_assert(format([{float, 1.23}], []) =:= <<"1.23">>)},
+        {"naked integer", ?_assert(format(<<"123">>, []) =:= <<"123">>)},
+        {"naked float", ?_assert(format(<<"1.23">>, []) =:= <<"1.23">>)},
         {"naked string", ?_assert(format(<<"\"hi\"">>, []) =:= <<"\"hi\"">>)},
         {"naked literal", ?_assert(format(<<"true">>, []) =:= <<"true">>)},
         {"simple object", 

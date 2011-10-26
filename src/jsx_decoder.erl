@@ -477,6 +477,8 @@ zero(<<?decimalpoint, Rest/binary>>, Out, [Acc|Stack], Opts) ->
     initial_decimal(Rest, Out, [{Acc, []}|Stack], Opts);
 zero(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
+zero(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
 zero(<<>>, Out, Stack, Opts) ->
     ?incomplete(zero, <<>>, Out, Stack, Opts);
 zero(Bin, Out, Stack, Opts) ->
@@ -501,6 +503,8 @@ integer(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when S =:= $e; S =:= $E ->
     e(Rest, Out, [{Acc, [], []}|Stack], Opts);
 integer(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
+integer(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
 integer(<<>>, Out, Stack, Opts) ->
     ?incomplete(integer, <<>>, Out, Stack, Opts);
 integer(Bin, Out, Stack, Opts) ->
@@ -532,6 +536,8 @@ decimal(<<S, Rest/binary>>, Out, [{Int, Frac}|Stack], Opts)
     e(Rest, Out, [{Int, Frac, []}|Stack], Opts);
 decimal(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
+decimal(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
 decimal(<<>>, Out, Stack, Opts) ->
     ?incomplete(decimal, <<>>, Out, Stack, Opts);
 decimal(Bin, Out, Stack, Opts) ->
@@ -572,6 +578,8 @@ exp(<<?comma, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
     ?event([format_number(Acc)], value, Rest, Out, [array|Stack], Opts);
 exp(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
+exp(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
 exp(<<>>, Out, Stack, Opts) ->
     ?incomplete(exp, <<>>, Out, Stack, Opts);
 exp(Bin, Out, Stack, Opts) ->
