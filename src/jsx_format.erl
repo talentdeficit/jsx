@@ -83,7 +83,8 @@ extract_parser_opts([K|Rest], Acc) ->
 
 fold(Event, {start, Acc, Opts}) ->
     case Event of
-        start_object -> {[object_start], [Acc, ?start_object], Opts}
+        {Type, Value} -> {[], [Acc, encode(Type, Value)], Opts}
+        ; start_object -> {[object_start], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start], [Acc, ?start_array], Opts}
     end;
 fold(Event, {[object_start|Stack], Acc, Opts}) ->
@@ -154,11 +155,18 @@ basic_test_() ->
     [
         {"empty object", ?_assert(format(<<"{}">>, []) =:= <<"{}">>)},
         {"empty array", ?_assert(format(<<"[]">>, []) =:= <<"[]">>)},
+        {"naked integer", ?_assert(format([{integer, 123}], []) =:= <<"123">>)},
+        {"naked float", ?_assert(format([{float, 1.23}], []) =:= <<"1.23">>)},
+        {"naked string", ?_assert(format(<<"\"hi\"">>, []) =:= <<"\"hi\"">>)},
+        {"naked literal", ?_assert(format(<<"true">>, []) =:= <<"true">>)},
         {"simple object", 
             ?_assert(format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, 
                     []
                 ) =:= <<"{\"key\":\"value\"}">>
             )
+        },
+        {"really simple object",
+            ?_assert(format(<<"{\"k\":\"v\"}">>, []) =:= <<"{\"k\":\"v\"}">>)
         },
         {"simple array", 
             ?_assert(format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, 
@@ -166,6 +174,7 @@ basic_test_() ->
                 ) =:= <<"[true,false,null]">>
             )
         },
+        {"really simple array", ?_assert(format(<<"[1]">>, []) =:= <<"[1]">>)},
         {"nested structures", 
             ?_assert(format(
                     <<"[{\"key\":\"value\", 

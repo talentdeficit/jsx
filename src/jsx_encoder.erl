@@ -84,8 +84,7 @@ start([{literal, Atom}], [], [], _Opts)
 %% third parameter is a stack to match end_foos to start_foos
 start(Forms, [], [], Opts) when is_list(Forms) ->
     list_or_object(Forms, [], [], Opts);
-start(Forms, T, Stack, Opts) ->
-    ?error([Forms, T, Stack, Opts]).
+start(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
 list_or_object([start_object|Forms], T, Stack, Opts) ->
