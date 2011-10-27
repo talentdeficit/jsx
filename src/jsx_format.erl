@@ -27,7 +27,6 @@
 
 
 -record(opts, {
-    output_encoding = utf8,
     space = 0,
     indent = 0,
     depth = 0
@@ -49,8 +48,6 @@ format(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
 
-parse_opts([{output_encoding, Val}|Rest], Opts) when Val == utf8 ->
-    parse_opts(Rest, Opts#opts{output_encoding = Val});
 parse_opts([{space, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
     parse_opts(Rest, Opts#opts{space = Val});
 parse_opts([space|Rest], Opts) ->
@@ -71,12 +68,12 @@ extract_opts(Opts) ->
 extract_parser_opts([], Acc) -> Acc;     
 extract_parser_opts([{K,V}|Rest], Acc) ->
     case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
-        true -> [{K,V}] ++ Acc
+        true -> extract_parser_opts(Rest, [{K,V}] ++ Acc)
         ; false -> extract_parser_opts(Rest, Acc)
     end;
 extract_parser_opts([K|Rest], Acc) ->
     case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
-        true -> [K] ++ Acc
+        true -> extract_parser_opts(Rest, [K] ++ Acc)
         ; false -> extract_parser_opts(Rest, Acc)
     end.
 
@@ -143,15 +140,9 @@ fold(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
         ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_object], Opts}
         ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_array], Opts}
     end;
-fold(end_json, {[], Acc, Opts}) -> encode(Acc, Opts).
+fold(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
 
 
-encode(Acc, Opts) when is_list(Acc) ->
-    case Opts#opts.output_encoding of
-        iolist -> Acc
-        ; utf8 -> unicode:characters_to_binary(Acc, utf8)
-        ; _ -> erlang:error(badarg)
-    end;
 encode(string, String) ->
     [?quote, String, ?quote];
 encode(literal, Literal) ->
@@ -210,6 +201,11 @@ basic_test_() ->
         {"really simple object",
             ?_assert(format(<<"{\"k\":\"v\"}">>, []) =:= <<"{\"k\":\"v\"}">>)
         },
+        {"nested object",
+            ?_assert(format(<<"{\"k\":{\"k\":\"v\"}, \"j\":{}}">>, []
+                ) =:= <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
+            )
+        },
         {"simple array", 
             ?_assert(format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, 
                     []
@@ -217,6 +213,7 @@ basic_test_() ->
             )
         },
         {"really simple array", ?_assert(format(<<"[1]">>, []) =:= <<"[1]">>)},
+        {"nested array", ?_assert(format(<<"[[[]]]">>, []) =:= <<"[[[]]]">>)},
         {"nested structures", 
             ?_assert(format(
                     <<"[{\"key\":\"value\", 
@@ -226,6 +223,11 @@ basic_test_() ->
                         [[{}]]
                     ]">>, []
                 ) =:= <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+            )
+        },
+        {"simple nested structure",
+            ?_assert(format(<<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>, []
+                ) =:= <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
             )
         }
     ].
@@ -280,6 +282,13 @@ opts_test_() ->
                 ) =:= <<"{\n  \"a\":true,\n  \"b\":true,\n  \"c\":true\n}">>
             )
         }
+    ].
+
+ext_opts_test_() ->
+    [{"extopts", ?_assert(format(<<"[]">>, 
+                [loose_unicode, {escape_forward_slash, true}]
+            ) =:= <<"[]">>
+        )}
     ].
 
 terms_test_() ->
