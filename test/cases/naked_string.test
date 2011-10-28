@@ -1,3 +1,3 @@
 {name, "naked_string"}.
-{jsx, [{string,"this is a naked string"},end_json]}.
+{jsx, [{string,<<"this is a naked string">>},end_json]}.
 {json, "naked_string.json"}.

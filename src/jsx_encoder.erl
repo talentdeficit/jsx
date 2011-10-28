@@ -61,26 +61,15 @@ encoder(OptsList) ->
 
 
 
-start([{string, String}], [], [], Opts) when is_binary(String); is_list(String) ->
-    {ok,
-        [{string,
-            unicode:characters_to_list(jsx_utils:json_escape(String, Opts))},
-            end_json
-        ]
-    };
+start([{string, String}], [], [], Opts) when is_binary(String) ->
+    {ok, [{string, jsx_utils:json_escape(String, Opts)}, end_json]};
 start([{float, Float}], [], [], _Opts) when is_float(Float) ->
-    {ok,
-        [{float, Float}, end_json]
-    };
+    {ok, [{float, Float}, end_json]};
 start([{integer, Int}], [], [], _Opts) when is_integer(Int) ->
-    {ok,
-        [{integer, Int}, end_json]
-    };
+    {ok, [{integer, Int}, end_json]};
 start([{literal, Atom}], [], [], _Opts)
         when Atom == true; Atom == false; Atom == null ->
-    {ok,
-        [{literal, Atom}, end_json]
-    };
+    {ok, [{literal, Atom}, end_json]};
 %% third parameter is a stack to match end_foos to start_foos
 start(Forms, [], [], Opts) when is_list(Forms) ->
     list_or_object(Forms, [], [], Opts);
@@ -96,9 +85,9 @@ list_or_object([], T, Stack, Opts) ->
 list_or_object(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
  
-key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key); is_list(Key) ->
+key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key) ->
     ?event([{key,
-            unicode:characters_to_list(jsx_utils:json_escape(Key, Opts))
+            unicode:characters_to_binary(jsx_utils:json_escape(Key, Opts))
         }],
         value, Forms, T, Stack, Opts
     );
@@ -108,8 +97,8 @@ key([], T, Stack, Opts) -> ?incomplete(key, T, Stack, Opts);
 key(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
-value([{string, S}|Forms], T, Stack, Opts) when is_binary(S); is_list(S) ->
-    ?event([{string, unicode:characters_to_list(jsx_utils:json_escape(S, Opts))}],
+value([{string, S}|Forms], T, Stack, Opts) when is_binary(S) ->
+    ?event([{string, jsx_utils:json_escape(S, Opts)}],
         maybe_done, Forms, T, Stack, Opts
     );
 value([{float, F}|Forms], T, Stack, Opts) when is_float(F) ->
@@ -141,8 +130,7 @@ maybe_done([], T, Stack, Opts) -> ?incomplete(maybe_done, T, Stack, Opts);
 maybe_done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
-done([], T, [], _Opts) ->
-    {ok, lists:reverse(T)};
+done([], T, [], _Opts) -> {ok, lists:reverse(T)};
 done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
@@ -164,9 +152,9 @@ encode_test_() ->
         {"empty object", ?_assert(encode([start_object, end_object, end_json]))},
         {"empty array", ?_assert(encode([start_array, end_array, end_json]))},
         {"nested empty objects", ?_assert(encode([start_object,
-            {key, "empty object"},
+            {key, <<"empty object">>},
             start_object,
-            {key, "empty object"},
+            {key, <<"empty object">>},
             start_object,
             end_object,
             end_object,
@@ -182,19 +170,19 @@ encode_test_() ->
             end_json
         ]))},
         {"simple object", ?_assert(encode([start_object, 
-            {key, "a"},
-            {string, "hello"},
-            {key, "b"},
+            {key, <<"a">>},
+            {string, <<"hello">>},
+            {key, <<"b">>},
             {integer, 1},
-            {key, "c"},
+            {key, <<"c">>},
             {float, 1.0},
-            {key, "d"},
+            {key, <<"d">>},
             {literal, true},
             end_object,
             end_json
         ]))},
         {"simple array", ?_assert(encode([start_array,
-            {string, "hello"},
+            {string, <<"hello">>},
             {integer, 1},
             {float, 1.0},
             {literal, true},
@@ -207,8 +195,8 @@ encode_test_() ->
             end_array,
             end_json
         ]))},
-        {"naked string", ?_assert((jsx:scanner())([{string, "hello"}])
-            =:= {ok, [{string, "hello"}, end_json]}
+        {"naked string", ?_assert((jsx:scanner())([{string, <<"hello">>}])
+            =:= {ok, [{string, <<"hello">>}, end_json]}
         )},
         {"naked literal", ?_assert((jsx:scanner())([{literal, true}])
             =:= {ok, [{literal, true}, end_json]}

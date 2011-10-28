@@ -120,12 +120,12 @@ decoder(Opts) ->
 ).
 -endif.
 
--define(new_seq(), []).
--define(new_seq(C), [C]).
+-define(new_seq(), <<>>).
+-define(new_seq(C), <<C/utf8>>).
 
--define(acc_seq(Seq, C), [C] ++ Seq).
+-define(acc_seq(Seq, C), <<Seq/binary, C/utf8>>).
 
--define(end_seq(Seq), lists:reverse(Seq)).
+-define(end_seq(Seq), Seq).
 
 
 start(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
@@ -141,11 +141,11 @@ start(<<$f, Rest/binary>>, Out, Stack, Opts) ->
 start(<<$n, Rest/binary>>, Out, Stack, Opts) ->
     nu(Rest, Out, Stack, Opts);
 start(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
+    negative(Rest, Out, [[$-]|Stack], Opts);
 start(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
+    zero(Rest, Out, [[$0]|Stack], Opts);
 start(<<S/utf8, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
+    integer(Rest, Out, [[S]|Stack], Opts);
 start(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) -> 
     start(Rest, Out, Stack, Opts);
 start(<<>>, Out, Stack, Opts) ->
@@ -175,11 +175,11 @@ array(<<$f, Rest/binary>>, Out, Stack, Opts) ->
 array(<<$n, Rest/binary>>, Out, Stack, Opts) ->
     nu(Rest, Out, Stack, Opts);
 array(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
+    negative(Rest, Out, [[$-]|Stack], Opts);
 array(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
+    zero(Rest, Out, [[$0]|Stack], Opts);
 array(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
+    integer(Rest, Out, [[S]|Stack], Opts);
 array(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
     ?event([start_object], object, Rest, Out, [key|Stack], Opts);
 array(<<?start_array, Rest/binary>>, Out, Stack, Opts) ->
@@ -203,11 +203,11 @@ value(<<$f, Rest/binary>>, Out, Stack, Opts) ->
 value(<<$n, Rest/binary>>, Out, Stack, Opts) ->
     nu(Rest, Out, Stack, Opts);
 value(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
+    negative(Rest, Out, [[$-]|Stack], Opts);
 value(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
+    zero(Rest, Out, [[$0]|Stack], Opts);
 value(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
+    integer(Rest, Out, [[S]|Stack], Opts);
 value(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
     ?event([start_object], object, Rest, Out, [key|Stack], Opts);
 value(<<?start_array, Rest/binary>>, Out, Stack, Opts) ->
@@ -335,7 +335,7 @@ escape(<<$r, Rest/binary>>, Out, [Acc|Stack], Opts) ->
 escape(<<$t, Rest/binary>>, Out, [Acc|Stack], Opts) ->
     string(Rest, Out, [?acc_seq(Acc, $\t)|Stack], Opts);
 escape(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    escaped_unicode(Rest, Out, [?new_seq()|Stack], Opts);      
+    escaped_unicode(Rest, Out, [[]|Stack], Opts);      
 escape(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
@@ -376,7 +376,7 @@ escaped_unicode(<<D, Rest/binary>>, Out, [[C,B,A], Acc|Stack], Opts)
     end;
 escaped_unicode(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
         when ?is_hex(S) ->
-    escaped_unicode(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
+    escaped_unicode(Rest, Out, [[S] ++ Acc|Stack], Opts);
 escaped_unicode(<<>>, Out, Stack, Opts) ->
     ?incomplete(escaped_unicode, <<>>, Out, Stack, Opts);
 escaped_unicode(Bin, Out, Stack, Opts) ->
@@ -401,7 +401,7 @@ low_surrogate(Bin, Out, Stack, Opts) ->
 
 
 low_surrogate_u(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    low_surrogate_v(Rest, Out, [?new_seq()|Stack], Opts);
+    low_surrogate_v(Rest, Out, [[]|Stack], Opts);
 low_surrogate_u(<<>>, Out, Stack, Opts) ->
     ?incomplete(low_surrogate_u, <<>>, Out, Stack, Opts);
 %% not a low surrogate, dispatch back to string to handle, including the
@@ -441,7 +441,7 @@ low_surrogate_v(<<D, Rest/binary>>, Out, [[C,B,A], High, String|Stack], Opts)
     end;
 low_surrogate_v(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
         when ?is_hex(S) ->
-    low_surrogate_v(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
+    low_surrogate_v(Rest, Out, [[S] ++ Acc|Stack], Opts);
 low_surrogate_v(<<>>, Out, Stack, Opts) ->
     ?incomplete(low_surrogate_v, <<>>, Out, Stack, Opts);
 low_surrogate_v(Bin, Out, Stack, Opts) ->
@@ -783,7 +783,7 @@ check_bad(List) ->
     ).
 
 check_replaced(List) ->
-    lists:dropwhile(fun({_, [{string, [16#fffd]}|_]}) ->
+    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) ->
                 true
             ; (_) -> 
                 false 

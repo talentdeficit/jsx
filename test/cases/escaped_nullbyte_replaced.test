@@ -1,4 +1,4 @@
 {name, "escaped nullbyte replaced"}.
-{jsx, [{string,[16#fffd]},end_json]}.
+{jsx, [{string,<<16#fffd/utf8>>},end_json]}.
 {json, "escaped_nullbyte_replaced.json"}.
 {jsx_flags, [loose_unicode]}.
