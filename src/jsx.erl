@@ -23,11 +23,17 @@
 
 -module(jsx).
 
--export([scanner/0, scanner/1]).
 -export([encoder/0, encoder/1]).
--export([decoder/0, decoder/1]).
--export([fold/3, fold/4]).
--export([format/1, format/2]).
+-export([decoder/2, decoder/3]).
+%% shims for jsx_format, jsx_terms, jsx_verify
+-export([to_json/1, to_json/2]).
+-export([to_term/1, to_term/2]).
+-export([is_json/1, is_json/2]).
+
+%% test handler
+-ifdef(TEST).
+-export([init/1, handle_event/2]).
+-endif.
 
 
 %% various semi-useful types with nowhere else to hang out
@@ -52,28 +58,16 @@
 -type opts() :: [opt()].
 -type opt() :: loose_unicode | escape_forward_slashes | explicit_end.
 
--type scanner() :: decoder() | encoder().
-
-
--spec scanner() -> scanner().
--spec scanner(OptsList::opts()) -> scanner().
-
-scanner() -> scanner([]).
-
-scanner(OptsList) when is_list(OptsList) ->
-    fun(JSON) when is_binary(JSON) -> (decoder(OptsList))(JSON)
-        ; (Terms) when is_list(Terms) -> (encoder(OptsList))(Terms)
-    end.
 
 
 -type decoder() :: fun((binary()) -> {ok, events()} | {incomplete, decoder()}).
 
--spec decoder() -> decoder().
--spec decoder(OptsList::opts()) -> decoder().
+-spec decoder(Mod::module(), Args::any()) -> decoder().
+-spec decoder(Mod::module(), Args::any(), OptsList::opts()) -> decoder().
 
-decoder() -> decoder([]).
+decoder(Mod, Args) -> decoder(Mod, Args, []).
 
-decoder(OptsList) when is_list(OptsList) -> jsx_decoder:decoder(OptsList).
+decoder(Mod, Args, OptsList) when is_list(OptsList) -> jsx_decoder:decoder(Mod, Args, OptsList).
 
 
 -type encoder() :: fun((list()) ->
@@ -87,40 +81,29 @@ encoder() -> encoder([]).
 encoder(OptsList) when is_list(OptsList) -> jsx_encoder:encoder(OptsList).
 
 
--spec fold(fun((Elem::event(), AccIn::any()) -> AccOut::any()),
-        AccInitial::any(),
-        Source::binary()) ->
-    {ok, AccFinal::any()} | {incomplete, decoder()}
-    ; (fun((Elem::event(), AccIn::any()) -> AccOut::any()),
-        AccInitial::any(),
-        Source::list()) ->
-    {ok, AccFinal::any()} | {incomplete, encoder()}.
--spec fold(fun((Elem::event(), AccIn::any()) -> AccOut::any()),
-        AccInitial::any(),
-        Source::binary(),
-        OptsLists::opts()) ->
-    {ok, AccFinal::any()} | {incomplete, decoder()}
-    ; (fun((Elem::event(), AccIn::any()) -> AccOut::any()),
-        AccInitial::any(),
-        Source::list(),
-        OptsList::opts()) ->
-    {ok, AccFinal::any()} | {incomplete, encoder()}.
 
-fold(Fun, Acc, Source) -> fold(Fun, Acc, Source, []).
+-spec to_json(Source::binary() | list()) -> binary().
+-spec to_json(Source::binary() | list(), Opts::jsx_format:opts()) -> binary().
 
-fold(Fun, Acc, Source, Opts) ->
-    case (scanner(Opts))(Source) of
-        {ok, Events} -> lists:foldl(Fun, Acc, Events)
-        ; {incomplete, F} -> {incomplete, F}
-    end.
+to_json(Source) -> to_json(Source, []).
+
+to_json(Source, Opts) -> jsx_format:to_json(Source, Opts).
 
 
--spec format(Source::binary()) -> binary().
--spec format(Source::binary() | list(), Opts::jsx_format:opts()) -> binary().
+-spec to_term(Source::binary() | list()) -> list().
+-spec to_term(Source::binary() | list(), Opts::jsx_terms:opts()) -> list().
 
-format(Source) -> format(Source, []).
+to_term(Source) -> to_term(Source, []).
 
-format(Source, Opts) -> jsx_format:format(Source, Opts).
+to_term(Source, Opts) -> jsx_terms:to_term(Source, Opts).
+
+
+-spec is_json(Source::binary() | list()) -> true | false.
+-spec is_json(Source::binary() | list(), Opts::jsx_verify:opts()) -> true | false.
+
+is_json(Source) -> is_json(Source, []).
+
+is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
 
 
 
@@ -135,9 +118,9 @@ jsx_decoder_test_() ->
 encoder_decoder_equiv_test_() ->
     [
         {"encoder/decoder equivalency",
-            ?_assert(begin {ok, X} = (jsx:decoder())(
+            ?_assert((jsx:decoder())(
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
-                ), X end =:= begin {ok, Y} = (jsx:encoder())(
+                ) =:= (jsx:encoder())(
                     [start_array,
                         {string, <<"a">>},
                         {integer, 17},
@@ -151,22 +134,21 @@ encoder_decoder_equiv_test_() ->
                         end_array,
                         end_array,
                         end_json]
-                ), Y end
+                )
             )
         }
     ].
 
 
-fold_test_() ->
-    [{"fold test",
-        ?_assert(fold(fun(_, true) -> true end,
-            true,
-            <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>,
-            []
-        ))
-    }].
+
+%% test handler
+init([]) -> [].
+
+handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
+handle_event(Event, State) -> [Event] ++ State.
     
-    
+
+
 jsx_decoder_gen([]) -> [];    
 jsx_decoder_gen([Test|Rest]) ->
     Name = proplists:get_value(name, Test),
@@ -216,13 +198,13 @@ parse_tests([], _Dir, Acc) ->
 
 decode(JSON, Flags) ->
     try
-        case (jsx:scanner(Flags))(JSON) of
-            {ok, Events} -> Events
-            ; {incomplete, More} ->
+        case (gen_json:parser(?MODULE, [], Flags))(JSON) of
+            {incomplete, More} ->
                 case More(<<" ">>) of
-                    {ok, Events} -> Events
-                    ; _ -> {error, badjson}
+                    {incomplete, _} -> {error, badjson}
+                    ; Events -> Events
                 end
+            ; Events -> Events
         end
     catch
         error:badarg -> {error, badjson}
@@ -230,15 +212,15 @@ decode(JSON, Flags) ->
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = jsx:scanner(Flags ++ [explicit_end]),
+	P = gen_json:parser(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
 	catch error:badarg -> io:format("~p~n", [erlang:get_stacktrace()]), {error, badjson}
 	end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->
     case More(end_stream) of
-        {ok, X} -> X
-        ; _ -> {error, badjson}
+        {incomplete, _} -> {error, badarg}
+        ; X -> X
     end;
 incremental_decode_loop({incomplete, More}, <<C:1/binary, Rest/binary>>) ->
     incremental_decode_loop(More(C), Rest).

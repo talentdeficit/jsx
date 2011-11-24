@@ -23,7 +23,8 @@
 
 -module(jsx_format).
 
--export([format/2]).
+-export([to_json/2]).
+-export([init/1, handle_event/2]).
 
 
 -record(opts, {
@@ -35,15 +36,15 @@
 -type opts() :: [].
 
 
--spec format(Source::(binary() | list()), Opts::opts()) -> binary().
+-spec to_json(Source::(binary() | list()), Opts::opts()) -> binary().
     
-format(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
+to_json(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
         orelse (is_list(Source) andalso is_list(Opts)) ->
-    jsx:fold(fun fold/2,
-        {start, [], parse_opts(Opts)},
-        Source,
-        extract_opts(Opts)
-    ).
+    (gen_json:parser(?MODULE, Opts, extract_opts(Opts)))(Source).
+
+
+
+init(Opts) -> {start, [], parse_opts(Opts)}.
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
@@ -89,13 +90,13 @@ extract_parser_opts([K|Rest], Acc) ->
 -define(newline, <<"\n">>).
 
 
-fold(Event, {start, Acc, Opts}) ->
+handle_event(Event, {start, Acc, Opts}) ->
     case Event of
         {Type, Value} -> {[], [Acc, encode(Type, Value)], Opts}
         ; start_object -> {[object_start], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start], [Acc, ?start_array], Opts}
     end;
-fold(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
+handle_event(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
     Opts = OldOpts#opts{depth = Depth + 1},
     case Event of
         {key, Key} ->
@@ -103,7 +104,7 @@ fold(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
         ; end_object ->
             {Stack, [Acc, ?end_object], OldOpts}
     end;
-fold(Event, {[object_value|Stack], Acc, Opts}) ->
+handle_event(Event, {[object_value|Stack], Acc, Opts}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
@@ -111,7 +112,7 @@ fold(Event, {[object_value|Stack], Acc, Opts}) ->
         ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Opts}
     end;
-fold(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
+handle_event(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {key, Key} ->
             {[object_value|Stack], [Acc, ?comma, indent_or_space(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
@@ -119,7 +120,7 @@ fold(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
             NewOpts = Opts#opts{depth = Depth - 1},
             {Stack, [Acc, indent(NewOpts), ?end_object], NewOpts}
     end;
-fold(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
+handle_event(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
     Opts = OldOpts#opts{depth = Depth + 1},
     case Event of
         {Type, Value} when Type == string; Type == literal;
@@ -129,7 +130,7 @@ fold(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
         ; start_array -> {[array_start, array|Stack], [Acc, indent(Opts), ?start_array], Opts}
         ; end_array -> {Stack, [Acc, ?end_array], OldOpts}
     end;
-fold(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
+handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
@@ -140,7 +141,7 @@ fold(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
         ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_object], Opts}
         ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_array], Opts}
     end;
-fold(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
+handle_event(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
 
 
 encode(string, String) ->
@@ -183,6 +184,8 @@ indent_or_space(Opts) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+format(Source, Opts) -> to_json(Source, Opts).
 
 basic_test_() ->
     [
@@ -288,18 +291,6 @@ ext_opts_test_() ->
     [{"extopts", ?_assert(format(<<"[]">>, 
                 [loose_unicode, {escape_forward_slash, true}]
             ) =:= <<"[]">>
-        )}
-    ].
-
-terms_test_() ->
-    [
-        {"terms",
-            ?_assert(format([start_object,
-                {key, <<"key">>},
-                {string, <<"value">>},
-                end_object,
-                end_json
-            ], []) =:= <<"{\"key\":\"value\"}">>
         )}
     ].
     

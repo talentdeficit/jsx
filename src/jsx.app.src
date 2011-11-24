@@ -4,6 +4,7 @@
     {vsn, "0.10.0"},
     {modules, [
         jsx,
+        gen_json,
         jsx_encoder,
         jsx_decoder,
         jsx_format,

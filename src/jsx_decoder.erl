@@ -23,13 +23,14 @@
 
 -module(jsx_decoder).
 
--export([decoder/1]).
+-export([decoder/3]).
 
 
--spec decoder(Opts::jsx:opts()) -> jsx:decoder().
+-spec decoder(Mod::module(), Args::any(), Opts::jsx:opts()) -> jsx:decoder().
 
-decoder(Opts) ->
-    fun(JSON) -> start(JSON, [], [], jsx_utils:parse_opts(Opts)) end.
+decoder(Mod, Args, Opts) ->
+    fun(JSON) -> start(JSON, {Mod, Mod:init(Args)}, [], jsx_utils:parse_opts(Opts)) end.
+
 
 
 -include("../include/jsx_opts.hrl").
@@ -97,28 +98,22 @@ decoder(Opts) ->
 
 
 -ifndef(incomplete).
--define(incomplete(State, Rest, Out, Stack, Opts),
+-define(incomplete(State, Rest, Handler, Stack, Opts),
     {incomplete, fun(Stream) when is_binary(Stream) ->
-                State(<<Rest/binary, Stream/binary>>, Out, Stack, Opts)
+                State(<<Rest/binary, Stream/binary>>, Handler, Stack, Opts)
             ; (end_stream) ->
                 case State(<<Rest/binary, <<" ">>/binary>>,
-                        Out,
+                        Handler,
                         Stack,
                         Opts#opts{explicit_end=false}) of
-                    {incomplete, _} -> ?error([Rest, Out, Stack, Opts])
-                    ; {ok, Events} -> {ok, Events}
+                    {incomplete, _} -> ?error([Rest, Handler, Stack, Opts])
+                    ; Events -> Events
                 end
         end
     }
 ).
 -endif.
 
-
--ifndef(event).
--define(event(Event, State, Rest, Out, Stack, Opts),
-    State(Rest, Event ++ Out, Stack, Opts)
-).
--endif.
 
 -define(new_seq(), []).
 -define(new_seq(C), [C]).
@@ -128,116 +123,116 @@ decoder(Opts) ->
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
 
 
-start(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_object], object, Rest, Out, [key|Stack], Opts);
-start(<<?start_array, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_array], array, Rest, Out, [array|Stack], Opts);
-start(<<?quote, Rest/binary>>, Out, Stack, Opts) ->
-    string(Rest, Out, [?new_seq()|Stack], Opts);
-start(<<$t, Rest/binary>>, Out, Stack, Opts) ->
-    tr(Rest, Out, Stack, Opts);
-start(<<$f, Rest/binary>>, Out, Stack, Opts) ->
-    fa(Rest, Out, Stack, Opts);
-start(<<$n, Rest/binary>>, Out, Stack, Opts) ->
-    nu(Rest, Out, Stack, Opts);
-start(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
-start(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
-start(<<S/utf8, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
-start(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) -> 
-    start(Rest, Out, Stack, Opts);
-start(<<>>, Out, Stack, Opts) ->
-    ?incomplete(start, <<>>, Out, Stack, Opts);
-start(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+start(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
+start(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
+start(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+    string(Rest, Handler, [?new_seq()|Stack], Opts);
+start(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
+    tr(Rest, Handler, Stack, Opts);
+start(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
+    fa(Rest, Handler, Stack, Opts);
+start(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
+    nu(Rest, Handler, Stack, Opts);
+start(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
+    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
+start(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
+    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
+start(<<S/utf8, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
+start(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+    start(Rest, Handler, Stack, Opts);
+start(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(start, <<>>, Handler, Stack, Opts);
+start(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-object(<<?quote, Rest/binary>>, Out, Stack, Opts) ->
-    string(Rest, Out, [?new_seq()|Stack], Opts);
-object(<<?end_object, Rest/binary>>, Out, [key|Stack], Opts) ->
-    ?event([end_object], maybe_done, Rest, Out, Stack, Opts);
-object(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) ->
-    object(Rest, Out, Stack, Opts);
-object(<<>>, Out, Stack, Opts) ->
-    ?incomplete(object, <<>>, Out, Stack, Opts);
-object(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+object(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+    string(Rest, Handler, [?new_seq()|Stack], Opts);
+object(<<?end_object, Rest/binary>>, {Handler, State}, [key|Stack], Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
+object(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
+    object(Rest, Handler, Stack, Opts);
+object(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(object, <<>>, Handler, Stack, Opts);
+object(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
    
-array(<<?quote, Rest/binary>>, Out, Stack, Opts) ->
-    string(Rest, Out, [?new_seq()|Stack], Opts);
-array(<<$t, Rest/binary>>, Out, Stack, Opts) ->
-    tr(Rest, Out, Stack, Opts);
-array(<<$f, Rest/binary>>, Out, Stack, Opts) ->
-    fa(Rest, Out, Stack, Opts);
-array(<<$n, Rest/binary>>, Out, Stack, Opts) ->
-    nu(Rest, Out, Stack, Opts);
-array(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
-array(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
-array(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
-array(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_object], object, Rest, Out, [key|Stack], Opts);
-array(<<?start_array, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_array], array, Rest, Out, [array|Stack], Opts);
-array(<<?end_array, Rest/binary>>, Out, [array|Stack], Opts) ->
-    maybe_done(Rest, [end_array] ++ Out, Stack, Opts);
-array(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) -> 
-    array(Rest, Out, Stack, Opts);    
-array(<<>>, Out, Stack, Opts) ->
-    ?incomplete(array, <<>>, Out, Stack, Opts);
-array(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+array(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+    string(Rest, Handler, [?new_seq()|Stack], Opts);
+array(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
+    tr(Rest, Handler, Stack, Opts);
+array(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
+    fa(Rest, Handler, Stack, Opts);
+array(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
+    nu(Rest, Handler, Stack, Opts);
+array(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
+    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
+array(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
+    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
+array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
+array(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
+array(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
+array(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(end_array, State)}, Stack, Opts);
+array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+    array(Rest, Handler, Stack, Opts);    
+array(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(array, <<>>, Handler, Stack, Opts);
+array(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-value(<<?quote, Rest/binary>>, Out, Stack, Opts) ->
-    string(Rest, Out, [?new_seq()|Stack], Opts);
-value(<<$t, Rest/binary>>, Out, Stack, Opts) ->
-    tr(Rest, Out, Stack, Opts);
-value(<<$f, Rest/binary>>, Out, Stack, Opts) ->
-    fa(Rest, Out, Stack, Opts);
-value(<<$n, Rest/binary>>, Out, Stack, Opts) ->
-    nu(Rest, Out, Stack, Opts);
-value(<<?negative, Rest/binary>>, Out, Stack, Opts) ->
-    negative(Rest, Out, [?new_seq($-)|Stack], Opts);
-value(<<?zero, Rest/binary>>, Out, Stack, Opts) ->
-    zero(Rest, Out, [?new_seq($0)|Stack], Opts);
-value(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [?new_seq(S)|Stack], Opts);
-value(<<?start_object, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_object], object, Rest, Out, [key|Stack], Opts);
-value(<<?start_array, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([start_array], array, Rest, Out, [array|Stack], Opts);
-value(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) -> 
-    value(Rest, Out, Stack, Opts);
-value(<<>>, Out, Stack, Opts) ->
-    ?incomplete(value, <<>>, Out, Stack, Opts);
-value(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+value(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+    string(Rest, Handler, [?new_seq()|Stack], Opts);
+value(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
+    tr(Rest, Handler, Stack, Opts);
+value(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
+    fa(Rest, Handler, Stack, Opts);
+value(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
+    nu(Rest, Handler, Stack, Opts);
+value(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
+    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
+value(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
+    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
+value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
+value(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
+value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
+value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+    value(Rest, Handler, Stack, Opts);
+value(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(value, <<>>, Handler, Stack, Opts);
+value(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-colon(<<?colon, Rest/binary>>, Out, [key|Stack], Opts) ->
-    value(Rest, Out, [object|Stack], Opts);
-colon(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) ->
-    colon(Rest, Out, Stack, Opts);
-colon(<<>>, Out, Stack, Opts) ->
-    ?incomplete(colon, <<>>, Out, Stack, Opts);
-colon(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Opts) ->
+    value(Rest, Handler, [object|Stack], Opts);
+colon(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
+    colon(Rest, Handler, Stack, Opts);
+colon(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(colon, <<>>, Handler, Stack, Opts);
+colon(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-key(<<?quote, Rest/binary>>, Out, Stack, Opts) ->
-    string(Rest, Out, [?new_seq()|Stack], Opts);
-key(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) ->
-    key(Rest, Out, Stack, Opts);        
-key(<<>>, Out, Stack, Opts) ->
-    ?incomplete(key, <<>>, Out, Stack, Opts);
-key(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+key(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+    string(Rest, Handler, [?new_seq()|Stack], Opts);
+key(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
+    key(Rest, Handler, Stack, Opts);        
+key(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(key, <<>>, Handler, Stack, Opts);
+key(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
 %% string appends it's output to the term at the top of the stack. for
@@ -260,24 +255,32 @@ partial_utf(<<X, Y, Z>>)
 partial_utf(_) -> false.
 
 
-string(<<?quote/utf8, Rest/binary>>, Out, [Acc, key|Stack], Opts) ->
-    ?event([{key, ?end_seq(Acc)}], colon, Rest, Out, [key|Stack], Opts);
-string(<<?quote/utf8, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    ?event([{string, ?end_seq(Acc)}], maybe_done, Rest, Out, Stack, Opts);
-string(<<?rsolidus/utf8, Rest/binary>>, Out, Stack, Opts) ->
-    escape(Rest, Out, Stack, Opts);
+string(<<?quote/utf8, Rest/binary>>, {Handler, State}, [Acc, key|Stack], Opts) ->
+    colon(Rest,
+        {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)},
+        [key|Stack],
+        Opts
+    );
+string(<<?quote/utf8, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)},
+        Stack,
+        Opts
+    );
+string(<<?rsolidus/utf8, Rest/binary>>, Handler, Stack, Opts) ->
+    escape(Rest, Handler, Stack, Opts);
 %% things get dumb here. erlang doesn't properly restrict unicode non-characters
 %%   so you can't trust the codepoints it returns always
 %% the range 32..16#fdcf is safe, so allow that
-string(<<S/utf8, Rest/binary>>, Out, [Acc|Stack], Opts)
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when ?is_noncontrol(S), S < 16#fdd0 ->
-    string(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
 %% the range 16#fdf0..16#fffd is also safe
-string(<<S/utf8, Rest/binary>>, Out, [Acc|Stack], Opts)
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when S > 16#fdef, S < 16#fffe ->
-    string(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
 %% yes, i think it's insane too
-string(<<S/utf8, Rest/binary>>, Out, [Acc|Stack], Opts)
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when S > 16#ffff andalso
             S =/= 16#1fffe andalso S =/= 16#1ffff andalso
             S =/= 16#2fffe andalso S =/= 16#2ffff andalso
@@ -295,14 +298,14 @@ string(<<S/utf8, Rest/binary>>, Out, [Acc|Stack], Opts)
             S =/= 16#efffe andalso S =/= 16#effff andalso
             S =/= 16#ffffe andalso S =/= 16#fffff andalso
             S =/= 16#10fffe andalso S =/= 16#10ffff ->
-    string(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
-string(Bin, Out, Stack, Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+string(Bin, Handler, Stack, Opts) ->
     case partial_utf(Bin) of 
-        true -> ?incomplete(string, Bin, Out, Stack, Opts)
+        true -> ?incomplete(string, Bin, Handler, Stack, Opts)
         ; false ->
             case Opts#opts.loose_unicode of
-                true -> noncharacter(Bin, Out, Stack, Opts)
-                ; false -> ?error([Bin, Out, Stack, Opts])
+                true -> noncharacter(Bin, Handler, Stack, Opts)
+                ; false -> ?error([Bin, Handler, Stack, Opts])
             end
     end.
     
@@ -310,112 +313,112 @@ string(Bin, Out, Stack, Opts) ->
 %%   care of in string. theoretically, the last clause of noncharacter/4 is
 %%   unreachable
 %% non-characters erlang doesn't recognize as non-characters, idiotically
-noncharacter(<<S/utf8, Rest/binary>>, Out, [Acc|Stack], Opts)
+noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when ?is_noncontrol(S) ->
-    string(Rest, Out, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
 %% u+fffe and u+ffff
-noncharacter(<<239, 191, X, Rest/binary>>, Out, [Acc|Stack], Opts) 
+noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) 
         when X == 190; X == 191 ->
-    string(Rest, Out, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
 %% surrogates
-noncharacter(<<237, X, _, Rest/binary>>, Out, [Acc|Stack], Opts) when X >= 160 ->
-    string(Rest, Out, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-noncharacter(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 160 ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-escape(<<$b, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    string(Rest, Out, [?acc_seq(Acc, $\b)|Stack], Opts);
-escape(<<$f, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    string(Rest, Out, [?acc_seq(Acc, $\f)|Stack], Opts);
-escape(<<$n, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    string(Rest, Out, [?acc_seq(Acc, $\n)|Stack], Opts);
-escape(<<$r, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    string(Rest, Out, [?acc_seq(Acc, $\r)|Stack], Opts);
-escape(<<$t, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    string(Rest, Out, [?acc_seq(Acc, $\t)|Stack], Opts);
-escape(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    escaped_unicode(Rest, Out, [?new_seq()|Stack], Opts);      
-escape(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
+escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\b)|Stack], Opts);
+escape(<<$f, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\f)|Stack], Opts);
+escape(<<$n, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\n)|Stack], Opts);
+escape(<<$r, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\r)|Stack], Opts);
+escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\t)|Stack], Opts);
+escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
+    escaped_unicode(Rest, Handler, [?new_seq()|Stack], Opts);      
+escape(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
         when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
-    string(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
-escape(<<>>, Out, Stack, Opts) ->
-    ?incomplete(escape, <<>>, Out, Stack, Opts);
-escape(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+escape(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(escape, <<>>, Handler, Stack, Opts);
+escape(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped 
 %%   unicode codepoint sequences.
-escaped_unicode(<<D, Rest/binary>>, Out, [[C,B,A], Acc|Stack], Opts) 
+escaped_unicode(<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts) 
         when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         %% high surrogate, we need a low surrogate next
         X when X >= 16#d800, X =< 16#dbff ->
-            low_surrogate(Rest, Out, [X, Acc|Stack], Opts)
+            low_surrogate(Rest, Handler, [X, Acc|Stack], Opts)
         %% non-characters, you're not allowed to exchange these
         ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest, Out, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
+                    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
                 ; false ->    
-                    ?error([<<D, Rest/binary>>, Out, [[C,B,A], Acc|Stack], Opts])
+                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts])
             end
         %% allowing interchange of null bytes allows attackers to forge
         %%   malicious streams
         ; X when X == 16#0000 ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest, Out, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
+                    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
                 ; false ->    
-                    ?error([<<D, Rest/binary>>, Out, [[C,B,A], Acc|Stack], Opts])
+                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts])
             end
         %% anything else
         ; X ->
-            string(Rest, Out, [?acc_seq(Acc, X)|Stack], Opts)
+            string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts)
     end;
-escaped_unicode(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
+escaped_unicode(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
         when ?is_hex(S) ->
-    escaped_unicode(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
-escaped_unicode(<<>>, Out, Stack, Opts) ->
-    ?incomplete(escaped_unicode, <<>>, Out, Stack, Opts);
-escaped_unicode(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    escaped_unicode(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+escaped_unicode(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(escaped_unicode, <<>>, Handler, Stack, Opts);
+escaped_unicode(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-low_surrogate(<<?rsolidus, Rest/binary>>, Out, Stack, Opts) ->
-    low_surrogate_u(Rest, Out, Stack, Opts);
+low_surrogate(<<?rsolidus, Rest/binary>>, Handler, Stack, Opts) ->
+    low_surrogate_u(Rest, Handler, Stack, Opts);
 %% not an escaped codepoint, our high codepoint is illegal. dispatch back to
 %%   string to handle
-low_surrogate(<<S, Rest/binary>> = Bin, Out, [High, String|Stack], Opts) ->
+low_surrogate(<<S, Rest/binary>> = Bin, Handler, [High, String|Stack], Opts) ->
     case Opts#opts.loose_unicode of
         true ->
-            string(Bin, Out, [?acc_seq(String, 16#fffd)|Stack], Opts)
+            string(Bin, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
         ; false ->
-            ?error([<<S, Rest/binary>>, Out, [High, String|Stack], Opts])
+            ?error([<<S, Rest/binary>>, Handler, [High, String|Stack], Opts])
     end;
-low_surrogate(<<>>, Out, Stack, Opts) ->
-    ?incomplete(low_surrogate, <<>>, Out, Stack, Opts);
-low_surrogate(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+low_surrogate(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(low_surrogate, <<>>, Handler, Stack, Opts);
+low_surrogate(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-low_surrogate_u(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    low_surrogate_v(Rest, Out, [?new_seq()|Stack], Opts);
-low_surrogate_u(<<>>, Out, Stack, Opts) ->
-    ?incomplete(low_surrogate_u, <<>>, Out, Stack, Opts);
+low_surrogate_u(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
+    low_surrogate_v(Rest, Handler, [?new_seq()|Stack], Opts);
+low_surrogate_u(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(low_surrogate_u, <<>>, Handler, Stack, Opts);
 %% not a low surrogate, dispatch back to string to handle, including the
 %%   rsolidus we parsed previously
-low_surrogate_u(Bin, Out, [High, String|Stack], Opts) ->
+low_surrogate_u(Bin, Handler, [High, String|Stack], Opts) ->
     case Opts#opts.loose_unicode of
         true ->
-            string(<<?rsolidus, Bin/binary>>, Out, [?acc_seq(String, 16#fffd)|Stack], Opts)
+            string(<<?rsolidus, Bin/binary>>, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
         ; false ->
-            ?error([Bin, Out, [High, String|Stack], Opts])
+            ?error([Bin, Handler, [High, String|Stack], Opts])
     end.
 
 
-low_surrogate_v(<<D, Rest/binary>>, Out, [[C,B,A], High, String|Stack], Opts) 
+low_surrogate_v(<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts) 
         when ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         X when X >= 16#dc00, X =< 16#dfff ->
@@ -423,29 +426,29 @@ low_surrogate_v(<<D, Rest/binary>>, Out, [[C,B,A], High, String|Stack], Opts)
             case V rem 16#10000 of Y when Y == 16#fffe; Y == 16#ffff ->
                     case Opts#opts.loose_unicode of
                         true ->
-                            string(Rest, Out, [?acc_seq(String, 16#fffd)|Stack], Opts)
+                            string(Rest, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
                         ; false ->    
-                            ?error([<<D, Rest/binary>>, Out, [[C,B,A], High, String|Stack], Opts])
+                            ?error([<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts])
                     end
                 ; _ ->
-                    string(Rest, Out, [?acc_seq(String, V)|Stack], Opts)
+                    string(Rest, Handler, [?acc_seq(String, V)|Stack], Opts)
             end
         %% not a low surrogate, bad bad bad
         ; _ ->
             case Opts#opts.loose_unicode of
                 true ->
-                    string(Rest, Out, [?acc_seq(?acc_seq(String, 16#fffd), 16#fffd)|Stack], Opts)
+                    string(Rest, Handler, [?acc_seq(?acc_seq(String, 16#fffd), 16#fffd)|Stack], Opts)
                 ; false ->    
-                    ?error([<<D, Rest/binary>>, Out, [[C,B,A], High, String|Stack], Opts])
+                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts])
             end
     end;
-low_surrogate_v(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) 
+low_surrogate_v(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
         when ?is_hex(S) ->
-    low_surrogate_v(Rest, Out, [?acc_seq(Acc, S)|Stack], Opts);
-low_surrogate_v(<<>>, Out, Stack, Opts) ->
-    ?incomplete(low_surrogate_v, <<>>, Out, Stack, Opts);
-low_surrogate_v(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    low_surrogate_v(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+low_surrogate_v(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(low_surrogate_v, <<>>, Handler, Stack, Opts);
+low_surrogate_v(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
 %% stole this from the unicode spec    
@@ -455,135 +458,183 @@ surrogate_to_codepoint(High, Low) ->
 
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler
-negative(<<$0, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    zero(Rest, Out, ["0" ++ Acc|Stack], Opts);
-negative(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [[S] ++ Acc|Stack], Opts);
-negative(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(negative, <<>>, Out, Stack, Opts);
-negative(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+negative(<<$0, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    zero(Rest, Handler, ["0" ++ Acc|Stack], Opts);
+negative(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [[S] ++ Acc|Stack], Opts);
+negative(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(negative, <<>>, Handler, Stack, Opts);
+negative(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-zero(<<?end_object, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([end_object, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-zero(<<?end_array, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([end_array, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-zero(<<?comma, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([format_number(Acc)], key, Rest, Out, [key|Stack], Opts);
-zero(<<?comma, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([format_number(Acc)], value, Rest, Out, [array|Stack], Opts);
-zero(<<?decimalpoint, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    initial_decimal(Rest, Out, [{Acc, []}|Stack], Opts);
-zero(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-zero(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
-zero(<<>>, Out, Stack, Opts) ->
-    ?incomplete(zero, <<>>, Out, Stack, Opts);
-zero(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+zero(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_object,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+zero(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_array,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+zero(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
+zero(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
+zero(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+zero(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+zero(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(zero, <<>>, Handler, Stack, Opts);
+zero(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-integer(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_nonzero(S) ->
-    integer(Rest, Out, [[S] ++ Acc|Stack], Opts);
-integer(<<?end_object, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([end_object, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-integer(<<?end_array, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([end_array, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-integer(<<?comma, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([format_number(Acc)], key, Rest, Out, [key|Stack], Opts);
-integer(<<?comma, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([format_number(Acc)], value, Rest, Out, [array|Stack], Opts);
-integer(<<?decimalpoint, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    initial_decimal(Rest, Out, [{Acc, []}|Stack], Opts);
-integer(<<?zero, Rest/binary>>, Out, [Acc|Stack], Opts) ->
-    integer(Rest, Out, [[?zero] ++ Acc|Stack], Opts);
-integer(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when S =:= $e; S =:= $E ->
-    e(Rest, Out, [{Acc, [], []}|Stack], Opts);
-integer(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-integer(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
-integer(<<>>, Out, Stack, Opts) ->
-    ?incomplete(integer, <<>>, Out, Stack, Opts);
-integer(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [[S] ++ Acc|Stack], Opts);
+integer(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_object,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+integer(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_array,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+integer(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
+integer(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+integer(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
+integer(<<?zero, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    integer(Rest, Handler, [[?zero] ++ Acc|Stack], Opts);
+integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E ->
+    e(Rest, Handler, [{Acc, [], []}|Stack], Opts);
+integer(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+integer(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+integer(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(integer, <<>>, Handler, Stack, Opts);
+integer(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-initial_decimal(<<S, Rest/binary>>, Out, [{Int, Frac}|Stack], Opts)
+initial_decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
         when S =:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Out, [{Int, [S] ++ Frac}|Stack], Opts);
-initial_decimal(<<>>, Out, Stack, Opts) ->
-    ?incomplete(initial_decimal, <<>>, Out, Stack, Opts);
-initial_decimal(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Opts);
+initial_decimal(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(initial_decimal, <<>>, Handler, Stack, Opts);
+initial_decimal(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-decimal(<<S, Rest/binary>>, Out, [{Int, Frac}|Stack], Opts)
+decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
         when S=:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Out, [{Int, [S] ++ Frac}|Stack], Opts);
-decimal(<<?end_object, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([end_object, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-decimal(<<?end_array, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([end_array, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-decimal(<<?comma, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([format_number(Acc)], key, Rest, Out, [key|Stack], Opts);
-decimal(<<?comma, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([format_number(Acc)], value, Rest, Out, [array|Stack], Opts);
-decimal(<<S, Rest/binary>>, Out, [{Int, Frac}|Stack], Opts)
+    decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Opts);
+decimal(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_object,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+decimal(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_array,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
+decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
         when S =:= $e; S =:= $E ->
-    e(Rest, Out, [{Int, Frac, []}|Stack], Opts);
-decimal(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-decimal(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
-decimal(<<>>, Out, Stack, Opts) ->
-    ?incomplete(decimal, <<>>, Out, Stack, Opts);
-decimal(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    e(Rest, Handler, [{Int, Frac, []}|Stack], Opts);
+decimal(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+decimal(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+decimal(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(decimal, <<>>, Handler, Stack, Opts);
+decimal(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-e(<<S, Rest/binary>>, Out, [{Int, Frac, Exp}|Stack], Opts)
+e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
         when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Out, [{Int, Frac, [S] ++ Exp}|Stack], Opts);   
-e(<<S, Rest/binary>>, Out, [{Int, Frac, Exp}|Stack], Opts)
+    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);   
+e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
         when S =:= ?positive; S =:= ?negative ->
-    ex(Rest, Out, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-e(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(e, <<>>, Out, Stack, Opts);
-e(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    ex(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
+e(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(e, <<>>, Handler, Stack, Opts);
+e(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-ex(<<S, Rest/binary>>, Out, [{Int, Frac, Exp}|Stack], Opts)
+ex(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
         when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Out, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-ex(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(ex, <<>>, Out, Stack, Opts);
-ex(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
+ex(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(ex, <<>>, Handler, Stack, Opts);
+ex(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-exp(<<S, Rest/binary>>, Out, [{Int, Frac, Exp}|Stack], Opts)
+exp(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
         when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Out, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-exp(<<?end_object, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([end_object, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-exp(<<?end_array, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([end_array, format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-exp(<<?comma, Rest/binary>>, Out, [Acc, object|Stack], Opts) ->
-    ?event([format_number(Acc)], key, Rest, Out, [key|Stack], Opts);
-exp(<<?comma, Rest/binary>>, Out, [Acc, array|Stack], Opts) ->
-    ?event([format_number(Acc)], value, Rest, Out, [array|Stack], Opts);
-exp(<<S, Rest/binary>>, Out, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    ?event([format_number(Acc)], maybe_done, Rest, Out, Stack, Opts);
-exp(<<>>, Out, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    ?event([format_number(Acc)], maybe_done, <<>>, Out, Stack, Opts);
-exp(<<>>, Out, Stack, Opts) ->
-    ?incomplete(exp, <<>>, Out, Stack, Opts);
-exp(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
+exp(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_object,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+exp(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest,
+        {Handler, Handler:handle_event(end_array,
+            Handler:handle_event(format_number(Acc), State)
+        )},
+        Stack,
+        Opts
+    );
+exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
+    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
+exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
+    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+exp(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+exp(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+exp(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(exp, <<>>, Handler, Stack, Opts);
+exp(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
 format_number(Int) when is_list(Int) ->
@@ -596,115 +647,114 @@ format_number({Int, Frac, Exp}) ->
     {float, list_to_float(lists:reverse(Exp ++ "e" ++ Frac ++ "." ++ Int))}.
 
 
-tr(<<$r, Rest/binary>>, Out, Stack, Opts) ->
-    tru(Rest, Out, Stack, Opts);
-tr(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(tr, <<>>, Out, Stack, Opts);
-tr(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+tr(<<$r, Rest/binary>>, Handler, Stack, Opts) ->
+    tru(Rest, Handler, Stack, Opts);
+tr(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(tr, <<>>, Handler, Stack, Opts);
+tr(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-tru(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    true(Rest, Out, Stack, Opts);
-tru(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(tru, <<>>, Out, Stack, Opts);
-tru(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+tru(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
+    true(Rest, Handler, Stack, Opts);
+tru(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(tru, <<>>, Handler, Stack, Opts);
+tru(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-true(<<$e, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([{literal, true}], maybe_done, Rest, Out, Stack, Opts);
-true(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(true, <<>>, Out, Stack, Opts);
-true(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+true(<<$e, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event({literal, true}, State)}, Stack, Opts);
+true(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(true, <<>>, Handler, Stack, Opts);
+true(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-fa(<<$a, Rest/binary>>, Out, Stack, Opts) ->
-    fal(Rest, Out, Stack, Opts);
-fa(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(fa, <<>>, Out, Stack, Opts);
-fa(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+fa(<<$a, Rest/binary>>, Handler, Stack, Opts) ->
+    fal(Rest, Handler, Stack, Opts);
+fa(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(fa, <<>>, Handler, Stack, Opts);
+fa(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
     
 
-fal(<<$l, Rest/binary>>, Out, Stack, Opts) ->
-    fals(Rest, Out, Stack, Opts);
-fal(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(fal, <<>>, Out, Stack, Opts);
-fal(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+fal(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
+    fals(Rest, Handler, Stack, Opts);
+fal(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(fal, <<>>, Handler, Stack, Opts);
+fal(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
     
 
-fals(<<$s, Rest/binary>>, Out, Stack, Opts) ->
-    false(Rest, Out, Stack, Opts);
-fals(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(fals, <<>>, Out, Stack, Opts);
-fals(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+fals(<<$s, Rest/binary>>, Handler, Stack, Opts) ->
+    false(Rest, Handler, Stack, Opts);
+fals(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(fals, <<>>, Handler, Stack, Opts);
+fals(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
     
 
-false(<<$e, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([{literal, false}], maybe_done, Rest, Out, Stack, Opts);
-false(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(false, <<>>, Out, Stack, Opts);
-false(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+false(<<$e, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event({literal, false}, State)}, Stack, Opts);
+false(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(false, <<>>, Handler, Stack, Opts);
+false(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-nu(<<$u, Rest/binary>>, Out, Stack, Opts) ->
-    nul(Rest, Out, Stack, Opts);
-nu(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(nu, <<>>, Out, Stack, Opts);
-nu(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+nu(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
+    nul(Rest, Handler, Stack, Opts);
+nu(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(nu, <<>>, Handler, Stack, Opts);
+nu(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-nul(<<$l, Rest/binary>>, Out, Stack, Opts) ->
-    null(Rest, Out, Stack, Opts);
-nul(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(nul, <<>>, Out, Stack, Opts);
-nul(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+nul(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
+    null(Rest, Handler, Stack, Opts);
+nul(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(nul, <<>>, Handler, Stack, Opts);
+nul(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-null(<<$l, Rest/binary>>, Out, Stack, Opts) ->
-    ?event([{literal, null}], maybe_done, Rest, Out, Stack, Opts);
-null(<<>>, Out, Stack, Opts) ->  
-    ?incomplete(null, <<>>, Out, Stack, Opts);
-null(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+null(<<$l, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event({literal, null}, State)}, Stack, Opts);
+null(<<>>, Handler, Stack, Opts) ->  
+    ?incomplete(null, <<>>, Handler, Stack, Opts);
+null(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-maybe_done(<<?end_object, Rest/binary>>, Out, [object|Stack], Opts) ->
-    ?event([end_object], maybe_done, Rest, Out, Stack, Opts);
-maybe_done(<<?end_array, Rest/binary>>, Out, [array|Stack], Opts) ->
-    ?event([end_array], maybe_done, Rest, Out, Stack, Opts);
-maybe_done(<<?comma, Rest/binary>>, Out, [object|Stack], Opts) ->
-    key(Rest, Out, [key|Stack], Opts);
-maybe_done(<<?comma, Rest/binary>>, Out, [array|_] = Stack, Opts) ->
-    value(Rest, Out, Stack, Opts);
-maybe_done(<<S, Rest/binary>>, Out, Stack, Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, Out, Stack, Opts);
-maybe_done(<<>>, Out, Stack, Opts) when length(Stack) > 0 -> 
-    ?incomplete(maybe_done, <<>>, Out, Stack, Opts);
-maybe_done(Rest, Out, [], Opts) ->
-    ?event([end_json], done, Rest, Out, [], Opts);
-maybe_done(Bin, Out, Stack, Opts) ->
-    ?error([Bin, Out, Stack, Opts]).
+maybe_done(<<?end_object, Rest/binary>>, {Handler, State}, [object|Stack], Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
+maybe_done(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
+    maybe_done(Rest, {Handler, Handler:handle_event(end_array, State)}, Stack, Opts);
+maybe_done(<<?comma, Rest/binary>>, Handler, [object|Stack], Opts) ->
+    key(Rest, Handler, [key|Stack], Opts);
+maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Opts) ->
+    value(Rest, Handler, Stack, Opts);
+maybe_done(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, Handler, Stack, Opts);
+maybe_done(<<>>, Handler, Stack, Opts) when length(Stack) > 0 -> 
+    ?incomplete(maybe_done, <<>>, Handler, Stack, Opts);
+maybe_done(Rest, {Handler, State}, [], Opts) ->
+    done(Rest, {Handler, Handler:handle_event(end_json, State)}, [], Opts);
+maybe_done(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
-done(<<S, Rest/binary>>, Out, [], Opts) when ?is_whitespace(S) ->
-    done(Rest, Out, [], Opts);
-done(<<>>, Out, [], Opts = #opts{explicit_end=true}) ->
+done(<<S, Rest/binary>>, Handler, [], Opts) when ?is_whitespace(S) ->
+    done(Rest, Handler, [], Opts);
+done(<<>>, {Handler, State}, [], Opts = #opts{explicit_end=true}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
-                done(<<Stream/binary>>, Out, [], Opts)
-            ; (end_stream) ->
-                {ok, lists:reverse(Out)}
+                done(<<Stream/binary>>, {Handler, State}, [], Opts)
+            ; (end_stream) -> State
         end
     };
-done(<<>>, Out, [], _Opts) -> {ok, lists:reverse(Out)};
-done(Bin, Out, Stack, Opts) -> ?error([Bin, Out, Stack, Opts]).
+done(<<>>, {_Handler, State}, [], _Opts) -> State;
+done(Bin, Handler, Stack, Opts) -> ?error([Bin, Handler, Stack, Opts]).
 
 
 
@@ -783,16 +833,14 @@ check_bad(List) ->
     ).
 
 check_replaced(List) ->
-    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) ->
-                true
-            ; (_) -> 
-                false 
+    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
+            ; (_) -> false 
         end,
         check(List, [loose_unicode], [])
     ).
 
 check_good(List) ->
-    lists:dropwhile(fun({_, [{string, _}]}) -> true ; (_) -> false end,
+    lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 
@@ -804,16 +852,10 @@ check([H|T], Opts, Acc) ->
 
 decode(JSON, Opts) ->
     try
-        {ok, Events} = (decoder(Opts))(JSON),
-        loop(Events, [])
+        (decoder(jsx, [], Opts))(JSON)
     catch
         error:badarg -> {error, badjson}
     end.
-
-
-loop([end_json], Acc) -> lists:reverse(Acc);
-loop([Event|Events], Acc) -> loop(Events, [Event] ++ Acc);
-loop(_, _) -> {error, badjson}.
     
 
 

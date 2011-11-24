@@ -130,7 +130,7 @@ maybe_done([], T, Stack, Opts) -> ?incomplete(maybe_done, T, Stack, Opts);
 maybe_done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
-done([], T, [], _Opts) -> {ok, lists:reverse(T)};
+done([], T, [], _Opts) -> lists:reverse(T);
 done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 
@@ -140,7 +140,7 @@ done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
 
 encode(Terms) ->    
     try case (jsx:encoder([]))(Terms) of
-            {ok, Terms} -> true
+            Terms -> true
         end
     catch
         error:badarg -> false
