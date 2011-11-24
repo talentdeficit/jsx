@@ -118,7 +118,7 @@ jsx_decoder_test_() ->
 encoder_decoder_equiv_test_() ->
     [
         {"encoder/decoder equivalency",
-            ?_assert((jsx:decoder())(
+            ?_assert((jsx:decoder(?MODULE, []))(
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
                 ) =:= (jsx:encoder())(
                     [start_array,

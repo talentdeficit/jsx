@@ -195,16 +195,16 @@ encode_test_() ->
             end_array,
             end_json
         ]))},
-        {"naked string", ?_assert((jsx:scanner())([{string, <<"hello">>}])
+        {"naked string", ?_assert((jsx:encoder())([{string, <<"hello">>}])
             =:= {ok, [{string, <<"hello">>}, end_json]}
         )},
-        {"naked literal", ?_assert((jsx:scanner())([{literal, true}])
+        {"naked literal", ?_assert((jsx:encoder())([{literal, true}])
             =:= {ok, [{literal, true}, end_json]}
         )},
-        {"naked integer", ?_assert((jsx:scanner())([{integer, 1}])
+        {"naked integer", ?_assert((jsx:encoder())([{integer, 1}])
             =:= {ok, [{integer, 1}, end_json]}
         )},
-        {"naked string", ?_assert((jsx:scanner())([{float, 1.0}])
+        {"naked string", ?_assert((jsx:encoder())([{float, 1.0}])
             =:= {ok, [{float, 1.0}, end_json]}
         )}
     ].

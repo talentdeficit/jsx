@@ -33,7 +33,7 @@
     depth = 0
 }).
 
--type opts() :: [].
+-type opts() :: list().
 
 
 -spec to_json(Source::(binary() | list()), Opts::opts()) -> binary().

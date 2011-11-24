@@ -1,0 +1,97 @@
+%% The MIT License
+
+%% Copyright (c) 2011 Alisdair Sullivan <alisdairsullivan@yahoo.ca>
+
+%% Permission is hereby granted, free of charge, to any person obtaining a copy
+%% of this software and associated documentation files (the "Software"), to deal
+%% in the Software without restriction, including without limitation the rights
+%% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+%% copies of the Software, and to permit persons to whom the Software is
+%% furnished to do so, subject to the following conditions:
+
+%% The above copyright notice and this permission notice shall be included in
+%% all copies or substantial portions of the Software.
+
+%% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+%% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+%% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+%% THE SOFTWARE.
+
+
+-module(jsx_terms).
+
+-export([to_term/2]).
+-export([init/1, handle_event/2]).
+
+
+-record(opts, {
+    labels = binary
+}).
+
+-type opts() :: list().
+
+
+-spec to_term(Source::(binary() | list()), Opts::opts()) -> binary().
+    
+to_term(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
+        orelse (is_list(Source) andalso is_list(Opts)) ->
+    (gen_json:parser(?MODULE, Opts, extract_opts(Opts)))(Source).
+
+
+
+init(Opts) -> {[], parse_opts(Opts)}.
+
+
+parse_opts(Opts) -> parse_opts(Opts, #opts{}).
+
+parse_opts([{labels, Val}|Rest], Opts)
+        when Val == binary; Val == atom; Val == existing_atom ->
+    parse_opts(Rest, Opts#opts{labels = Val});
+parse_opts([labels|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{labels = binary});
+parse_opts([_|Rest], Opts) ->
+    parse_opts(Rest, Opts);
+parse_opts([], Opts) ->
+    Opts.
+
+
+extract_opts(Opts) ->
+    extract_parser_opts(Opts, []).
+
+extract_parser_opts([], Acc) -> Acc;     
+extract_parser_opts([{K,V}|Rest], Acc) ->
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+        true -> extract_parser_opts(Rest, [{K,V}] ++ Acc)
+        ; false -> extract_parser_opts(Rest, Acc)
+    end;
+extract_parser_opts([K|Rest], Acc) ->
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+        true -> extract_parser_opts(Rest, [K] ++ Acc)
+        ; false -> extract_parser_opts(Rest, Acc)
+    end.
+
+
+handle_event(end_json, {[Term], _Opts}) -> Term;
+
+handle_event(start_object, {Term, Opts}) -> {[[]|Term], Opts};
+handle_event(end_object, {[[]|Term], Opts}) -> {[[{}]|Term], Opts};
+
+handle_event(start_array, {Term, Opts}) -> {[[]|Term], Opts};
+handle_event(end_array, {Term, Opts}) -> {Term, Opts}.
+
+
+%% eunit tests
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+basic_test_() ->
+    [
+        {"empty object", ?_assert(to_term(<<"{}">>, []) =:= [{}])},
+        {"empty array", ?_assert(to_term(<<"[]">>, []) =:= [])}
+    ].
+    
+-endif.
