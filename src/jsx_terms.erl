@@ -92,12 +92,21 @@ handle_event(end_array, {[List, {key, Key}, Last|Terms], Opts}) ->
 handle_event(end_array, {[Current, Last|Terms], Opts}) ->
     {[[lists:reverse(Current)] ++ Last] ++ Terms, Opts};
 
-handle_event({key, Key}, {Terms, Opts}) -> {[{key, Key}] ++ Terms, Opts};
+handle_event({key, Key}, {Terms, Opts}) -> {[{key, format_key(Key, Opts)}] ++ Terms, Opts};
 
 handle_event({_, Event}, {[{key, Key}, Last|Terms], Opts}) ->
     {[[{Key, Event}] ++ Last] ++ Terms, Opts};
 handle_event({_, Event}, {[Last|Terms], Opts}) ->
     {[[Event] ++ Last] ++ Terms, Opts}.
+
+
+
+format_key(Key, Opts) ->
+    case Opts#opts.labels of
+        binary -> Key
+        ; atom -> binary_to_atom(Key, utf8)
+        ; existing_atom -> binary_to_existing_atom(Key, utf8)
+    end.
 
 
 
@@ -160,6 +169,21 @@ comp_term() ->
         [],
         [[{}], [{}]],
         [{<<"key">>, []}, {<<"another key">>, [{}]}]
+    ].
+
+atom_labels_test_() ->
+    {"atom labels test", ?_assert(to_term(comp_json(), [{labels, atom}]) =:= atom_term())}.
+
+atom_term() ->
+    [
+        [{'a key', [{'a key', -17.346}, {'another key', 3.0e152}, {'last key', 14}]}],
+        [0,1,2,3,4,5],
+        [[{a, <<"a">>}, {b, <<"b">>}], [{'c', <<"c">>}, {'d', <<"d">>}]],
+        [true, false, null],
+        [{}],
+        [],
+        [[{}], [{}]],
+        [{key, []}, {'another key', [{}]}]
     ].
     
 -endif.
