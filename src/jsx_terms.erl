@@ -42,7 +42,7 @@ to_term(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
 
 
 
-init(Opts) -> {[], parse_opts(Opts)}.
+init(Opts) -> {[[]], parse_opts(Opts)}.
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
@@ -74,13 +74,31 @@ extract_parser_opts([K|Rest], Acc) ->
     end.
 
 
-handle_event(end_json, {[Term], _Opts}) -> Term;
+handle_event(end_json, {[[Terms]], _Opts}) -> Terms;
 
-handle_event(start_object, {Term, Opts}) -> {[[]|Term], Opts};
-handle_event(end_object, {[[]|Term], Opts}) -> {[[{}]|Term], Opts};
+handle_event(start_object, {Terms, Opts}) -> {[[]|Terms], Opts};
+handle_event(end_object, {[[], {key, Key}, Last|Terms], Opts}) ->
+    {[[{Key, [{}]}] ++ Last] ++ Terms, Opts};
+handle_event(end_object, {[Object, {key, Key}, Last|Terms], Opts}) ->
+    {[[{Key, lists:reverse(Object)}] ++ Last] ++ Terms, Opts};
+handle_event(end_object, {[[], Last|Terms], Opts}) ->
+    {[[[{}]] ++ Last] ++ Terms, Opts};
+handle_event(end_object, {[Object, Last|Terms], Opts}) ->
+    {[[lists:reverse(Object)] ++ Last] ++ Terms, Opts};
+    
+handle_event(start_array, {Terms, Opts}) -> {[[]|Terms], Opts};
+handle_event(end_array, {[List, {key, Key}, Last|Terms], Opts}) ->
+    {[[{Key, lists:reverse(List)}] ++ Last] ++ Terms, Opts};
+handle_event(end_array, {[Current, Last|Terms], Opts}) ->
+    {[[lists:reverse(Current)] ++ Last] ++ Terms, Opts};
 
-handle_event(start_array, {Term, Opts}) -> {[[]|Term], Opts};
-handle_event(end_array, {Term, Opts}) -> {Term, Opts}.
+handle_event({key, Key}, {Terms, Opts}) -> {[{key, Key}] ++ Terms, Opts};
+
+handle_event({_, Event}, {[{key, Key}, Last|Terms], Opts}) ->
+    {[[{Key, Event}] ++ Last] ++ Terms, Opts};
+handle_event({_, Event}, {[Last|Terms], Opts}) ->
+    {[[Event] ++ Last] ++ Terms, Opts}.
+
 
 
 %% eunit tests
@@ -91,7 +109,57 @@ handle_event(end_array, {Term, Opts}) -> {Term, Opts}.
 basic_test_() ->
     [
         {"empty object", ?_assert(to_term(<<"{}">>, []) =:= [{}])},
-        {"empty array", ?_assert(to_term(<<"[]">>, []) =:= [])}
+        {"simple object", ?_assert(to_term(<<"{\"key\": true}">>, []) =:= [{<<"key">>, true}])},
+        {"less simple object",
+            ?_assert(to_term(<<"{\"a\": 1, \"b\": 2}">>, []) =:= [{<<"a">>, 1}, {<<"b">>, 2}])
+        },
+        {"nested object",
+            ?_assert(to_term(<<"{\"key\": {\"key\": true}}">>, []) =:= [{<<"key">>, [{<<"key">>, true}]}])
+        },
+        {"empty array", ?_assert(to_term(<<"[]">>, []) =:= [])},
+        {"list of lists",
+            ?_assert(to_term(<<"[[],[],[]]">>, []) =:= [[], [], []])
+        },
+        {"list of strings",
+            ?_assert(to_term(<<"[\"hi\", \"there\"]">>, []) =:= [<<"hi">>, <<"there">>])
+        },
+        {"list of numbers",
+            ?_assert(to_term(<<"[1, 2.0, 3e4, -5]">>, []) =:= [1, 2.0, 3.0e4, -5])
+        },
+        {"list of literals",
+            ?_assert(to_term(<<"[true,false,null]">>, []) =:= [true,false,null])
+        },
+        {"list of objects",
+            ?_assert(to_term(<<"[{}, {\"a\":1, \"b\":2}, {\"key\":[true,false]}]">>, [])
+                =:= [[{}], [{<<"a">>,1},{<<"b">>,2}], [{<<"key">>,[true,false]}]])
+        }
+    ].
+
+comprehensive_test_() ->
+    {"comprehensive test", ?_assert(to_term(comp_json(), []) =:= comp_term())}.
+
+comp_json() ->
+    <<"[
+        {\"a key\": {\"a key\": -17.346, \"another key\": 3e152, \"last key\": 14}},
+        [0,1,2,3,4,5],
+        [{\"a\": \"a\", \"b\": \"b\"}, {\"c\": \"c\", \"d\": \"d\"}],
+        [true, false, null],
+        {},
+        [],
+        [{},{}],
+        {\"key\": [], \"another key\": {}}    
+    ]">>.
+
+comp_term() ->
+    [
+        [{<<"a key">>, [{<<"a key">>, -17.346}, {<<"another key">>, 3.0e152}, {<<"last key">>, 14}]}],
+        [0,1,2,3,4,5],
+        [[{<<"a">>, <<"a">>}, {<<"b">>, <<"b">>}], [{<<"c">>, <<"c">>}, {<<"d">>, <<"d">>}]],
+        [true, false, null],
+        [{}],
+        [],
+        [[{}], [{}]],
+        [{<<"key">>, []}, {<<"another key">>, [{}]}]
     ].
     
 -endif.
