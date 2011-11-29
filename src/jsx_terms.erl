@@ -185,5 +185,13 @@ atom_term() ->
         [[{}], [{}]],
         [{key, []}, {'another key', [{}]}]
     ].
+
+naked_test_() ->
+    [
+        {"naked integer", ?_assert(to_term(<<"123">>, []) =:= 123)},
+        {"naked float", ?_assert(to_term(<<"-4.32e-17">>, []) =:= -4.32e-17)},
+        {"naked literal", ?_assert(to_term(<<"true">>, []) =:= true)},
+        {"naked string", ?_assert(to_term(<<"\"string\"">>, []) =:= <<"string">>)}
+    ].
     
 -endif.
