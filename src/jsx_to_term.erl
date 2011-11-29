@@ -21,7 +21,7 @@
 %% THE SOFTWARE.
 
 
--module(jsx_terms).
+-module(jsx_to_term).
 
 -export([to_term/2]).
 -export([init/1, handle_event/2]).

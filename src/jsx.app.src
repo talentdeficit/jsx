@@ -7,8 +7,10 @@
         gen_json,
         jsx_encoder,
         jsx_decoder,
-        jsx_format,
-		jsx_utils
+        jsx_to_json,
+        jsx_to_term,
+		jsx_utils,
+		jsx_verify
     ]},
     {registered, []},
     {applications, [

@@ -21,7 +21,7 @@
 %% THE SOFTWARE.
 
 
--module(jsx_format).
+-module(jsx_to_json).
 
 -export([to_json/2]).
 -export([init/1, handle_event/2]).

@@ -25,7 +25,7 @@
 
 -export([encoder/0, encoder/1]).
 -export([decoder/2, decoder/3]).
-%% shims for jsx_format, jsx_terms, jsx_verify
+%% shims for jsx_to_json, jsx_to_term, jsx_verify
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
 -export([is_json/1, is_json/2]).
@@ -83,19 +83,19 @@ encoder(OptsList) when is_list(OptsList) -> jsx_encoder:encoder(OptsList).
 
 
 -spec to_json(Source::binary() | list()) -> binary().
--spec to_json(Source::binary() | list(), Opts::jsx_format:opts()) -> binary().
+-spec to_json(Source::binary() | list(), Opts::jsx_to_json:opts()) -> binary().
 
 to_json(Source) -> to_json(Source, []).
 
-to_json(Source, Opts) -> jsx_format:to_json(Source, Opts).
+to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 
 -spec to_term(Source::binary() | list()) -> list().
--spec to_term(Source::binary() | list(), Opts::jsx_terms:opts()) -> list().
+-spec to_term(Source::binary() | list(), Opts::jsx_to_term:opts()) -> list().
 
 to_term(Source) -> to_term(Source, []).
 
-to_term(Source, Opts) -> jsx_terms:to_term(Source, Opts).
+to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 
 -spec is_json(Source::binary() | list()) -> true | false.
