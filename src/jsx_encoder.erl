@@ -23,13 +23,14 @@
 
 -module(jsx_encoder).
 
--export([encoder/1]).
+-export([encoder/3]).
 
 
--spec encoder(OptsList::jsx:opts()) -> jsx:encoder().
+-spec encoder(Mod::module(), Args::any(), Opts::jsx:opts()) -> jsx:encoder().
 
-encoder(OptsList) ->
-    fun(Forms) -> start(Forms, [], [], jsx_utils:parse_opts(OptsList)) end.
+encoder(Mod, Args, Opts) ->
+    fun(JSON) -> start(JSON, {Mod, Mod:init(Args)}, jsx_utils:parse_opts(Opts)) end.
+
 
 
 -include("../include/jsx_opts.hrl").
@@ -42,171 +43,118 @@ encoder(OptsList) ->
 -endif.
 
 
--ifndef(incomplete).
--define(incomplete(State, T, Stack, Opts),
-    {incomplete, fun(Stream) when is_list(Stream) ->
-            State(Stream, T, Stack, Opts)
-        end
-    }
-).
--endif.
+start(Term, {Handler, State}, Opts) ->
+    Handler:handle_event(end_json, value(Term, {Handler, State}, Opts)).
 
 
--ifndef(event).
--define(event(Event, State, Rest, T, Stack, Opts),
-    State(Rest, Event ++ T, Stack, Opts)
-).
--endif.
+value(String, {Handler, State}, Opts) when is_binary(String) ->
+    Handler:handle_event({string, jsx_utils:json_escape(String, Opts)}, State);
+value(Float, {Handler, State}, _Opts) when is_float(Float) ->
+    Handler:handle_event({float, Float}, State);
+value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
+    Handler:handle_event({integer, Int}, State);
+value(Literal, {Handler, State}, _Opts)
+        when Literal == true; Literal == false; Literal == null ->
+    Handler:handle_event({literal, Literal}, State);
+value([{}], {Handler, State}, _Opts) ->
+    Handler:handle_event(end_object, Handler:handle_event(start_object, State));
+value([], {Handler, State}, _Opts) ->
+    Handler:handle_event(end_array, Handler:handle_event(start_array, State));
+value(List, {Handler, State}, Opts) when is_list(List) ->
+    list_or_object(List, {Handler, State}, Opts);
+value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
+list_or_object([Tuple|_] = List, {Handler, State}, Opts) when is_tuple(Tuple) ->
+    object(List, {Handler, Handler:handle_event(start_object, State)}, Opts);
+list_or_object(List, {Handler, State}, Opts) ->
+    list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
 
 
-start([{string, String}], [], [], Opts) when is_binary(String) ->
-    {ok, [{string, jsx_utils:json_escape(String, Opts)}, end_json]};
-start([{float, Float}], [], [], _Opts) when is_float(Float) ->
-    {ok, [{float, Float}, end_json]};
-start([{integer, Int}], [], [], _Opts) when is_integer(Int) ->
-    {ok, [{integer, Int}, end_json]};
-start([{literal, Atom}], [], [], _Opts)
-        when Atom == true; Atom == false; Atom == null ->
-    {ok, [{literal, Atom}, end_json]};
-%% third parameter is a stack to match end_foos to start_foos
-start(Forms, [], [], Opts) when is_list(Forms) ->
-    list_or_object(Forms, [], [], Opts);
-start(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
+object([{Key, Value}|Rest], {Handler, State}, Opts) ->
+    object(Rest, {Handler,
+            value(Value, {Handler, Handler:handle_event({key, Key}, State)}, Opts)
+        }, Opts);
+object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
+object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-list_or_object([start_object|Forms], T, Stack, Opts) ->
-    ?event([start_object], key, Forms, T, [object] ++ Stack, Opts);
-list_or_object([start_array|Forms], T, Stack, Opts) ->
-    ?event([start_array], value, Forms, T, [array] ++ Stack, Opts);
-list_or_object([], T, Stack, Opts) ->
-    ?incomplete(list_or_object, T, Stack, Opts);
-list_or_object(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
-
- 
-key([{key, Key}|Forms], T, Stack, Opts) when is_binary(Key) ->
-    ?event([{key,
-            unicode:characters_to_binary(jsx_utils:json_escape(Key, Opts))
-        }],
-        value, Forms, T, Stack, Opts
-    );
-key([end_object|Forms], T, [object|Stack], Opts) ->
-    ?event([end_object], maybe_done, Forms, T, Stack, Opts);
-key([], T, Stack, Opts) -> ?incomplete(key, T, Stack, Opts);
-key(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
-
-
-value([{string, S}|Forms], T, Stack, Opts) when is_binary(S) ->
-    ?event([{string, jsx_utils:json_escape(S, Opts)}],
-        maybe_done, Forms, T, Stack, Opts
-    );
-value([{float, F}|Forms], T, Stack, Opts) when is_float(F) ->
-    ?event([{float, F}], maybe_done, Forms, T, Stack, Opts);
-value([{integer, I}|Forms], T, Stack, Opts) when is_integer(I) ->
-    ?event([{integer, I}], maybe_done, Forms, T, Stack, Opts);
-value([{literal, L}|Forms], T, Stack, Opts)
-        when L == true; L == false; L == null ->
-    ?event([{literal, L}], maybe_done, Forms, T, Stack, Opts);
-value([start_object|Forms], T, Stack, Opts) ->
-    ?event([start_object], key, Forms, T, [object] ++ Stack, Opts);
-value([start_array|Forms], T, Stack, Opts) ->
-    ?event([start_array], maybe_done, Forms, T, [array] ++ Stack, Opts);
-value([end_array|Forms], T, [array|Stack], Opts) ->
-    ?event([end_array], maybe_done, Forms, T, Stack, Opts);
-value([], T, Stack, Opts) -> ?incomplete(value, T, Stack, Opts);
-value(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
-
-
-maybe_done([end_json], T, [], Opts) ->
-    ?event([end_json], done, [], T, [], Opts);
-maybe_done([end_object|Forms], T, [object|Stack], Opts) ->
-    ?event([end_object], maybe_done, Forms, T, Stack, Opts);
-maybe_done([end_array|Forms], T, [array|Stack], Opts) ->
-    ?event([end_array], maybe_done, Forms, T, Stack, Opts);
-maybe_done(Forms, T, [object|_] = Stack, Opts) -> key(Forms, T, Stack, Opts);
-maybe_done(Forms, T, [array|_] = Stack, Opts) -> value(Forms, T, Stack, Opts);
-maybe_done([], T, Stack, Opts) -> ?incomplete(maybe_done, T, Stack, Opts);
-maybe_done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
-
-
-done([], T, [], _Opts) -> lists:reverse(T);
-done(Forms, T, Stack, Opts) -> ?error([Forms, T, Stack, Opts]).
+list([Value|Rest], {Handler, State}, Opts) ->
+    list(Rest, {Handler, value(Value, {Handler, State}, Opts)}, Opts);
+list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
+list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-encode(Terms) ->    
-    try case (jsx:encoder([]))(Terms) of
-            Terms -> true
-        end
-    catch
-        error:badarg -> false
-    end.
+encode(Term) -> (encoder(jsx, [], []))(Term).
 
 
 encode_test_() ->    
     [
-        {"empty object", ?_assert(encode([start_object, end_object, end_json]))},
-        {"empty array", ?_assert(encode([start_array, end_array, end_json]))},
-        {"nested empty objects", ?_assert(encode([start_object,
-            {key, <<"empty object">>},
-            start_object,
-            {key, <<"empty object">>},
-            start_object,
-            end_object,
-            end_object,
-            end_object,
-            end_json
-        ]))},
-        {"nested empty arrays", ?_assert(encode([start_array,
-            start_array,
-            start_array,
-            end_array,
-            end_array,
-            end_array,
-            end_json
-        ]))},
-        {"simple object", ?_assert(encode([start_object, 
-            {key, <<"a">>},
-            {string, <<"hello">>},
-            {key, <<"b">>},
-            {integer, 1},
-            {key, <<"c">>},
-            {float, 1.0},
-            {key, <<"d">>},
-            {literal, true},
-            end_object,
-            end_json
-        ]))},
-        {"simple array", ?_assert(encode([start_array,
-            {string, <<"hello">>},
-            {integer, 1},
-            {float, 1.0},
-            {literal, true},
-            end_array,
-            end_json
-        ]))},
-        {"unbalanced array", ?_assertNot(encode([start_array,
-            end_array,
-            blerg,
-            end_array,
-            end_json
-        ]))},
-        {"naked string", ?_assert((jsx:encoder())([{string, <<"hello">>}])
-            =:= {ok, [{string, <<"hello">>}, end_json]}
-        )},
-        {"naked literal", ?_assert((jsx:encoder())([{literal, true}])
-            =:= {ok, [{literal, true}, end_json]}
-        )},
-        {"naked integer", ?_assert((jsx:encoder())([{integer, 1}])
-            =:= {ok, [{integer, 1}, end_json]}
-        )},
-        {"naked string", ?_assert((jsx:encoder())([{float, 1.0}])
-            =:= {ok, [{float, 1.0}, end_json]}
-        )}
+        {"naked string", ?_assert(encode(<<"a string">>)
+            =:= [{string, <<"a string">>}, end_json])
+        },
+        {"naked integer", ?_assert(encode(123)
+            =:= [{integer, 123}, end_json])
+        },
+        {"naked float", ?_assert(encode(1.23)
+            =:= [{float, 1.23}, end_json])
+        },
+        {"naked literal", ?_assert(encode(null)
+            =:= [{literal, null}, end_json])
+        },
+        {"empty object", ?_assert(encode([{}])
+            =:= [start_object, end_object, end_json])
+        },
+        {"empty list", ?_assert(encode([])
+            =:= [start_array, end_array, end_json])
+        },
+        {"simple list", ?_assert(encode([1,2,3,true,false])
+            =:= [start_array,
+                    {integer, 1},
+                    {integer, 2},
+                    {integer, 3},
+                    {literal, true},
+                    {literal, false},
+                    end_array,
+                end_json])
+        },
+        {"simple object", ?_assert(encode([{<<"a">>, true}, {<<"b">>, false}])
+            =:= [start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    end_object,
+                end_json])
+        },
+        {"complex term", ?_assert(encode([
+                {<<"a">>, true},
+                {<<"b">>, false},
+                {<<"c">>, [1,2,3]},
+                {<<"d">>, [{<<"key">>, <<"value">>}]}
+            ]) =:= [start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    {key, <<"c">>},
+                    start_array,
+                        {integer, 1},
+                        {integer, 2},
+                        {integer, 3},
+                    end_array,
+                    {key, <<"d">>},
+                    start_object,
+                        {key, <<"key">>},
+                        {string, <<"value">>},
+                    end_object,
+                    end_object,
+                end_json])
+        }
     ].
 
 -endif.
