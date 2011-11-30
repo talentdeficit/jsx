@@ -38,8 +38,7 @@
 
 -spec to_json(Source::(binary() | list()), Opts::opts()) -> binary().
     
-to_json(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
-        orelse (is_list(Source) andalso is_list(Opts)) ->
+to_json(Source, Opts) when is_list(Opts) ->
     (gen_json:parser(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
 
