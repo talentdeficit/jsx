@@ -40,11 +40,8 @@
     
 to_json(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
         orelse (is_list(Source) andalso is_list(Opts)) ->
-    (gen_json:parser(?MODULE, Opts, extract_opts(Opts)))(Source).
+    (gen_json:parser(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
-
-
-init(Opts) -> {start, [], parse_opts(Opts)}.
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
@@ -63,21 +60,6 @@ parse_opts([], Opts) ->
     Opts.
 
 
-extract_opts(Opts) ->
-    extract_parser_opts(Opts, []).
-
-extract_parser_opts([], Acc) -> Acc;     
-extract_parser_opts([{K,V}|Rest], Acc) ->
-    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
-        true -> extract_parser_opts(Rest, [{K,V}] ++ Acc)
-        ; false -> extract_parser_opts(Rest, Acc)
-    end;
-extract_parser_opts([K|Rest], Acc) ->
-    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
-        true -> extract_parser_opts(Rest, [K] ++ Acc)
-        ; false -> extract_parser_opts(Rest, Acc)
-    end.
-
 
 -define(start_object, <<"{">>).
 -define(start_array, <<"[">>).
@@ -88,6 +70,11 @@ extract_parser_opts([K|Rest], Acc) ->
 -define(quote, <<"\"">>).
 -define(space, <<" ">>).
 -define(newline, <<"\n">>).
+
+
+
+init(Opts) -> {start, [], parse_opts(Opts)}.
+
 
 
 handle_event(Event, {start, Acc, Opts}) ->

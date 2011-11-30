@@ -23,7 +23,7 @@
 
 -module(jsx).
 
--export([encoder/0, encoder/1]).
+-export([encoder/2, encoder/3]).
 -export([decoder/2, decoder/3]).
 %% shims for jsx_to_json, jsx_to_term, jsx_verify
 -export([to_json/1, to_json/2]).
@@ -56,7 +56,10 @@
 -include("../include/jsx_opts.hrl").
 
 -type opts() :: [opt()].
--type opt() :: loose_unicode | escape_forward_slashes | explicit_end.
+-type opt() :: loose_unicode
+        | escape_forward_slashes
+        | explicit_end
+        | {parser, auto} | {parser, encoder} | {parser, decoder} | {parser, function()}.
 
 
 
@@ -65,20 +68,22 @@
 -spec decoder(Mod::module(), Args::any()) -> decoder().
 -spec decoder(Mod::module(), Args::any(), OptsList::opts()) -> decoder().
 
-decoder(Mod, Args) -> decoder(Mod, Args, []).
+decoder(Mod, Args) when is_atom(Mod) -> decoder(Mod, Args, []).
 
-decoder(Mod, Args, OptsList) when is_list(OptsList) -> jsx_decoder:decoder(Mod, Args, OptsList).
+decoder(Mod, Args, OptsList) when is_atom(Mod), is_list(OptsList) ->
+    jsx_decoder:decoder(Mod, Args, OptsList).
 
 
 -type encoder() :: fun((list()) ->
     {ok, events()} | {incomplete, decoder()}).
 
--spec encoder() -> encoder().
--spec encoder(OptsList::opts()) -> encoder().
+-spec encoder(Mod::module(), Args::any()) -> encoder().
+-spec encoder(Mod::module(), Args::any(), OptsList::opts()) -> encoder().
 
-encoder() -> encoder([]).
+encoder(Mod, Args) when is_atom(Mod) -> encoder(Mod, Args, []).
 
-encoder(OptsList) when is_list(OptsList) -> jsx_encoder:encoder(OptsList).
+encoder(Mod, Args, OptsList) when is_atom(Mod), is_list(OptsList) ->
+    jsx_encoder:encoder(Mod, Args, OptsList).
 
 
 
@@ -120,21 +125,7 @@ encoder_decoder_equiv_test_() ->
         {"encoder/decoder equivalency",
             ?_assert((jsx:decoder(?MODULE, []))(
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
-                ) =:= (jsx:encoder())(
-                    [start_array,
-                        {string, <<"a">>},
-                        {integer, 17},
-                        {float, 3.14},
-                        {literal, true},
-                        start_object,
-                        {key, <<"k">>},
-                        {literal, false},
-                        end_object,
-                        start_array,
-                        end_array,
-                        end_array,
-                        end_json]
-                )
+                ) =:= (jsx:encoder(?MODULE, []))([<<"a">>, 17, 3.14, true, [{<<"k">>, false}], []])
             )
         }
     ].
