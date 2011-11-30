@@ -1,4 +1,2 @@
-jsx
-===
-
-api in fairly rapid flux, recommend you use v0.9.0 tag for now
+jsx (v0.10.0)
+=============
