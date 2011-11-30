@@ -102,7 +102,11 @@ to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 format(Source) -> format(Source, []).
 
-format(Source, Opts) -> jsx_to_json:to_json(Source, Opts ++ [{parser, decoder}]).
+format(Source, Opts) ->
+    case jsx_to_json:to_json(Source, Opts ++ [{parser, decoder}]) of
+        {incomplete, _} -> erlang:error(badarg, [Source, Opts])
+        ; Result -> Result
+    end.
 
 
 -spec term_to_json(Source::any()) -> binary().
@@ -110,7 +114,8 @@ format(Source, Opts) -> jsx_to_json:to_json(Source, Opts ++ [{parser, decoder}])
 
 term_to_json(Source) -> term_to_json(Source, []).
 
-term_to_json(Source, Opts) -> to_json(Source, Opts ++ [{parser, encoder}]).
+term_to_json(Source, Opts) ->
+    to_json(Source, Opts ++ [{parser, encoder}]).
 
 
 -spec to_term(Source::any()) -> any().
@@ -126,7 +131,11 @@ to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 json_to_term(Source) -> json_to_term(Source, []).
 
-json_to_term(Source, Opts) -> to_term(Source, Opts ++ [{parser, decoder}]).
+json_to_term(Source, Opts) ->
+    case to_term(Source, Opts ++ [{parser, decoder}]) of
+        {incomplete, _} -> erlang:error(badarg, [Source, Opts])
+        ; Result -> Result
+    end.
 
 
 -spec is_json(Source::binary() | list()) -> true | false.
