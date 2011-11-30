@@ -29,6 +29,8 @@
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
 -export([is_json/1, is_json/2]).
+%% old api
+-export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2, format/1, format/2]).
 
 %% test handler
 -ifdef(TEST).
@@ -87,20 +89,44 @@ encoder(Mod, Args, OptsList) when is_atom(Mod), is_list(OptsList) ->
 
 
 
--spec to_json(Source::binary() | list()) -> binary().
--spec to_json(Source::binary() | list(), Opts::jsx_to_json:opts()) -> binary().
+-spec to_json(Source::any()) -> binary().
+-spec to_json(Source::any(), Opts::jsx_to_json:opts()) -> binary().
 
 to_json(Source) -> to_json(Source, []).
 
 to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 
--spec to_term(Source::binary() | list()) -> list().
--spec to_term(Source::binary() | list(), Opts::jsx_to_term:opts()) -> list().
+-spec format(Source::binary()) -> binary().
+-spec format(Source::binary(), Opts::jsx_to_json:opts()) -> binary().
+
+format(Source) -> format(Source, []).
+
+format(Source, Opts) -> jsx_to_json:to_json(Source, Opts ++ [{parser, decoder}]).
+
+
+-spec term_to_json(Source::any()) -> binary().
+-spec term_to_json(Source::any(), Opts::list()) -> binary().
+
+term_to_json(Source) -> term_to_json(Source, []).
+
+term_to_json(Source, Opts) -> to_json(Source, Opts ++ [{parser, encoder}]).
+
+
+-spec to_term(Source::any()) -> any().
+-spec to_term(Source::any(), Opts::jsx_to_term:opts()) -> any().
 
 to_term(Source) -> to_term(Source, []).
 
 to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
+
+
+-spec json_to_term(Source::binary()) -> any().
+-spec json_to_term(Source::binary(), Opts::list()) -> any().
+
+json_to_term(Source) -> json_to_term(Source, []).
+
+json_to_term(Source, Opts) -> to_term(Source, Opts ++ [{parser, decoder}]).
 
 
 -spec is_json(Source::binary() | list()) -> true | false.
