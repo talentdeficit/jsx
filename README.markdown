@@ -14,6 +14,7 @@ quickstart
 `jsx:term_to_json/1,2` takes a term conforming to the mapping detailed below and produces a utf8 encoded (binary) json text
 
 options for either are:
+
     * `loose_unicode`
     * `explicit_end`
     * `escape_forward_slash`
@@ -28,6 +29,7 @@ use `escape_forward_slash` to escape forward slashes, which is required to produ
 `jsx:format/1,2` takes a utf8 encoded (binary) json text and produces the same, reformatted.
 
 options are:
+
     * {`space`, N}
     * {`indent`, N}
     
