@@ -29,7 +29,7 @@
 -spec decoder(Mod::module(), Args::any(), Opts::jsx:opts()) -> jsx:decoder().
 
 decoder(Mod, Args, Opts) ->
-    fun(JSON) -> start(JSON, {Mod, Mod:init(Args)}, [], jsx_utils:parse_opts(Opts)) end.
+    fun(JSON) -> value(JSON, {Mod, Mod:init(Args)}, [], jsx_utils:parse_opts(Opts)) end.
 
 
 
@@ -123,29 +123,29 @@ decoder(Mod, Args, Opts) ->
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
 
 
-start(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
-start(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
-start(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
-start(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
     tr(Rest, Handler, Stack, Opts);
-start(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
     fa(Rest, Handler, Stack, Opts);
-start(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
     nu(Rest, Handler, Stack, Opts);
-start(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
     negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
-start(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
     zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
-start(<<S/utf8, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
+value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
-start(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
-    start(Rest, Handler, Stack, Opts);
-start(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(start, <<>>, Handler, Stack, Opts);
-start(Bin, Handler, Stack, Opts) ->
+value(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
+value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
+    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
+value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+    value(Rest, Handler, Stack, Opts);
+value(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(value, <<>>, Handler, Stack, Opts);
+value(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
@@ -186,32 +186,6 @@ array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
 array(<<>>, Handler, Stack, Opts) ->
     ?incomplete(array, <<>>, Handler, Stack, Opts);
 array(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
-
-
-value(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
-    string(Rest, Handler, [?new_seq()|Stack], Opts);
-value(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
-    tr(Rest, Handler, Stack, Opts);
-value(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
-    fa(Rest, Handler, Stack, Opts);
-value(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
-    nu(Rest, Handler, Stack, Opts);
-value(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
-    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
-value(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
-    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
-value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
-value(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
-value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
-value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
-    value(Rest, Handler, Stack, Opts);
-value(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(value, <<>>, Handler, Stack, Opts);
-value(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
