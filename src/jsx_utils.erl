@@ -225,9 +225,7 @@ json_escape(<<$\t, Rest/binary>>, Opts, Acc) ->
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
     json_escape(Rest,
         Opts,
-        <<Acc/binary,
-            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
-        >>
+        <<Acc/binary, (unicode:characters_to_binary(json_escape_sequence(C)))/binary>>
     );
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
@@ -238,24 +236,11 @@ json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
         when C == 16#2028; C == 16#2029 ->
     json_escape(Rest,
         Opts,
-        <<Acc/binary,
-            (unicode:characters_to_binary(json_escape_sequence(C)))/binary
-        >>
+        <<Acc/binary, (unicode:characters_to_binary(json_escape_sequence(C)))/binary>>
     );
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
-%% if loose_unicode is true, replace illegal sequences with u+fffd
-%%  u+fffe and u+ffff
-json_escape(<<239, 191, X, Rest/binary>>, Opts=#opts{loose_unicode=true}, Acc)
-        when X == 190; X == 191 ->
-    json_escape(Rest, Opts, <<Acc/binary, 16#fffd/utf8>>);
-%% surrogates
-json_escape(<<237, X, _, Rest/binary>>, Opts=#opts{loose_unicode=true}, Acc)
-        when X >= 160 ->
-    json_escape(Rest, Opts, <<Acc/binary, 16#fffd/utf8>>);
-json_escape(<<_, Rest/binary>>, Opts=#opts{loose_unicode=true}, Acc) ->
-    json_escape(Rest, Opts, <<Acc/binary, 16#fffd/utf8>>);
 json_escape(<<>>, _Opts, Acc) ->
     Acc;
 json_escape(Rest, Opts, Acc) ->
@@ -266,7 +251,6 @@ json_escape(Rest, Opts, Acc) ->
 json_escape_sequence(X) ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
     [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
-
 
 
 to_hex(10) -> $a;
@@ -344,13 +328,6 @@ binary_escape_test_() ->
             ?_assert(json_escape(<<"/Date(1303502009425)/">>,
                     #opts{escape_forward_slash=true}
                 ) =:= <<"\\/Date(1303502009425)\\/">>
-            )
-        },
-        %% <<239, 191, 191>> is u+ffff
-        {"loose unicode",
-            ?_assert(json_escape(<<"hi there "/utf8, 239, 191, 191, "!"/utf8>>,
-                    #opts{loose_unicode=true}
-                ) =:= <<"hi there "/utf8, 16#fffd/utf8, "!"/utf8>>
             )
         }
     ].
