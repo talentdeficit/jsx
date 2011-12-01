@@ -283,7 +283,7 @@ string(Bin, Handler, Stack, Opts) ->
 %% we don't need to guard against partial utf here, because it's already taken
 %%   care of in string. theoretically, the last clause of noncharacter/4 is
 %%   unreachable
-%% non-characters erlang doesn't recognize as non-characters, idiotically
+%% non-characters erlang doesn't recognize as non-characters
 noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when ?is_noncontrol(S) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
@@ -329,15 +329,6 @@ escaped_unicode(<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts)
             low_surrogate(Rest, Handler, [X, Acc|Stack], Opts)
         %% non-characters, you're not allowed to exchange these
         ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
-            case Opts#opts.loose_unicode of
-                true ->
-                    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
-                ; false ->    
-                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts])
-            end
-        %% allowing interchange of null bytes allows attackers to forge
-        %%   malicious streams
-        ; X when X == 16#0000 ->
             case Opts#opts.loose_unicode of
                 true ->
                     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
@@ -779,13 +770,6 @@ reserved_test_() ->
             ?_assertEqual(check_replaced(reserved_space()), [])
         }
     ].
-
-zero_test_() ->
-    [
-        {"nullbyte - badjson",
-            ?_assertEqual(check_bad(zero()), [])
-        }
-    ].
     
 good_characters_test_() ->
     [
@@ -847,8 +831,6 @@ surrogates() -> lists:seq(16#d800, 16#dfff).
 control_characters() -> lists:seq(1, 31).
 
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
-
-zero() -> [0].
 
 good() -> [32, 33]
             ++ lists:seq(16#23, 16#5b)

@@ -1,3 +1,0 @@
-{name, "nullbyte forbidden"}.
-{jsx, {error, badjson}}.
-{json, "nullbyte_forbidden.json"}.
