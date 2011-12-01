@@ -212,9 +212,6 @@ key(Bin, Handler, Stack, Opts) ->
 %% string appends it's output to the term at the top of the stack. for
 %%   efficiency the strings are build in reverse order and reversed before
 %%   being added to the output stream
-%% string uses partial_utf/1 to cease parsing when invalid encodings are 
-%%   encountered rather than just checking remaining binary size like other 
-%%   states to eliminate certain incomplete states
 %% when parsing strings, the naive detection of partial codepoints is
 %%   insufficient. this incredibly anal function should detect all badly formed
 %%   utf sequences
