@@ -66,15 +66,13 @@ see `term_to_json/1,2` for types and options
 
 ## json <-> erlang ##
 
-**json**        | **erlang**
-----------------|----------------
-`number`        | `integer()` | `float()`
-`string`        | `binary()`
-`true`          | `true`
-`false`         | `false`
-`null`          | `null`
-`array`         | `list()`
-`object`        | `[{}]` | `[{binary(), JSON}]`
+**json**                        | **erlang**
+--------------------------------|--------------------------------
+`number`                        | `integer()` | `float()`
+`string`                        | `binary()`
+`true`, `false` and `null`      | `true`, `false` and `null`
+`array`                         | `list()`
+`object`                        | `[{}]` | `[{binary(), JSON}]`
 
 **json**
 
