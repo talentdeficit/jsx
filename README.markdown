@@ -17,6 +17,7 @@ to build jsx, `make` or `./rebar compile`
 parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details below)
 
 `json_to_term(JSON) -> Term`
+
 `json_to_term(JSON, Opts) -> Term`
 
 types:
@@ -33,6 +34,7 @@ if the option `loose_unicode` is present invalid codepoints are replaced with `u
 produces a JSON text from an erlang term (see json <-> erlang mapping details below)
 
 `term_to_json(Term) -> JSON`
+
 `term_to_json(Term, Opts) -> JSON`
 
 types:
@@ -59,6 +61,7 @@ if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not no
 produces a JSON text from JSON text, reformatted
 
 `format(JSON) -> JSON`
+
 `format(JSON, Opts) -> JSON`
 
 see `term_to_json/1,2` for types and options
