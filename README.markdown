@@ -80,7 +80,7 @@ json must be encoded in `utf8`. if it's invalid `utf8`, it probably won't parse 
 
 **numbers**
 
-javascript and thus [json][json] represents all numeric values with floats. as this is woefully insufficient for many uses, **jsx**, just like erlang, supports bigints. whenever possible, this library will interpret json numbers that look like integers as integers. other numbers will be converted to erlang's floating point type, which is nearly but not quite iee754. numbers not representable with either type are beyond the concern of this implementation, and will result in parsing errors (with the exception of negative zero, which is converted into plain old zero)
+javascript and thus json represent all numeric values with floats. as this is woefully insufficient for many uses, **jsx**, just like erlang, supports bigints. whenever possible, this library will interpret json numbers that look like integers as integers. other numbers will be converted to erlang's floating point type, which is nearly but not quite iee754. numbers not representable with either type are beyond the concern of this implementation, and will result in parsing errors (with the exception of negative zero, which is converted into plain old zero)
 
 when converting from erlang to json, numbers are represented with their shortest representation that will round trip without loss of precision. this means that some floats may be superficially dissimilar (although functionally equivalent). for example, `1.0000000000000001` will be represented by `1.0`
 
