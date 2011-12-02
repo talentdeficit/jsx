@@ -24,9 +24,19 @@ types:
 
 * `JSON` = `binary()`
 * `Term` = `[]` | `[{}]` | `[any()]`
-* `Opts` = `[]` | `[loose_unicode]`
+* `Opts` = `[]` | `[Opt]`
+* `Opt` =
+    - `loose_unicode`
+    - `labels`
+    - `{labels, Label}`
+    - `Label` =
+        * `binary`
+        * `atom`
+        * `existing_atom`
 
 if the option `loose_unicode` is present invalid codepoints are replaced with `u+FFFD`. default behaviour is a `badarg` error
+
+the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
 
 
 **converting erlang terms to json**
@@ -95,10 +105,6 @@ all erlang strings are represented by *valid* `utf8` encoded binaries
 
 this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings
 
-**keys**
-
-keys are functionally identical to strings. see `string` above
-
 **true, false and null**
 
 the json primitives `true`, `false` and `null` are represented by the erlang atoms `true`, `false` and `null`. suprise
@@ -109,7 +115,7 @@ json arrays are represented with erlang lists of json values as described in thi
 
 **objects**
 
-json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties. all properties must be tuples. all keys must be encoded as in `string`, above
+json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties. all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers)
 
 
 ## acknowledgements ##
