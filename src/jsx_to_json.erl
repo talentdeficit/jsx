@@ -78,7 +78,7 @@ init(Opts) -> {start, [], parse_opts(Opts)}.
 
 handle_event(Event, {start, Acc, Opts}) ->
     case Event of
-        {Type, Value} -> {[], [Acc, encode(Type, Value)], Opts}
+        {Type, Value} -> {[], [Acc, encode(Type, Value, Opts)], Opts}
         ; start_object -> {[object_start], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start], [Acc, ?start_array], Opts}
     end;
@@ -86,7 +86,7 @@ handle_event(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}})
     Opts = OldOpts#opts{depth = Depth + 1},
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, indent(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, indent(Opts), encode(string, Key, Opts), ?colon, space(Opts)], Opts}
         ; end_object ->
             {Stack, [Acc, ?end_object], OldOpts}
     end;
@@ -94,14 +94,14 @@ handle_event(Event, {[object_value|Stack], Acc, Opts}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[key|Stack], [Acc, encode(Type, Value)], Opts}
+            {[key|Stack], [Acc, encode(Type, Value, Opts)], Opts}
         ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Opts}
         ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Opts}
     end;
 handle_event(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, ?comma, indent_or_space(Opts), encode(string, Key), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, ?comma, indent_or_space(Opts), encode(string, Key, Opts), ?colon, space(Opts)], Opts}
         ; end_object ->
             NewOpts = Opts#opts{depth = Depth - 1},
             {Stack, [Acc, indent(NewOpts), ?end_object], NewOpts}
@@ -111,7 +111,7 @@ handle_event(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) 
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, indent(Opts), encode(Type, Value)], Opts}
+            {[array|Stack], [Acc, indent(Opts), encode(Type, Value, Opts)], Opts}
         ; start_object -> {[object_start, array|Stack], [Acc, indent(Opts), ?start_object], Opts}
         ; start_array -> {[array_start, array|Stack], [Acc, indent(Opts), ?start_array], Opts}
         ; end_array -> {Stack, [Acc, ?end_array], OldOpts}
@@ -120,7 +120,7 @@ handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, ?comma, indent_or_space(Opts), encode(Type, Value)], Opts}
+            {[array|Stack], [Acc, ?comma, indent_or_space(Opts), encode(Type, Value, Opts)], Opts}
         ; end_array ->
             NewOpts = Opts#opts{depth = Depth - 1},
             {Stack, [Acc, indent(NewOpts), ?end_array], NewOpts}
@@ -130,13 +130,13 @@ handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
 handle_event(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
 
 
-encode(string, String) ->
-    [?quote, String, ?quote];
-encode(literal, Literal) ->
+encode(string, String, Opts) ->
+    [?quote, jsx_utils:json_escape(String, Opts), ?quote];
+encode(literal, Literal, _Opts) ->
     erlang:atom_to_list(Literal);
-encode(integer, Integer) ->
+encode(integer, Integer, _Opts) ->
     erlang:integer_to_list(Integer);
-encode(float, Float) ->
+encode(float, Float, _Opts) ->
     jsx_utils:nice_decimal(Float).
 
 
