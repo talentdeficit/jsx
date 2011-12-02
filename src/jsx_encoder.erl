@@ -73,7 +73,7 @@ list_or_object(List, {Handler, State}, Opts) ->
 
 object([{Key, Value}|Rest], {Handler, State}, Opts) ->
     object(Rest, {Handler,
-            value(Value, {Handler, Handler:handle_event({key, Key}, State)}, Opts)
+            value(Value, {Handler, Handler:handle_event({key, fix_key(Key, Opts)}, State)}, Opts)
         }, Opts);
 object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
 object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
@@ -84,6 +84,11 @@ list([Value|Rest], {Handler, State}, Opts) ->
 list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
+
+fix_key(Key, Opts) when is_binary(Key) ->
+    jsx_utils:json_escape(Key, Opts);
+fix_key(Key, Opts) when is_atom(Key) ->
+    jsx_utils:json_escape(atom_to_binary(Key, utf8), Opts).
 
 
 -ifdef(TEST).
@@ -152,6 +157,13 @@ encode_test_() ->
                         {key, <<"key">>},
                         {string, <<"value">>},
                     end_object,
+                    end_object,
+                end_json])
+        },
+        {"atom keys", ?_assert(encode([{key, <<"value">>}])
+            =:= [start_object,
+                    {key, <<"key">>},
+                    {string, <<"value">>},
                     end_object,
                 end_json])
         }
