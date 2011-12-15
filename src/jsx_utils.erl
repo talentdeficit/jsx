@@ -26,7 +26,6 @@
 -export([parse_opts/1, extract_opts/1]).
 -export([nice_decimal/1]).
 -export([json_escape/2]).
--export([handle_event/2, init/1]).
 
 -include("../include/jsx_opts.hrl").
 
@@ -265,12 +264,6 @@ to_hex(14) -> $e;
 to_hex(15) -> $f;
 to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
-
-
-handle_event(Event, {F, undefined}) -> F(Event), {F, undefined};
-handle_event(Event, {F, State}) -> {F, F(Event, State)}.
-
-init(State) -> State.
 
 
 %% eunit tests

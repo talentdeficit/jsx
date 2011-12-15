@@ -24,13 +24,18 @@
 -module(gen_json).
 
 -export([behaviour_info/1]).
--export([parser/2, parser/3]).
+-export([parser/1, parser/2, parser/3]).
+-export([handle_event/2, init/1]).
 
 
 behaviour_info(callbacks) -> [{init, 0}, {handle_event, 2}];
 behaviour_info(_) -> undefined.
 
 
+parser(F) -> parser(F, []).
+
+parser(F, Opts) when is_function(F, 1) -> parser(?MODULE, {F, undefined}, Opts);
+parser({F, State}, Opts) when is_function(F, 2) -> parser(?MODULE, {F, State}, Opts);
 parser(Mod, Args) -> parser(Mod, Args, []).
 
 parser(Mod, Args, Opts) when is_atom(Mod), is_list(Opts) ->
@@ -44,3 +49,9 @@ parser(Mod, Args, Opts) when is_atom(Mod), is_list(Opts) ->
         ; decoder ->
             fun(Input) -> (jsx:decoder(Mod, Args, Opts))(Input) end
     end.
+
+
+handle_event(Event, {F, undefined}) -> F(Event), {F, undefined};
+handle_event(Event, {F, State}) -> {F, F(Event, State)}.
+
+init(State) -> State.
