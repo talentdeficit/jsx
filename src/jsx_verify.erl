@@ -38,10 +38,7 @@
     
 is_json(Source, Opts) when (is_binary(Source) andalso is_list(Opts))
         orelse (is_list(Source) andalso is_list(Opts)) ->
-    try case (gen_json:parser(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source) of
-            {incomplete, _} -> false
-            ; true -> true
-        end
+    try (gen_json:parser(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
     catch error:badarg -> false
     end.
 
@@ -130,7 +127,7 @@ true_test_() ->
 
 false_test_() ->
     [
-        {"unbalanced list", ?_assert(is_json(<<"[[[]]">>, []) =:= false)},
+        {"unbalanced list", ?_assert(is_json(<<"[]]">>, []) =:= false)},
         {"trailing comma", 
             ?_assert(is_json(<<"[ true, false, null, ]">>, []) =:= false)
         },
@@ -141,6 +138,11 @@ false_test_() ->
         {"nested repeated key", ?_assert(is_json(<<"{\"key\": { \"a\": true, \"a\": false }}">>,
             [{repeated_keys, false}]) =:= false)
         }
+    ].
+
+incomplete_test_() ->
+    [
+        {"incomplete test", ?_assertMatch({incomplete, _}, is_json(<<"[">>, []))}
     ].
         
     

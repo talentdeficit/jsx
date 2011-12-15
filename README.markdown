@@ -103,6 +103,28 @@ if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not no
 see the note below about streaming mode for details of `explicit_end`
 
 
+**verifying json texts**
+    
+returns true if input is a valid JSON text or erlang term that represents a JSON text, false if not. note that if you want to recognize naked (unwrapped) terms, you must specify a parser to use
+
+`is_json(MaybeJSON)` -> `Term`
+
+`is_json(MaybeJSON, Opts)` -> `Term`
+
+types:
+
+* `MaybeJSON` = `any()`
+* `Term` = `true` | `false` | `{incomplete, Fun}`
+* `Opts` = `[]` | `[Opt]`
+* `Opt` =
+    - `{parser, Parser}`
+        * `Parser` = `jsx:decoder()` | `jsx:encoder()`
+    - `loose_unicode`
+    - `explicit_end`
+
+see `json_to_term` and `term_to_json` for details of options
+
+
 **streaming mode**
 
 this implementation is interruptable and reentrant and may be used to incrementally parse json texts. it's greedy and will exhaust input, returning when the stream buffer is empty. if the json text is so far valid, but incomplete (or if the option `explicit_end` has been selected), `{incomplete, Fun}` will be returned. `Fun/1` may be called with additional input (or the atom `end_stream` to force the end of parsing)
