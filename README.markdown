@@ -16,14 +16,15 @@ to build jsx, `make` or `./rebar compile`
 
 parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details below)
 
-`json_to_term(JSON) -> Term`
+`json_to_term(JSON)` -> `Term`
 
-`json_to_term(JSON, Opts) -> Term`
+`json_to_term(JSON, Opts)` -> `Term`
 
 types:
 
 * `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[any()]`
+* `Term` = `[]` | `[{}]` | `[any()]` | `{incomplete, Fun}`
+* `Fun` = `fun(JSON)` -> `Term`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
     - `loose_unicode`
@@ -33,19 +34,21 @@ types:
         * `binary`
         * `atom`
         * `existing_atom`
+    - `explicit_end`
 
-if the option `loose_unicode` is present invalid codepoints are replaced with `u+FFFD`. default behaviour is a `badarg` error
+`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
 
 the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
 
+see the note below about streaming mode for details of `explicit_end`
 
 **converting erlang terms to json**
     
 produces a JSON text from an erlang term (see json <-> erlang mapping details below)
 
-`term_to_json(Term) -> JSON`
+`term_to_json(Term)` -> `JSON`
 
-`term_to_json(Term, Opts) -> JSON`
+`term_to_json(Term, Opts)` -> `JSON`
 
 types:
         
@@ -70,11 +73,41 @@ if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not no
     
 produces a JSON text from JSON text, reformatted
 
-`format(JSON) -> JSON`
+`format(JSON)` -> `JSON`
 
-`format(JSON, Opts) -> JSON`
+`format(JSON, Opts)` -> `JSON`
 
-see `term_to_json/1,2` for types and options
+types:
+
+* `JSON` = `binary()`
+* `Term` = `[]` | `[{}]` | `[any()]` | `{incomplete, Fun}`
+* `Fun` = `fun(JSON)` -> `Term`
+* `Opts` = `[]` | `[Opt]`
+* `Opt` =
+    - `space`
+    - `{space, N}`
+    - `indent`
+    - `{indent, N}`
+    - `loose_unicode`
+    - `escape_forward_slash`
+    - `explicit_end`
+
+`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
+
+the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
+
+the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
+
+if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not normally required but is necessary for compatibility with microsoft's json date format
+
+see the note below about streaming mode for details of `explicit_end`
+
+
+**streaming mode**
+
+this implementation is interruptable and reentrant and may be used to incrementally parse json texts. it's greedy and will exhaust input, returning when the stream buffer is empty. if the json text is so far valid, but incomplete (or if the option `explicit_end` has been selected), `{incomplete, Fun}` will be returned. `Fun/1` may be called with additional input (or the atom `end_stream` to force the end of parsing)
+
+`explicit_end` is of use when parsing bare numbers (like `123` or `-0.987` for example) as they may have no unambiguous end when encountered in a stream. it is also of use when reading from a socket or file and there may be unprocessed white space (or errors) left in the stream
 
 
 ## json <-> erlang ##
@@ -116,6 +149,8 @@ json arrays are represented with erlang lists of json values as described in thi
 **objects**
 
 json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties. all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers)
+
+
 
 
 ## acknowledgements ##
