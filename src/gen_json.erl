@@ -28,6 +28,29 @@
 -export([handle_event/2, init/1]).
 
 
+-type events() :: [event()].
+-type event() :: start_object
+    | end_object
+    | start_array
+    | end_array
+    | end_json
+    | {key, list()}
+    | {string, list()}
+    | {integer, integer()}
+    | {float, float()}
+    | {literal, true}
+    | {literal, false}
+    | {literal, null}.
+
+-type opts() :: [opt()].
+-type opt() :: loose_unicode
+        | escape_forward_slashes
+        | explicit_end
+        | {parser, auto} | {parser, encoder} | {parser, decoder} | {parser, function()}.
+
+-export_type([events/0, event/0, opts/0, opt/0]).
+
+
 behaviour_info(callbacks) -> [{init, 0}, {handle_event, 2}];
 behaviour_info(_) -> undefined.
 
@@ -41,13 +64,13 @@ parser(Mod, Args) -> parser(Mod, Args, []).
 parser(Mod, Args, Opts) when is_atom(Mod), is_list(Opts) ->
     case proplists:get_value(parser, Opts, auto) of
         auto ->
-            fun(Input) when is_list(Input) -> (jsx:encoder(Mod, Args, Opts))(Input)
-                ; (Input) when is_binary(Input) -> (jsx:decoder(Mod, Args, Opts))(Input)
+            fun(Input) when is_list(Input) -> (jsx_encoder:encoder(Mod, Mod:init(Args), Opts))(Input)
+                ; (Input) when is_binary(Input) -> (jsx_decoder:decoder(Mod, Mod:init(Args), Opts))(Input)
             end
         ; encoder ->
-            fun(Input) -> (jsx:encoder(Mod, Args, Opts))(Input) end
+            fun(Input) -> (jsx_encoder:encoder(Mod, Mod:init(Args), Opts))(Input) end
         ; decoder ->
-            fun(Input) -> (jsx:decoder(Mod, Args, Opts))(Input) end
+            fun(Input) -> (jsx_decoder:decoder(Mod, Mod:init(Args), Opts))(Input) end
     end.
 
 

@@ -36,29 +36,6 @@
 -endif.
 
 
-%% various semi-useful types with nowhere else to hang out
-
--type events() :: [event()].
--type event() :: start_object
-    | end_object
-    | start_array
-    | end_array
-    | end_json
-    | {key, list()}
-    | {string, list()}
-    | {integer, integer()}
-    | {float, float()}
-    | {literal, true}
-    | {literal, false}
-    | {literal, null}.
-
--type opts() :: [opt()].
--type opt() :: loose_unicode
-        | escape_forward_slashes
-        | explicit_end
-        | {parser, auto} | {parser, encoder} | {parser, decoder} | {parser, function()}.
-
-
 
 -spec to_json(Source::any()) -> binary().
 -spec to_json(Source::any(), Opts::jsx_to_json:opts()) -> binary().
@@ -115,9 +92,9 @@ jsx_decoder_test_() ->
 encoder_decoder_equiv_test_() ->
     [
         {"encoder/decoder equivalency",
-            ?_assert((jsx:decoder(?MODULE, []))(
+            ?_assert((jsx_decoder:decoder(?MODULE, [], []))(
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
-                ) =:= (jsx:encoder(?MODULE, []))([<<"a">>, 17, 3.14, true, [{<<"k">>, false}], []])
+                ) =:= (jsx_encoder:encoder(?MODULE, [], []))([<<"a">>, 17, 3.14, true, [{<<"k">>, false}], []])
             )
         }
     ].

@@ -26,10 +26,10 @@
 -export([decoder/3]).
 
 
--spec decoder(Mod::module(), Args::any(), Opts::jsx:opts()) -> jsx:decoder().
+-spec decoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:decoder().
 
-decoder(Mod, Args, Opts) ->
-    fun(JSON) -> value(JSON, {Mod, Mod:init(Args)}, [], jsx_utils:parse_opts(Opts)) end.
+decoder(Handler, State, Opts) ->
+    fun(JSON) -> value(JSON, {Handler, State}, [], jsx_utils:parse_opts(Opts)) end.
 
 
 
