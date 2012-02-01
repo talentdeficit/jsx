@@ -1,7 +1,7 @@
 {application, jsx,
 [
     {description, "a streaming, evented json parsing toolkit"},
-    {vsn, "0.10.0"},
+    {vsn, "1.0rc"},
     {modules, [
         jsx,
         gen_json,
