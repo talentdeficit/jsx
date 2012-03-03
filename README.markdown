@@ -136,11 +136,11 @@ this implementation is interruptable and reentrant and may be used to incrementa
 
 **json**                        | **erlang**
 --------------------------------|--------------------------------
-`number`                        | `integer()` | `float()`
+`number`                        | `integer()` OR `float()`
 `string`                        | `binary()`
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `list()`
-`object`                        | `[{}]` | `[{binary(), JSON}]`
+`object`                        | `[{}]` OR `[{binary(), JSON}]`
 
 **json**
 
