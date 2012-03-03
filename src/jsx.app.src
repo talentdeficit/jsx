@@ -8,8 +8,8 @@
         jsx_decoder,
         jsx_to_json,
         jsx_to_term,
-		jsx_utils,
-		jsx_verify
+        jsx_utils,
+        jsx_verify
     ]},
     {registered, []},
     {applications, [
