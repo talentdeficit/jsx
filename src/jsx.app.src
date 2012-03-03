@@ -4,7 +4,6 @@
     {vsn, "1.0rc"},
     {modules, [
         jsx,
-        gen_json,
         jsx_encoder,
         jsx_decoder,
         jsx_to_json,

@@ -42,7 +42,7 @@
 
 to_json(Source) -> to_json(Source, []).
 
-to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts ++ [{parser, encoder}]).
+to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 %% old api, alias for to_json/x
 
@@ -55,8 +55,7 @@ term_to_json(Source, Opts) -> to_json(Source, Opts).
 
 format(Source) -> format(Source, []).
 
-format(Source, Opts) ->
-    jsx_to_json:to_json(Source, Opts ++ [{parser, decoder}]).
+format(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 
 -spec to_term(Source::binary()) -> any().
@@ -64,7 +63,7 @@ format(Source, Opts) ->
 
 to_term(Source) -> to_term(Source, []).
 
-to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts ++ [{parser, decoder}]).
+to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 %% old api, alias for to_term/x
 
@@ -158,7 +157,7 @@ parse_tests([], _Dir, Acc) ->
 
 decode(JSON, Flags) ->
     try
-        case (gen_json:parser(?MODULE, [], Flags))(JSON) of
+        case (jsx_decoder:decoder(?MODULE, [], Flags))(JSON) of
             {incomplete, More} ->
                 case More(<<" ">>) of
                     {incomplete, _} -> {error, badjson}
@@ -172,7 +171,7 @@ decode(JSON, Flags) ->
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = gen_json:parser(?MODULE, [], Flags ++ [explicit_end]),
+	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
 	catch error:badarg -> io:format("~p~n", [erlang:get_stacktrace()]), {error, badjson}
 	end.
