@@ -39,9 +39,9 @@
 -spec to_json(Source::(binary() | list()), Opts::opts()) -> binary().
     
 to_json(Source, Opts) when is_list(Source) andalso is_list(Opts) ->
-    (jsx_encoder:encoder(?MODULE, init(Opts), Opts))(Source);
+    (jsx:encoder(?MODULE, init(Opts), Opts))(Source);
 to_json(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    (jsx_decoder:decoder(?MODULE, init(Opts), Opts))(Source).
+    (jsx:decoder(?MODULE, init(Opts), Opts))(Source).
 
 
 

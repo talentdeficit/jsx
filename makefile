@@ -5,4 +5,4 @@ clean:
 	./rebar clean
 
 test: clean
-	./rebar --jobs=1 eunit
+	./rebar --jobs=1 skip_deps=true eunit

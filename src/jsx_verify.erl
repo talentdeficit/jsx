@@ -37,11 +37,11 @@
 -spec is_json(Source::(binary() | list()), Opts::opts()) -> binary().
     
 is_json(Source, Opts) when is_list(Source) andalso is_list(Opts) ->
-    try (jsx_encoder:encoder(?MODULE, init(Opts), Opts))(Source)
+    try (jsx:encoder(?MODULE, init(Opts), Opts))(Source)
     catch error:badarg -> false
     end;
 is_json(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    try (jsx_decoder:decoder(?MODULE, init(Opts), Opts))(Source)
+    try (jsx:decoder(?MODULE, init(Opts), Opts))(Source)
     catch error:badarg -> false
     end.
 

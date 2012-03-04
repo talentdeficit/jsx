@@ -27,6 +27,7 @@
 -export([to_term/1, to_term/2]).
 -export([is_json/1, is_json/2]).
 -export([format/1, format/2]).
+-export([encoder/3, decoder/3]).
 %% old api
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
 
@@ -77,6 +78,16 @@ json_to_term(Source, Opts) -> to_term(Source, Opts).
 is_json(Source) -> is_json(Source, []).
 
 is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
+
+
+-spec decoder(Handler::module(), State::any(), Opts::list()) -> fun().
+
+decoder(Handler, State, Opts) -> jsx_decoder:decoder(Handler, State, Opts).
+
+
+-spec encoder(Handler::module(), State::any(), Opts::list()) -> fun().
+
+encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
 
 
 
