@@ -37,7 +37,7 @@
 -spec to_term(Source::(binary() | list()), Opts::opts()) -> binary().
     
 to_term(Source, Opts) when is_list(Opts) ->
-    (jsx:decoder(?MODULE, init(Opts), Opts))(Source).
+    (jsx:decoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source).
 
 
 

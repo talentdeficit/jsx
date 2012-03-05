@@ -105,7 +105,7 @@ see the note below about streaming mode for details of `explicit_end`
 
 **verifying json texts**
     
-returns true if input is a valid JSON text or erlang term that represents a JSON text, false if not. note that if you want to recognize naked (unwrapped) terms, you must specify a parser to use
+returns true if input is a valid JSON text, false if not
 
 `is_json(MaybeJSON)` -> `Term`
 
@@ -117,12 +117,22 @@ types:
 * `Term` = `true` | `false` | `{incomplete, Fun}`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
-    - `{parser, Parser}`
-        * `Parser` = `jsx:decoder()` | `jsx:encoder()`
     - `loose_unicode`
     - `explicit_end`
 
-see `json_to_term` and `term_to_json` for details of options
+see `json_to_term` for details of options
+
+
+**verifying json texts**
+    
+returns true if input is a valid erlang term that represents a JSON text, false if not
+
+`is_term(MaybeJSON)` -> `Term`
+
+types:
+
+* `MaybeJSON` = `any()`
+* `Term` = `true` | `false`
 
 
 **streaming mode**

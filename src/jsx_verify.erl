@@ -23,7 +23,7 @@
 
 -module(jsx_verify).
 
--export([is_json/2]).
+-export([is_json/2, is_term/2]).
 -export([init/1, handle_event/2]).
 
 
@@ -34,17 +34,20 @@
 -type opts() :: [].
 
 
--spec is_json(Source::(binary() | list()), Opts::opts()) -> binary().
+-spec is_json(Source::binary(), Opts::opts()) -> true | false.
     
-is_json(Source, Opts) when is_list(Source) andalso is_list(Opts) ->
-    try (jsx:encoder(?MODULE, init(Opts), Opts))(Source)
-    catch error:badarg -> false
-    end;
-is_json(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    try (jsx:decoder(?MODULE, init(Opts), Opts))(Source)
+is_json(Source, Opts) when is_list(Opts) ->
+    try (jsx:decoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source)
     catch error:badarg -> false
     end.
 
+
+-spec is_term(Source::any(), Opts::opts()) -> true | false.
+
+is_term(Source, Opts) when is_list(Opts) ->
+    try (jsx:encoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source)
+    catch error:badarg -> false
+    end.
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).

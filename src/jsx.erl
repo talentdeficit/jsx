@@ -25,7 +25,7 @@
 
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
--export([is_json/1, is_json/2]).
+-export([is_json/1, is_json/2, is_term/1, is_term/2]).
 -export([format/1, format/2]).
 -export([encoder/3, decoder/3]).
 %% old api
@@ -56,7 +56,7 @@ term_to_json(Source, Opts) -> to_json(Source, Opts).
 
 format(Source) -> format(Source, []).
 
-format(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
+format(Source, Opts) -> jsx_to_json:format(Source, Opts).
 
 
 -spec to_term(Source::binary()) -> any().
@@ -72,12 +72,20 @@ json_to_term(Source) -> to_term(Source, []).
 json_to_term(Source, Opts) -> to_term(Source, Opts).
 
 
--spec is_json(Source::binary() | list()) -> true | false.
--spec is_json(Source::binary() | list(), Opts::jsx_verify:opts()) -> true | false.
+-spec is_json(Source::binary()) -> true | false.
+-spec is_json(Source::binary(), Opts::jsx_verify:opts()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
 
 is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
+
+
+-spec is_term(Source::any()) -> true | false.
+-spec is_term(Source::any(), Opts::jsx_verify:opts()) -> true | false.
+
+is_term(Source) -> is_term(Source, []).
+
+is_term(Source, Opts) -> jsx_verify:is_term(Source, Opts).
 
 
 -spec decoder(Handler::module(), State::any(), Opts::list()) -> fun().

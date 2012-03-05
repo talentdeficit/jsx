@@ -23,7 +23,7 @@
 
 -module(jsx_to_json).
 
--export([to_json/2]).
+-export([to_json/2, format/2]).
 -export([init/1, handle_event/2]).
 
 
@@ -36,13 +36,16 @@
 -type opts() :: list().
 
 
--spec to_json(Source::(binary() | list()), Opts::opts()) -> binary().
+-spec to_json(Source::any(), Opts::opts()) -> binary().
     
-to_json(Source, Opts) when is_list(Source) andalso is_list(Opts) ->
-    (jsx:encoder(?MODULE, init(Opts), Opts))(Source);
-to_json(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    (jsx:decoder(?MODULE, init(Opts), Opts))(Source).
+to_json(Source, Opts) when is_list(Opts) ->
+    (jsx:encoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source).
 
+
+-spec format(Source::binary(), Opts::opts()) -> binary().
+    
+format(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
+    (jsx:decoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source).
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
@@ -172,8 +175,6 @@ indent_or_space(Opts) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-
-format(Source, Opts) -> to_json(Source, Opts).
 
 basic_test_() ->
     [

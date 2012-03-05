@@ -24,6 +24,7 @@
 -module(jsx_utils).
 
 -export([parse_opts/1]).
+-export([extract_opts/1]).
 -export([json_escape/2]).
 
 -include("../include/jsx_opts.hrl").
@@ -42,10 +43,24 @@ parse_opts([escape_forward_slash|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{escape_forward_slash=true});
 parse_opts([explicit_end|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{explicit_end=true});
-parse_opts([{parser, Mode}|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{parser=Mode});
 parse_opts(_, _) ->
     {error, badarg}.
+
+
+extract_opts(Opts) ->
+    extract_parser_opts(Opts, []).
+
+extract_parser_opts([], Acc) -> Acc;
+extract_parser_opts([{K,V}|Rest], Acc) ->
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+        true -> extract_parser_opts(Rest, [{K,V}] ++ Acc)
+        ; false -> extract_parser_opts(Rest, Acc)
+    end;
+extract_parser_opts([K|Rest], Acc) ->
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+        true -> extract_parser_opts(Rest, [K] ++ Acc)
+        ; false -> extract_parser_opts(Rest, Acc)
+    end.
 
 
 %% json string escaping, for utf8 binaries. escape the json control sequences to 
