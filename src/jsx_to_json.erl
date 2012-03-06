@@ -176,12 +176,24 @@ indent_or_space(Opts) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+setup_nicedecimal_meck(Return) ->
+    ok = meck:new(nicedecimal),
+    ok = meck:expect(nicedecimal, format, fun(1.23) -> Return end).
+
+teardown_nicedecimal_meck(_) ->
+    ?assert(meck:validate(nicedecimal)),
+    ok = meck:unload(nicedecimal).
+
 basic_format_test_() ->
     [
         {"empty object", ?_assert(format(<<"{}">>, []) =:= <<"{}">>)},
         {"empty array", ?_assert(format(<<"[]">>, []) =:= <<"[]">>)},
         {"naked integer", ?_assert(format(<<"123">>, []) =:= <<"123">>)},
-        {"naked float", ?_assert(format(<<"1.23">>, []) =:= <<"1.23">>)},
+        {foreach,
+            fun() -> setup_nicedecimal_meck(<<"1.23">>) end,
+            fun(R) -> teardown_nicedecimal_meck(R) end,
+            [{"naked float", ?_assert(format(<<"1.23">>, []) =:= <<"1.23">>)}]
+        },
         {"naked string", ?_assert(format(<<"\"hi\"">>, []) =:= <<"\"hi\"">>)},
         {"naked literal", ?_assert(format(<<"true">>, []) =:= <<"true">>)},
         {"simple object", 
@@ -229,7 +241,11 @@ basic_to_json_test_() ->
         {"empty object", ?_assert(to_json([{}], []) =:= <<"{}">>)},
         {"empty array", ?_assert(to_json([], []) =:= <<"[]">>)},
         {"naked integer", ?_assert(to_json(123, []) =:= <<"123">>)},
-        {"naked float", ?_assert(to_json(1.23, []) =:= <<"1.23">>)},
+        {foreach,
+            fun() -> setup_nicedecimal_meck(<<"1.23">>) end,
+            fun(R) -> teardown_nicedecimal_meck(R) end,
+            [{"naked float", ?_assert(to_json(1.23, []) =:= <<"1.23">>)}]
+        },
         {"naked string", ?_assert(to_json(<<"hi">>, []) =:= <<"\"hi\"">>)},
         {"naked literal", ?_assert(to_json(true, []) =:= <<"true">>)},
         {"simple object", 
@@ -316,11 +332,16 @@ opts_test_() ->
                 ) =:= <<"{\"a\":  true,  \"b\":  true,  \"c\":  true}">>
             )
         },
-        {"array indent", 
-            ?_assert(format(<<"[1.0, 2.0, 3.0]">>, 
-                    [{indent, 2}]
-                ) =:= <<"[\n  1.0,\n  2.0,\n  3.0\n]">>
-            )
+        {foreach,
+            fun() -> setup_nicedecimal_meck(<<"1.23">>) end,
+            fun(R) -> teardown_nicedecimal_meck(R) end,
+            [{
+                "array indent",
+                ?_assert(format(<<"[1.23, 1.23, 1.23]">>, 
+                        [{indent, 2}]
+                    ) =:= <<"[\n  1.23,\n  1.23,\n  1.23\n]">>
+                )
+            }]
         },
         {"object indent",
             ?_assert(format(<<"{\"a\":true,\"b\":true,\"c\":true}">>,
