@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-to build jsx, `make` or `./rebar compile`
+to build jsx, use `make`. to run the test suite, use `make test`
 
 
 ## api ##
