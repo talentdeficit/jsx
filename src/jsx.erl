@@ -48,6 +48,7 @@ to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 %% old api, alias for to_json/x
 
 term_to_json(Source) -> to_json(Source, []).
+
 term_to_json(Source, Opts) -> to_json(Source, Opts).
 
 
@@ -69,6 +70,7 @@ to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 %% old api, alias for to_term/x
 
 json_to_term(Source) -> to_term(Source, []).
+
 json_to_term(Source, Opts) -> to_term(Source, Opts).
 
 
