@@ -39,13 +39,13 @@
 -spec to_json(Source::any(), Opts::opts()) -> binary().
     
 to_json(Source, Opts) when is_list(Opts) ->
-    (jsx:encoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source).
+    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
 
 -spec format(Source::binary(), Opts::opts()) -> binary().
     
 format(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    (jsx:decoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source).
+    (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
 
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).

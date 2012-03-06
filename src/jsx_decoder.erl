@@ -29,7 +29,14 @@
 -spec decoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:decoder().
 
 decoder(Handler, State, Opts) ->
-    fun(JSON) -> value(JSON, {Handler, State}, [], jsx_utils:parse_opts(Opts)) end.
+    fun(JSON) ->
+        value(
+            JSON,
+            {Handler, Handler:init(State)},
+            [],
+            jsx_utils:parse_opts(Opts)
+        )
+    end.
 
 
 

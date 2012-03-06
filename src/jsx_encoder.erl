@@ -29,7 +29,13 @@
 -spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
 encoder(Handler, State, Opts) ->
-    fun(JSON) -> start(JSON, {Handler, State}, jsx_utils:parse_opts(Opts)) end.
+    fun(JSON) ->
+        start(
+            JSON,
+            {Handler, Handler:init(State)},
+            jsx_utils:parse_opts(Opts)
+        )
+    end.
 
 
 

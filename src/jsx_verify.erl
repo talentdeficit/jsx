@@ -37,7 +37,7 @@
 -spec is_json(Source::binary(), Opts::opts()) -> true | false.
     
 is_json(Source, Opts) when is_list(Opts) ->
-    try (jsx:decoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source)
+    try (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
     catch error:badarg -> false
     end.
 
@@ -45,7 +45,7 @@ is_json(Source, Opts) when is_list(Opts) ->
 -spec is_term(Source::any(), Opts::opts()) -> true | false.
 
 is_term(Source, Opts) when is_list(Opts) ->
-    try (jsx:encoder(?MODULE, init(Opts), jsx_utils:extract_opts(Opts)))(Source)
+    try (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
     catch error:badarg -> false
     end.
 
