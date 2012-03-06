@@ -149,7 +149,7 @@ this implementation is interruptable and reentrant and may be used to incrementa
 `number`                        | `integer()` OR `float()`
 `string`                        | `binary()`
 `true`, `false` and `null`      | `true`, `false` and `null`
-`array`                         | `list()`
+`array`                         | `[]` OR `[JSON]`
 `object`                        | `[{}]` OR `[{binary(), JSON}]`
 
 **json**
