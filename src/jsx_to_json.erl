@@ -176,7 +176,7 @@ indent_or_space(Opts) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-basic_test_() ->
+basic_format_test_() ->
     [
         {"empty object", ?_assert(format(<<"{}">>, []) =:= <<"{}">>)},
         {"empty array", ?_assert(format(<<"[]">>, []) =:= <<"[]">>)},
@@ -219,6 +219,60 @@ basic_test_() ->
         },
         {"simple nested structure",
             ?_assert(format(<<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>, []
+                ) =:= <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
+            )
+        }
+    ].
+
+basic_to_json_test_() ->
+    [
+        {"empty object", ?_assert(to_json([{}], []) =:= <<"{}">>)},
+        {"empty array", ?_assert(to_json([], []) =:= <<"[]">>)},
+        {"naked integer", ?_assert(to_json(123, []) =:= <<"123">>)},
+        {"naked float", ?_assert(to_json(1.23, []) =:= <<"1.23">>)},
+        {"naked string", ?_assert(to_json(<<"hi">>, []) =:= <<"\"hi\"">>)},
+        {"naked literal", ?_assert(to_json(true, []) =:= <<"true">>)},
+        {"simple object", 
+            ?_assert(to_json(
+                    [{<<"key">>, <<"value">>}],
+                    []
+                ) =:= <<"{\"key\":\"value\"}">>
+            )
+        },
+        {"nested object",
+            ?_assert(to_json(
+                    [{<<"k">>,[{<<"k">>,<<"v">>}]},{<<"j">>,[{}]}],
+                    []
+                ) =:= <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
+            )
+        },
+        {"simple array", 
+            ?_assert(to_json(
+                    [true, false, null], 
+                    []
+                ) =:= <<"[true,false,null]">>
+            )
+        },
+        {"really simple array", ?_assert(to_json([1], []) =:= <<"[1]">>)},
+        {"nested array", ?_assert(to_json([[[]]], []) =:= <<"[[[]]]">>)},
+        {"nested structures", 
+            ?_assert(to_json(
+                    [
+                        [
+                            {<<"key">>, <<"value">>},
+                            {<<"another key">>, <<"another value">>},
+                            {<<"a list">>, [true, false]}
+                        ],
+                        [[[{}]]]
+                    ],
+                    []
+                ) =:= <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+            )
+        },
+        {"simple nested structure",
+            ?_assert(to_json(
+                    [[], [{<<"k">>, [[], [{}]]}, {<<"j">>, [{}]}], []],
+                    []
                 ) =:= <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
             )
         }
