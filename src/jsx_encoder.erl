@@ -39,7 +39,7 @@ encoder(Handler, State, Opts) ->
 
 
 
--include("../include/jsx_opts.hrl").
+-include("jsx_opts.hrl").
 
 
 -ifndef(error).

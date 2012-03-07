@@ -27,7 +27,7 @@
 -export([extract_opts/1]).
 -export([json_escape/2]).
 
--include("../include/jsx_opts.hrl").
+-include("jsx_opts.hrl").
 
 
 %% parsing of jsx opts
