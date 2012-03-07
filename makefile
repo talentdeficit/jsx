@@ -11,7 +11,7 @@ clean-test:
 	./rebar --config rebar.test.config clean
 
 get-deps:
-	./rebar get-deps
+	./rebar recursive=true get-deps
 
 get-test-deps:
 	./rebar --config rebar.test.config get-deps
