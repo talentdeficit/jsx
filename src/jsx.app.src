@@ -14,7 +14,8 @@
     {registered, []},
     {applications, [
         kernel,
-        stdlib
+        stdlib,
+        nicedecimal
     ]},
     {env, []}
 ]}.
