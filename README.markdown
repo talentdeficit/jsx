@@ -1,4 +1,4 @@
-## jsx (v1.0) ##
+## jsx (v1.0rc) ##
 
 a sane json implementation for erlang, inspired by [yajl][yajl]
 
