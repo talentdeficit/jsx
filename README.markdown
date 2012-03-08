@@ -25,7 +25,9 @@ parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json
 types:
 
 * `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[any()]` | `{incomplete, Fun}`
+* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
+* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
+* `Label` = `binary()` | `atom()`
 * `Fun` = `fun(JSON)` -> `Term`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
@@ -55,7 +57,9 @@ produces a JSON text from an erlang term (see json <-> erlang mapping details be
 types:
         
 * `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[any()]`
+* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
+* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
+* `Label` = `binary()` | `atom()`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
     - `space`
@@ -82,7 +86,9 @@ produces a JSON text from JSON text, reformatted
 types:
 
 * `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[any()]` | `{incomplete, Fun}`
+* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
+* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
+* `Label` = `binary()` | `atom()`
 * `Fun` = `fun(JSON)` -> `Term`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
@@ -109,14 +115,13 @@ see the note below about streaming mode for details of `explicit_end`
     
 returns true if input is a valid JSON text, false if not
 
-`is_json(MaybeJSON)` -> `Term`
+`is_json(MaybeJSON)` -> `true` | `false` | `{incomplete, Fun}`
 
-`is_json(MaybeJSON, Opts)` -> `Term`
+`is_json(MaybeJSON, Opts)` -> `true` | `false` | `{incomplete, Fun}`
 
 types:
 
 * `MaybeJSON` = `any()`
-* `Term` = `true` | `false` | `{incomplete, Fun}`
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
     - `loose_unicode`
@@ -129,12 +134,11 @@ see `json_to_term` for details of options
     
 returns true if input is a valid erlang term that represents a JSON text, false if not
 
-`is_term(MaybeJSON)` -> `Term`
+`is_term(MaybeJSON)` -> `true` | `false`
 
 types:
 
 * `MaybeJSON` = `any()`
-* `Term` = `true` | `false`
 
 
 **streaming mode**
