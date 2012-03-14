@@ -106,7 +106,7 @@ encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
 
 
 jsx_decoder_test_() ->
-    jsx_decoder_gen(load_tests(?eunit_test_path)).
+    jsx_decoder_gen(load_tests(code:lib_dir(jsx, priv) ++ "/test_cases/")).
 
 
 encoder_decoder_equiv_test_() ->
