@@ -1,4 +1,4 @@
-## jsx (v1.0rc) ##
+## jsx (v1.0.1) ##
 
 a sane json implementation for erlang, inspired by [yajl][yajl]
 
@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-to build jsx, use `make`. to run the test suite, use `make test`
+jsx uses [rebar][rebar] and [meck][meck]
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
 
@@ -196,5 +196,7 @@ paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides and 
 
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
+[rebar]: https://github.com/basho/rebar
+[meck]: https://github.com/eproxus/meck
 [json]: http://json.org
 [rfc4627]: http://tools.ietf.org/html/rfc4627
