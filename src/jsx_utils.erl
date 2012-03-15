@@ -43,6 +43,8 @@ parse_opts([escape_forward_slash|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{escape_forward_slash=true});
 parse_opts([explicit_end|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{explicit_end=true});
+parse_opts([single_quotes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{single_quotes=true});
 parse_opts(_, _) ->
     {error, badarg}.
 
@@ -52,12 +54,12 @@ extract_opts(Opts) ->
 
 extract_parser_opts([], Acc) -> Acc;
 extract_parser_opts([{K,V}|Rest], Acc) ->
-    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end, single_quotes]) of
         true -> extract_parser_opts(Rest, [{K,V}] ++ Acc)
         ; false -> extract_parser_opts(Rest, Acc)
     end;
 extract_parser_opts([K|Rest], Acc) ->
-    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end]) of
+    case lists:member(K, [loose_unicode, escape_forward_slash, explicit_end, single_quotes]) of
         true -> extract_parser_opts(Rest, [K] ++ Acc)
         ; false -> extract_parser_opts(Rest, Acc)
     end.
