@@ -59,7 +59,8 @@ decoder(Handler, State, Opts) ->
 
 %% kv seperator
 -define(comma, 16#2C).
--define(quote, 16#22).
+-define(doublequote, 16#22).
+-define(singlequote, 16#27).
 -define(colon, 16#3A).
 
 %% string escape sequences
@@ -130,8 +131,10 @@ decoder(Handler, State, Opts) ->
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
 
 
-value(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+value(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
+value(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quotes=true}) ->
+    string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
 value(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
     tr(Rest, Handler, Stack, Opts);
 value(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
@@ -156,8 +159,10 @@ value(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-object(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+object(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
+object(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quotes=true}) ->
+    string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
 object(<<?end_object, Rest/binary>>, {Handler, State}, [key|Stack], Opts) ->
     maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
 object(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
@@ -168,8 +173,10 @@ object(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
    
-array(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+array(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
+array(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quotes=true}) ->
+    string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
 array(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
     tr(Rest, Handler, Stack, Opts);
 array(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
@@ -206,8 +213,10 @@ colon(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-key(<<?quote, Rest/binary>>, Handler, Stack, Opts) ->
+key(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
+key(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quotes=true}) ->
+    string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
 key(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Opts);        
 key(<<>>, Handler, Stack, Opts) ->
@@ -233,18 +242,24 @@ partial_utf(<<X, Y, Z>>)
 partial_utf(_) -> false.
 
 
-string(<<?quote/utf8, Rest/binary>>, {Handler, State}, [Acc, key|Stack], Opts) ->
-    colon(Rest,
-        {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)},
-        [key|Stack],
-        Opts
-    );
-string(<<?quote/utf8, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)},
-        Stack,
-        Opts
-    );
+string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
+    case S of
+        [Acc, key|Stack] ->
+            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+        [Acc|Stack] ->
+            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts);
+        [Acc, single_quote|Stack] ->
+            ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts])
+    end;
+string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_quotes=true}) ->
+    case S of
+        [Acc, single_quote, key|Stack] ->
+            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+        [Acc, single_quote|Stack] ->
+            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts);
+        [Acc|Stack] ->
+            string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
+    end;
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     escape(Rest, Handler, Stack, Opts);
 %% things get dumb here. erlang doesn't properly restrict unicode non-characters
@@ -318,8 +333,10 @@ escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     escaped_unicode(Rest, Handler, [?new_seq()|Stack], Opts);      
 escape(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
-        when S =:= ?quote; S =:= ?solidus; S =:= ?rsolidus ->
+        when S =:= ?doublequote; S =:= ?solidus; S =:= ?rsolidus ->
     string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+escape(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Opts = #opts{single_quotes=true}) ->
+    string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Opts);
 escape(<<>>, Handler, Stack, Opts) ->
     ?incomplete(escape, <<>>, Handler, Stack, Opts);
 escape(Bin, Handler, Stack, Opts) ->
