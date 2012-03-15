@@ -32,6 +32,7 @@ types:
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
     - `loose_unicode`
+    - `single_quotes`
     - `labels`
     - `{labels, Label}`
     - `Label` =
@@ -40,7 +41,9 @@ types:
         * `existing_atom`
     - `explicit_end`
 
-`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
+`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors
+
+valid json strings are deliminated by double quotes, but some implementations allow single quotes in their place. the `single_quotes` option recognizes json texts with single quotes in the place of double quotes as valid. please be aware that if you enable this option, you MUST escape single quotes in keys and strings
 
 the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
 
@@ -97,10 +100,13 @@ types:
     - `indent`
     - `{indent, N}`
     - `loose_unicode`
+    - `single_quotes`
     - `escape_forward_slash`
     - `explicit_end`
 
-`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
+`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors
+
+valid json strings are deliminated by double quotes, but some implementations allow single quotes in their place. the `single_quotes` option recognizes json texts with single quotes in the place of double quotes as valid. please be aware that if you enable this option, you MUST escape single quotes in keys and strings
 
 the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
@@ -125,6 +131,7 @@ types:
 * `Opts` = `[]` | `[Opt]`
 * `Opt` =
     - `loose_unicode`
+    - `single_quotes`
     - `explicit_end`
 
 see `json_to_term` for details of options

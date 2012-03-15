@@ -120,6 +120,52 @@ encoder_decoder_equiv_test_() ->
     ].
 
 
+single_quotes_test_() ->
+    [
+        {"single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key':true}">>, [single_quotes]),
+                [{<<"key">>, true}]
+            )
+        },
+        {"multiple single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key':true, 'another key':true}">>, [single_quotes]),
+                [{<<"key">>, true}, {<<"another key">>, true}]
+            )
+        },
+        {"nested single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quotes]),
+                [{<<"key">>, [{<<"key">>, true}, {<<"another key">>, true}]}]
+            )
+        },
+        {"single quoted string",
+            ?_assertEqual(
+                to_term(<<"['string']">>, [single_quotes]),
+                [<<"string">>]
+            )
+        },
+        {"single quote in double quoted string",
+            ?_assertEqual(
+                to_term(<<"[\"a single quote: '\"]">>),
+                [<<"a single quote: '">>]
+            )
+        },
+        {"escaped single quote in single quoted string",
+            ?_assertEqual(
+                to_term(<<"['a single quote: \\'']">>, [single_quotes]),
+                [<<"a single quote: '">>]
+            )
+        },
+        {"escaped single quote when single quotes are disallowed",
+            ?_assertError(
+                badarg,
+                to_term(<<"[\"a single quote: \\'\"]">>)
+            )
+        }
+    ].
+
 
 %% test handler
 init([]) -> [].
