@@ -148,7 +148,7 @@ single_quotes_test_() ->
         },
         {"single quote in double quoted string",
             ?_assertEqual(
-                to_term(<<"[\"a single quote: '\"]">>),
+                to_term(<<"[\"a single quote: '\"]">>, [single_quotes]),
                 [<<"a single quote: '">>]
             )
         },
@@ -162,6 +162,12 @@ single_quotes_test_() ->
             ?_assertError(
                 badarg,
                 to_term(<<"[\"a single quote: \\'\"]">>)
+            )
+        },
+        {"mismatched quotes",
+            ?_assertError(
+                badarg,
+                to_term(<<"['mismatched\"]">>, [single_quotes])
             )
         }
     ].
