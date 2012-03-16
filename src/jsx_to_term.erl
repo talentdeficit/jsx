@@ -102,35 +102,29 @@ format_key(Key, Opts) ->
 
 basic_test_() ->
     [
-        {"empty object", ?_assert(to_term(<<"{}">>, []) =:= [{}])},
-        {"simple object", ?_assert(to_term(<<"{\"key\": true}">>, []) =:= [{<<"key">>, true}])},
-        {"less simple object",
-            ?_assert(to_term(<<"{\"a\": 1, \"b\": 2}">>, []) =:= [{<<"a">>, 1}, {<<"b">>, 2}])
-        },
-        {"nested object",
-            ?_assert(to_term(<<"{\"key\": {\"key\": true}}">>, []) =:= [{<<"key">>, [{<<"key">>, true}]}])
-        },
+        {"empty object", ?_assertEqual(to_term(<<"{}">>, []), [{}])},
+        {"simple object", ?_assertEqual(to_term(<<"{\"key\": true}">>, []), [{<<"key">>, true}])},
+        {"less simple object", ?_assertEqual(
+            to_term(<<"{\"a\": 1, \"b\": 2}">>, []),
+            [{<<"a">>, 1}, {<<"b">>, 2}]
+        )},
+        {"nested object", ?_assertEqual(
+            to_term(<<"{\"key\": {\"key\": true}}">>, []),
+            [{<<"key">>, [{<<"key">>, true}]}]
+        )},
         {"empty array", ?_assert(to_term(<<"[]">>, []) =:= [])},
-        {"list of lists",
-            ?_assert(to_term(<<"[[],[],[]]">>, []) =:= [[], [], []])
-        },
-        {"list of strings",
-            ?_assert(to_term(<<"[\"hi\", \"there\"]">>, []) =:= [<<"hi">>, <<"there">>])
-        },
-        {"list of numbers",
-            ?_assert(to_term(<<"[1, 2.0, 3e4, -5]">>, []) =:= [1, 2.0, 3.0e4, -5])
-        },
-        {"list of literals",
-            ?_assert(to_term(<<"[true,false,null]">>, []) =:= [true,false,null])
-        },
-        {"list of objects",
-            ?_assert(to_term(<<"[{}, {\"a\":1, \"b\":2}, {\"key\":[true,false]}]">>, [])
-                =:= [[{}], [{<<"a">>,1},{<<"b">>,2}], [{<<"key">>,[true,false]}]])
-        }
+        {"list of lists", ?_assertEqual(to_term(<<"[[],[],[]]">>, []), [[], [], []])},
+        {"list of strings", ?_assertEqual(to_term(<<"[\"hi\", \"there\"]">>, []), [<<"hi">>, <<"there">>])},
+        {"list of numbers", ?_assertEqual(to_term(<<"[1, 2.0, 3e4, -5]">>, []), [1, 2.0, 3.0e4, -5])},
+        {"list of literals", ?_assertEqual(to_term(<<"[true,false,null]">>, []), [true,false,null])},
+        {"list of objects", ?_assertEqual(
+            to_term(<<"[{}, {\"a\":1, \"b\":2}, {\"key\":[true,false]}]">>, []),
+            [[{}], [{<<"a">>,1},{<<"b">>,2}], [{<<"key">>,[true,false]}]]
+        )}
     ].
 
 comprehensive_test_() ->
-    {"comprehensive test", ?_assert(to_term(comp_json(), []) =:= comp_term())}.
+    {"comprehensive test", ?_assertEqual(to_term(comp_json(), []), comp_term())}.
 
 comp_json() ->
     <<"[
@@ -157,7 +151,7 @@ comp_term() ->
     ].
 
 atom_labels_test_() ->
-    {"atom labels test", ?_assert(to_term(comp_json(), [{labels, atom}]) =:= atom_term())}.
+    {"atom labels test", ?_assertEqual(to_term(comp_json(), [{labels, atom}]), atom_term())}.
 
 atom_term() ->
     [
@@ -173,10 +167,10 @@ atom_term() ->
 
 naked_test_() ->
     [
-        {"naked integer", ?_assert(to_term(<<"123">>, []) =:= 123)},
-        {"naked float", ?_assert(to_term(<<"-4.32e-17">>, []) =:= -4.32e-17)},
-        {"naked literal", ?_assert(to_term(<<"true">>, []) =:= true)},
-        {"naked string", ?_assert(to_term(<<"\"string\"">>, []) =:= <<"string">>)}
+        {"naked integer", ?_assertEqual(to_term(<<"123">>, []), 123)},
+        {"naked float", ?_assertEqual(to_term(<<"-4.32e-17">>, []), -4.32e-17)},
+        {"naked literal", ?_assertEqual(to_term(<<"true">>, []), true)},
+        {"naked string", ?_assertEqual(to_term(<<"\"string\"">>, []), <<"string">>)}
     ].
     
 -endif.
