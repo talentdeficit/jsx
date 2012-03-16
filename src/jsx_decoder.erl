@@ -246,10 +246,10 @@ string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
             colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+        [_Acc, single_quote|_Stack] ->
+            ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts]);
         [Acc|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts);
-        [Acc, single_quote|Stack] ->
-            ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts])
+            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
     end;
 string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_quotes=true}) ->
     case S of
