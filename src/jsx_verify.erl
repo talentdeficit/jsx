@@ -169,11 +169,7 @@ term_true_test_() ->
         {"empty array", ?_assert(is_term([], []))},
         {"whitespace", ?_assert(is_term([    true      ], []))},
         {"nested terms", 
-            ?_assert(is_term(
-                    [[{x, [[{}], [{}], [{}]]}, {y, [{}]}], [{}], [[[]]]],
-                    []
-                )
-            )
+            ?_assert(is_term([[{x, [[{}], [{}], [{}]]}, {y, [{}]}], [{}], [[[]]]], []))
         },
         {"numbers", 
             ?_assert(is_term([-1.0, -1, -0, 0, 1.0e-1, 1, 1.0, 1.0e1], []))

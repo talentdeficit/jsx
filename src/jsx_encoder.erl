@@ -118,49 +118,48 @@ encode(Term) -> (encoder(jsx, [], []))(Term).
 
 encode_test_() ->    
     [
-        {"naked string", ?_assert(encode(<<"a string">>)
-            =:= [{string, <<"a string">>}, end_json])
-        },
-        {"naked integer", ?_assert(encode(123)
-            =:= [{integer, 123}, end_json])
-        },
-        {"naked float", ?_assert(encode(1.23)
-            =:= [{float, 1.23}, end_json])
-        },
-        {"naked literal", ?_assert(encode(null)
-            =:= [{literal, null}, end_json])
-        },
-        {"empty object", ?_assert(encode([{}])
-            =:= [start_object, end_object, end_json])
-        },
-        {"empty list", ?_assert(encode([])
-            =:= [start_array, end_array, end_json])
-        },
-        {"simple list", ?_assert(encode([1,2,3,true,false])
-            =:= [start_array,
+        {"naked string", ?_assertEqual(encode(<<"a string">>), [{string, <<"a string">>}, end_json])},
+        {"naked integer", ?_assertEqual(encode(123), [{integer, 123}, end_json])},
+        {"naked float", ?_assertEqual(encode(1.23), [{float, 1.23}, end_json])},
+        {"naked literal", ?_assertEqual(encode(null), [{literal, null}, end_json])},
+        {"empty object", ?_assertEqual(encode([{}]), [start_object, end_object, end_json])},
+        {"empty list", ?_assertEqual(encode([]), [start_array, end_array, end_json])},
+        {"simple list", ?_assertEqual(
+                encode([1,2,3,true,false]),
+                [
+                    start_array,
                     {integer, 1},
                     {integer, 2},
                     {integer, 3},
                     {literal, true},
                     {literal, false},
                     end_array,
-                end_json])
+                    end_json
+                ]
+            )
         },
-        {"simple object", ?_assert(encode([{<<"a">>, true}, {<<"b">>, false}])
-            =:= [start_object,
+        {"simple object", ?_assertEqual(
+                encode([{<<"a">>, true}, {<<"b">>, false}]),
+                [
+                    start_object,
                     {key, <<"a">>},
                     {literal, true},
                     {key, <<"b">>},
                     {literal, false},
                     end_object,
-                end_json])
+                    end_json
+                ]
+            )
         },
-        {"complex term", ?_assert(encode([
-                {<<"a">>, true},
-                {<<"b">>, false},
-                {<<"c">>, [1,2,3]},
-                {<<"d">>, [{<<"key">>, <<"value">>}]}
-            ]) =:= [start_object,
+        {"complex term", ?_assertEqual(
+                encode([
+                    {<<"a">>, true},
+                    {<<"b">>, false},
+                    {<<"c">>, [1,2,3]},
+                    {<<"d">>, [{<<"key">>, <<"value">>}]}
+                ]),
+                [
+                    start_object,
                     {key, <<"a">>},
                     {literal, true},
                     {key, <<"b">>},
@@ -177,14 +176,14 @@ encode_test_() ->
                         {string, <<"value">>},
                     end_object,
                     end_object,
-                end_json])
+                    end_json
+                ]
+            )
         },
-        {"atom keys", ?_assert(encode([{key, <<"value">>}])
-            =:= [start_object,
-                    {key, <<"key">>},
-                    {string, <<"value">>},
-                    end_object,
-                end_json])
+        {"atom keys", ?_assertEqual(
+                encode([{key, <<"value">>}]),
+                [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
+            )
         }
     ].
 
