@@ -53,8 +53,8 @@ start(Term, {Handler, State}, Opts) ->
     Handler:handle_event(end_json, value(Term, {Handler, State}, Opts)).
 
 
-value(String, {Handler, State}, _Opts) when is_binary(String) ->
-    Handler:handle_event({string, String}, State);
+value(String, {Handler, State}, Opts) when is_binary(String) ->
+    Handler:handle_event({string, escape(String, {Handler, State}, Opts)}, State);
 value(Float, {Handler, State}, _Opts) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
 value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
@@ -78,9 +78,18 @@ list_or_object(List, {Handler, State}, Opts) ->
 
 
 object([{Key, Value}|Rest], {Handler, State}, Opts) ->
-    object(Rest, {Handler,
-            value(Value, {Handler, Handler:handle_event({key, fix_key(Key)}, State)}, Opts)
-        }, Opts);
+    object(
+        Rest,
+        {
+            Handler,
+            value(
+                Value,
+                {Handler, Handler:handle_event({key, escape(fix_key(Key), {Handler, State}, Opts)}, State)},
+                Opts
+            )
+        },
+        Opts
+    );
 object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
 object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
@@ -91,8 +100,14 @@ list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-fix_key(Key) when is_binary(Key) -> Key;
-fix_key(Key) when is_atom(Key) -> atom_to_binary(Key, utf8).
+fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
+fix_key(Key) when is_binary(Key) -> Key.
+
+
+escape(String, Handler, Opts) ->
+    try jsx_utils:json_escape(String, Opts)
+    catch error:badarg -> erlang:error(badarg, [String, Handler, Opts])
+    end. 
 
 
 -ifdef(TEST).

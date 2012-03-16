@@ -97,7 +97,7 @@ json_escape(<<$\t, Rest/binary>>, Opts, Acc) ->
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
     json_escape(Rest,
         Opts,
-        <<Acc/binary, (unicode:characters_to_binary(json_escape_sequence(C)))/binary>>
+        <<Acc/binary, (json_escape_sequence(C))/binary>>
     );
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
@@ -108,7 +108,7 @@ json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
         when C == 16#2028; C == 16#2029 ->
     json_escape(Rest,
         Opts,
-        <<Acc/binary, (unicode:characters_to_binary(json_escape_sequence(C)))/binary>>
+        <<Acc/binary, (json_escape_sequence(C))/binary>>
     );
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
@@ -122,7 +122,7 @@ json_escape(Rest, Opts, Acc) ->
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
+    unicode:characters_to_binary([$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))]).
 
 
 to_hex(10) -> $a;
