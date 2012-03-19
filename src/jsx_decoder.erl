@@ -348,13 +348,16 @@ escape(<<$r, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, $\r)|Stack], Opts);
 escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, $\t)|Stack], Opts);
-escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
-    escaped_unicode(Rest, Handler, [?new_seq()|Stack], Opts);      
-escape(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
-        when S =:= ?doublequote; S =:= ?solidus; S =:= ?rsolidus ->
-    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+escape(<<?rsolidus, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\\)|Stack], Opts);
+escape(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{escape_forward_slash=true}) ->
+    string(Rest, Handler, [?acc_seq(Acc, $/)|Stack], Opts);
+escape(<<?doublequote, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, $\")|Stack], Opts);
 escape(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Opts = #opts{single_quotes=true}) ->
     string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Opts);
+escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
+    escaped_unicode(Rest, Handler, [?new_seq()|Stack], Opts);
 escape(<<>>, Handler, Stack, Opts) ->
     ?incomplete(escape, <<>>, Handler, Stack, Opts);
 escape(Bin, Handler, Stack, Opts) ->
@@ -1007,6 +1010,15 @@ comments_test_() ->
         {"/**/ comment terminating exp", ?_assertEqual(
             decode(<<"[ 1e1/* comment */ ]">>, [comments]),
             [start_array, {float, 1.0e1}, end_array, end_json]
+        )}
+    ].
+
+
+escape_forward_slash_test_() ->
+    [
+        {"escape forward slash test", ?_assertEqual(
+            decode(<<"[ \" \/ \" ]">>, [escape_forward_slash]),
+            [start_array, {string, <<" / ">>}, end_array, end_json]
         )}
     ].
 
