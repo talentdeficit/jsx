@@ -132,6 +132,8 @@ json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
+json_escape(<<_, Rest/binary>>, Opts=#opts{loose_unicode=true}, Acc) ->
+    json_escape(Rest, Opts, <<Acc/binary, 16#fffd/utf8>>);
 json_escape(<<>>, _Opts, Acc) ->
     Acc;
 json_escape(Rest, Opts, Acc) ->
@@ -171,6 +173,12 @@ binary_escape_test_() ->
             ?_assertEqual(
                 json_escape(<<1, 2, 3, 11, 26, 30, 31>>, #opts{}),
                 <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
+            )
+        },
+        {"json string loose unicode escaping",
+            ?_assertEqual(
+                json_escape(<<16#ffff>>, #opts{loose_unicode=true}),
+                <<16#fffd/utf8>>
             )
         },
         {"jsonp protection",
