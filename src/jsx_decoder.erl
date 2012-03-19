@@ -77,6 +77,9 @@ decoder(Handler, State, Opts) ->
 -define(negative, 16#2D).
 -define(positive, 16#2B).
 
+%% comments
+-define(star, 16#2A).
+
 
 %% some useful guards
 -define(is_hex(Symbol),
@@ -153,6 +156,9 @@ value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
     array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
 value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
     value(Rest, Handler, Stack, Opts);
+value(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> value(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);
 value(<<>>, Handler, Stack, Opts) ->
     ?incomplete(value, <<>>, Handler, Stack, Opts);
 value(Bin, Handler, Stack, Opts) ->
@@ -167,6 +173,9 @@ object(<<?end_object, Rest/binary>>, {Handler, State}, [key|Stack], Opts) ->
     maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
 object(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     object(Rest, Handler, Stack, Opts);
+object(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> object(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);
 object(<<>>, Handler, Stack, Opts) ->
     ?incomplete(object, <<>>, Handler, Stack, Opts);
 object(Bin, Handler, Stack, Opts) ->
@@ -196,7 +205,10 @@ array(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
 array(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
     maybe_done(Rest, {Handler, Handler:handle_event(end_array, State)}, Stack, Opts);
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
-    array(Rest, Handler, Stack, Opts);    
+    array(Rest, Handler, Stack, Opts);
+array(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> array(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);
 array(<<>>, Handler, Stack, Opts) ->
     ?incomplete(array, <<>>, Handler, Stack, Opts);
 array(Bin, Handler, Stack, Opts) ->
@@ -207,6 +219,9 @@ colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Opts) ->
     value(Rest, Handler, [object|Stack], Opts);
 colon(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     colon(Rest, Handler, Stack, Opts);
+colon(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> colon(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);
 colon(<<>>, Handler, Stack, Opts) ->
     ?incomplete(colon, <<>>, Handler, Stack, Opts);
 colon(Bin, Handler, Stack, Opts) ->
@@ -218,7 +233,10 @@ key(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
 key(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quotes=true}) ->
     string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
 key(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
-    key(Rest, Handler, Stack, Opts);        
+    key(Rest, Handler, Stack, Opts);
+key(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> key(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);       
 key(<<>>, Handler, Stack, Opts) ->
     ?incomplete(key, <<>>, Handler, Stack, Opts);
 key(Bin, Handler, Stack, Opts) ->
@@ -478,6 +496,9 @@ zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
 zero(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+zero(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts);  
 zero(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 zero(<<>>, Handler, Stack, Opts) ->
@@ -516,6 +537,9 @@ integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E 
     e(Rest, Handler, [{Acc, [], []}|Stack], Opts);
 integer(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+integer(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
 integer(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 integer(<<>>, Handler, Stack, Opts) ->
@@ -561,6 +585,9 @@ decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
     e(Rest, Handler, [{Int, Frac, []}|Stack], Opts);
 decimal(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+decimal(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
 decimal(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 decimal(<<>>, Handler, Stack, Opts) ->
@@ -615,6 +642,9 @@ exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
     value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
 exp(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+exp(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
 exp(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 exp(<<>>, Handler, Stack, Opts) ->
@@ -713,6 +743,48 @@ null(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
+comment(<<?solidus, Rest/binary>>, Handler, Stack, Opts) ->
+    single_comment(Rest, Handler, Stack, Opts);
+comment(<<?star, Rest/binary>>, Handler, Stack, Opts) ->
+    multi_comment(Rest, Handler, Stack, Opts);
+comment(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(comment, <<>>, Handler, Stack, Opts);
+comment(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
+
+
+single_comment(<<?newline, Rest/binary>>, Handler, [Resume|Stack], Opts) ->
+    Resume(Rest, Handler, Stack, Opts);
+single_comment(<<>>, Handler, [Resume|Stack], Opts) ->
+    Resume(<<>>, Handler, Stack, Opts);
+single_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Opts) ->
+    single_comment(Rest, Handler, Stack, Opts);
+single_comment(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(single_comment, <<>>, Handler, Stack, Opts);
+single_comment(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
+
+
+multi_comment(<<?star, Rest/binary>>, Handler, Stack, Opts) ->
+    end_multi_comment(Rest, Handler, Stack, Opts);
+multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Opts) ->
+    multi_comment(Rest, Handler, Stack, Opts);
+multi_comment(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(multi_comment, <<>>, Handler, Stack, Opts);
+multi_comment(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
+
+
+end_multi_comment(<<?solidus, Rest/binary>>, Handler, [Resume|Stack], Opts) ->
+    Resume(Rest, Handler, Stack, Opts);
+end_multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Opts) ->
+    multi_comment(Rest, Handler, Stack, Opts);
+end_multi_comment(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(end_multi_comment, <<>>, Handler, Stack, Opts);
+end_multi_comment(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
+
+
 maybe_done(<<?end_object, Rest/binary>>, {Handler, State}, [object|Stack], Opts) ->
     maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
 maybe_done(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
@@ -723,6 +795,9 @@ maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Opts) ->
     value(Rest, Handler, Stack, Opts);
 maybe_done(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Handler, Stack, Opts);
+maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
+    comment(Rest, Handler, [Resume|Stack], Opts);
 maybe_done(<<>>, Handler, Stack, Opts) when length(Stack) > 0 -> 
     ?incomplete(maybe_done, <<>>, Handler, Stack, Opts);
 maybe_done(Rest, {Handler, State}, [], Opts) ->
@@ -733,6 +808,9 @@ maybe_done(Bin, Handler, Stack, Opts) ->
 
 done(<<S, Rest/binary>>, Handler, [], Opts) when ?is_whitespace(S) ->
     done(Rest, Handler, [], Opts);
+done(<<?solidus, Rest/binary>>, Handler, [], Opts=#opts{comments=true}) ->
+    Resume = fun(R, H, S, O) -> done(R, H, S, O) end,
+    comment(Rest, Handler, [Resume], Opts);
 done(<<>>, {Handler, State}, [], Opts = #opts{explicit_end=true}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 done(<<Stream/binary>>, {Handler, State}, [], Opts)
@@ -746,6 +824,191 @@ done(Bin, Handler, Stack, Opts) -> ?error([Bin, Handler, Stack, Opts]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+
+comments_test_() ->
+    [
+        {"preceeding // comment", ?_assertEqual(
+            decode(<<"// comment ", ?newline, "[]">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"preceeding /**/ comment", ?_assertEqual(
+            decode(<<"/* comment */[]">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"trailing // comment", ?_assertEqual(
+            decode(<<"[]// comment", ?newline>>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"trailing // comment (no newline)", ?_assertEqual(
+            decode(<<"[]// comment">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"trailing /**/ comment", ?_assertEqual(
+            decode(<<"[] /* comment */">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"// comment inside array", ?_assertEqual(
+            decode(<<"[ // comment", ?newline, "]">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"/**/ comment inside array", ?_assertEqual(
+            decode(<<"[ /* comment */ ]">>, [comments]),
+            [start_array, end_array, end_json]
+        )},
+        {"// comment at beginning of array", ?_assertEqual(
+            decode(<<"[ // comment", ?newline, "true", ?newline, "]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"/**/ comment at beginning of array", ?_assertEqual(
+            decode(<<"[ /* comment */ true ]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"// comment at end of array", ?_assertEqual(
+            decode(<<"[ true // comment", ?newline, "]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"/**/ comment at end of array", ?_assertEqual(
+            decode(<<"[ true /* comment */ ]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"// comment midarray (post comma)", ?_assertEqual(
+            decode(<<"[ true, // comment", ?newline, "false ]">>, [comments]),
+            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+        )},
+        {"/**/ comment midarray (post comma)", ?_assertEqual(
+            decode(<<"[ true, /* comment */ false ]">>, [comments]),
+            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+        )},
+        {"// comment midarray (pre comma)", ?_assertEqual(
+            decode(<<"[ true// comment", ?newline, ", false ]">>, [comments]),
+            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+        )},
+        {"/**/ comment midarray (pre comma)", ?_assertEqual(
+            decode(<<"[ true/* comment */, false ]">>, [comments]),
+            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+        )},
+        {"// comment inside object", ?_assertEqual(
+            decode(<<"{ // comment", ?newline, "}">>, [comments]),
+            [start_object, end_object, end_json]
+        )},
+        {"/**/ comment inside object", ?_assertEqual(
+            decode(<<"{ /* comment */ }">>, [comments]),
+            [start_object, end_object, end_json]
+        )},
+        {"// comment at beginning of object", ?_assertEqual(
+            decode(<<"{ // comment", ?newline, " \"key\": true", ?newline, "}">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"/**/ comment at beginning of object", ?_assertEqual(
+            decode(<<"{ /* comment */ \"key\": true }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"// comment at end of object", ?_assertEqual(
+            decode(<<"{ \"key\": true // comment", ?newline, "}">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"/**/ comment at end of object", ?_assertEqual(
+            decode(<<"{ \"key\": true /* comment */ }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"// comment midobject (post comma)", ?_assertEqual(
+            decode(<<"{ \"x\": true, // comment", ?newline, "\"y\": false }">>, [comments]),
+            [
+                start_object,
+                {key, <<"x">>},
+                {literal, true},
+                {key, <<"y">>},
+                {literal, false},
+                end_object,
+                end_json
+            ]
+        )},
+        {"/**/ comment midobject (post comma)", ?_assertEqual(
+            decode(<<"{ \"x\": true, /* comment */", ?newline, "\"y\": false }">>, [comments]),
+            [
+                start_object,
+                {key, <<"x">>},
+                {literal, true},
+                {key, <<"y">>},
+                {literal, false},
+                end_object,
+                end_json
+            ]
+        )},
+        {"// comment midobject (pre comma)", ?_assertEqual(
+            decode(<<"{ \"x\": true// comment", ?newline, ", \"y\": false }">>, [comments]),
+            [
+                start_object,
+                {key, <<"x">>},
+                {literal, true},
+                {key, <<"y">>},
+                {literal, false},
+                end_object,
+                end_json
+            ]
+        )},
+        {"/**/ comment midobject (pre comma)", ?_assertEqual(
+            decode(<<"{ \"x\": true/* comment */", ?newline, ", \"y\": false }">>, [comments]),
+            [
+                start_object,
+                {key, <<"x">>},
+                {literal, true},
+                {key, <<"y">>},
+                {literal, false},
+                end_object,
+                end_json
+            ]
+        )},
+        {"// comment precolon", ?_assertEqual(
+            decode(<<"{ \"key\" // comment", ?newline, ": true }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"/**/ comment precolon", ?_assertEqual(
+            decode(<<"{ \"key\"/* comment */: true }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"// comment postcolon", ?_assertEqual(
+            decode(<<"{ \"key\": // comment", ?newline, " true }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"/**/ comment postcolon", ?_assertEqual(
+            decode(<<"{ \"key\":/* comment */ true }">>, [comments]),
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )},
+        {"// comment terminating zero", ?_assertEqual(
+            decode(<<"[ 0// comment", ?newline, "]">>, [comments]),
+            [start_array, {integer, 0}, end_array, end_json]
+        )},
+        {"// comment terminating integer", ?_assertEqual(
+            decode(<<"[ 1// comment", ?newline, "]">>, [comments]),
+            [start_array, {integer, 1}, end_array, end_json]
+        )},
+        {"// comment terminating float", ?_assertEqual(
+            decode(<<"[ 1.0// comment", ?newline, "]">>, [comments]),
+            [start_array, {float, 1.0}, end_array, end_json]
+        )},
+        {"// comment terminating exp", ?_assertEqual(
+            decode(<<"[ 1e1// comment", ?newline, "]">>, [comments]),
+            [start_array, {float, 1.0e1}, end_array, end_json]
+        )},
+        {"/**/ comment terminating zero", ?_assertEqual(
+            decode(<<"[ 0/* comment */ ]">>, [comments]),
+            [start_array, {integer, 0}, end_array, end_json]
+        )},
+        {"/**/ comment terminating integer", ?_assertEqual(
+            decode(<<"[ 1/* comment */ ]">>, [comments]),
+            [start_array, {integer, 1}, end_array, end_json]
+        )},
+        {"/**/ comment terminating float", ?_assertEqual(
+            decode(<<"[ 1.0/* comment */ ]">>, [comments]),
+            [start_array, {float, 1.0}, end_array, end_json]
+        )},
+        {"/**/ comment terminating exp", ?_assertEqual(
+            decode(<<"[ 1e1/* comment */ ]">>, [comments]),
+            [start_array, {float, 1.0e1}, end_array, end_json]
+        )}
+    ].
 
 
 noncharacters_test_() ->
