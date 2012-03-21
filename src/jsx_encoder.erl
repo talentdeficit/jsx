@@ -161,10 +161,10 @@ clean_string(<<C/utf8, Rest/binary>>, Acc)
             C == 16#ffffe orelse C == 16#fffff orelse
             C == 16#10fffe orelse C == 16#10ffff ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-clean_string(<<C/utf8, Rest/binary>>, Acc) ->
-    clean_string(Rest, <<Acc/binary, C/utf8>>);
 clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<C/utf8, Rest/binary>>, Acc) ->
+    clean_string(Rest, <<Acc/binary, C/utf8>>);
 clean_string(<<_, Rest/binary>>, Acc) ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<>>, Acc) -> Acc.
