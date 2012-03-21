@@ -301,7 +301,7 @@ types:
 
 ## <a name="thanks">acknowledgements</a> ##
 
-paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides and alex kropivny have all contributed to the development of jsx, whether they know it or not
+paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides, alex kropivny and steve strong have all contributed to the development of jsx, whether they know it or not
 
 
 [json]: http://json.org
