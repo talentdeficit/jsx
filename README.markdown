@@ -13,9 +13,9 @@ jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suit
 
 ## index ##
 
-* #### [introduction](#intro) ####
-* #### [quickstart](#quickstart) ####
-* #### [the api](#api) ####
+* [introduction](#intro)
+* [quickstart](#quickstart)
+* [the api](#api)
   - [json <-> erlang mapping](#mapping)
   - [options](#options)
   - [incomplete input](#incompletes)
@@ -24,7 +24,7 @@ jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suit
   - [converting json to erlang and vice versa](#convert)
   - [formatting and minifying json text](#format)
   - [verifying json and terms are valid input](#verify)
- * #### [acknowledgments](#thanks) ####
+ * [acknowledgments](#thanks)
 
 
 
@@ -136,6 +136,7 @@ jsx is built on top of two finite state automata, one that handles json texts an
 `jsx:decoder/3` and `jsx:encoder/3` are the entry points for the decoder and encoder, respectively
 
 `decoder(Handler, InitialState, Opts)` -> `Fun((JSON) -> Any)`
+
 `encoder(Handler, InitialState, Opts)` -> `Fun((Term) -> Any)`
 
 types:
@@ -155,6 +156,7 @@ decoder returns an anonymous function that handles binary json input and encoder
 `Handler` should export the following pair of functions
 
 `Handler:init(InitialState)` -> `State`
+
 `Handler:handle_event(Event, State)` -> `NewState`
 
 types:
@@ -190,6 +192,7 @@ both `key` and `string` are `utf8` encoded binaries with all escaped values conv
 `to_term` parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details above)
 
 `to_term(JSON)` -> `Term`
+
 `to_term(JSON, Opts)` -> `Term`
 
 types:
@@ -212,6 +215,7 @@ the option `labels` controls how keys are converted from json to erlang terms. `
 `to_json` parses an erlang term and produces a JSON text (see json <-> erlang mapping details below)
 
 `to_json(Term)` -> `JSON`
+
 `to_json(Term, Opts)` -> `JSON`
 
 types:
@@ -237,6 +241,7 @@ the option `{indent, N}` inserts a newline and `N` spaces for each level of inde
 produces a JSON text from JSON text, reformatted
 
 `format(JSON)` -> `JSON`
+
 `format(JSON, Opts)` -> `JSON`
 
 types:
@@ -263,6 +268,7 @@ calling `format` with no options results in minified json text
 returns true if input is a valid JSON text, false if not
 
 `is_json(MaybeJSON)` -> `true` | `false` | `{incomplete, Fun}`
+
 `is_json(MaybeJSON, Opts)` -> `true` | `false` | `{incomplete, Fun}`
 
 types:
@@ -276,6 +282,7 @@ types:
 returns true if input is a valid erlang term that represents a JSON text, false if not
 
 `is_term(MaybeJSON)` -> `true` | `false`
+
 `is_term(MaybeJSON, Opts)` -> `true` | `false`
 
 types:
