@@ -110,10 +110,7 @@ json_escape(<<$\t, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, $\\, $t>>);
 %% other control characters
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
-    json_escape(Rest,
-        Opts,
-        <<Acc/binary, (json_escape_sequence(C))/binary>>
-    );
+    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% escape forward slashes -- optionally -- to faciliate microsoft's retarded
 %%   date format
 json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
@@ -125,19 +122,14 @@ json_escape(<<C/utf8, Rest/binary>>, Opts=#opts{no_jsonp_escapes=true}, Acc)
 %% escape u+2028 and u+2029 to avoid problems with jsonp
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
         when C == 16#2028; C == 16#2029 ->
-    json_escape(Rest,
-        Opts,
-        <<Acc/binary, (json_escape_sequence(C))/binary>>
-    );
+    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
 %% any other legal codepoint
 json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
     json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
-json_escape(<<_, Rest/binary>>, Opts=#opts{loose_unicode=true}, Acc) ->
-    json_escape(Rest, Opts, <<Acc/binary, 16#fffd/utf8>>);
 json_escape(<<>>, _Opts, Acc) ->
     Acc;
-json_escape(Rest, Opts, Acc) ->
-    erlang:error(badarg, [Rest, Opts, Acc]).
+json_escape(Bin, Opts, Acc) ->
+    erlang:error(badarg, [Bin, Opts, Acc]).
 
 
 %% convert a codepoint to it's \uXXXX equiv.
@@ -173,12 +165,6 @@ binary_escape_test_() ->
             ?_assertEqual(
                 json_escape(<<1, 2, 3, 11, 26, 30, 31>>, #opts{}),
                 <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
-            )
-        },
-        {"json string loose unicode escaping",
-            ?_assertEqual(
-                json_escape(<<16#ffff>>, #opts{loose_unicode=true}),
-                <<16#fffd/utf8>>
             )
         },
         {"jsonp protection",
