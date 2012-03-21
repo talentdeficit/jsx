@@ -24,7 +24,6 @@
 -module(jsx_encoder).
 
 -export([encoder/3]).
--compile(export_all).
 
 -spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
