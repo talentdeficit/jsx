@@ -163,9 +163,29 @@ clean_string(<<C/utf8, Rest/binary>>, Acc)
             C =/= 16#ffffe andalso C =/= 16#fffff andalso
             C =/= 16#10fffe andalso C =/= 16#10ffff ->
     clean_string(Rest, <<Acc/binary, C/utf8>>);
-clean_string(<<X, _, _, Rest/binary>>, Acc) when X == 237; X == 239 ->
+%% surrogates
+clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-clean_string(<<_, _, _, _, Rest/binary>>, Acc) ->
+%% private use noncharacters
+clean_string(<<239, 183, X, Rest/binary>>, Acc) when X >= 143, X =< 175 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+%% u+fffe and u+ffff
+clean_string(<<239, 191, X, Rest/binary>>, Acc) when X == 190; X == 191 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+%% the u+Xfffe and u+Xffff noncharacters
+clean_string(<<X, Y, 191, Z, Rest/binary>>, Acc)
+        when (
+            (X == 240 andalso Y == 159) orelse
+            (X == 240 andalso Y == 175) orelse
+            (X == 240 andalso Y == 191) orelse
+            (
+                (X == 241 orelse X == 242 orelse X == 243) andalso
+                (Y == 143 orelse Y == 159 orelse Y == 175 orelse Y == 191)
+            ) orelse
+            (X == 244 andalso Y == 143)
+        ) andalso (Z == 190 orelse Z == 191) ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<_, Rest/binary>>, Acc) ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<>>, Acc) -> Acc.
     
@@ -302,7 +322,43 @@ good_characters_test_() ->
             ?_assertEqual(check_good(good_extended()), [])
         }
     ].
-    
+
+malformed_test_() ->
+    [
+        {"malformed codepoint with 1 byte", ?_assertError(badarg, encode(<<128>>))},
+        {"malformed codepoint with 2 bytes", ?_assertError(badarg, encode(<<128, 192>>))},
+        {"malformed codepoint with 3 bytes", ?_assertError(badarg, encode(<<128, 192, 192>>))},
+        {"malformed codepoint with 4 bytes", ?_assertError(badarg, encode(<<128, 192, 192, 192>>))}
+    ].
+
+malformed_replaced_test_() ->
+    F = <<16#fffd/utf8>>,
+    [
+        {"malformed codepoint with 1 byte",
+            ?_assertEqual(
+                [{string, <<F/binary>>}, end_json],
+                encode(<<128>>, [loose_unicode])
+            )
+        },
+        {"malformed codepoint with 2 bytes",
+            ?_assertEqual(
+                [{string, <<F/binary, F/binary>>}, end_json],
+                encode(<<128, 192>>, [loose_unicode])
+            )
+        },
+        {"malformed codepoint with 3 bytes",
+            ?_assertEqual(
+                [{string, <<F/binary, F/binary, F/binary>>}, end_json],
+                encode(<<128, 192, 192>>, [loose_unicode])
+            )
+        },
+        {"malformed codepoint with 4 bytes",
+            ?_assertEqual(
+                [{string, <<F/binary, F/binary, F/binary, F/binary>>}, end_json],
+                encode(<<128, 192, 192, 192>>, [loose_unicode])
+            )
+        }
+    ].
 
 check_bad(List) ->
     lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
