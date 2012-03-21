@@ -25,7 +25,6 @@
 
 -export([encoder/3]).
 
-
 -spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
 encoder(Handler, State, Opts) ->
@@ -54,7 +53,7 @@ start(Term, {Handler, State}, Opts) ->
 
 
 value(String, {Handler, State}, Opts) when is_binary(String) ->
-    Handler:handle_event({string, escape(String, {Handler, State}, Opts)}, State);
+    Handler:handle_event({string, check_string(String, {Handler, State}, Opts)}, State);
 value(Float, {Handler, State}, _Opts) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
 value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
@@ -84,7 +83,7 @@ object([{Key, Value}|Rest], {Handler, State}, Opts) ->
             Handler,
             value(
                 Value,
-                {Handler, Handler:handle_event({key, escape(fix_key(Key), {Handler, State}, Opts)}, State)},
+                {Handler, Handler:handle_event({key, check_string(fix_key(Key), {Handler, State}, Opts)}, State)},
                 Opts
             )
         },
@@ -104,16 +103,78 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-escape(String, Handler, Opts) ->
-    try jsx_utils:json_escape(String, Opts)
-    catch error:badarg -> erlang:error(badarg, [String, Handler, Opts])
-    end. 
+check_string(String, Handler, Opts) ->
+    case check_string(String) of
+        true -> String;
+        false ->
+            case Opts#opts.loose_unicode of
+                true -> clean_string(String, <<>>);
+                false -> erlang:error(badarg, [String, Handler, Opts])
+            end
+    end.
+
+check_string(<<C/utf8, Rest/binary>>) when C < 16#fdd0 ->
+    check_string(Rest);
+check_string(<<C/utf8, Rest/binary>>) when C > 16#fdef, C < 16#fffe ->
+    check_string(Rest);
+check_string(<<C/utf8, Rest/binary>>)
+        when C =/= 16#fffe andalso C =/= 16#ffff andalso
+            C =/= 16#1fffe andalso C =/= 16#1ffff andalso
+            C =/= 16#2fffe andalso C =/= 16#2ffff andalso
+            C =/= 16#3fffe andalso C =/= 16#3ffff andalso
+            C =/= 16#4fffe andalso C =/= 16#4ffff andalso
+            C =/= 16#5fffe andalso C =/= 16#5ffff andalso
+            C =/= 16#6fffe andalso C =/= 16#6ffff andalso
+            C =/= 16#7fffe andalso C =/= 16#7ffff andalso
+            C =/= 16#8fffe andalso C =/= 16#8ffff andalso
+            C =/= 16#9fffe andalso C =/= 16#9ffff andalso
+            C =/= 16#afffe andalso C =/= 16#affff andalso
+            C =/= 16#bfffe andalso C =/= 16#bffff andalso
+            C =/= 16#cfffe andalso C =/= 16#cffff andalso
+            C =/= 16#dfffe andalso C =/= 16#dffff andalso
+            C =/= 16#efffe andalso C =/= 16#effff andalso
+            C =/= 16#ffffe andalso C =/= 16#fffff andalso
+            C =/= 16#10fffe andalso C =/= 16#10ffff ->
+    check_string(Rest);
+check_string(<<>>) -> true;
+check_string(<<_, _/binary>>) -> false.
+
+clean_string(<<C/utf8, Rest/binary>>, Acc) when C >= 16#fdd0, C =< 16#fdef ->
+    io:format("1: ~p~n", [C]),
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<C/utf8, Rest/binary>>, Acc)
+        when C == 16#fffe orelse C == 16#ffff orelse
+            C == 16#1fffe orelse C == 16#1ffff orelse
+            C == 16#2fffe orelse C == 16#2ffff orelse
+            C == 16#3fffe orelse C == 16#3ffff orelse
+            C == 16#4fffe orelse C == 16#4ffff orelse
+            C == 16#5fffe orelse C == 16#5ffff orelse
+            C == 16#6fffe orelse C == 16#6ffff orelse
+            C == 16#7fffe orelse C == 16#7ffff orelse
+            C == 16#8fffe orelse C == 16#8ffff orelse
+            C == 16#9fffe orelse C == 16#9ffff orelse
+            C == 16#afffe orelse C == 16#affff orelse
+            C == 16#bfffe orelse C == 16#bffff orelse
+            C == 16#cfffe orelse C == 16#cffff orelse
+            C == 16#dfffe orelse C == 16#dffff orelse
+            C == 16#efffe orelse C == 16#effff orelse
+            C == 16#ffffe orelse C == 16#fffff orelse
+            C == 16#10fffe orelse C == 16#10ffff ->
+    io:format("2: ~p~n", [C]),
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<C/utf8, Rest/binary>>, Acc) ->
+    io:format("3: ~p~n", [C]),
+    clean_string(Rest, <<Acc/binary, C/utf8>>);
+clean_string(<<>>, Acc) -> Acc.
+    
 
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 encode(Term) -> (encoder(jsx, [], []))(Term).
+
+encode(Term, Opts) -> (encoder(jsx, [], Opts))(Term).
 
 
 encode_test_() ->    
@@ -183,6 +244,16 @@ encode_test_() ->
         {"atom keys", ?_assertEqual(
                 encode([{key, <<"value">>}]),
                 [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
+            )
+        },
+        {"bad string", ?_assertError(
+                badarg,
+                encode([<<"a bad string: ", 16#ffff/utf8>>])
+            )
+        },
+        {"allow bad string", ?_assertEqual(
+                encode([<<"a bad string: ", 16#1ffff/utf8>>], [loose_unicode]),
+                [start_array, {string, <<"a bad string: ", 16#fffd/utf8>>}, end_array, end_json]
             )
         }
     ].
