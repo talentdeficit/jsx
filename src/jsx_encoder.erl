@@ -118,7 +118,7 @@ check_string(<<C/utf8, Rest/binary>>) when C < 16#fdd0 ->
 check_string(<<C/utf8, Rest/binary>>) when C > 16#fdef, C < 16#fffe ->
     check_string(Rest);
 check_string(<<C/utf8, Rest/binary>>)
-        when C > 16#fffd andalso 
+        when C > 16#ffff andalso 
             C =/= 16#fffe andalso C =/= 16#ffff andalso
             C =/= 16#1fffe andalso C =/= 16#1ffff andalso
             C =/= 16#2fffe andalso C =/= 16#2ffff andalso
