@@ -74,9 +74,17 @@ when converting from erlang to json, numbers are represented with their shortest
 
 #### strings ####
 
-the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters and quotes) and that are encoded in `utf8`. in the interests of pragmatism, there is an option for looser parsing, see options below
+the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters, `"` and the escape character, `\`) and that are encoded in `utf8`
 
-all erlang strings are represented by *valid* `utf8` encoded binaries
+this means some codepoints that are allowed in javascript strings are not accepted by the parser. the noncharacters are specifically disallowed. the range `u+fdd0` to `u+fdef` is reserved for internal implementation use by the unicode standard and codepoints of the form `u+Xfffe` and `u+Xffff` are reserved for error detection. strings containing these codepoints are generally assumed to be invalid or improper
+
+also disallowed are improperly paired surrogates. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
+
+json string escapes of the form `\uXXXX` will be converted to their equivalent codepoint during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec (like the two cases above) will not be
+
+in the interests of pragmatism, there is an option for looser parsing, see options below
+
+all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates and no non-characters
 
 this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -90,7 +98,7 @@ json arrays are represented with erlang lists of json values as described in thi
 
 #### objects ####
 
-json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties. all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers)
+json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties so all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers). values should be valid json values
 
 
 ### <a name="options">options</a> ###
@@ -99,7 +107,7 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
 #### `loose_unicode` ####
 
-json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. if this option is present attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec
+json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. if this option is present attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec. this applies both to malformed unicode and disallowed codepoints
 
 #### `escape_forward_slash` ####
 
