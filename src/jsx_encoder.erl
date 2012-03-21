@@ -163,6 +163,8 @@ clean_string(<<C/utf8, Rest/binary>>, Acc)
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<239, 183, X, Rest/binary>>, Acc) when X >= 144, X =< 175 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<C/utf8, Rest/binary>>, Acc) ->
     clean_string(Rest, <<Acc/binary, C/utf8>>);
 clean_string(<<_, Rest/binary>>, Acc) ->
