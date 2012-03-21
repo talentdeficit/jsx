@@ -140,8 +140,6 @@ check_string(<<C/utf8, Rest/binary>>)
 check_string(<<>>) -> true;
 check_string(<<_, _/binary>>) -> false.
 
-clean_string(<<C/utf8, Rest/binary>>, Acc) when C >= 16#fdd0, C =< 16#fdef ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<C/utf8, Rest/binary>>, Acc)
         when C == 16#fffe orelse C == 16#ffff orelse
             C == 16#1fffe orelse C == 16#1ffff orelse
@@ -161,10 +159,13 @@ clean_string(<<C/utf8, Rest/binary>>, Acc)
             C == 16#ffffe orelse C == 16#fffff orelse
             C == 16#10fffe orelse C == 16#10ffff ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+%% surrogates
 clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+%% private use noncharacters
 clean_string(<<239, 183, X, Rest/binary>>, Acc) when X >= 144, X =< 175 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+%% u+fffe and u+ffff (required for otp < r15)
 clean_string(<<239, 191, X, Rest/binary>>, Acc) when X == 190, X == 191 ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<C/utf8, Rest/binary>>, Acc) ->
