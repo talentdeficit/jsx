@@ -24,7 +24,7 @@ jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suit
   - [converting json to erlang and vice versa](#convert)
   - [formatting and minifying json text](#format)
   - [verifying json and terms are valid input](#verify)
- * [acknowledgments](#thanks)
+* [acknowledgments](#thanks)
 
 
 
