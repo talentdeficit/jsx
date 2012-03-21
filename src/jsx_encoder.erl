@@ -139,37 +139,33 @@ check_string(<<C/utf8, Rest/binary>>)
 check_string(<<>>) -> true;
 check_string(<<_, _/binary>>) -> false.
 
-clean_string(<<C/utf8, Rest/binary>>, Acc)
-        when C == 16#fffe orelse C == 16#ffff orelse
-            C == 16#1fffe orelse C == 16#1ffff orelse
-            C == 16#2fffe orelse C == 16#2ffff orelse
-            C == 16#3fffe orelse C == 16#3ffff orelse
-            C == 16#4fffe orelse C == 16#4ffff orelse
-            C == 16#5fffe orelse C == 16#5ffff orelse
-            C == 16#6fffe orelse C == 16#6ffff orelse
-            C == 16#7fffe orelse C == 16#7ffff orelse
-            C == 16#8fffe orelse C == 16#8ffff orelse
-            C == 16#9fffe orelse C == 16#9ffff orelse
-            C == 16#afffe orelse C == 16#affff orelse
-            C == 16#bfffe orelse C == 16#bffff orelse
-            C == 16#cfffe orelse C == 16#cffff orelse
-            C == 16#dfffe orelse C == 16#dffff orelse
-            C == 16#efffe orelse C == 16#effff orelse
-            C == 16#ffffe orelse C == 16#fffff orelse
-            C == 16#10fffe orelse C == 16#10ffff ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-%% surrogates
-clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-%% private use noncharacters
-clean_string(<<239, 183, X, Rest/binary>>, Acc) when X >= 144, X =< 175 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-%% u+fffe and u+ffff (required for otp < r15)
-clean_string(<<239, 191, X, Rest/binary>>, Acc) when X == 190, X == 191 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-clean_string(<<C/utf8, Rest/binary>>, Acc) ->
+
+clean_string(<<C/utf8, Rest/binary>>, Acc) when C < 16#fdd0 ->
     clean_string(Rest, <<Acc/binary, C/utf8>>);
-clean_string(<<_, Rest/binary>>, Acc) ->
+clean_string(<<C/utf8, Rest/binary>>, Acc) when C > 16#fdef, C < 16#fffe ->
+    clean_string(Rest, <<Acc/binary, C/utf8>>);
+clean_string(<<C/utf8, Rest/binary>>, Acc) 
+        when C > 16#ffff andalso
+            C =/= 16#1fffe andalso C =/= 16#1ffff andalso
+            C =/= 16#2fffe andalso C =/= 16#2ffff andalso
+            C =/= 16#3fffe andalso C =/= 16#3ffff andalso
+            C =/= 16#4fffe andalso C =/= 16#4ffff andalso
+            C =/= 16#5fffe andalso C =/= 16#5ffff andalso
+            C =/= 16#6fffe andalso C =/= 16#6ffff andalso
+            C =/= 16#7fffe andalso C =/= 16#7ffff andalso
+            C =/= 16#8fffe andalso C =/= 16#8ffff andalso
+            C =/= 16#9fffe andalso C =/= 16#9ffff andalso
+            C =/= 16#afffe andalso C =/= 16#affff andalso
+            C =/= 16#bfffe andalso C =/= 16#bffff andalso
+            C =/= 16#cfffe andalso C =/= 16#cffff andalso
+            C =/= 16#dfffe andalso C =/= 16#dffff andalso
+            C =/= 16#efffe andalso C =/= 16#effff andalso
+            C =/= 16#ffffe andalso C =/= 16#fffff andalso
+            C =/= 16#10fffe andalso C =/= 16#10ffff ->
+    clean_string(Rest, <<Acc/binary, C/utf8>>);
+clean_string(<<X, _, _, Rest/binary>>, Acc) when X == 237; X == 239 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<_, _, _, _, Rest/binary>>, Acc) ->
     clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
 clean_string(<<>>, Acc) -> Acc.
     
