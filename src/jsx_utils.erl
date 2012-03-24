@@ -29,15 +29,6 @@
 
 -include("jsx_opts.hrl").
 
--define(ESC(C), 
-   <<H:L/binary, C, T/binary>> ->
-      B = unicode:characters_to_binary(json_escape_sequence(C)),
-      json_escape2(
-         <<H/binary, B/binary, T/binary>>, 
-         Opts, L + size(B), Len + size(B) - 1
-      );
-).
-
 
 %% parsing of jsx opts
 
@@ -94,96 +85,63 @@ extract_parser_opts([K|Rest], Acc) ->
 %%  everything else should be a legal json string component
 
 json_escape(String, Opts) when is_binary(String) ->
-    %<< <<(case X of $.->$,; _->X end)>> || <<X>> <= String >>.
-    %json_escape(String, Opts, <<>>).
-    json_escape2(String, Opts, 0, size(String)).
+    json_escape(String, Opts, 0, size(String)).
 
-json_escape2(Str, Opts, L, Len) when L < Len ->
-   case Str of
-      <<H:L/binary, $\", T/binary>> -> %"  
-         json_escape2(<<H/binary, $\\, $\", T/binary>>, Opts, L + 2, Len + 1);%"
-      <<H:L/binary, $\\, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\\, T/binary>>, Opts, L + 2, Len + 1);
-      <<H:L/binary, $\b, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\b, T/binary>>, Opts, L + 2, Len + 1);
-      <<H:L/binary, $\f, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\f, T/binary>>, Opts, L + 2, Len + 1);
-      <<H:L/binary, $\n, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\n, T/binary>>, Opts, L + 2, Len + 1); 
-      <<H:L/binary, $\r, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\r, T/binary>>, Opts, L + 2, Len + 1); 
-      <<H:L/binary, $\t, T/binary>> ->
-         json_escape2(<<H/binary, $\\, $\t, T/binary>>, Opts, L + 2, Len + 1);
-      % jsonp   
-      <<H:L/binary, 226, 128, 168, T/binary>> ->
-         B = unicode:characters_to_binary(json_escape_sequence(16#2028)),
-         json_escape2(
-            <<H/binary, B/binary, T/binary>>, 
-               Opts, L + size(B), Len + size(B) - 1
-         );
-      <<H:L/binary, 226, 128, 169, T/binary>> ->
-         B = unicode:characters_to_binary(json_escape_sequence(16#2029)),
-         json_escape2(
-            <<H/binary, B/binary, T/binary>>, 
-               Opts, L + size(B), Len + size(B) - 1
-         );   
-      % C >= 0 and C < $\s   
-      ?ESC(00) ?ESC(01) ?ESC(02) ?ESC(03) ?ESC(04) 
-      ?ESC(05) ?ESC(06) ?ESC(07) 
-               ?ESC(11)                   ?ESC(14) 
-      ?ESC(15) ?ESC(16) ?ESC(17) ?ESC(18) ?ESC(19)
-      ?ESC(20) ?ESC(21) ?ESC(22) ?ESC(23) ?ESC(24) 
-      ?ESC(25) ?ESC(26) ?ESC(27) ?ESC(28) ?ESC(29)
-      ?ESC(30) ?ESC(31)
-      _                             ->   
-         json_escape2(Str, Opts, L + 1, Len)
-   end;
-json_escape2(Str, _, L, Len) when L =:= Len ->
-   Str.
-
-%% double quote    
-json_escape(<<$\", Rest/binary>>, Opts, Acc) -> %"
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>); %"
-%% backslash \ reverse solidus
-json_escape(<<$\\, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $\\>>);
-%% backspace
-json_escape(<<$\b, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $b>>);
-%% form feed
-json_escape(<<$\f, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $f>>);
-%% newline
-json_escape(<<$\n, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $n>>);
-%% cr
-json_escape(<<$\r, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $r>>);
-%% tab
-json_escape(<<$\t, Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $t>>);
-%% other control characters
-json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) when C >= 0, C < $\s -> 
-    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
-%% escape forward slashes -- optionally -- to faciliate microsoft's retarded
-%%   date format
-json_escape(<<$/, Rest/binary>>, Opts=#opts{escape_forward_slash=true}, Acc) ->
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $/>>);
-%% skip escaping u+2028 and u+2029
-json_escape(<<C/utf8, Rest/binary>>, Opts=#opts{no_jsonp_escapes=true}, Acc)
-        when C == 16#2028; C == 16#2029 ->
-    json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
-%% escape u+2028 and u+2029 to avoid problems with jsonp
-json_escape(<<C/utf8, Rest/binary>>, Opts, Acc)
-        when C == 16#2028; C == 16#2029 ->
-    json_escape(Rest, Opts, <<Acc/binary, (json_escape_sequence(C))/binary>>);
-%% any other legal codepoint
-json_escape(<<C/utf8, Rest/binary>>, Opts, Acc) ->
-    json_escape(Rest, Opts, <<Acc/binary, C/utf8>>);
-json_escape(<<>>, _Opts, Acc) ->
-    Acc;
-json_escape(Bin, Opts, Acc) ->
-    erlang:error(badarg, [Bin, Opts, Acc]).
+json_escape(Str, Opts, L, Len) when L < Len ->
+    case Str of
+        <<H:L/binary, $\", T/binary>> -> %"  
+            json_escape(<<H/binary, $\\, $", T/binary>>, Opts, L + 2, Len + 1);
+        <<H:L/binary, $\\, T/binary>> ->
+            json_escape(<<H/binary, $\\, $\\, T/binary>>, Opts, L + 2, Len + 1);
+        <<H:L/binary, $\b, T/binary>> ->
+            json_escape(<<H/binary, $\\, $b, T/binary>>, Opts, L + 2, Len + 1);
+        <<H:L/binary, $\f, T/binary>> ->
+            json_escape(<<H/binary, $\\, $f, T/binary>>, Opts, L + 2, Len + 1);
+        <<H:L/binary, $\n, T/binary>> ->
+            json_escape(<<H/binary, $\\, $n, T/binary>>, Opts, L + 2, Len + 1); 
+        <<H:L/binary, $\r, T/binary>> ->
+            json_escape(<<H/binary, $\\, $r, T/binary>>, Opts, L + 2, Len + 1); 
+        <<H:L/binary, $\t, T/binary>> ->
+            json_escape(<<H/binary, $\\, $t, T/binary>>, Opts, L + 2, Len + 1);
+        <<H:L/binary, $/, T/binary>> ->
+            case Opts#opts.escape_forward_slash of
+                true ->
+                    json_escape(<<H/binary, $\\, $/, T/binary>>, Opts, L + 2, Len + 1);
+                false ->
+                    json_escape(<<H/binary, $/, T/binary>>, Opts, L + 1, Len)
+            end;
+        <<H:L/binary, 16#2028/utf8, T/binary>> ->
+            case Opts#opts.no_jsonp_escapes of
+                true ->
+                    json_escape(<<H/binary, 16#2028/utf8, T/binary>>, Opts, L + 3, Len);
+                false ->
+                    B = unicode:characters_to_binary(json_escape_sequence(16#2028)),
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2028/utf8>>))
+            end;
+        <<H:L/binary, 16#2029/utf8, T/binary>> ->
+            case Opts#opts.no_jsonp_escapes of
+                true ->
+                    json_escape(<<H/binary, 16#2029/utf8, T/binary>>, Opts, L + 3, Len);
+                false ->
+                    B = unicode:characters_to_binary(json_escape_sequence(16#2029)),
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2029/utf8>>))
+            end;
+        <<H:L/binary, X/utf8, T/binary>> when X < 32 ->
+            B = unicode:characters_to_binary(json_escape_sequence(X)),
+            json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<X/utf8>>));
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#0080 ->   
+            json_escape(Str, Opts, L + 1, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#0800 ->
+            json_escape(Str, Opts, L + 2, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#10000 ->
+            json_escape(Str, Opts, L + 3, Len);
+        <<_:L/binary, _/utf8, _/binary>> ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<H:L/binary, X, T/binary>> ->
+            erlang:error(badarg, [[<<H:L/binary, X, T/binary>>, Opts]])            
+    end;
+json_escape(Str, _, L, Len) when L =:= Len ->
+    Str.
 
 
 %% convert a codepoint to it's \uXXXX equiv.
@@ -217,8 +175,8 @@ binary_escape_test_() ->
         },
         {"json string hex escape", 
             ?_assertEqual(
-                json_escape(<<1, 2, 3, 11, 26, 30, 31>>, #opts{}),
-                <<"\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
+                json_escape(<<0, 1, 2, 3, 11, 26, 30, 31>>, #opts{}),
+                <<"\\u0000\\u0001\\u0002\\u0003\\u000b\\u001a\\u001e\\u001f">>
             )
         },
         {"jsonp protection",
@@ -237,6 +195,15 @@ binary_escape_test_() ->
             ?_assertEqual(
                 json_escape(<<"/Date(1303502009425)/">>, #opts{escape_forward_slash=true}),
                 <<"\\/Date(1303502009425)\\/">>
+            )
+        },
+        {"bad utf8",
+            ?_assertError(badarg, json_escape(<<32, 64, 128, 256>>, #opts{}))
+        },
+        {"all sizes of codepoints",
+            ?_assertEqual(
+                json_escape(unicode:characters_to_binary([0, 32, 16#80, 16#800, 16#10000]), #opts{}),
+                <<"\\u0000", 32/utf8, 16#80/utf8, 16#800/utf8, 16#10000/utf8>>
             )
         }
     ].
