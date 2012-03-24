@@ -29,6 +29,15 @@
 
 -include("jsx_opts.hrl").
 
+-define(ESC(C), 
+   <<H:L/binary, C, T/binary>> ->
+      B = unicode:characters_to_binary(json_escape_sequence(C)),
+      json_escape2(
+         <<H/binary, B/binary, T/binary>>, 
+         Opts, L + size(B), Len + size(B) - 1
+      );
+).
+
 
 %% parsing of jsx opts
 
@@ -85,11 +94,56 @@ extract_parser_opts([K|Rest], Acc) ->
 %%  everything else should be a legal json string component
 
 json_escape(String, Opts) when is_binary(String) ->
-    json_escape(String, Opts, <<>>).
+    %<< <<(case X of $.->$,; _->X end)>> || <<X>> <= String >>.
+    %json_escape(String, Opts, <<>>).
+    json_escape2(String, Opts, 0, size(String)).
+
+json_escape2(Str, Opts, L, Len) when L < Len ->
+   case Str of
+      <<H:L/binary, $\", T/binary>> -> %"  
+         json_escape2(<<H/binary, $\\, $\", T/binary>>, Opts, L + 2, Len + 1);%"
+      <<H:L/binary, $\\, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\\, T/binary>>, Opts, L + 2, Len + 1);
+      <<H:L/binary, $\b, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\b, T/binary>>, Opts, L + 2, Len + 1);
+      <<H:L/binary, $\f, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\f, T/binary>>, Opts, L + 2, Len + 1);
+      <<H:L/binary, $\n, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\n, T/binary>>, Opts, L + 2, Len + 1); 
+      <<H:L/binary, $\r, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\r, T/binary>>, Opts, L + 2, Len + 1); 
+      <<H:L/binary, $\t, T/binary>> ->
+         json_escape2(<<H/binary, $\\, $\t, T/binary>>, Opts, L + 2, Len + 1);
+      % jsonp   
+      <<H:L/binary, 226, 128, 168, T/binary>> ->
+         B = unicode:characters_to_binary(json_escape_sequence(16#2028)),
+         json_escape2(
+            <<H/binary, B/binary, T/binary>>, 
+               Opts, L + size(B), Len + size(B) - 1
+         );
+      <<H:L/binary, 226, 128, 169, T/binary>> ->
+         B = unicode:characters_to_binary(json_escape_sequence(16#2029)),
+         json_escape2(
+            <<H/binary, B/binary, T/binary>>, 
+               Opts, L + size(B), Len + size(B) - 1
+         );   
+      % C >= 0 and C < $\s   
+      ?ESC(00) ?ESC(01) ?ESC(02) ?ESC(03) ?ESC(04) 
+      ?ESC(05) ?ESC(06) ?ESC(07) 
+               ?ESC(11)                   ?ESC(14) 
+      ?ESC(15) ?ESC(16) ?ESC(17) ?ESC(18) ?ESC(19)
+      ?ESC(20) ?ESC(21) ?ESC(22) ?ESC(23) ?ESC(24) 
+      ?ESC(25) ?ESC(26) ?ESC(27) ?ESC(28) ?ESC(29)
+      ?ESC(30) ?ESC(31)
+      _                             ->   
+         json_escape2(Str, Opts, L + 1, Len)
+   end;
+json_escape2(Str, _, L, Len) when L =:= Len ->
+   Str.
 
 %% double quote    
-json_escape(<<$\", Rest/binary>>, Opts, Acc) -> 
-    json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>);
+json_escape(<<$\", Rest/binary>>, Opts, Acc) -> %"
+    json_escape(Rest, Opts, <<Acc/binary, $\\, $\">>); %"
 %% backslash \ reverse solidus
 json_escape(<<$\\, Rest/binary>>, Opts, Acc) -> 
     json_escape(Rest, Opts, <<Acc/binary, $\\, $\\>>);
