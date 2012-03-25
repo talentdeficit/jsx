@@ -23,7 +23,7 @@
 
 -module(jsx_encoder).
 
--export([encoder/3]).
+-export([encoder/3, clean_string/1]).
 
 -spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
@@ -53,7 +53,7 @@ start(Term, {Handler, State}, Opts) ->
 
 
 value(String, {Handler, State}, Opts) when is_binary(String) ->
-    Handler:handle_event({string, check_string(String, {Handler, State}, Opts)}, State);
+    Handler:handle_event({string, clean_string(String, <<>>, Opts)}, State);
 value(Float, {Handler, State}, _Opts) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
 value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
@@ -83,7 +83,7 @@ object([{Key, Value}|Rest], {Handler, State}, Opts) ->
             Handler,
             value(
                 Value,
-                {Handler, Handler:handle_event({key, check_string(fix_key(Key), {Handler, State}, Opts)}, State)},
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), <<>>, Opts)}, State)},
                 Opts
             )
         },
@@ -103,21 +103,39 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-check_string(String, Handler, Opts) ->
-    case check_string(String) of
-        true -> String;
-        false ->
-            case Opts#opts.loose_unicode of
-                true -> clean_string(String, <<>>);
-                false -> erlang:error(badarg, [String, Handler, Opts])
-            end
-    end.
+clean_string(Bin) -> clean_string(Bin, <<>>, #opts{json_escape=true}).
 
-check_string(<<C/utf8, Rest/binary>>) when C < 16#fdd0 ->
-    check_string(Rest);
-check_string(<<C/utf8, Rest/binary>>) when C > 16#fdef, C < 16#fffe ->
-    check_string(Rest);
-check_string(<<C/utf8, Rest/binary>>)
+clean_string(<<$\", Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $\">>, Opts);
+clean_string(<<$\\, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $\\>>, Opts);
+clean_string(<<$\b, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $b>>, Opts);
+clean_string(<<$\f, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $f>>, Opts);
+clean_string(<<$\n, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $n>>, Opts);
+clean_string(<<$\r, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $r>>, Opts);
+clean_string(<<$\t, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $t>>, Opts);
+clean_string(<<$/, Rest/binary>>, Acc, Opts=#opts{json_escape=true, escape_forward_slash=true}) ->
+    clean_string(Rest, <<Acc/binary, $\\, $/>>, Opts);
+clean_string(<<16#2028/utf8, Rest/binary>>, Acc, Opts=#opts{json_escape=true, no_jsonp_escapes=true}) ->
+    clean_string(Rest, <<Acc/binary, 16#2028/utf8>>, Opts);
+clean_string(<<16#2029/utf8, Rest/binary>>, Acc, Opts=#opts{json_escape=true, no_jsonp_escapes=true}) ->
+    clean_string(Rest, <<Acc/binary, 16#2029/utf8>>, Opts);
+clean_string(<<16#2028/utf8, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, (json_escape_sequence(16#2028))/binary>>, Opts);
+clean_string(<<16#2029/utf8, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
+    clean_string(Rest, <<Acc/binary, (json_escape_sequence(16#2029))/binary>>, Opts);
+clean_string(<<C/utf8, Rest/binary>>, Acc, Opts=#opts{json_escape=true}) when C < 32 ->
+    clean_string(Rest, <<Acc/binary, (json_escape_sequence(C))/binary>>, Opts);
+clean_string(<<C/utf8, Rest/binary>>, Acc, Opts) when C < 16#fdd0 ->
+    clean_string(Rest, <<Acc/binary, C/utf8>>, Opts);
+clean_string(<<C/utf8, Rest/binary>>, Acc, Opts) when C > 16#fdef, C < 16#fffe ->
+    clean_string(Rest, <<Acc/binary, C/utf8>>, Opts);
+clean_string(<<C/utf8, Rest/binary>>, Acc, Opts) 
         when C > 16#ffff andalso
             C =/= 16#1fffe andalso C =/= 16#1ffff andalso
             C =/= 16#2fffe andalso C =/= 16#2ffff andalso
@@ -135,46 +153,18 @@ check_string(<<C/utf8, Rest/binary>>)
             C =/= 16#efffe andalso C =/= 16#effff andalso
             C =/= 16#ffffe andalso C =/= 16#fffff andalso
             C =/= 16#10fffe andalso C =/= 16#10ffff ->
-    check_string(Rest);
-check_string(<<>>) -> true;
-check_string(<<_, _/binary>>) -> false.
-
-
-clean_string(<<C/utf8, Rest/binary>>, Acc) when C < 16#fdd0 ->
-    clean_string(Rest, <<Acc/binary, C/utf8>>);
-clean_string(<<C/utf8, Rest/binary>>, Acc) when C > 16#fdef, C < 16#fffe ->
-    clean_string(Rest, <<Acc/binary, C/utf8>>);
-clean_string(<<C/utf8, Rest/binary>>, Acc) 
-        when C > 16#ffff andalso
-            C =/= 16#1fffe andalso C =/= 16#1ffff andalso
-            C =/= 16#2fffe andalso C =/= 16#2ffff andalso
-            C =/= 16#3fffe andalso C =/= 16#3ffff andalso
-            C =/= 16#4fffe andalso C =/= 16#4ffff andalso
-            C =/= 16#5fffe andalso C =/= 16#5ffff andalso
-            C =/= 16#6fffe andalso C =/= 16#6ffff andalso
-            C =/= 16#7fffe andalso C =/= 16#7ffff andalso
-            C =/= 16#8fffe andalso C =/= 16#8ffff andalso
-            C =/= 16#9fffe andalso C =/= 16#9ffff andalso
-            C =/= 16#afffe andalso C =/= 16#affff andalso
-            C =/= 16#bfffe andalso C =/= 16#bffff andalso
-            C =/= 16#cfffe andalso C =/= 16#cffff andalso
-            C =/= 16#dfffe andalso C =/= 16#dffff andalso
-            C =/= 16#efffe andalso C =/= 16#effff andalso
-            C =/= 16#ffffe andalso C =/= 16#fffff andalso
-            C =/= 16#10fffe andalso C =/= 16#10ffff ->
-    clean_string(Rest, <<Acc/binary, C/utf8>>);
+    clean_string(Rest, <<Acc/binary, C/utf8>>, Opts);
 %% surrogates
-clean_string(<<237, X, _, Rest/binary>>, Acc) when X >= 160 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<237, X, _, Rest/binary>>, Acc, Opts=#opts{loose_unicode=true}) when X >= 160 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>, Opts);
 %% private use noncharacters
-clean_string(<<239, 183, X, Rest/binary>>, Acc) when X >= 143, X =< 175 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<239, 183, X, Rest/binary>>, Acc, Opts=#opts{loose_unicode=true}) when X >= 143, X =< 175 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>, Opts);
 %% u+fffe and u+ffff
-clean_string(<<239, 191, X, Rest/binary>>, Acc) when X == 190; X == 191 ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
+clean_string(<<239, 191, X, Rest/binary>>, Acc, Opts=#opts{loose_unicode=true}) when X == 190; X == 191 ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>, Opts);
 %% the u+Xfffe and u+Xffff noncharacters
-clean_string(<<X, Y, 191, Z, Rest/binary>>, Acc)
-        when (
+clean_string(<<X, Y, 191, Z, Rest/binary>>, Acc, Opts=#opts{loose_unicode=true}) when (
             (X == 240 andalso Y == 159) orelse
             (X == 240 andalso Y == 175) orelse
             (X == 240 andalso Y == 191) orelse
@@ -184,12 +174,26 @@ clean_string(<<X, Y, 191, Z, Rest/binary>>, Acc)
             ) orelse
             (X == 244 andalso Y == 143)
         ) andalso (Z == 190 orelse Z == 191) ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-clean_string(<<_, Rest/binary>>, Acc) ->
-    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>);
-clean_string(<<>>, Acc) -> Acc.
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>, Opts);
+clean_string(<<_, Rest/binary>>, Acc, Opts=#opts{loose_unicode=true}) ->
+    clean_string(Rest, <<Acc/binary, 16#fffd/utf8>>, Opts);
+clean_string(<<>>, Acc, _) -> Acc;
+clean_string(Bin, _Acc, Opts) -> erlang:error(badarg, [Bin, Opts]).
     
+    
+%% convert a codepoint to it's \uXXXX equiv.
+json_escape_sequence(X) ->
+    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
+    unicode:characters_to_binary([$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))]).
 
+
+to_hex(10) -> $a;
+to_hex(11) -> $b;
+to_hex(12) -> $c;
+to_hex(13) -> $d;
+to_hex(14) -> $e;
+to_hex(15) -> $f;
+to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").

@@ -39,7 +39,7 @@
 -spec to_json(Source::any(), Opts::opts()) -> binary().
     
 to_json(Source, Opts) when is_list(Opts) ->
-    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
+    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts([json_escape] ++ Opts)))(Source).
 
 
 -spec format(Source::binary(), Opts::opts()) -> binary().
@@ -135,8 +135,8 @@ handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
 handle_event(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
 
 
-encode(string, String, Opts) ->
-    [?quote, jsx_utils:json_escape(String, Opts), ?quote];
+encode(string, String, _Opts) ->
+    [?quote, String, ?quote];
 encode(literal, Literal, _Opts) ->
     erlang:atom_to_list(Literal);
 encode(integer, Integer, _Opts) ->

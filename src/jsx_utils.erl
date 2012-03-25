@@ -49,6 +49,8 @@ parse_opts([no_jsonp_escapes|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{no_jsonp_escapes=true});
 parse_opts([comments|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{comments=true});
+parse_opts([json_escape|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{json_escape=true});
 parse_opts(_, _) ->
     {error, badarg}.
 
@@ -60,7 +62,8 @@ valid_flags() ->
         explicit_end,
         single_quotes,
         no_jsonp_escapes,
-        comments
+        comments,
+        json_escape
     ].
 
 
