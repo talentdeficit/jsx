@@ -34,8 +34,14 @@
 -type opts() :: list().
 
 
--spec to_term(Source::(binary() | list()), Opts::opts()) ->
-    list({binary(), any()}).
+-spec to_term(Source::binary(), Opts::opts()) -> list({binary(), any()})
+    | list(any())
+    | true
+    | false
+    | null
+    | integer()
+    | float()
+    | binary().
     
 to_term(Source, Opts) when is_list(Opts) ->
     (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
