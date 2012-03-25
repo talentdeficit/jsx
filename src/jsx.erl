@@ -60,11 +60,8 @@ format(Source) -> format(Source, []).
 format(Source, Opts) -> jsx_to_json:format(Source, Opts).
 
 
--spec to_term(Source::binary()) ->
-    list({binary(), any()}).
--spec to_term(Source::binary(), Opts::jsx_to_term:opts()) ->
-    list({binary(), any()}).
-
+-spec to_term(Source::binary()) -> jsx_to_term:json_value().
+-spec to_term(Source::binary(), Opts::jsx_to_term:opts()) -> jsx_to_term:json_value().
 
 to_term(Source) -> to_term(Source, []).
 

@@ -33,9 +33,16 @@
 
 -type opts() :: list().
 
+-type json_value() :: list({binary(), json_value()})
+    | list(json_value())
+    | true
+    | false
+    | null
+    | integer()
+    | float()
+    | binary().
 
--spec to_term(Source::(binary() | list()), Opts::opts()) ->
-    list({binary(), any()}).
+-spec to_term(Source::binary(), Opts::opts()) -> json_value().
     
 to_term(Source, Opts) when is_list(Opts) ->
     (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
