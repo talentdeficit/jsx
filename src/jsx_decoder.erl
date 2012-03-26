@@ -145,11 +145,11 @@ value(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
 value(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
     nu(Rest, Handler, Stack, Opts);
 value(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
-    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
+    negative(Rest, Handler, [[$-]|Stack], Opts);
 value(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
-    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
+    zero(Rest, Handler, [[$0]|Stack], Opts);
 value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
+    integer(Rest, Handler, [[S]|Stack], Opts);
 value(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
     object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
 value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
@@ -193,11 +193,11 @@ array(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
 array(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
     nu(Rest, Handler, Stack, Opts);
 array(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
-    negative(Rest, Handler, [?new_seq($-)|Stack], Opts);
+    negative(Rest, Handler, [[$-]|Stack], Opts);
 array(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
-    zero(Rest, Handler, [?new_seq($0)|Stack], Opts);
+    zero(Rest, Handler, [[$0]|Stack], Opts);
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [?new_seq(S)|Stack], Opts);
+    integer(Rest, Handler, [[S]|Stack], Opts);
 array(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
     object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
 array(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
@@ -259,7 +259,10 @@ partial_utf(<<X, Y, Z>>)
     true;
 partial_utf(_) -> false.
 
-
+string(<<32, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 32)|Stack], Opts);
+string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 33)|Stack], Opts);
 string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
@@ -269,6 +272,14 @@ string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
         [Acc|Stack] ->
             maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
     end;
+string(<<35, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Opts);
+string(<<36, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 36)|Stack], Opts);
+string(<<37, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 37)|Stack], Opts);
+string(<<38, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 38)|Stack], Opts);
 string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_quotes=true}) ->
     case S of
         [Acc, single_quote, key|Stack] ->
@@ -278,8 +289,182 @@ string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_q
         [Acc|Stack] ->
             string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
     end;
+string(<<40, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 40)|Stack], Opts);
+string(<<41, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 41)|Stack], Opts);
+string(<<42, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 42)|Stack], Opts);
+string(<<43, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 43)|Stack], Opts);
+string(<<44, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 44)|Stack], Opts);
+string(<<45, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 45)|Stack], Opts);
+string(<<46, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 46)|Stack], Opts);
+string(<<47, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 47)|Stack], Opts);
+string(<<48, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 48)|Stack], Opts);
+string(<<49, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 49)|Stack], Opts);
+string(<<50, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 50)|Stack], Opts);
+string(<<51, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 51)|Stack], Opts);
+string(<<52, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 52)|Stack], Opts);
+string(<<53, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 53)|Stack], Opts);
+string(<<54, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 54)|Stack], Opts);
+string(<<55, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 55)|Stack], Opts);
+string(<<56, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 56)|Stack], Opts);
+string(<<57, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 57)|Stack], Opts);
+string(<<58, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 58)|Stack], Opts);
+string(<<59, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 59)|Stack], Opts);
+string(<<60, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 60)|Stack], Opts);
+string(<<61, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 61)|Stack], Opts);
+string(<<62, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 62)|Stack], Opts);
+string(<<63, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 63)|Stack], Opts);
+string(<<64, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 64)|Stack], Opts);
+string(<<65, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 65)|Stack], Opts);
+string(<<66, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 66)|Stack], Opts);
+string(<<67, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 67)|Stack], Opts);
+string(<<68, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 68)|Stack], Opts);
+string(<<69, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 69)|Stack], Opts);
+string(<<70, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 70)|Stack], Opts);
+string(<<71, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 71)|Stack], Opts);
+string(<<72, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 72)|Stack], Opts);
+string(<<73, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 73)|Stack], Opts);
+string(<<74, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 74)|Stack], Opts);
+string(<<75, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 75)|Stack], Opts);
+string(<<76, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 76)|Stack], Opts);
+string(<<77, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 77)|Stack], Opts);
+string(<<78, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 78)|Stack], Opts);
+string(<<79, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 79)|Stack], Opts);
+string(<<80, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 80)|Stack], Opts);
+string(<<81, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 81)|Stack], Opts);
+string(<<82, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 82)|Stack], Opts);
+string(<<83, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 83)|Stack], Opts);
+string(<<84, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 84)|Stack], Opts);
+string(<<85, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 85)|Stack], Opts);
+string(<<86, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 86)|Stack], Opts);
+string(<<87, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 87)|Stack], Opts);
+string(<<88, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 88)|Stack], Opts);
+string(<<89, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 89)|Stack], Opts);
+string(<<90, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 90)|Stack], Opts);
+string(<<91, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 91)|Stack], Opts);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     escape(Rest, Handler, Stack, Opts);
+string(<<93, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 93)|Stack], Opts);
+string(<<94, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 94)|Stack], Opts);
+string(<<95, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 95)|Stack], Opts);
+string(<<96, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 96)|Stack], Opts);
+string(<<97, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 97)|Stack], Opts);
+string(<<98, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 98)|Stack], Opts);
+string(<<99, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 99)|Stack], Opts);
+string(<<100, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 100)|Stack], Opts);
+string(<<101, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 101)|Stack], Opts);
+string(<<102, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 102)|Stack], Opts);
+string(<<103, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 103)|Stack], Opts);
+string(<<104, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 104)|Stack], Opts);
+string(<<105, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 105)|Stack], Opts);
+string(<<106, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 106)|Stack], Opts);
+string(<<107, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 107)|Stack], Opts);
+string(<<108, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 108)|Stack], Opts);
+string(<<109, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 109)|Stack], Opts);
+string(<<110, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 110)|Stack], Opts);
+string(<<111, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 111)|Stack], Opts);
+string(<<112, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 112)|Stack], Opts);
+string(<<113, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 113)|Stack], Opts);
+string(<<114, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 114)|Stack], Opts);
+string(<<115, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 115)|Stack], Opts);
+string(<<116, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 116)|Stack], Opts);
+string(<<117, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 117)|Stack], Opts);
+string(<<118, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 118)|Stack], Opts);
+string(<<119, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 119)|Stack], Opts);
+string(<<120, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 120)|Stack], Opts);
+string(<<121, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 121)|Stack], Opts);
+string(<<122, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 122)|Stack], Opts);
+string(<<123, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 123)|Stack], Opts);
+string(<<124, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 124)|Stack], Opts);
+string(<<125, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 125)|Stack], Opts);
+string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
+string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
 %% things get dumb here. erlang doesn't properly restrict unicode non-characters
 %%   so you can't trust the codepoints it returns always
 %% the range 32..16#fdcf is safe, so allow that
