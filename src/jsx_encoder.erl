@@ -23,7 +23,7 @@
 
 -module(jsx_encoder).
 
--export([encoder/3, clean_string/1]).
+-export([encoder/3]).
 
 -spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
@@ -102,8 +102,6 @@ list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
-
-clean_string(Bin) -> clean_string(Bin, <<>>, #opts{json_escape=true}).
 
 clean_string(<<$\", Rest/binary>>, Acc, Opts=#opts{json_escape=true}) ->
     clean_string(Rest, <<Acc/binary, $\\, $\">>, Opts);
