@@ -1,4 +1,4 @@
-# <a name="introduction">jsx (v1.1)</a> #
+# <a name="introduction">jsx (v1.1.1)</a> #
 
 a sane [json][json] implementation for erlang, inspired by [yajl][yajl]
 
