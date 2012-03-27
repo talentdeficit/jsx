@@ -485,6 +485,9 @@ string(Bin, Handler, Stack, Opts) ->
 %% surrogates
 noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 160 ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% u+fffe and u+ffff for R14BXX
+noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 190; X == 191 ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
 %% bad utf8
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
