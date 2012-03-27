@@ -299,7 +299,7 @@ types:
 
 ## <a name="thanks">acknowledgements</a> ##
 
-jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides, alex kropivny, steve strong and michael truog
+jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides, alex kropivny, steve strong, michael truog and dmitry kolesnikov
 
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
