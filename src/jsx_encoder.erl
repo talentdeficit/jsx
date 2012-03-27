@@ -292,7 +292,7 @@ check([H|T], Opts, Acc) ->
 
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
-good() -> lists:seq(1, 16#d7ff) ++ lists:seq(16#e000, 16#ffff).
+good() -> lists:seq(1, 16#d7ff) ++ lists:seq(16#e000, 16#fffd).
             
 good_extended() -> lists:seq(16#100000, 16#10ffff).
 

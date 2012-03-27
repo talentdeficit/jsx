@@ -1265,7 +1265,7 @@ surrogates() -> lists:seq(16#d800, 16#dfff).
 
 control_characters() -> lists:seq(1, 31).
 
-good() -> [32, 33] ++ lists:seq(16#23, 16#5b) ++ lists:seq(16#5d, 16#d7ff) ++ lists:seq(16#e000, 16#ffff).
+good() -> [32, 33] ++ lists:seq(16#23, 16#5b) ++ lists:seq(16#5d, 16#d7ff) ++ lists:seq(16#e000, 16#fffd).
             
 good_extended() -> lists:seq(16#100000, 16#10ffff).
 
