@@ -246,7 +246,7 @@ decode(JSON, Flags) ->
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
-	catch error:badarg -> io:format("~p~n", [erlang:get_stacktrace()]), {error, badjson}
+	catch error:badarg -> {error, badjson}
 	end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->
