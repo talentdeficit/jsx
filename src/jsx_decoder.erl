@@ -259,6 +259,9 @@ partial_utf(<<X, Y, Z>>)
     true;
 partial_utf(_) -> false.
 
+
+%% explicitly whitelist ascii set for better efficiency (seriously, it's worth
+%%  almost a 20% increase)
 string(<<32, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 32)|Stack], Opts);
 string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
