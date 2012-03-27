@@ -76,15 +76,13 @@ when converting from erlang to json, numbers are represented with their shortest
 
 the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters, `"` and the escape character, `\`) and that are encoded in `utf8`
 
-this means some codepoints that are allowed in javascript strings are not accepted by the parser. the noncharacters are specifically disallowed. the range `u+fdd0` to `u+fdef` is reserved for internal implementation use by the unicode standard and codepoints of the form `u+Xfffe` and `u+Xffff` are reserved for error detection. strings containing these codepoints are generally assumed to be invalid or improper
-
-also disallowed are improperly paired surrogates. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
+the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
 
 json string escapes of the form `\uXXXX` will be converted to their equivalent codepoint during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec (like the two cases above) will not be
 
 in the interests of pragmatism, there is an option for looser parsing, see options below
 
-all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates and no non-characters
+all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates
 
 this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
