@@ -1,3 +1,0 @@
-{name, "naked_false"}.
-{jsx, [{literal,false},end_json]}.
-{json, "naked_false.json"}.

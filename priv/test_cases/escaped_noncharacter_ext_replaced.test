@@ -1,4 +1,0 @@
-{name, "escaped noncharacter (extended)"}.
-{jsx, [{string, <<16#fffd/utf8>>}, end_json]}.
-{json, "escaped_noncharacter_ext.json"}.
-{jsx_flags, [loose_unicode]}.

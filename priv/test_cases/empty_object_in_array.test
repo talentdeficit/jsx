@@ -1,0 +1,3 @@
+{name, "empty_object_in_array"}.
+{jsx, [start_array,start_object,end_object,end_array,end_json]}.
+{json, "empty_object_in_array.json"}.

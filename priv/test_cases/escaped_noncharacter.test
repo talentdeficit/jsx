@@ -1,3 +1,0 @@
-{name, "escaped noncharacter"}.
-{jsx, {error, badjson}}.
-{json, "escaped_noncharacter.json"}.

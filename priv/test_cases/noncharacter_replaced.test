@@ -1,4 +1,0 @@
-{name, "noncharacter replaced"}.
-{jsx, [{string,<<16#fffd/utf8>>},end_json]}.
-{json, "noncharacter_replaced.json"}.
-{jsx_flags, [loose_unicode]}.

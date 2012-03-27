@@ -1,0 +1,3 @@
+{name, "true"}.
+{jsx, [{literal, true},end_json]}.
+{json, "true.json"}.

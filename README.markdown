@@ -1,22 +1,201 @@
-## jsx (v1.0.2) ##
+# <a name="introduction">jsx (v1.1)</a> #
 
-a sane json implementation for erlang, inspired by [yajl][yajl]
+a sane [json][json] implementation for erlang, inspired by [yajl][yajl]
 
 copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx uses [rebar][rebar] and [meck][meck]
+jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suite
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
 
 
-## api ##
+## index ##
+
+* [introduction](#intro)
+* [quickstart](#quickstart)
+* [the api](#api)
+  - [json <-> erlang mapping](#mapping)
+  - [options](#options)
+  - [incomplete input](#incompletes)
+  - [the encoder and decoder](#core)
+  - [handler callbacks](#handler)
+  - [converting json to erlang and vice versa](#convert)
+  - [formatting and minifying json text](#format)
+  - [verifying json and terms are valid input](#verify)
+* [acknowledgments](#thanks)
 
 
-**converting json to erlang terms**
 
-parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details below)
+## <a name="quickstart">quickstart</a> ##
+
+to build the library: `rebar compile`
+
+to convert a utf8 binary containing a json string into an erlang term: `jsx:to_term(JSON)`
+
+to convert an erlang term into a utf8 binary containing a json string: `jsx:to_json(Term)`
+
+to check if a binary is valid json: `jsx:is_json(JSON)`
+
+to check if a term is valid json: `jsx:is_term(Term)`
+
+to minify a json string: `jsx:format(JSON)`
+
+
+## <a name="api">api</a> ##
+
+
+### <a name="mapping">json &lt;-> erlang mapping</a> ###
+
+**json**                        | **erlang**
+--------------------------------|--------------------------------
+`number`                        | `integer()` and `float()`
+`string`                        | `binary()`
+`true`, `false` and `null`      | `true`, `false` and `null`
+`array`                         | `[]` and `[JSON]`
+`object`                        | `[{}]` and `[{binary() OR atom(), JSON}]`
+
+#### json ####
+
+json must be a binary encoded in `utf8`. if it's invalid `utf8` or invalid json, it probably won't parse without errors. there are a few non-standard extensions to the parser available that may change that, they are detailed in the options section below
+
+jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">`, `<<"true">>` and `<<"\"hello world\"">>` without problems
+
+#### erlang ####
+
+only the erlang terms in the table above are supported. non supported terms result in badarg errors. jsx is never going to support erlang lists instead of binaries, mostly because you can't discriminate between lists of integers and strings without hinting, and hinting is silly
+
+#### numbers ####
+
+javascript and thus json represent all numeric values with floats. as this is woefully insufficient for many uses, **jsx**, just like erlang, supports bigints. whenever possible, this library will interpret json numbers that look like integers as integers. other numbers will be converted to erlang's floating point type, which is nearly but not quite iee754. negative zero is not representable in erlang (zero is unsigned in erlang and `0` is equivalent to `-0`) and will be interpreted as regular zero. numbers not representable are beyond the concern of this implementation, and will result in parsing errors
+
+when converting from erlang to json, numbers are represented with their shortest representation that will round trip without loss of precision. this means that some floats may be superficially dissimilar (although functionally equivalent). for example, `1.0000000000000001` will be represented by `1.0`
+
+#### strings ####
+
+the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters, `"` and the escape character, `\`) and that are encoded in `utf8`
+
+the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
+
+json string escapes of the form `\uXXXX` will be converted to their equivalent codepoint during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec (like the two cases above) will not be
+
+in the interests of pragmatism, there is an option for looser parsing, see options below
+
+all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates
+
+this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
+
+#### true, false and null ####
+
+the json primitives `true`, `false` and `null` are represented by the erlang atoms `true`, `false` and `null`. surprise
+
+#### arrays ####
+
+json arrays are represented with erlang lists of json values as described in this section
+
+#### objects ####
+
+json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties so all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers). values should be valid json values
+
+
+### <a name="options">options</a> ###
+
+jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms and have no value. functions may have additional options beyond these, see individual function documentation for details
+
+#### `loose_unicode` ####
+
+json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. if this option is present attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec. this applies both to malformed unicode and disallowed codepoints
+
+#### `escape_forward_slash` ####
+
+json strings are escaped according to the json spec. this means forward slashes are never escaped. unfortunately, a microsoft implementation of json uses escaped forward slashes in json formatted date strings. without this option it is impossible to get date strings that some microsoft tools understand
+
+#### `explicit_end` ####
+
+this option treats all exhausted inputs as incomplete, as explained below. the parser will not attempt to return a final state until the function is called with the value `end_stream`
+
+#### `single_quotes` ####
+ 
+some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to deliminate keys and strings. this option allows json containing single quotes as structural (deliminator) characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings deliminated by single quotes. the parser will never emit json with keys or strings deliminated by single quotes
+
+#### `no_jsonp_escapes` ####
+
+javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `"\u2028"` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
+
+#### `comments` ####
+
+json has no official comments but some parsers allow c style comments. this flag allows comments (both `// ...` and `/* ... */` style) anywhere whitespace is allowed
+
+
+### <a name="incompletes">incomplete input</a> ###
+
+jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor or to parse large json texts without needing to keep them entirely in memory
+
+however, it is important to recognize that jsx is greedy by default. if input is exhausted and the json text is not unambiguously incomplete jsx will consider the parsing complete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour, see above
+
+
+### <a name="core">the encoder and decoder</a> ###
+
+jsx is built on top of two finite state automata, one that handles json texts and one that handles erlang terms. both take a callback module as an argument that acts similar to a fold over a list of json 'events'. these events and the handler module's callbacks are detailed in the next section
+
+`jsx:decoder/3` and `jsx:encoder/3` are the entry points for the decoder and encoder, respectively
+
+`decoder(Handler, InitialState, Opts)` -> `Fun((JSON) -> Any)`
+
+`encoder(Handler, InitialState, Opts)` -> `Fun((Term) -> Any)`
+
+types:
+
+- `Handler` = `atom()`, should be the name of a callback module, see below
+- `InitialState` = `term()`, passed as is to `Handler:init/1`
+- `Opts` = see above
+- `JSON` = `utf8` encoded json text
+- `Term` = an erlang term as specified above in the mapping section
+- `Any` = `term()`
+
+decoder returns an anonymous function that handles binary json input and encoder returns an anonymous function that handles erlang term input. these are safe to reuse for multiple inputs
+
+
+### <a name="handler">handler callbacks</a> ###
+
+`Handler` should export the following pair of functions
+
+`Handler:init(InitialState)` -> `State`
+
+`Handler:handle_event(Event, State)` -> `NewState`
+
+types:
+
+- `InitialState`, `State`, `NewState` = any erlang term
+- `Event` =
+  * `start_object`
+  * `end_object`
+  * `start_array`
+  * `end_array`
+  * `end_json`
+  * `{key, binary()}`
+  * `{string, binary()}`
+  * `{integer, integer()}`
+  * `{float, float()}`
+  * `{literal, true}`
+  * `{literal, false}`
+  * `{literal, null}`
+
+`init/1` is called with the `initialState` argument from `decoder/3` or `encoder/3` and should take care of any initialization your handler requires and return a new state
+
+`handle_event/2` is called for each `Event` emitted by the decoder/encoder with the output of the previous `handle_event/2` call (or `init/1` call, if `handle_event/2` has not yet been called)
+
+the event `end_json` will always be the last event emitted, you should take care of any cleanup in `handle_event/2` when encountering `end_json`. the state returned from this call will be returned as the final result of the anonymous function
+
+both `key` and `string` are `utf8` encoded binaries with all escaped values converted into the appropriate codepoints
+
+
+### <a name="convert">converting json to erlang and vice versa</a> ###
+
+#### converting json to erlang terms ####
+
+`to_term` parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details above)
 
 `to_term(JSON)` -> `Term`
 
@@ -24,31 +203,22 @@ parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json
 
 types:
 
-* `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
-* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
-* `Label` = `binary()` | `atom()`
-* `Fun` = `fun(JSON)` -> `Term`
-* `Opts` = `[]` | `[Opt]`
+* `JSON` = as above in the mapping section
+* `Term` = as above in the mapping section
+* `Opts` = as above in the opts section, but see also additional opts below
 * `Opt` =
-    - `loose_unicode`
     - `labels`
     - `{labels, Label}`
     - `Label` =
         * `binary`
         * `atom`
         * `existing_atom`
-    - `explicit_end`
-
-`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
 
 the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
 
-see the note below about streaming mode for details of `explicit_end`
-
-**converting erlang terms to json**
+#### converting erlang terms to json ####
     
-produces a JSON text from an erlang term (see json <-> erlang mapping details below)
+`to_json` parses an erlang term and produces a JSON text (see json <-> erlang mapping details below)
 
 `to_json(Term)` -> `JSON`
 
@@ -56,26 +226,23 @@ produces a JSON text from an erlang term (see json <-> erlang mapping details be
 
 types:
         
-* `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
-* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
-* `Label` = `binary()` | `atom()`
-* `Opts` = `[]` | `[Opt]`
+* `JSON` = as above in the mapping section
+* `Term` = as above in the mapping section
+* `Opts` = as above in the opts section, but see also additional opts below
 * `Opt` =
     - `space`
     - `{space, N}`
     - `indent`
     - `{indent, N}`
-    - `escape_forward_slash`
 
 the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
 the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
-      
-if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not normally required but is necessary for compatibility with microsoft's json date format
 
 
-**formatting json texts**
+### <a name="format">formatting and minifying json text</a> ###
+
+#### formatting json texts ####
     
 produces a JSON text from JSON text, reformatted
 
@@ -85,33 +252,24 @@ produces a JSON text from JSON text, reformatted
 
 types:
 
-* `JSON` = `binary()`
-* `Term` = `[]` | `[{}]` | `[Value]` | `[{Label, Value}]` | `{incomplete, Fun}`
-* `Value` = `binary()` | `integer()` | `float()` | `true` | `false` | `null`
-* `Label` = `binary()` | `atom()`
-* `Fun` = `fun(JSON)` -> `Term`
-* `Opts` = `[]` | `[Opt]`
+* `JSON` = as above in the mapping section
+* `Opts` = as above in the opts section, but see also additional opts below
 * `Opt` =
     - `space`
     - `{space, N}`
     - `indent`
     - `{indent, N}`
-    - `loose_unicode`
-    - `escape_forward_slash`
-    - `explicit_end`
-
-`JSON` SHOULD be a utf8 encoded binary. if the option `loose_unicode` is present attempts are made to replace invalid codepoints with `u+FFFD` but badly encoded binaries may, in either case, result in `badarg` errors 
 
 the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
 the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
 
-if the option `escape_forward_slash` is enabled, `$/` is escaped. this is not normally required but is necessary for compatibility with microsoft's json date format
-
-see the note below about streaming mode for details of `explicit_end`
+calling `format` with no options results in minified json text
 
 
-**verifying json texts**
+### <a name="verify">verifying json and terms are valid input</a> ###
+
+#### verifying json texts ####
     
 returns true if input is a valid JSON text, false if not
 
@@ -122,81 +280,30 @@ returns true if input is a valid JSON text, false if not
 types:
 
 * `MaybeJSON` = `any()`
-* `Opts` = `[]` | `[Opt]`
-* `Opt` =
-    - `loose_unicode`
-    - `explicit_end`
-
-see `json_to_term` for details of options
+* `Opts` = as above
 
 
-**verifying json texts**
+#### verifying terms ####
     
 returns true if input is a valid erlang term that represents a JSON text, false if not
 
 `is_term(MaybeJSON)` -> `true` | `false`
 
+`is_term(MaybeJSON, Opts)` -> `true` | `false`
+
 types:
 
 * `MaybeJSON` = `any()`
+* `Opts` = as above
 
 
-**streaming mode**
+## <a name="thanks">acknowledgements</a> ##
 
-this implementation is interruptable and reentrant and may be used to incrementally parse json texts. it's greedy and will exhaust input, returning when the stream buffer is empty. if the json text is so far valid, but incomplete (or if the option `explicit_end` has been selected), `{incomplete, Fun}` will be returned. `Fun/1` may be called with additional input (or the atom `end_stream` to force the end of parsing)
+jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides, alex kropivny, steve strong, michael truog and dmitry kolesnikov
 
-`explicit_end` is of use when parsing bare numbers (like `123` or `-0.987` for example) as they may have no unambiguous end when encountered in a stream. it is also of use when reading from a socket or file and there may be unprocessed white space (or errors) left in the stream
-
-
-## json <-> erlang ##
-
-**json**                        | **erlang**
---------------------------------|--------------------------------
-`number`                        | `integer()` OR `float()`
-`string`                        | `binary()`
-`true`, `false` and `null`      | `true`, `false` and `null`
-`array`                         | `[]` OR `[JSON]`
-`object`                        | `[{}]` OR `[{binary(), JSON}]`
-
-**json**
-
-json must be encoded in `utf8`. if it's invalid `utf8`, it probably won't parse without errors. one optional exception is made for json strings that are otherwise `utf8`, see under `strings` below.
-
-**numbers**
-
-javascript and thus json represent all numeric values with floats. as this is woefully insufficient for many uses, **jsx**, just like erlang, supports bigints. whenever possible, this library will interpret json numbers that look like integers as integers. other numbers will be converted to erlang's floating point type, which is nearly but not quite iee754. negative zero is not representable in erlang (zero is unsigned in erlang and `0` is equivalent to `-0`) and will be interpreted as regular zero. numbers not representable are beyond the concern of this implementation, and will result in parsing errors
-
-when converting from erlang to json, numbers are represented with their shortest representation that will round trip without loss of precision. this means that some floats may be superficially dissimilar (although functionally equivalent). for example, `1.0000000000000001` will be represented by `1.0`
-
-**strings**
-
-the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters and quotes) and that are encoded in `utf8`. in the interests of pragmatism, however, the parser option `loose_unicode` attempts to replace invalid `utf8` sequences with the replacement codepoint `u+fffd` when possible
-
-all erlang strings are represented by *valid* `utf8` encoded binaries
-
-this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
-
-**true, false and null**
-
-the json primitives `true`, `false` and `null` are represented by the erlang atoms `true`, `false` and `null`. surprise
-
-**arrays**
-
-json arrays are represented with erlang lists of json values as described in this document
-
-**objects**
-
-json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties. all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers)
-
-
-## acknowledgements ##
-
-paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides and alex kropivny have all contributed to the development of jsx, whether they know it or not
-
-
+[json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
 [rebar]: https://github.com/basho/rebar
 [meck]: https://github.com/eproxus/meck
-[json]: http://json.org
 [rfc4627]: http://tools.ietf.org/html/rfc4627

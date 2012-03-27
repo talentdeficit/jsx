@@ -2,7 +2,6 @@
 {jsx, [start_array,
  {string,<<"\"">>},
  {string,<<"\\">>},
- {string,<<"/">>},
  {string,<<"\b">>},
  {string,<<"\f">>},
  {string,<<"\n">>},

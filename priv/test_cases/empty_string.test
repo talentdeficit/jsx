@@ -1,0 +1,3 @@
+{name, "empty_string"}.
+{jsx, [{string, <<>>},end_json]}.
+{json, "empty_string.json"}.

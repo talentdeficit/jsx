@@ -77,7 +77,6 @@ format(Source, Opts) -> jsx_to_json:format(Source, Opts).
     | float()
     | binary().
 
-
 to_term(Source) -> to_term(Source, []).
 
 to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
@@ -134,6 +133,58 @@ encoder_decoder_equiv_test_() ->
         }
     ].
 
+
+single_quotes_test_() ->
+    [
+        {"single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key':true}">>, [single_quotes]),
+                [{<<"key">>, true}]
+            )
+        },
+        {"multiple single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key':true, 'another key':true}">>, [single_quotes]),
+                [{<<"key">>, true}, {<<"another key">>, true}]
+            )
+        },
+        {"nested single quoted keys",
+            ?_assertEqual(
+                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quotes]),
+                [{<<"key">>, [{<<"key">>, true}, {<<"another key">>, true}]}]
+            )
+        },
+        {"single quoted string",
+            ?_assertEqual(
+                to_term(<<"['string']">>, [single_quotes]),
+                [<<"string">>]
+            )
+        },
+        {"single quote in double quoted string",
+            ?_assertEqual(
+                to_term(<<"[\"a single quote: '\"]">>, [single_quotes]),
+                [<<"a single quote: '">>]
+            )
+        },
+        {"escaped single quote in single quoted string",
+            ?_assertEqual(
+                to_term(<<"['a single quote: \\'']">>, [single_quotes]),
+                [<<"a single quote: '">>]
+            )
+        },
+        {"escaped single quote when single quotes are disallowed",
+            ?_assertError(
+                badarg,
+                to_term(<<"[\"a single quote: \\'\"]">>)
+            )
+        },
+        {"mismatched quotes",
+            ?_assertError(
+                badarg,
+                to_term(<<"['mismatched\"]">>, [single_quotes])
+            )
+        }
+    ].
 
 
 %% test handler
@@ -209,7 +260,7 @@ decode(JSON, Flags) ->
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
-	catch error:badarg -> io:format("~p~n", [erlang:get_stacktrace()]), {error, badjson}
+	catch error:badarg -> {error, badjson}
 	end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->
