@@ -468,35 +468,7 @@ string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
 string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
-%% things get dumb here. erlang doesn't properly restrict unicode non-characters
-%%   so you can't trust the codepoints it returns always
-%% the range 32..16#fdcf is safe, so allow that
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
-        when ?is_noncontrol(S), S < 16#fdd0 ->
-    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
-%% the range 16#fdf0..16#fffd is also safe
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
-        when S > 16#fdef, S < 16#fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
-%% yes, i think it's insane too
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
-        when S > 16#ffff andalso
-            S =/= 16#1fffe andalso S =/= 16#1ffff andalso
-            S =/= 16#2fffe andalso S =/= 16#2ffff andalso
-            S =/= 16#3fffe andalso S =/= 16#3ffff andalso
-            S =/= 16#4fffe andalso S =/= 16#4ffff andalso
-            S =/= 16#5fffe andalso S =/= 16#5ffff andalso
-            S =/= 16#6fffe andalso S =/= 16#6ffff andalso
-            S =/= 16#7fffe andalso S =/= 16#7ffff andalso
-            S =/= 16#8fffe andalso S =/= 16#8ffff andalso
-            S =/= 16#9fffe andalso S =/= 16#9ffff andalso
-            S =/= 16#afffe andalso S =/= 16#affff andalso
-            S =/= 16#bfffe andalso S =/= 16#bffff andalso
-            S =/= 16#cfffe andalso S =/= 16#cffff andalso
-            S =/= 16#dfffe andalso S =/= 16#dffff andalso
-            S =/= 16#efffe andalso S =/= 16#effff andalso
-            S =/= 16#ffffe andalso S =/= 16#fffff andalso
-            S =/= 16#10fffe andalso S =/= 16#10ffff ->
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_noncontrol(S) ->
     string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
 string(Bin, Handler, Stack, Opts) ->
     case partial_utf(Bin) of 
@@ -509,35 +481,13 @@ string(Bin, Handler, Stack, Opts) ->
     end.
     
 %% we don't need to guard against partial utf here, because it's already taken
-%%   care of in string. theoretically, the last clause of noncharacter/4 is
-%%   unreachable
-%% non-characters erlang doesn't recognize as non-characters
-noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
-        when ?is_noncontrol(S) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% u+fffe and u+ffff
-noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) 
-        when X == 190; X == 191 ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%%   care of in string
 %% surrogates
 noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 160 ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-noncharacter(<<X, Y, 191, Z, Rest/binary>>, Handler, [Acc|Stack], Opts)
-        when (
-            (X == 240 andalso Y == 159) orelse
-            (X == 240 andalso Y == 175) orelse
-            (X == 240 andalso Y == 191) orelse
-            (
-                (X == 241 orelse X == 242 orelse X == 243) andalso
-                (Y == 143 orelse Y == 159 orelse Y == 175 orelse Y == 191)
-            ) orelse
-            (X == 244 andalso Y == 143)
-        ) andalso (Z == 190 orelse Z == 191) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% bad utf8
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-noncharacter(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
 
 
 escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
@@ -1215,34 +1165,12 @@ comments_test_() ->
         )}
     ].
 
-
 escape_forward_slash_test_() ->
     [
         {"escape forward slash test", ?_assertEqual(
             decode(<<"[ \" \/ \" ]">>, [escape_forward_slash]),
             [start_array, {string, <<" / ">>}, end_array, end_json]
         )}
-    ].
-
-
-noncharacters_test_() ->
-    [
-        {"noncharacters - badjson",
-            ?_assertEqual(check_bad(noncharacters()), [])
-        },
-        {"noncharacters - replaced",
-            ?_assertEqual(check_replaced(noncharacters()), [])
-        }
-    ].
-
-extended_noncharacters_test_() ->
-    [
-        {"extended noncharacters - badjson",
-            ?_assertEqual(check_bad(extended_noncharacters()), [])
-        },
-        {"extended noncharacters - replaced",
-            ?_assertEqual(check_replaced(extended_noncharacters()), [])
-        }
     ].
 
 surrogates_test_() ->
@@ -1259,16 +1187,6 @@ control_test_() ->
     [
         {"control characters - badjson",
             ?_assertEqual(check_bad(control_characters()), [])
-        }
-    ].
-
-reserved_test_() ->
-    [
-        {"reserved noncharacters - badjson",
-            ?_assertEqual(check_bad(reserved_space()), [])
-        },
-        {"reserved noncharacters - replaced",
-            ?_assertEqual(check_replaced(reserved_space()), [])
         }
     ].
     
@@ -1359,34 +1277,15 @@ decode(JSON, Opts) ->
     catch
         error:badarg -> {error, badjson}
     end.
-    
 
-
-noncharacters() -> lists:seq(16#fffe, 16#ffff).
-    
-extended_noncharacters() ->
-    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
-        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
-        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
-        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
-        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
-        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
-        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
-        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
 control_characters() -> lists:seq(1, 31).
 
-reserved_space() -> lists:seq(16#fdd0, 16#fdef).
-
-good() -> [32, 33]
-            ++ lists:seq(16#23, 16#5b)
-            ++ lists:seq(16#5d, 16#d7ff)
-            ++ lists:seq(16#e000, 16#fdcf)
-            ++ lists:seq(16#fdf0, 16#fffd).
+good() -> [32, 33] ++ lists:seq(16#23, 16#5b) ++ lists:seq(16#5d, 16#d7ff) ++ lists:seq(16#e000, 16#ffff).
             
-good_extended() -> lists:seq(16#100000, 16#10fffd).
+good_extended() -> lists:seq(16#100000, 16#10ffff).
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
