@@ -130,6 +130,7 @@ decoder(Handler, State, Opts) ->
 -define(new_seq(C), [C]).
 
 -define(acc_seq(Seq, C), [C] ++ Seq).
+-define(acc_seq(Seq, C, D), [C, D] ++ Seq).
 
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
 
@@ -512,7 +513,7 @@ escape(<<?doublequote, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 escape(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Opts = #opts{single_quotes=true}) ->
     string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Opts);
 escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
-    escaped_unicode(Rest, Handler, [?new_seq()|Stack], Opts);
+    escaped_unicode(Rest, Handler, Stack, Opts);
 escape(<<>>, Handler, Stack, Opts) ->
     ?incomplete(escape, <<>>, Handler, Stack, Opts);
 escape(Bin, Handler, Stack, Opts) ->
@@ -521,96 +522,74 @@ escape(Bin, Handler, Stack, Opts) ->
 
 %% this code is ugly and unfortunate, but so is json's handling of escaped 
 %%   unicode codepoint sequences.
-escaped_unicode(<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts) 
-        when ?is_hex(D) ->
+escaped_unicode(<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Opts)
+        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        %% high surrogate, we need a low surrogate next
+        %% high surrogate, dispatch to low surrogate
         X when X >= 16#d800, X =< 16#dbff ->
             low_surrogate(Rest, Handler, [X, Acc|Stack], Opts)
-        %% non-characters, you're not allowed to exchange these
-        ; X when X == 16#fffe; X == 16#ffff; X >= 16#fdd0, X =< 16#fdef ->
+        %% low surrogate, illegal in this position
+        ; X when X >= 16#dc00, X =< 16#dfff ->
             case Opts#opts.loose_unicode of
-                true ->
-                    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
-                ; false ->    
-                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], Acc|Stack], Opts])
+                true -> string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
+                ; false -> ?error([<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Opts])
             end
         %% anything else
-        ; X ->
-            string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts)
+        ; X -> string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts)
     end;
-escaped_unicode(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
-        when ?is_hex(S) ->
-    escaped_unicode(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
-escaped_unicode(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(escaped_unicode, <<>>, Handler, Stack, Opts);
 escaped_unicode(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
-
-
-low_surrogate(<<?rsolidus, Rest/binary>>, Handler, Stack, Opts) ->
-    low_surrogate_u(Rest, Handler, Stack, Opts);
-%% not an escaped codepoint, our high codepoint is illegal. dispatch back to
-%%   string to handle
-low_surrogate(<<S, Rest/binary>> = Bin, Handler, [High, String|Stack], Opts) ->
-    case Opts#opts.loose_unicode of
-        true ->
-            string(Bin, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
-        ; false ->
-            ?error([<<S, Rest/binary>>, Handler, [High, String|Stack], Opts])
-    end;
-low_surrogate(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(low_surrogate, <<>>, Handler, Stack, Opts);
-low_surrogate(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
-
-
-low_surrogate_u(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
-    low_surrogate_v(Rest, Handler, [?new_seq()|Stack], Opts);
-low_surrogate_u(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(low_surrogate_u, <<>>, Handler, Stack, Opts);
-%% not a low surrogate, dispatch back to string to handle, including the
-%%   rsolidus we parsed previously
-low_surrogate_u(Bin, Handler, [High, String|Stack], Opts) ->
-    case Opts#opts.loose_unicode of
-        true ->
-            string(<<?rsolidus, Bin/binary>>, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
-        ; false ->
-            ?error([Bin, Handler, [High, String|Stack], Opts])
+    case is_partial_escape(Bin) of
+        true -> ?incomplete(escaped_unicode, Bin, Handler, Stack, Opts)
+        ; false -> ?error([Bin, Handler, Stack, Opts])
     end.
 
 
-low_surrogate_v(<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts) 
-        when ?is_hex(D) ->
+is_partial_escape(<<A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
+is_partial_escape(<<A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
+is_partial_escape(<<A>>) when ?is_hex(A) -> true;
+is_partial_escape(<<>>) -> true;
+is_partial_escape(_) -> false.
+
+
+low_surrogate(<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Opts)
+        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        X when X >= 16#dc00, X =< 16#dfff ->
-            V = surrogate_to_codepoint(High, X),
-            case V rem 16#10000 of Y when Y == 16#fffe; Y == 16#ffff ->
+        X when X >= 16#dc00, X =< 16#dfff -> 
+            Y = surrogate_to_codepoint(High, X),
+            case (Y =< 16#d800 orelse Y >= 16#e000) of
+                true -> string(Rest, Handler, [?acc_seq(Acc, Y)|Stack], Opts)
+                ; false ->
                     case Opts#opts.loose_unicode of
                         true ->
-                            string(Rest, Handler, [?acc_seq(String, 16#fffd)|Stack], Opts)
-                        ; false ->    
-                            ?error([<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts])
+                            string(Rest, Handler, [?acc_seq(Acc, 16#fffd, 16#fffd)|Stack], Opts)
+                        ; false ->
+                            ?error([<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Opts])
                     end
-                ; _ ->
-                    string(Rest, Handler, [?acc_seq(String, V)|Stack], Opts)
             end
-        %% not a low surrogate, bad bad bad
         ; _ ->
             case Opts#opts.loose_unicode of
-                true ->
-                    string(Rest, Handler, [?acc_seq(?acc_seq(String, 16#fffd), 16#fffd)|Stack], Opts)
-                ; false ->    
-                    ?error([<<D, Rest/binary>>, Handler, [[C,B,A], High, String|Stack], Opts])
+                true -> string(Rest, Handler, [?acc_seq(Acc, 16#fffd, 16#fffd)|Stack], Opts)
+                ; false -> ?error([<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Opts])
             end
     end;
-low_surrogate_v(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) 
-        when ?is_hex(S) ->
-    low_surrogate_v(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
-low_surrogate_v(<<>>, Handler, Stack, Opts) ->
-    ?incomplete(low_surrogate_v, <<>>, Handler, Stack, Opts);
-low_surrogate_v(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
+low_surrogate(Bin, Handler, [High, Acc|Stack], Opts) ->
+    case is_partial_low(Bin) of
+        true -> ?incomplete(low_surrogate, Bin, Handler, [High, Acc|Stack], Opts)
+        ; false ->
+            case Opts#opts.loose_unicode of
+                true -> string(Bin, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts)
+                ; false -> ?error([Bin, Handler, [High, Acc|Stack], Opts])
+            end
+    end.
+        
+
+is_partial_low(<<?rsolidus, $u, A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
+is_partial_low(<<?rsolidus, $u, A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
+is_partial_low(<<?rsolidus, $u, A>>) when ?is_hex(A) -> true;
+is_partial_low(<<?rsolidus, $u>>) -> true;
+is_partial_low(<<?rsolidus>>) -> true;
+is_partial_low(<<>>) -> true;
+is_partial_low(_) -> false.
 
 
 %% stole this from the unicode spec    
