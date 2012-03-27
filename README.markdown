@@ -8,7 +8,7 @@ jsx is released under the terms of the [MIT][MIT] license
 
 jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suite
 
-[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
+[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
 
 ## index ##
