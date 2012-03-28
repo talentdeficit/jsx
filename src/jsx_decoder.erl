@@ -489,9 +489,18 @@ noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 1
 %% u+fffe and u+ffff for R14BXX
 noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 190; X == 191 ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% bad utf8
+%% overlong and too short utf8 sequences
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 192, X =< 253 ->
+    string(strip_continuations(Rest), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% unexpected bytes
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
+
+
+%% strips continuation bytes after bad utf bytes, guards against both too short and overlong sequences
+strip_continuations(<<X, Rest/binary>>) when X >= 128, X =< 191 -> strip_continuations(Rest);
+strip_continuations(Rest) -> Rest.
+
 
 
 escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
