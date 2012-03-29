@@ -135,6 +135,10 @@ json escaping is lossy, it mutates the json string and repeated application can 
 
 during decoding, ignore unrecognized escape sequences and leave them as is in the stream
 
+#### `relax` ####
+
+relax is a synonym for `[loose_unicode, single_quotes, comments, ignore_bad_escapes]`
+
 
 ### <a name="incompletes">incomplete input</a> ###
 

@@ -52,9 +52,16 @@ parse_opts([comments|Rest], Opts) ->
 parse_opts([json_escape|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{json_escape=true});
 parse_opts([dirty_strings|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{json_escape=true});
+    parse_opts(Rest, Opts#opts{dirty_strings=true});
 parse_opts([ignore_bad_escapes|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{ignore_bad_escapes=true});
+parse_opts([relax|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{
+        loose_unicode = true,
+        single_quotes = true,
+        comments = true,
+        ignore_bad_escapes = true
+    });
 parse_opts(_, _) ->
     {error, badarg}.
 
@@ -69,7 +76,8 @@ valid_flags() ->
         comments,
         json_escape,
         dirty_strings,
-        ignore_bad_escapes
+        ignore_bad_escapes,
+        relax
     ].
 
 
