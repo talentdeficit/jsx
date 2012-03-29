@@ -1242,6 +1242,19 @@ bad_utf8_test_() ->
     ].
 
 
+ignore_bad_escapes_test_() ->
+    [
+        {"ignore unrecognized escape sequence", ?_assertEqual(
+            decode(<<"[\"\\x25\"]">>, [ignore_bad_escapes]),
+            [start_array, {string, <<"\\x25">>}, end_array, end_json]
+        )},
+        {"ignore invalid \\uXXXX escape sequence", ?_assertEqual(
+            decode(<<"[\"\\uFFFF\"]">>, [ignore_bad_escapes]),
+            [start_array, {string, <<"\\uFFFF">>}, end_array, end_json]
+        )}
+    ].
+
+
 comments_test_() ->
     [
         {"preceeding // comment", ?_assertEqual(
