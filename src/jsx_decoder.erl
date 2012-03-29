@@ -594,6 +594,8 @@ escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     escaped_unicode(Rest, Handler, Stack, Opts);
 escape(<<>>, Handler, Stack, Opts) ->
     ?incomplete(escape, <<>>, Handler, Stack, Opts);
+escape(Bin, Handler, [Acc|Stack], Opts=#opts{ignore_bad_escapes=true}) ->
+    string(Bin, Handler, [?acc_seq(Acc, ?rsolidus)|Stack], Opts);
 escape(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
@@ -1247,10 +1249,6 @@ ignore_bad_escapes_test_() ->
         {"ignore unrecognized escape sequence", ?_assertEqual(
             decode(<<"[\"\\x25\"]">>, [ignore_bad_escapes]),
             [start_array, {string, <<"\\x25">>}, end_array, end_json]
-        )},
-        {"ignore invalid \\uXXXX escape sequence", ?_assertEqual(
-            decode(<<"[\"\\uFFFF\"]">>, [ignore_bad_escapes]),
-            [start_array, {string, <<"\\uFFFF">>}, end_array, end_json]
         )}
     ].
 
