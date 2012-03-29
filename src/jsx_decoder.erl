@@ -543,34 +543,39 @@ noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X ==
 noncharacter(<<_/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
 %% overlong encodings and missing continuations of a 2 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 192, X =< 223 ->
-    string(strip_continuations(Rest, 1), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 192, X =< 223 ->
+    strip_continuations(Rest, Handler, [1|Stack], Opts);
 %% overlong encodings and missing continuations of a 3 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 224, X =< 239 ->
-    string(strip_continuations(Rest, 2), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 224, X =< 239 ->
+    strip_continuations(Rest, Handler, [2|Stack], Opts);
 %% overlong encodings and missing continuations of a 4 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 240, X =< 247 ->
-    string(strip_continuations(Rest, 3), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% overlong encodings and missing continuations of a 4 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 240, X =< 247 ->
-    string(strip_continuations(Rest, 3), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 240, X =< 247 ->
+    strip_continuations(Rest, Handler, [3|Stack], Opts);
 %% overlong encodings and missing continuations of a 5 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 248, X =< 251 ->
-    string(strip_continuations(Rest, 4), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 248, X =< 251 ->
+    strip_continuations(Rest, Handler, [4|Stack], Opts);
 %% overlong encodings and missing continuations of a 6 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 252, X == 253 ->
-    string(strip_continuations(Rest, 5), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X == 252, X == 253 ->
+    strip_continuations(Rest, Handler, [5|Stack], Opts);
 %% unexpected bytes, including orphan continuations
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(noncharacter, <<>>, Handler, Stack, Opts).
 
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
 %%  and overlong sequences. N is the maximum number of bytes to strip
-strip_continuations(Rest, 0) -> Rest;
-strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 -> strip_continuations(Rest, N - 1);
+strip_continuations(Rest, Handler, [0, Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+strip_continuations(<<X, Rest/binary>>, Handler,  [N|Stack], Opts) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, Handler, [N - 1|Stack], Opts);
+%% incomplete    
+strip_continuations(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(strip_continuations, <<>>, Handler, Stack, Opts);
 %% not a continuation byte, dispatch back to string
-strip_continuations(Rest, _) -> Rest.
+strip_continuations(Rest, Handler, [_, Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
 
 
 escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
