@@ -174,6 +174,208 @@ strip_continuations(Bin, _, N) -> {Bin, N}.
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+
+xcode(Bin) -> xcode(Bin, #opts{}).
+
+xcode(Bin, [loose_unicode]) -> xcode(Bin, #opts{loose_unicode=true});
+xcode(Bin, Opts) ->
+    try clean_string(Bin, Opts)
+    catch error:badarg -> {error, badarg}
+    end.
+
+
+is_bad({error, badarg}) -> true;
+is_bad(_) -> false.
+
+
+bad_utf8_test_() ->
+    [
+        {"orphan continuation byte u+0080",
+            ?_assert(is_bad(xcode(<<16#0080>>)))
+        },
+        {"orphan continuation byte u+0080 replaced",
+            ?_assertEqual(xcode(<<16#0080>>, [loose_unicode]), <<16#fffd/utf8>>)
+        },
+        {"orphan continuation byte u+00bf",
+            ?_assert(is_bad(xcode(<<16#00bf>>)))
+        },
+        {"orphan continuation byte u+00bf replaced",
+            ?_assertEqual(xcode(<<16#00bf>>, [loose_unicode]), <<16#fffd/utf8>>)
+        },
+        {"2 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>)))
+        },
+        {"2 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 2)
+            )
+        },
+        {"3 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>)))
+        },
+        {"3 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 3)
+            )
+        },
+        {"4 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>)))
+        },
+        {"4 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 4)
+            )
+        },
+        {"5 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>)))
+        },
+        {"5 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 5)
+            )
+        },
+        {"6 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>)))
+        },
+        {"6 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 6)
+            )
+        },
+        {"all continuation bytes",
+            ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
+        },        
+        {"all continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf)))
+            )
+        },
+        {"lonely start byte",
+            ?_assert(is_bad(xcode(<<16#00c0>>)))
+        },
+        {"lonely start byte replaced",
+            ?_assertEqual(
+                xcode(<<16#00c0>>, [loose_unicode]),
+                <<16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (2 byte)",
+            ?_assert(is_bad(xcode(<<16#00c0, 32, 16#00df>>)))
+        },
+        {"lonely start bytes (2 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00c0, 32, 16#00df>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (3 byte)",
+            ?_assert(is_bad(xcode(<<16#00e0, 32, 16#00ef>>)))
+        },
+        {"lonely start bytes (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00e0, 32, 16#00ef>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (4 byte)",
+            ?_assert(is_bad(xcode(<<16#00f0, 32, 16#00f7>>)))
+        },
+        {"lonely start bytes (4 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00f0, 32, 16#00f7>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"missing continuation byte (3 byte)",
+            ?_assert(is_bad(xcode(<<224, 160, 32>>)))
+        },
+        {"missing continuation byte (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<224, 160, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"missing continuation byte (4 byte missing one)",
+            ?_assert(is_bad(xcode(<<240, 144, 128, 32>>)))
+        },
+        {"missing continuation byte2 (4 byte missing one) replaced",
+            ?_assertEqual(
+                xcode(<<240, 144, 128, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"missing continuation byte (4 byte missing two)",
+            ?_assert(is_bad(xcode(<<240, 144, 32>>)))
+        },
+        {"missing continuation byte2 (4 byte missing two) replaced",
+            ?_assertEqual(
+                xcode(<<240, 144, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (2 byte)",
+            ?_assert(is_bad(xcode(<<16#c0, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (2 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#c0, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (3 byte)",
+            ?_assert(is_bad(xcode(<<16#e0, 16#80, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#e0, 16#80, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (4 byte)",
+            ?_assert(is_bad(xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (4 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 2 byte sequence",
+            ?_assert(is_bad(xcode(<<16#c1, 16#bf, 32>>)))
+        },
+        {"highest overlong 2 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#c1, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 3 byte sequence",
+            ?_assert(is_bad(xcode(<<16#e0, 16#9f, 16#bf, 32>>)))
+        },
+        {"highest overlong 3 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#e0, 16#9f, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 4 byte sequence",
+            ?_assert(is_bad(xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>)))
+        },
+        {"highest overlong 4 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        }
+    ].
+
+
 encode(Term) -> (encoder(jsx, [], []))(Term).
 
 encode(Term, Opts) ->
@@ -301,14 +503,6 @@ extended_noncharacters_test_() ->
         {"extended noncharacters - replaced",
             ?_assertEqual(check_replaced(extended_noncharacters()), [])
         }
-    ].
-
-malformed_test_() ->
-    [
-        {"malformed codepoint with 1 byte", ?_assertError(badarg, encode(<<128>>))},
-        {"malformed codepoint with 2 bytes", ?_assertError(badarg, encode(<<128, 192>>))},
-        {"malformed codepoint with 3 bytes", ?_assertError(badarg, encode(<<128, 192, 192>>))},
-        {"malformed codepoint with 4 bytes", ?_assertError(badarg, encode(<<128, 192, 192, 192>>))}
     ].
 
 
