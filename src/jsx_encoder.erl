@@ -106,93 +106,69 @@ fix_key(Key) when is_binary(Key) -> Key.
 clean_string(Bin, Opts) ->
     case Opts#opts.json_escape of
         true -> jsx_utils:json_escape(Bin, Opts);
-        false -> 
-            case is_clean(Bin) of
-                true -> Bin;
-                false -> clean_string(Bin, [], Opts)
+        false -> clean_string(Bin, 0, size(Bin), Opts)
+    end.
+
+
+clean_string(Str, Len, Len, _Opts) -> Str;
+clean_string(Str, L, Len, Opts) ->
+    case Str of
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#80 -> clean_string(Str, L + 1, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X < 16#800 -> clean_string(Str, L + 2, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X < 16#dcff -> clean_string(Str, L + 3, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X > 16#dfff, X < 16#fdd0 -> clean_string(Str, L + 3, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X > 16#fdef, X < 16#fffe -> clean_string(Str, L + 3, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#10000, X < 16#1fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#20000, X < 16#2fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#30000, X < 16#3fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#40000, X < 16#4fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#50000, X < 16#5fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#60000, X < 16#6fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#70000, X < 16#7fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#80000, X < 16#8fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#90000, X < 16#9fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#a0000, X < 16#afffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#b0000, X < 16#bfffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#c0000, X < 16#cfffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#d0000, X < 16#dfffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#e0000, X < 16#efffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#f0000, X < 16#ffffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<_:L/binary, X/utf8, _/binary>> when X >= 16#100000, X < 16#10fffe -> clean_string(Str, L + 4, Len, Opts)
+        ; <<H:L/binary, Rest/binary>> ->
+            case Opts#opts.loose_unicode of
+                true ->
+                    case Rest of
+                        %% surrogates
+                        <<237, X, _, T/binary>> when X >= 160 ->
+                            clean_string(<<H:L/binary, 16#fffd/utf8, T/binary>>, L + 3, Len, Opts)
+                        %% u+fffe and u+ffff for R14BXX
+                        ; <<239, 191, X, T/binary>> when X == 190; X == 191 ->
+                            clean_string(<<H:L/binary, 16#fffd/utf8, T/binary>>, L + 3, Len, Opts)
+                        %% overlong encodings and missing continuations of a 2 byte sequence
+                        ; <<X, T/binary>> when X >= 192, X =< 223 ->
+                            {Tail, Stripped} = strip_continuations(T, 1, 0),
+                            clean_string(<<H:L/binary, 16#fffd/utf8, Tail/binary>>, L + 3, Len + 2 - Stripped, Opts)
+                        %% overlong encodings and missing continuations of a 3 byte sequence
+                        ; <<X, T/binary>> when X >= 224, X =< 239 ->
+                            {Tail, Stripped} = strip_continuations(T, 2, 0),
+                            clean_string(<<H:L/binary, 16#fffd/utf8, Tail/binary>>, L + 3, Len + 2 - Stripped, Opts)
+                        ; <<X, T/binary>> when X >= 240, X =< 247 ->
+                            {Tail, Stripped} = strip_continuations(T, 3, 0),
+                            clean_string(<<H:L/binary, 16#fffd/utf8, Tail/binary>>, L + 3, Len + 2 - Stripped, Opts)
+                        ; <<_, T/binary>> ->
+                            clean_string(<<H:L/binary, 16#fffd/utf8, T/binary>>, L + 3, Len + 2, Opts)
+                    end
+                ; false ->
+                    erlang:error(badarg, [Str, Opts])
             end
     end.
 
 
-is_clean(<<>>) -> true;
-is_clean(<<X/utf8, Rest/binary>>) ->
-    case X of
-        X when X >= 16#0000, X < 16#d800 -> is_clean(Rest)
-        ; X when X > 16#dfff, X < 16#fdd0 -> is_clean(Rest)
-        ; X when X > 16#fdef, X < 16#fffe -> is_clean(Rest)
-        ; X when X >= 16#10000, X < 16#1fffe -> is_clean(Rest)
-        ; X when X >= 16#20000, X < 16#2fffe -> is_clean(Rest)
-        ; X when X >= 16#30000, X < 16#3fffe -> is_clean(Rest)
-        ; X when X >= 16#40000, X < 16#4fffe -> is_clean(Rest)
-        ; X when X >= 16#50000, X < 16#5fffe -> is_clean(Rest)
-        ; X when X >= 16#60000, X < 16#6fffe -> is_clean(Rest)
-        ; X when X >= 16#70000, X < 16#7fffe -> is_clean(Rest)
-        ; X when X >= 16#80000, X < 16#8fffe -> is_clean(Rest)
-        ; X when X >= 16#90000, X < 16#9fffe -> is_clean(Rest)
-        ; X when X >= 16#a0000, X < 16#afffe -> is_clean(Rest)
-        ; X when X >= 16#b0000, X < 16#bfffe -> is_clean(Rest)
-        ; X when X >= 16#c0000, X < 16#cfffe -> is_clean(Rest)
-        ; X when X >= 16#d0000, X < 16#dfffe -> is_clean(Rest)
-        ; X when X >= 16#e0000, X < 16#efffe -> is_clean(Rest)
-        ; X when X >= 16#f0000, X < 16#ffffe -> is_clean(Rest)
-        ; X when X >= 16#100000, X < 16#10fffe -> is_clean(Rest)
-        ; _ -> false
-    end;
-is_clean(_) -> false.
-
-
-clean_string(Bin, _Acc, Opts=#opts{loose_unicode=false}) -> ?error([Bin, Opts]);
-clean_string(<<>>, Acc, _Opts) -> unicode:characters_to_binary(lists:reverse(Acc));
-clean_string(<<X/utf8, Rest/binary>>, Acc, Opts) ->
-    case X of
-        X when X < 16#d800 -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X > 16#dfff, X < 16#fdd0 -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X > 16#fdef, X < 16#fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#10000, X < 16#1fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#20000, X < 16#2fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#30000, X < 16#3fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#40000, X < 16#4fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#50000, X < 16#5fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#60000, X < 16#6fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#70000, X < 16#7fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#80000, X < 16#8fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#90000, X < 16#9fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#a0000, X < 16#afffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#b0000, X < 16#bfffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#c0000, X < 16#cfffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#d0000, X < 16#dfffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#e0000, X < 16#efffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#f0000, X < 16#ffffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; X when X >= 16#100000, X < 16#10fffe -> clean_string(Rest, [X] ++ Acc, Opts)
-        ; _ -> clean_string(Rest, [16#fffd] ++ Acc, Opts)
-    end;
-%% surrogates
-clean_string(<<237, X, _, Rest/binary>>, Acc, Opts) when X >= 160 ->
-    clean_string(Rest, [16#fffd] ++ Acc, Opts);
-%% u+fffe and u+ffff for R14BXX
-clean_string(<<239, 191, X, Rest/binary>>, Acc, Opts) when X == 190; X == 191 ->
-    clean_string(Rest, [16#fffd] ++ Acc, Opts);
-%% overlong encodings and missing continuations of a 2 byte sequence    
-clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 192, X =< 223 ->
-    clean_string(strip_continuations(Rest, 1), [16#fffd] ++ Acc, Opts);
-%% overlong encodings and missing continuations of a 3 byte sequence
-clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 224, X =< 239 ->
-    clean_string(strip_continuations(Rest, 2), [16#fffd] ++ Acc, Opts);
-%% overlong encodings and missing continuations of a 4 byte sequence
-clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 240, X =< 247 ->
-    clean_string(strip_continuations(Rest, 3), [16#fffd] ++ Acc, Opts);
-%% bad codepoints
-clean_string(<<_, Rest/binary>>, Acc, Opts) ->
-    clean_string(Rest, [16#fffd] ++ Acc, Opts).
-
-
-%% strips continuation bytes after bad utf bytes, guards against both too short
-%%  and overlong sequences. N is the maximum number of bytes to strip
-strip_continuations(Rest, 0) -> Rest;
-strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
-    strip_continuations(Rest, N - 1);
-%% not a continuation byte, dispatch back to clean_string
-strip_continuations(Rest, _) -> Rest.
+strip_continuations(Bin, 0, N) -> {Bin, N};
+strip_continuations(<<X, Rest/binary>>, N, M) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, N - 1, M + 1);
+%% not a continuation byte
+strip_continuations(Bin, _, N) -> {Bin, N}. 
 
 
 -ifdef(TEST).
