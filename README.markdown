@@ -131,6 +131,10 @@ json has no official comments but some parsers allow c style comments. this flag
 
 json escaping is lossy, it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
 
+#### `ignore_bad_escapes` ####
+
+during decoding, ignore unrecognized escape sequences and leave them as is in the stream
+
 
 ### <a name="incompletes">incomplete input</a> ###
 
