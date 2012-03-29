@@ -1426,6 +1426,7 @@ comments_test_() ->
         )}
     ].
 
+
 escape_forward_slash_test_() ->
     [
         {"escape forward slash test", ?_assertEqual(
@@ -1433,6 +1434,7 @@ escape_forward_slash_test_() ->
             [start_array, {string, <<" / ">>}, end_array, end_json]
         )}
     ].
+
 
 noncharacters_test_() ->
     [
@@ -1444,6 +1446,7 @@ noncharacters_test_() ->
         }
     ].
 
+
 extended_noncharacters_test_() ->
     [
         {"extended noncharacters - badjson",
@@ -1453,6 +1456,7 @@ extended_noncharacters_test_() ->
             ?_assertEqual(check_replaced(extended_noncharacters()), [])
         }
     ].
+
 
 surrogates_test_() ->
     [
@@ -1464,12 +1468,14 @@ surrogates_test_() ->
         }
     ].
 
+
 control_test_() ->
     [
         {"control characters - badjson",
             ?_assertEqual(check_bad(control_characters()), [])
         }
     ].
+
 
 reserved_test_() ->
     [
@@ -1480,6 +1486,7 @@ reserved_test_() ->
             ?_assertEqual(check_replaced(reserved_space()), [])
         }
     ].
+
     
 good_characters_test_() ->
     [
@@ -1497,6 +1504,7 @@ check_bad(List) ->
         check(List, [], [])
     ).
 
+
 check_replaced(List) ->
     lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
             ; (_) -> false 
@@ -1504,10 +1512,12 @@ check_replaced(List) ->
         check(List, [loose_unicode], [])
     ).
 
+
 check_good(List) ->
     lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
+
 
 check([], _Opts, Acc) -> Acc;
 check([H|T], Opts, Acc) ->
@@ -1524,7 +1534,8 @@ decode(JSON, Opts) ->
 
 
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
-    
+
+
 extended_noncharacters() ->
     [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
         ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
@@ -1535,19 +1546,25 @@ extended_noncharacters() ->
         ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
         ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
+
 surrogates() -> lists:seq(16#d800, 16#dfff).
+
 
 control_characters() -> lists:seq(1, 31).
 
+
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
+
 
 good() -> [32, 33]
             ++ lists:seq(16#23, 16#5b)
             ++ lists:seq(16#5d, 16#d7ff)
             ++ lists:seq(16#e000, 16#fdcf)
             ++ lists:seq(16#fdf0, 16#fffd).
-            
+
+        
 good_extended() -> lists:seq(16#100000, 16#10fffd).
+
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;

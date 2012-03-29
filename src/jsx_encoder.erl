@@ -455,6 +455,7 @@ encode_test_() ->
         }
     ].
 
+
 surrogates_test_() ->
     [
         {"surrogates - badjson",
@@ -464,7 +465,8 @@ surrogates_test_() ->
             ?_assertEqual(check_replaced(surrogates()), [])
         }
     ].
-    
+
+
 good_characters_test_() ->
     [
         {"acceptable codepoints",
@@ -474,6 +476,7 @@ good_characters_test_() ->
             ?_assertEqual(check_good(good_extended()), [])
         }
     ].
+
 
 reserved_test_() ->
     [
@@ -485,6 +488,7 @@ reserved_test_() ->
         }
     ].
 
+
 noncharacters_test_() ->
     [
         {"noncharacters - badjson",
@@ -494,6 +498,7 @@ noncharacters_test_() ->
             ?_assertEqual(check_replaced(noncharacters()), [])
         }
     ].
+
 
 extended_noncharacters_test_() ->
     [
@@ -511,6 +516,7 @@ check_bad(List) ->
         check(List, [], [])
     ).
 
+
 check_replaced(List) ->
     lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
             ; (_) -> false 
@@ -518,10 +524,12 @@ check_replaced(List) ->
         check(List, [loose_unicode], [])
     ).
 
+
 check_good(List) ->
     lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
+
 
 check([], _Opts, Acc) -> Acc;
 check([H|T], Opts, Acc) ->
@@ -530,7 +538,8 @@ check([H|T], Opts, Acc) ->
     
 
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
-    
+
+
 extended_noncharacters() ->
     [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
         ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
@@ -541,13 +550,18 @@ extended_noncharacters() ->
         ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
         ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
+
 surrogates() -> lists:seq(16#d800, 16#dfff).
+
 
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 
+
 good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
-            
+
+
 good_extended() -> lists:seq(16#100000, 16#10fffd).
+
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<N:8>>;
@@ -560,5 +574,6 @@ to_fake_utf(N, utf8) when N < 16#10000 ->
 to_fake_utf(N, utf8) ->
     <<0:3, W:3, Z:6, Y:6, X:6>> = <<N:24>>,
     <<2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6>>.
+
 
 -endif.
