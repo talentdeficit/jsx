@@ -284,13 +284,18 @@ string(<<37, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 37)|Stack], Opts);
 string(<<38, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 38)|Stack], Opts);
-string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_quotes=true}) ->
-    case S of
-        [Acc, single_quote, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
-        [Acc, single_quote|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts);
-        [Acc|Stack] ->
+string(<<?singlequote, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
+    case Opts#opts.single_quotes of
+        true ->
+            case Stack of
+                [single_quote, key|S] ->
+                    colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|S], Opts)
+                ; [single_quote|S] ->
+                    maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, S, Opts)
+                ; _ ->
+                    string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
+            end
+        ; false ->
             string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
     end;
 string(<<40, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
@@ -469,8 +474,53 @@ string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
 string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_noncontrol(S) ->
-    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    case S of
+        %% not strictly true, but exceptions are already taken care of in preceding clauses
+        S when S >= 16#20, S < 16#d800 ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S > 16#dfff, S < 16#fdd0 ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S > 16#fdef, S < 16#fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#10000, S < 16#1fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#20000, S < 16#2fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#30000, S < 16#3fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#40000, S < 16#4fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#50000, S < 16#5fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#60000, S < 16#6fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#70000, S < 16#7fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#80000, S < 16#8fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#90000, S < 16#9fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#a0000, S < 16#afffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#b0000, S < 16#bfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#c0000, S < 16#cfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#d0000, S < 16#dfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#e0000, S < 16#efffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#f0000, S < 16#ffffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#100000, S < 16#10fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; _ ->
+            case Opts#opts.loose_unicode of
+                true -> noncharacter(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts)
+                ; false -> ?error([<<S, Rest/binary>>, Handler, [Acc|Stack], Opts])
+            end
+    end;
 string(Bin, Handler, Stack, Opts) ->
     case partial_utf(Bin) of 
         true -> ?incomplete(string, Bin, Handler, Stack, Opts)
@@ -489,18 +539,38 @@ noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 1
 %% u+fffe and u+ffff for R14BXX
 noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 190; X == 191 ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% overlong and too short utf8 sequences
-noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 192, X =< 253 ->
-    string(strip_continuations(Rest), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% unexpected bytes
+%% u+xfffe, u+xffff and other noncharacters
+noncharacter(<<_/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 2 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 192, X =< 223 ->
+    string(strip_continuations(Rest, 1), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 3 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 224, X =< 239 ->
+    string(strip_continuations(Rest, 2), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 4 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 240, X =< 247 ->
+    string(strip_continuations(Rest, 3), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 4 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 240, X =< 247 ->
+    string(strip_continuations(Rest, 3), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 5 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 248, X =< 251 ->
+    string(strip_continuations(Rest, 4), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 6 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 252, X == 253 ->
+    string(strip_continuations(Rest, 5), Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% unexpected bytes, including orphan continuations
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
 
 
-%% strips continuation bytes after bad utf bytes, guards against both too short and overlong sequences
-strip_continuations(<<X, Rest/binary>>) when X >= 128, X =< 191 -> strip_continuations(Rest);
-strip_continuations(Rest) -> Rest.
-
+%% strips continuation bytes after bad utf bytes, guards against both too short
+%%  and overlong sequences. N is the maximum number of bytes to strip
+strip_continuations(Rest, 0) -> Rest;
+strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 -> strip_continuations(Rest, N - 1);
+%% not a continuation byte, dispatch back to string
+strip_continuations(Rest, _) -> Rest.
 
 
 escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
@@ -1164,6 +1234,26 @@ escape_forward_slash_test_() ->
         )}
     ].
 
+noncharacters_test_() ->
+    [
+        {"noncharacters - badjson",
+            ?_assertEqual(check_bad(noncharacters()), [])
+        },
+        {"noncharacters - replaced",
+            ?_assertEqual(check_replaced(noncharacters()), [])
+        }
+    ].
+
+extended_noncharacters_test_() ->
+    [
+        {"extended noncharacters - badjson",
+            ?_assertEqual(check_bad(extended_noncharacters()), [])
+        },
+        {"extended noncharacters - replaced",
+            ?_assertEqual(check_replaced(extended_noncharacters()), [])
+        }
+    ].
+
 surrogates_test_() ->
     [
         {"surrogates - badjson",
@@ -1178,6 +1268,16 @@ control_test_() ->
     [
         {"control characters - badjson",
             ?_assertEqual(check_bad(control_characters()), [])
+        }
+    ].
+
+reserved_test_() ->
+    [
+        {"reserved noncharacters - badjson",
+            ?_assertEqual(check_bad(reserved_space()), [])
+        },
+        {"reserved noncharacters - replaced",
+            ?_assertEqual(check_replaced(reserved_space()), [])
         }
     ].
     
@@ -1270,13 +1370,31 @@ decode(JSON, Opts) ->
     end.
 
 
+noncharacters() -> lists:seq(16#fffe, 16#ffff).
+    
+extended_noncharacters() ->
+    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
+        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
+        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
+        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
+        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
+        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
+        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
+        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
+
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
 control_characters() -> lists:seq(1, 31).
 
-good() -> [32, 33] ++ lists:seq(16#23, 16#5b) ++ lists:seq(16#5d, 16#d7ff) ++ lists:seq(16#e000, 16#fffd).
+reserved_space() -> lists:seq(16#fdd0, 16#fdef).
+
+good() -> [32, 33]
+            ++ lists:seq(16#23, 16#5b)
+            ++ lists:seq(16#5d, 16#d7ff)
+            ++ lists:seq(16#e000, 16#fdcf)
+            ++ lists:seq(16#fdf0, 16#fffd).
             
-good_extended() -> lists:seq(16#100000, 16#10ffff).
+good_extended() -> lists:seq(16#100000, 16#10fffd).
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
