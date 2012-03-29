@@ -127,6 +127,10 @@ javascript interpreters treat the codepoints `u+2028` and `u+2029` as significan
 
 json has no official comments but some parsers allow c style comments. this flag allows comments (both `// ...` and `/* ... */` style) anywhere whitespace is allowed
 
+#### `dirty_strings` ####
+
+json escaping is lossy, it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
+
 
 ### <a name="incompletes">incomplete input</a> ###
 
