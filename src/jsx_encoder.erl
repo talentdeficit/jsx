@@ -115,17 +115,90 @@ clean_string(Bin, Opts) ->
 
 
 is_clean(<<>>) -> true;
-is_clean(<<_/utf8, Rest/binary>>) -> is_clean(Rest);
+is_clean(<<X/utf8, Rest/binary>>) ->
+    case X of
+        X when X >= 16#0000, X < 16#d800 -> is_clean(Rest)
+        ; X when X > 16#dfff, X < 16#fdd0 -> is_clean(Rest)
+        ; X when X > 16#fdef, X < 16#fffe -> is_clean(Rest)
+        ; X when X >= 16#10000, X < 16#1fffe -> is_clean(Rest)
+        ; X when X >= 16#20000, X < 16#2fffe -> is_clean(Rest)
+        ; X when X >= 16#30000, X < 16#3fffe -> is_clean(Rest)
+        ; X when X >= 16#40000, X < 16#4fffe -> is_clean(Rest)
+        ; X when X >= 16#50000, X < 16#5fffe -> is_clean(Rest)
+        ; X when X >= 16#60000, X < 16#6fffe -> is_clean(Rest)
+        ; X when X >= 16#70000, X < 16#7fffe -> is_clean(Rest)
+        ; X when X >= 16#80000, X < 16#8fffe -> is_clean(Rest)
+        ; X when X >= 16#90000, X < 16#9fffe -> is_clean(Rest)
+        ; X when X >= 16#a0000, X < 16#afffe -> is_clean(Rest)
+        ; X when X >= 16#b0000, X < 16#bfffe -> is_clean(Rest)
+        ; X when X >= 16#c0000, X < 16#cfffe -> is_clean(Rest)
+        ; X when X >= 16#d0000, X < 16#dfffe -> is_clean(Rest)
+        ; X when X >= 16#e0000, X < 16#efffe -> is_clean(Rest)
+        ; X when X >= 16#f0000, X < 16#ffffe -> is_clean(Rest)
+        ; X when X >= 16#100000, X < 16#10fffe -> is_clean(Rest)
+        ; _ -> false
+    end;
 is_clean(_) -> false.
 
 
 clean_string(Bin, _Acc, Opts=#opts{loose_unicode=false}) -> ?error([Bin, Opts]);
 clean_string(<<>>, Acc, _Opts) -> unicode:characters_to_binary(lists:reverse(Acc));
-clean_string(<<X/utf8, Rest/binary>>, Acc, Opts) -> clean_string(Rest, [X] ++ Acc, Opts);
+clean_string(<<X/utf8, Rest/binary>>, Acc, Opts) ->
+    case X of
+        X when X < 16#d800 -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X > 16#dfff, X < 16#fdd0 -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X > 16#fdef, X < 16#fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#10000, X < 16#1fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#20000, X < 16#2fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#30000, X < 16#3fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#40000, X < 16#4fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#50000, X < 16#5fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#60000, X < 16#6fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#70000, X < 16#7fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#80000, X < 16#8fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#90000, X < 16#9fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#a0000, X < 16#afffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#b0000, X < 16#bfffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#c0000, X < 16#cfffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#d0000, X < 16#dfffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#e0000, X < 16#efffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#f0000, X < 16#ffffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; X when X >= 16#100000, X < 16#10fffe -> clean_string(Rest, [X] ++ Acc, Opts)
+        ; _ -> clean_string(Rest, [16#fffd] ++ Acc, Opts)
+    end;
 %% surrogates
-clean_string(<<237, X, _, Rest/binary>>, Acc, Opts) when X >= 160 -> clean_string(Rest, [16#fffd] ++ Acc, Opts);
+clean_string(<<237, X, _, Rest/binary>>, Acc, Opts) when X >= 160 ->
+    clean_string(Rest, [16#fffd] ++ Acc, Opts);
+%% u+fffe and u+ffff for R14BXX
+clean_string(<<239, 191, X, Rest/binary>>, Acc, Opts) when X == 190; X == 191 ->
+    clean_string(Rest, [16#fffd] ++ Acc, Opts);
+%% overlong encodings and missing continuations of a 2 byte sequence    
+clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 192, X =< 223 ->
+    clean_string(strip_continuations(Rest, 1), [16#fffd] ++ Acc, Opts);
+%% overlong encodings and missing continuations of a 3 byte sequence
+clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 224, X =< 239 ->
+    clean_string(strip_continuations(Rest, 2), [16#fffd] ++ Acc, Opts);
+%% overlong encodings and missing continuations of a 4 byte sequence
+clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 240, X =< 247 ->
+    clean_string(strip_continuations(Rest, 3), [16#fffd] ++ Acc, Opts);
+%% overlong encodings and missing continuations of a 5 byte sequence
+clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 248, X =< 251 ->
+    clean_string(strip_continuations(Rest, 4), [16#fffd] ++ Acc, Opts);
+%% overlong encodings and missing continuations of a 6 byte sequence
+clean_string(<<X, Rest/binary>>, Acc, Opts) when X == 252, X == 253 ->
+    clean_string(strip_continuations(Rest, 5), [16#fffd] ++ Acc, Opts);
 %% bad codepoints
-clean_string(<<_, Rest/binary>>, Acc, Opts) -> clean_string(Rest, [16#fffd] ++ Acc, Opts).
+clean_string(<<_, Rest/binary>>, Acc, Opts) ->
+    clean_string(Rest, [16#fffd] ++ Acc, Opts).
+
+
+%% strips continuation bytes after bad utf bytes, guards against both too short
+%%  and overlong sequences. N is the maximum number of bytes to strip
+strip_continuations(Rest, 0) -> Rest;
+strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, N - 1);
+%% not a continuation byte, dispatch back to clean_string
+strip_continuations(Rest, _) -> Rest.
 
 
 -ifdef(TEST).
@@ -230,6 +303,36 @@ good_characters_test_() ->
         }
     ].
 
+reserved_test_() ->
+    [
+        {"reserved noncharacters - badjson",
+            ?_assertEqual(check_bad(reserved_space()), [])
+        },
+        {"reserved noncharacters - replaced",
+            ?_assertEqual(check_replaced(reserved_space()), [])
+        }
+    ].
+
+noncharacters_test_() ->
+    [
+        {"noncharacters - badjson",
+            ?_assertEqual(check_bad(noncharacters()), [])
+        },
+        {"noncharacters - replaced",
+            ?_assertEqual(check_replaced(noncharacters()), [])
+        }
+    ].
+
+extended_noncharacters_test_() ->
+    [
+        {"extended noncharacters - badjson",
+            ?_assertEqual(check_bad(extended_noncharacters()), [])
+        },
+        {"extended noncharacters - replaced",
+            ?_assertEqual(check_replaced(extended_noncharacters()), [])
+        }
+    ].
+
 malformed_test_() ->
     [
         {"malformed codepoint with 1 byte", ?_assertError(badarg, encode(<<128>>))},
@@ -290,11 +393,25 @@ check([H|T], Opts, Acc) ->
     check(T, Opts, [{H, R}] ++ Acc).
     
 
+noncharacters() -> lists:seq(16#fffe, 16#ffff).
+    
+extended_noncharacters() ->
+    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
+        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
+        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
+        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
+        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
+        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
+        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
+        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
+
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
-good() -> lists:seq(1, 16#d7ff) ++ lists:seq(16#e000, 16#fffd).
+reserved_space() -> lists:seq(16#fdd0, 16#fdef).
+
+good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
             
-good_extended() -> lists:seq(16#100000, 16#10ffff).
+good_extended() -> lists:seq(16#100000, 16#10fffd).
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<N:8>>;
