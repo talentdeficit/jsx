@@ -51,6 +51,8 @@ parse_opts([comments|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{comments=true});
 parse_opts([json_escape|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{json_escape=true});
+parse_opts([dirty_strings|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{json_escape=true});
 parse_opts(_, _) ->
     {error, badarg}.
 
@@ -63,7 +65,8 @@ valid_flags() ->
         single_quotes,
         no_jsonp_escapes,
         comments,
-        json_escape
+        json_escape,
+        dirty_strings
     ].
 
 
@@ -88,7 +91,10 @@ extract_parser_opts([K|Rest], Acc) ->
 %%  everything else should be a legal json string component
 
 json_escape(String, Opts) when is_binary(String) ->
-    json_escape(String, Opts, 0, size(String)).
+    case Opts#opts.dirty_strings of
+        true -> String
+        ; false -> json_escape(String, Opts, 0, size(String))
+    end.
 
 
 -define(control_character(X),
@@ -592,17 +598,10 @@ binary_escape_test_() ->
                 <<"\\/Date(1303502009425)\\/">>
             )
         },
-        {"bad surrogate", ?_assertError(badarg, json_escape(<<237, 160, 127>>, #opts{}))},
-        {"bad surrogate ok",
+        {"dirty strings",
             ?_assertEqual(
-                json_escape(<<237, 160, 127>>, #opts{loose_unicode=true}),
-                <<16#fffd/utf8>>
-            )
-        },
-        {"all sizes of codepoints",
-            ?_assertEqual(
-                json_escape(unicode:characters_to_binary([0, 32, 16#80, 16#800, 16#10000]), #opts{}),
-                <<"\\u0000", 32/utf8, 16#80/utf8, 16#800/utf8, 16#10000/utf8>>
+                json_escape(<<"\\x25\\uffff">>, #opts{dirty_strings=true}),
+                <<"\\x25\\uffff">>
             )
         }
     ].
