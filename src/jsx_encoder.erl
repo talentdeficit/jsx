@@ -181,12 +181,6 @@ clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 224, X =< 239 ->
 %% overlong encodings and missing continuations of a 4 byte sequence
 clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 240, X =< 247 ->
     clean_string(strip_continuations(Rest, 3), [16#fffd] ++ Acc, Opts);
-%% overlong encodings and missing continuations of a 5 byte sequence
-clean_string(<<X, Rest/binary>>, Acc, Opts) when X >= 248, X =< 251 ->
-    clean_string(strip_continuations(Rest, 4), [16#fffd] ++ Acc, Opts);
-%% overlong encodings and missing continuations of a 6 byte sequence
-clean_string(<<X, Rest/binary>>, Acc, Opts) when X == 252, X == 253 ->
-    clean_string(strip_continuations(Rest, 5), [16#fffd] ++ Acc, Opts);
 %% bad codepoints
 clean_string(<<_, Rest/binary>>, Acc, Opts) ->
     clean_string(Rest, [16#fffd] ++ Acc, Opts).
@@ -341,34 +335,6 @@ malformed_test_() ->
         {"malformed codepoint with 4 bytes", ?_assertError(badarg, encode(<<128, 192, 192, 192>>))}
     ].
 
-malformed_replaced_test_() ->
-    F = <<16#fffd/utf8>>,
-    [
-        {"malformed codepoint with 1 byte",
-            ?_assertEqual(
-                [{string, <<F/binary>>}, end_json],
-                encode(<<128>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 2 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary>>}, end_json],
-                encode(<<128, 192>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 3 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary>>}, end_json],
-                encode(<<128, 192, 192>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 4 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary, F/binary>>}, end_json],
-                encode(<<128, 192, 192, 192>>, [loose_unicode])
-            )
-        }
-    ].
 
 check_bad(List) ->
     lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,

@@ -517,8 +517,8 @@ string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
             string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
         ; _ ->
             case Opts#opts.loose_unicode of
-                true -> noncharacter(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts)
-                ; false -> ?error([<<S, Rest/binary>>, Handler, [Acc|Stack], Opts])
+                true -> noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
+                ; false -> ?error([<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts])
             end
     end;
 string(Bin, Handler, Stack, Opts) ->
@@ -551,12 +551,6 @@ noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 224, X =< 239 -
 %% overlong encodings and missing continuations of a 4 byte sequence
 noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 240, X =< 247 ->
     strip_continuations(Rest, Handler, [3|Stack], Opts);
-%% overlong encodings and missing continuations of a 5 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 248, X =< 251 ->
-    strip_continuations(Rest, Handler, [4|Stack], Opts);
-%% overlong encodings and missing continuations of a 6 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X == 252, X == 253 ->
-    strip_continuations(Rest, Handler, [5|Stack], Opts);
 %% unexpected bytes, including orphan continuations
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
@@ -1295,51 +1289,6 @@ good_characters_test_() ->
             ?_assertEqual(check_good(good_extended()), [])
         }
     ].
-
-malformed_test_() ->
-    [
-        {"malformed codepoint with 1 byte",
-            ?_assertEqual({error, badjson}, decode(<<128>>))
-        },
-        {"malformed codepoint with 2 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192>>))
-        },
-        {"malformed codepoint with 3 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192, 192>>))
-        },
-        {"malformed codepoint with 4 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192, 192, 192>>))
-        }
-    ].
-
-malformed_replaced_test_() ->
-    F = <<16#fffd/utf8>>,
-    [
-        {"malformed codepoint with 1 byte",
-            ?_assertEqual(
-                [{string, <<F/binary>>}, end_json],
-                decode(<<34, 128, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 2 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 3 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 192, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 4 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 192, 192, 34>>, [loose_unicode])
-            )
-        }
-    ].
     
 
 check_bad(List) ->
@@ -1364,8 +1313,6 @@ check([H|T], Opts, Acc) ->
     R = decode(to_fake_utf(H, utf8), Opts),
     check(T, Opts, [{H, R}] ++ Acc).
 
-
-decode(JSON) -> decode(JSON, []).
 
 decode(JSON, Opts) ->
     try

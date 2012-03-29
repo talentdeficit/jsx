@@ -243,7 +243,7 @@ json_escape(Str, Opts, L, Len) when L < Len ->
                     json_escape(<<H/binary, 16#2028/utf8, T/binary>>, Opts, L + 3, Len);
                 false ->
                     B = unicode:characters_to_binary(json_escape_sequence(16#2028)),
-                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2028/utf8>>))
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + 6, Len + 3)
             end;
         <<H:L/binary, 16#2029/utf8, T/binary>> ->
             case Opts#opts.no_jsonp_escapes of
@@ -251,21 +251,65 @@ json_escape(Str, Opts, L, Len) when L < Len ->
                     json_escape(<<H/binary, 16#2029/utf8, T/binary>>, Opts, L + 3, Len);
                 false ->
                     B = unicode:characters_to_binary(json_escape_sequence(16#2029)),
-                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2029/utf8>>))
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + 6, Len + 3)
             end;
         <<_:L/binary, X/utf8, _/binary>> when X < 16#0080 ->   
             json_escape(Str, Opts, L + 1, Len);
         <<_:L/binary, X/utf8, _/binary>> when X < 16#0800 ->
             json_escape(Str, Opts, L + 2, Len);
-        <<_:L/binary, X/utf8, _/binary>> when X < 16#10000 ->
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#dcff ->
             json_escape(Str, Opts, L + 3, Len);
-        <<_:L/binary, _/utf8, _/binary>> ->
+        <<_:L/binary, X/utf8, _/binary>> when X > 16#dfff, X < 16#fdd0 ->
+            json_escape(Str, Opts, L + 3, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X > 16#fdef, X < 16#fffe ->
+            json_escape(Str, Opts, L + 3, Len);
+        <<H:L/binary, X/utf8, T/binary>> when X < 16#10000 ->
+            case Opts#opts.loose_unicode of
+                true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len);
+                false -> erlang:error(badarg, [Str, Opts])
+            end;
+        <<H:L/binary, X/utf8, T/binary>>
+                when X == 16#1fffe; X == 16#1ffff;
+                X == 16#2fffe; X == 16#2ffff;
+                X == 16#3fffe; X == 16#3ffff;
+                X == 16#4fffe; X == 16#4ffff;
+                X == 16#5fffe; X == 16#5ffff;
+                X == 16#6fffe; X == 16#6ffff;
+                X == 16#7fffe; X == 16#7ffff;
+                X == 16#8fffe; X == 16#8ffff;
+                X == 16#9fffe; X == 16#9ffff;
+                X == 16#afffe; X == 16#affff;
+                X == 16#bfffe; X == 16#bffff;
+                X == 16#cfffe; X == 16#cffff;
+                X == 16#dfffe; X == 16#dffff;
+                X == 16#efffe; X == 16#effff;
+                X == 16#ffffe; X == 16#fffff;
+                X == 16#10fffe; X == 16#10ffff ->    
+            case Opts#opts.loose_unicode of
+                true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len - 1);
+                false -> erlang:error(badarg, [Str, Opts])
+            end;
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#10000 ->
             json_escape(Str, Opts, L + 4, Len);
         <<H:L/binary, 237, X, _, T/binary>> when X >= 160 ->
             case Opts#opts.loose_unicode of
                 true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len);
                 false -> erlang:error(badarg, [Str, Opts])
             end;
+        <<H:L/binary, 239, 191, X, T/binary>> when X == 190; X == 191 ->
+            case Opts#opts.loose_unicode of
+                true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len);
+                false -> erlang:error(badarg, [Str, Opts])
+            end;
+        <<H:L/binary, X, T/binary>> when X >= 192, X =< 223 ->
+            {Rest, Stripped} = strip_continuations(T, 1, 0),
+            json_escape(<<H:L/binary, 16#fffd/utf8, Rest/binary>>, Opts, L + 3, Len + 2 - Stripped);
+        <<H:L/binary, X, T/binary>> when X >= 224, X =< 239 ->
+            {Rest, Stripped} = strip_continuations(T, 2, 0),
+            json_escape(<<H:L/binary, 16#fffd/utf8, Rest/binary>>, Opts, L + 3, Len + 2 - Stripped);
+        <<H:L/binary, X, T/binary>> when X >= 240, X =< 247 ->
+            {Rest, Stripped} = strip_continuations(T, 3, 0),
+            json_escape(<<H:L/binary, 16#fffd/utf8, Rest/binary>>, Opts, L + 3, Len + 2 - Stripped);
         <<H:L/binary, _, T/binary>> ->
             case Opts#opts.loose_unicode of
                 true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len + 2);
@@ -290,6 +334,12 @@ to_hex(14) -> $e;
 to_hex(15) -> $f;
 to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
+
+strip_continuations(Bin, 0, N) -> {Bin, N};
+strip_continuations(<<X, Rest/binary>>, N, M) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, N - 1, M + 1);
+%% not a continuation byte
+strip_continuations(Bin, _, N) -> {Bin, N}. 
 
 
 %% eunit tests
