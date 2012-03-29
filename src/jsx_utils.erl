@@ -770,7 +770,10 @@ reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
             
             
-good_extended() -> lists:seq(16#100000, 16#10fffd).
+good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
+        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
+        16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
+    ] ++ lists:seq(16#100000, 16#10fffd).
 
 
 %% erlang refuses to encode certain codepoints, so fake them all
