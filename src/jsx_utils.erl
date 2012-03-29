@@ -618,6 +618,48 @@ binary_escape_test_() ->
     ].
 
 
+opts_test_() ->
+    [
+        {"all flags",
+            ?_assertEqual(
+                parse_opts([
+                    loose_unicode,
+                    escape_forward_slash,
+                    explicit_end,
+                    single_quotes,
+                    no_jsonp_escapes,
+                    comments,
+                    json_escape,
+                    dirty_strings,
+                    ignore_bad_escapes
+                ]),
+                #opts{
+                    loose_unicode=true,
+                    escape_forward_slash=true,
+                    explicit_end=true,
+                    single_quotes=true,
+                    no_jsonp_escapes=true,
+                    comments=true,
+                    json_escape=true,
+                    dirty_strings=true,
+                    ignore_bad_escapes=true
+                }
+            )
+        },
+        {"relax flag",
+            ?_assertEqual(
+                parse_opts([relax]),
+                #opts{
+                    loose_unicode=true,
+                    single_quotes=true,
+                    comments=true,
+                    ignore_bad_escapes=true
+                }
+            )
+        }
+    ].
+
+
 surrogates_test_() ->
     [
         {"surrogates - badjson",
