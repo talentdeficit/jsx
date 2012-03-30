@@ -131,6 +131,18 @@ json has no official comments but some parsers allow c style comments. this flag
 
 by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings for output in json, removing control codes and replacing them with the appropriate escapes
 
+#### `dirty_strings` ####
+
+json escaping is lossy, it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
+
+#### `ignore_bad_escapes` ####
+
+during decoding, ignore unrecognized escape sequences and leave them as is in the stream
+
+#### `relax` ####
+
+relax is a synonym for `[loose_unicode, single_quotes, comments, ignore_bad_escapes]`
+
 
 ### <a name="incompletes">incomplete input</a> ###
 
