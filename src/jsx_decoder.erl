@@ -270,11 +270,11 @@ string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+            colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|Stack], Opts);
         [_Acc, single_quote|_Stack] ->
             ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts]);
         [Acc|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
+            maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, Stack, Opts)
     end;
 string(<<35, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Opts);
@@ -284,13 +284,18 @@ string(<<37, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 37)|Stack], Opts);
 string(<<38, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 38)|Stack], Opts);
-string(<<?singlequote, Rest/binary>>, {Handler, State}, S, Opts = #opts{single_quotes=true}) ->
-    case S of
-        [Acc, single_quote, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
-        [Acc, single_quote|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts);
-        [Acc|Stack] ->
+string(<<?singlequote, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
+    case Opts#opts.single_quotes of
+        true ->
+            case Stack of
+                [single_quote, key|S] ->
+                    colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|S], Opts)
+                ; [single_quote|S] ->
+                    maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, S, Opts)
+                ; _ ->
+                    string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
+            end
+        ; false ->
             string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
     end;
 string(<<40, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
@@ -469,8 +474,53 @@ string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
 string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_noncontrol(S) ->
-    string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts);
+string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    case S of
+        %% not strictly true, but exceptions are already taken care of in preceding clauses
+        S when S >= 16#20, S < 16#d800 ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S > 16#dfff, S < 16#fdd0 ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S > 16#fdef, S < 16#fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#10000, S < 16#1fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#20000, S < 16#2fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#30000, S < 16#3fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#40000, S < 16#4fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#50000, S < 16#5fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#60000, S < 16#6fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#70000, S < 16#7fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#80000, S < 16#8fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#90000, S < 16#9fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#a0000, S < 16#afffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#b0000, S < 16#bfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#c0000, S < 16#cfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#d0000, S < 16#dfffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#e0000, S < 16#efffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#f0000, S < 16#ffffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; S when S >= 16#100000, S < 16#10fffe ->
+            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
+        ; _ ->
+            case Opts#opts.loose_unicode of
+                true -> noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
+                ; false -> ?error([<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts])
+            end
+    end;
 string(Bin, Handler, Stack, Opts) ->
     case partial_utf(Bin) of 
         true -> ?incomplete(string, Bin, Handler, Stack, Opts)
@@ -480,6 +530,11 @@ string(Bin, Handler, Stack, Opts) ->
                 ; false -> ?error([Bin, Handler, Stack, Opts])
             end
     end.
+
+
+maybe_escape(Str, Opts=#opts{json_escape=true}) -> jsx_utils:json_escape(Str, Opts);
+maybe_escape(Str, _Opts) -> Str.
+
     
 %% we don't need to guard against partial utf here, because it's already taken
 %%   care of in string
@@ -489,8 +544,36 @@ noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 1
 %% u+fffe and u+ffff for R14BXX
 noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 190; X == 191 ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
-%% bad utf8
+%% u+xfffe, u+xffff and other noncharacters
+noncharacter(<<_/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+%% overlong encodings and missing continuations of a 2 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 192, X =< 223 ->
+    strip_continuations(Rest, Handler, [1|Stack], Opts);
+%% overlong encodings and missing continuations of a 3 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 224, X =< 239 ->
+    strip_continuations(Rest, Handler, [2|Stack], Opts);
+%% overlong encodings and missing continuations of a 4 byte sequence
+noncharacter(<<X, Rest/binary>>, Handler, Stack, Opts) when X >= 240, X =< 247 ->
+    strip_continuations(Rest, Handler, [3|Stack], Opts);
+%% unexpected bytes, including orphan continuations
 noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+noncharacter(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(noncharacter, <<>>, Handler, Stack, Opts).
+
+
+%% strips continuation bytes after bad utf bytes, guards against both too short
+%%  and overlong sequences. N is the maximum number of bytes to strip
+strip_continuations(Rest, Handler, [0, Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
+strip_continuations(<<X, Rest/binary>>, Handler,  [N|Stack], Opts) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, Handler, [N - 1|Stack], Opts);
+%% incomplete    
+strip_continuations(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(strip_continuations, <<>>, Handler, Stack, Opts);
+%% not a continuation byte, dispatch back to string
+strip_continuations(Rest, Handler, [_, Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts).
 
 
@@ -516,6 +599,8 @@ escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     escaped_unicode(Rest, Handler, Stack, Opts);
 escape(<<>>, Handler, Stack, Opts) ->
     ?incomplete(escape, <<>>, Handler, Stack, Opts);
+escape(Bin, Handler, [Acc|Stack], Opts=#opts{ignore_bad_escapes=true}) ->
+    string(Bin, Handler, [?acc_seq(Acc, ?rsolidus)|Stack], Opts);
 escape(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
@@ -963,6 +1048,216 @@ done(Bin, Handler, Stack, Opts) -> ?error([Bin, Handler, Stack, Opts]).
 -include_lib("eunit/include/eunit.hrl").
 
 
+xcode(Bin) -> xcode(Bin, []).
+
+xcode(Bin, Opts) ->
+    Size = size(Bin),
+    try jsx:to_term(<<34, Bin:Size/binary, 34>>, Opts)
+    catch error:badarg -> {error, badarg}
+    end.
+
+
+is_bad({error, badarg}) -> true;
+is_bad(_) -> false.
+
+
+bad_utf8_test_() ->
+    [
+        {"orphan continuation byte u+0080",
+            ?_assert(is_bad(xcode(<<16#0080>>)))
+        },
+        {"orphan continuation byte u+0080 replaced",
+            ?_assertEqual(xcode(<<16#0080>>, [loose_unicode]), <<16#fffd/utf8>>)
+        },
+        {"orphan continuation byte u+00bf",
+            ?_assert(is_bad(xcode(<<16#00bf>>)))
+        },
+        {"orphan continuation byte u+00bf replaced",
+            ?_assertEqual(xcode(<<16#00bf>>, [loose_unicode]), <<16#fffd/utf8>>)
+        },
+        {"2 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>)))
+        },
+        {"2 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 2)
+            )
+        },
+        {"3 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>)))
+        },
+        {"3 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 3)
+            )
+        },
+        {"4 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>)))
+        },
+        {"4 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 4)
+            )
+        },
+        {"5 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>)))
+        },
+        {"5 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 5)
+            )
+        },
+        {"6 continuation bytes",
+            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>)))
+        },
+        {"6 continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, 6)
+            )
+        },
+        {"all continuation bytes",
+            ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
+        },        
+        {"all continuation bytes replaced",
+            ?_assertEqual(
+                xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [loose_unicode]),
+                binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf)))
+            )
+        },
+        {"lonely start byte",
+            ?_assert(is_bad(xcode(<<16#00c0>>)))
+        },
+        {"lonely start byte replaced",
+            ?_assertEqual(
+                xcode(<<16#00c0>>, [loose_unicode]),
+                <<16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (2 byte)",
+            ?_assert(is_bad(xcode(<<16#00c0, 32, 16#00df>>)))
+        },
+        {"lonely start bytes (2 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00c0, 32, 16#00df>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (3 byte)",
+            ?_assert(is_bad(xcode(<<16#00e0, 32, 16#00ef>>)))
+        },
+        {"lonely start bytes (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00e0, 32, 16#00ef>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"lonely start bytes (4 byte)",
+            ?_assert(is_bad(xcode(<<16#00f0, 32, 16#00f7>>)))
+        },
+        {"lonely start bytes (4 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#00f0, 32, 16#00f7>>, [loose_unicode]),
+                <<16#fffd/utf8, 32, 16#fffd/utf8>>
+            )
+        },
+        {"missing continuation byte (3 byte)",
+            ?_assert(is_bad(xcode(<<224, 160, 32>>)))
+        },
+        {"missing continuation byte (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<224, 160, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"missing continuation byte (4 byte missing one)",
+            ?_assert(is_bad(xcode(<<240, 144, 128, 32>>)))
+        },
+        {"missing continuation byte2 (4 byte missing one) replaced",
+            ?_assertEqual(
+                xcode(<<240, 144, 128, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"missing continuation byte (4 byte missing two)",
+            ?_assert(is_bad(xcode(<<240, 144, 32>>)))
+        },
+        {"missing continuation byte2 (4 byte missing two) replaced",
+            ?_assertEqual(
+                xcode(<<240, 144, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (2 byte)",
+            ?_assert(is_bad(xcode(<<16#c0, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (2 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#c0, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (3 byte)",
+            ?_assert(is_bad(xcode(<<16#e0, 16#80, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (3 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#e0, 16#80, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"overlong encoding of u+002f (4 byte)",
+            ?_assert(is_bad(xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>)))
+        },
+        {"overlong encoding of u+002f (4 byte) replaced",
+            ?_assertEqual(
+                xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 2 byte sequence",
+            ?_assert(is_bad(xcode(<<16#c1, 16#bf, 32>>)))
+        },
+        {"highest overlong 2 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#c1, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 3 byte sequence",
+            ?_assert(is_bad(xcode(<<16#e0, 16#9f, 16#bf, 32>>)))
+        },
+        {"highest overlong 3 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#e0, 16#9f, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        },
+        {"highest overlong 4 byte sequence",
+            ?_assert(is_bad(xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>)))
+        },
+        {"highest overlong 4 byte sequence replaced",
+            ?_assertEqual(
+                xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [loose_unicode]),
+                <<16#fffd/utf8, 32>>
+            )
+        }
+    ].
+
+
+ignore_bad_escapes_test_() ->
+    [
+        {"ignore unrecognized escape sequence", ?_assertEqual(
+            decode(<<"[\"\\x25\"]">>, [ignore_bad_escapes]),
+            [start_array, {string, <<"\\x25">>}, end_array, end_json]
+        )}
+    ].
+
+
 comments_test_() ->
     [
         {"preceeding // comment", ?_assertEqual(
@@ -1147,6 +1442,7 @@ comments_test_() ->
         )}
     ].
 
+
 escape_forward_slash_test_() ->
     [
         {"escape forward slash test", ?_assertEqual(
@@ -1154,6 +1450,29 @@ escape_forward_slash_test_() ->
             [start_array, {string, <<" / ">>}, end_array, end_json]
         )}
     ].
+
+
+noncharacters_test_() ->
+    [
+        {"noncharacters - badjson",
+            ?_assertEqual(check_bad(noncharacters()), [])
+        },
+        {"noncharacters - replaced",
+            ?_assertEqual(check_replaced(noncharacters()), [])
+        }
+    ].
+
+
+extended_noncharacters_test_() ->
+    [
+        {"extended noncharacters - badjson",
+            ?_assertEqual(check_bad(extended_noncharacters()), [])
+        },
+        {"extended noncharacters - replaced",
+            ?_assertEqual(check_replaced(extended_noncharacters()), [])
+        }
+    ].
+
 
 surrogates_test_() ->
     [
@@ -1165,12 +1484,25 @@ surrogates_test_() ->
         }
     ].
 
+
 control_test_() ->
     [
         {"control characters - badjson",
             ?_assertEqual(check_bad(control_characters()), [])
         }
     ].
+
+
+reserved_test_() ->
+    [
+        {"reserved noncharacters - badjson",
+            ?_assertEqual(check_bad(reserved_space()), [])
+        },
+        {"reserved noncharacters - replaced",
+            ?_assertEqual(check_replaced(reserved_space()), [])
+        }
+    ].
+
     
 good_characters_test_() ->
     [
@@ -1181,57 +1513,13 @@ good_characters_test_() ->
             ?_assertEqual(check_good(good_extended()), [])
         }
     ].
-
-malformed_test_() ->
-    [
-        {"malformed codepoint with 1 byte",
-            ?_assertEqual({error, badjson}, decode(<<128>>))
-        },
-        {"malformed codepoint with 2 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192>>))
-        },
-        {"malformed codepoint with 3 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192, 192>>))
-        },
-        {"malformed codepoint with 4 bytes",
-            ?_assertEqual({error, badjson}, decode(<<128, 192, 192, 192>>))
-        }
-    ].
-
-malformed_replaced_test_() ->
-    F = <<16#fffd/utf8>>,
-    [
-        {"malformed codepoint with 1 byte",
-            ?_assertEqual(
-                [{string, <<F/binary>>}, end_json],
-                decode(<<34, 128, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 2 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 3 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 192, 34>>, [loose_unicode])
-            )
-        },
-        {"malformed codepoint with 4 bytes",
-            ?_assertEqual(
-                [{string, <<F/binary, F/binary, F/binary, F/binary>>}, end_json],
-                decode(<<34, 128, 192, 192, 192, 34>>, [loose_unicode])
-            )
-        }
-    ].
     
 
 check_bad(List) ->
     lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
+
 
 check_replaced(List) ->
     lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
@@ -1240,18 +1528,18 @@ check_replaced(List) ->
         check(List, [loose_unicode], [])
     ).
 
+
 check_good(List) ->
     lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
+
 
 check([], _Opts, Acc) -> Acc;
 check([H|T], Opts, Acc) ->
     R = decode(to_fake_utf(H, utf8), Opts),
     check(T, Opts, [{H, R}] ++ Acc).
 
-
-decode(JSON) -> decode(JSON, []).
 
 decode(JSON, Opts) ->
     try
@@ -1261,13 +1549,41 @@ decode(JSON, Opts) ->
     end.
 
 
+noncharacters() -> lists:seq(16#fffe, 16#ffff).
+
+
+extended_noncharacters() ->
+    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
+        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
+        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
+        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
+        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
+        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
+        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
+        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
+
+
 surrogates() -> lists:seq(16#d800, 16#dfff).
+
 
 control_characters() -> lists:seq(1, 31).
 
-good() -> [32, 33] ++ lists:seq(16#23, 16#5b) ++ lists:seq(16#5d, 16#d7ff) ++ lists:seq(16#e000, 16#fffd).
-            
-good_extended() -> lists:seq(16#100000, 16#10ffff).
+
+reserved_space() -> lists:seq(16#fdd0, 16#fdef).
+
+
+good() -> [32, 33]
+            ++ lists:seq(16#23, 16#5b)
+            ++ lists:seq(16#5d, 16#d7ff)
+            ++ lists:seq(16#e000, 16#fdcf)
+            ++ lists:seq(16#fdf0, 16#fffd).
+
+        
+good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
+        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
+        16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
+    ] ++ lists:seq(16#100000, 16#10fffd).
+
 
 %% erlang refuses to encode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;

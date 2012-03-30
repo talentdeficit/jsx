@@ -39,7 +39,7 @@
 -spec to_json(Source::any(), Opts::opts()) -> binary().
     
 to_json(Source, Opts) when is_list(Opts) ->
-    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts([json_escape] ++ Opts)))(Source).
+    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
 
 -spec format(Source::binary(), Opts::opts()) -> binary().
@@ -195,6 +195,9 @@ basic_format_test_() ->
             [{"naked float", ?_assertEqual(format(<<"1.23">>, []), <<"1.23">>)}]
         },
         {"naked string", ?_assertEqual(format(<<"\"hi\"">>, []), <<"\"hi\"">>)},
+        {"naked string with control character", ?_assertEqual(
+            format(<<"\"hi\\n\"">>, [json_escape]), <<"\"hi\\n\"">>
+        )},
         {"naked literal", ?_assertEqual(format(<<"true">>, []), <<"true">>)},
         {"simple object", ?_assertEqual(
             format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, []),
@@ -241,6 +244,9 @@ basic_to_json_test_() ->
             [{"naked float", ?_assertEqual(to_json(1.23, []) , <<"1.23">>)}]
         },
         {"naked string", ?_assertEqual(to_json(<<"hi">>, []), <<"\"hi\"">>)},
+        {"naked string with control character", ?_assertEqual(
+            to_json(<<"hi\n">>, [json_escape]), <<"\"hi\\n\"">>
+        )},
         {"naked literal", ?_assertEqual(to_json(true, []), <<"true">>)},
         {"simple object", ?_assertEqual(
             to_json(
@@ -324,10 +330,5 @@ opts_test_() ->
         )}
     ].
 
-ext_opts_test_() ->
-    [{"extopts", ?_assertEqual(
-        format(<<"[]">>, [loose_unicode, {escape_forward_slash, true}]),
-        <<"[]">>
-    )}].
     
 -endif.

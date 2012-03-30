@@ -127,6 +127,10 @@ javascript interpreters treat the codepoints `u+2028` and `u+2029` as significan
 
 json has no official comments but some parsers allow c style comments. this flag allows comments (both `// ...` and `/* ... */` style) anywhere whitespace is allowed
 
+#### `json_escape` ####
+
+by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings for output in json, removing control codes and replacing them with the appropriate escapes
+
 
 ### <a name="incompletes">incomplete input</a> ###
 

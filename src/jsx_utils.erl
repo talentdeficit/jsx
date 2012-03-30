@@ -51,6 +51,17 @@ parse_opts([comments|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{comments=true});
 parse_opts([json_escape|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{json_escape=true});
+parse_opts([dirty_strings|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{dirty_strings=true});
+parse_opts([ignore_bad_escapes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{ignore_bad_escapes=true});
+parse_opts([relax|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{
+        loose_unicode = true,
+        single_quotes = true,
+        comments = true,
+        ignore_bad_escapes = true
+    });
 parse_opts(_, _) ->
     {error, badarg}.
 
@@ -63,7 +74,10 @@ valid_flags() ->
         single_quotes,
         no_jsonp_escapes,
         comments,
-        json_escape
+        json_escape,
+        dirty_strings,
+        ignore_bad_escapes,
+        relax
     ].
 
 
@@ -88,7 +102,10 @@ extract_parser_opts([K|Rest], Acc) ->
 %%  everything else should be a legal json string component
 
 json_escape(String, Opts) when is_binary(String) ->
-    json_escape(String, Opts, 0, size(String)).
+    case Opts#opts.dirty_strings of
+        true -> String
+        ; false -> json_escape(String, Opts, 0, size(String))
+    end.
 
 
 -define(control_character(X),
@@ -243,7 +260,7 @@ json_escape(Str, Opts, L, Len) when L < Len ->
                     json_escape(<<H/binary, 16#2028/utf8, T/binary>>, Opts, L + 3, Len);
                 false ->
                     B = unicode:characters_to_binary(json_escape_sequence(16#2028)),
-                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2028/utf8>>))
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + 6, Len + 3)
             end;
         <<H:L/binary, 16#2029/utf8, T/binary>> ->
             case Opts#opts.no_jsonp_escapes of
@@ -251,26 +268,51 @@ json_escape(Str, Opts, L, Len) when L < Len ->
                     json_escape(<<H/binary, 16#2029/utf8, T/binary>>, Opts, L + 3, Len);
                 false ->
                     B = unicode:characters_to_binary(json_escape_sequence(16#2029)),
-                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + size(B), Len + size(B) - size(<<16#2029/utf8>>))
+                    json_escape(<<H/binary, B/binary, T/binary>>, Opts, L + 6, Len + 3)
             end;
         <<_:L/binary, X/utf8, _/binary>> when X < 16#0080 ->   
             json_escape(Str, Opts, L + 1, Len);
         <<_:L/binary, X/utf8, _/binary>> when X < 16#0800 ->
             json_escape(Str, Opts, L + 2, Len);
-        <<_:L/binary, X/utf8, _/binary>> when X < 16#10000 ->
+        <<_:L/binary, X/utf8, _/binary>> when X < 16#dcff ->
             json_escape(Str, Opts, L + 3, Len);
-        <<_:L/binary, _/utf8, _/binary>> ->
+        <<_:L/binary, X/utf8, _/binary>> when X > 16#dfff, X < 16#fdd0 ->
+            json_escape(Str, Opts, L + 3, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X > 16#fdef, X < 16#fffe ->
+            json_escape(Str, Opts, L + 3, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#10000, X < 16#1fffe ->
             json_escape(Str, Opts, L + 4, Len);
-        <<H:L/binary, 237, X, _, T/binary>> when X >= 160 ->
-            case Opts#opts.loose_unicode of
-                true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len);
-                false -> erlang:error(badarg, [Str, Opts])
-            end;
-        <<H:L/binary, _, T/binary>> ->
-            case Opts#opts.loose_unicode of
-                true -> json_escape(<<H/binary, 16#fffd/utf8, T/binary>>, Opts, L + 3, Len + 2);
-                false -> erlang:error(badarg, [Str, Opts])
-            end            
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#20000, X < 16#2fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#30000, X < 16#3fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#40000, X < 16#4fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#50000, X < 16#5fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#60000, X < 16#6fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#70000, X < 16#7fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#80000, X < 16#8fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#90000, X < 16#9fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#a0000, X < 16#afffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#b0000, X < 16#bfffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#c0000, X < 16#cfffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#d0000, X < 16#dfffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#e0000, X < 16#efffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#f0000, X < 16#ffffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        <<_:L/binary, X/utf8, _/binary>> when X >= 16#100000, X < 16#10fffe ->
+            json_escape(Str, Opts, L + 4, Len);
+        _ -> erlang:error(badarg, [Str, Opts])
     end;
 json_escape(Str, _, L, Len) when L =:= Len ->
     Str.
@@ -289,7 +331,6 @@ to_hex(13) -> $d;
 to_hex(14) -> $e;
 to_hex(15) -> $f;
 to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
-
 
 
 %% eunit tests
@@ -329,28 +370,53 @@ binary_escape_test_() ->
                 <<"\\/Date(1303502009425)\\/">>
             )
         },
-        {"bad utf8",
-            ?_assertError(badarg, json_escape(<<32, 64, 128, 255>>, #opts{}))
-        },
-        {"bad utf8 ok",
+        {"dirty strings",
             ?_assertEqual(
-                json_escape(<<32, 64, 128, 255>>, #opts{loose_unicode=true}),
-                <<32, 64, 16#fffd/utf8, 16#fffd/utf8>>
-            )
-        },
-        {"bad surrogate", ?_assertError(badarg, json_escape(<<237, 160, 127>>, #opts{}))},
-        {"bad surrogate ok",
-            ?_assertEqual(
-                json_escape(<<237, 160, 127>>, #opts{loose_unicode=true}),
-                <<16#fffd/utf8>>
-            )
-        },
-        {"all sizes of codepoints",
-            ?_assertEqual(
-                json_escape(unicode:characters_to_binary([0, 32, 16#80, 16#800, 16#10000]), #opts{}),
-                <<"\\u0000", 32/utf8, 16#80/utf8, 16#800/utf8, 16#10000/utf8>>
+                json_escape(<<"\\x25\\uffff">>, #opts{dirty_strings=true}),
+                <<"\\x25\\uffff">>
             )
         }
     ].
+
+
+opts_test_() ->
+    [
+        {"all flags",
+            ?_assertEqual(
+                parse_opts([
+                    loose_unicode,
+                    escape_forward_slash,
+                    explicit_end,
+                    single_quotes,
+                    no_jsonp_escapes,
+                    comments,
+                    dirty_strings,
+                    ignore_bad_escapes
+                ]),
+                #opts{
+                    loose_unicode=true,
+                    escape_forward_slash=true,
+                    explicit_end=true,
+                    single_quotes=true,
+                    no_jsonp_escapes=true,
+                    comments=true,
+                    dirty_strings=true,
+                    ignore_bad_escapes=true
+                }
+            )
+        },
+        {"relax flag",
+            ?_assertEqual(
+                parse_opts([relax]),
+                #opts{
+                    loose_unicode=true,
+                    single_quotes=true,
+                    comments=true,
+                    ignore_bad_escapes=true
+                }
+            )
+        }
+    ].
+
 
 -endif.

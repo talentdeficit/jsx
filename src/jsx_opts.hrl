@@ -5,5 +5,7 @@
     single_quotes = false,
     no_jsonp_escapes = false,
     comments = false,
-    json_escape = false
+    json_escape = false,
+    dirty_strings = false,
+    ignore_bad_escapes = false
 }).
