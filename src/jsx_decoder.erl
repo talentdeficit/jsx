@@ -270,11 +270,11 @@ string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+            colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|Stack], Opts);
         [_Acc, single_quote|_Stack] ->
             ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts]);
         [Acc|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
+            maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, Stack, Opts)
     end;
 string(<<35, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Opts);
@@ -289,9 +289,9 @@ string(<<?singlequote, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
         true ->
             case Stack of
                 [single_quote, key|S] ->
-                    colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|S], Opts)
+                    colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|S], Opts)
                 ; [single_quote|S] ->
-                    maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, S, Opts)
+                    maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, S, Opts)
                 ; _ ->
                     string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
             end
@@ -530,6 +530,11 @@ string(Bin, Handler, Stack, Opts) ->
                 ; false -> ?error([Bin, Handler, Stack, Opts])
             end
     end.
+
+
+maybe_escape(Str, Opts=#opts{json_escape=true}) -> jsx_utils:json_escape(Str, Opts);
+maybe_escape(Str, _Opts) -> Str.
+
     
 %% we don't need to guard against partial utf here, because it's already taken
 %%   care of in string
