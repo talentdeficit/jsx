@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suite
+jsx uses [rebar][rebar] for it's build chain
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
