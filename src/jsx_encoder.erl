@@ -105,13 +105,17 @@ fix_key(Key) when is_binary(Key) -> Key.
 
 clean_string(Bin, Opts) ->
     case Opts#opts.loose_unicode of
-        true -> jsx_utils:json_escape(clean_string(Bin, 0, size(Bin), Opts), Opts)
+        true -> maybe_escape(clean_string(Bin, 0, size(Bin), Opts), Opts)
         ; false ->
             case is_clean(Bin) of
-                true -> jsx_utils:json_escape(Bin, Opts)
+                true -> maybe_escape(Bin, Opts)
                 ; false -> erlang:error(badarg, [Bin, Opts])
             end
     end.
+
+
+maybe_escape(Bin, Opts=#opts{json_escape=true}) -> jsx_utils:json_escape(Bin, Opts);
+maybe_escape(Bin, _) -> Bin.
 
 
 is_clean(<<>>) -> true;
@@ -403,7 +407,7 @@ bad_utf8_test_() ->
     ].
 
 
-encode(Term) -> (encoder(jsx, [], []))(Term).
+encode(Term) -> encode(Term, []).
 
 encode(Term, Opts) ->
     try (encoder(jsx, [], Opts))(Term)
@@ -413,7 +417,8 @@ encode(Term, Opts) ->
 
 encode_test_() ->    
     [
-        {"naked string", ?_assertEqual(encode(<<"a string">>), [{string, <<"a string">>}, end_json])},
+        {"naked string", ?_assertEqual(encode(<<"a string\n">>), [{string, <<"a string\n">>}, end_json])},
+        {"escaped naked string", ?_assertEqual(encode(<<"a string\n">>, [json_escape]), [{string, <<"a string\\n">>}, end_json])},
         {"naked integer", ?_assertEqual(encode(123), [{integer, 123}, end_json])},
         {"naked float", ?_assertEqual(encode(1.23), [{float, 1.23}, end_json])},
         {"naked literal", ?_assertEqual(encode(null), [{literal, null}, end_json])},

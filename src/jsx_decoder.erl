@@ -1452,6 +1452,19 @@ escape_forward_slash_test_() ->
     ].
 
 
+json_escape_test_() ->
+    [
+        {"json escape test", ?_assertEqual(
+            decode(<<"[\"a string\\n\"]">>, [json_escape]),
+            [start_array, {string, <<"a string\\n">>}, end_array, end_json]
+        )},
+        {"no json escape test", ?_assertEqual(
+            decode(<<"[\"a string\\n\"]">>, []),
+            [start_array, {string, <<"a string\n">>}, end_array, end_json]
+        )}
+    ].
+
+
 noncharacters_test_() ->
     [
         {"noncharacters - badjson",
