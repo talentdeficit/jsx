@@ -627,7 +627,7 @@ bad_utf8_test_() ->
         {"missing continuation byte (4 byte missing one)",
             ?_assert(is_bad(xcode(<<240, 144, 128, 32>>)))
         },
-        {"missing continuation byte2 (4 byte missing one) replaced",
+        {"missing continuation byte (4 byte missing one) replaced",
             ?_assertEqual(
                 xcode(<<240, 144, 128, 32>>, [loose_unicode]),
                 <<16#fffd/utf8, 32>>
@@ -636,7 +636,7 @@ bad_utf8_test_() ->
         {"missing continuation byte (4 byte missing two)",
             ?_assert(is_bad(xcode(<<240, 144, 32>>)))
         },
-        {"missing continuation byte2 (4 byte missing two) replaced",
+        {"missing continuation byte (4 byte missing two) replaced",
             ?_assertEqual(
                 xcode(<<240, 144, 32>>, [loose_unicode]),
                 <<16#fffd/utf8, 32>>
@@ -809,10 +809,10 @@ escapes_test_() ->
 surrogates_test_() ->
     [
         {"surrogates - badjson",
-            ?_assertEqual(check_bad(surrogates()), [])
+            ?_assert(check_bad(surrogates()))
         },
         {"surrogates - replaced",
-            ?_assertEqual(check_replaced(surrogates()), [])
+            ?_assert(check_replaced(surrogates()))
         }
     ].
 
@@ -820,10 +820,25 @@ surrogates_test_() ->
 good_characters_test_() ->
     [
         {"acceptable codepoints",
-            ?_assertEqual(check_good(good()), [])
+            ?_assert(check_good(good(), []))
+        },
+        {"acceptable codepoints - json_escape",
+            ?_assert(check_good(good(), [json_escape]))
+        },
+        {"acceptable codepoints - loose_unicode",
+            ?_assert(check_good(good(), [json_escape]))
+        },
+        {"acceptable codepoints - json_escape + loose_unicode",
+            ?_assert(check_good(good(), [json_escape, loose_unicode]))
         },
         {"acceptable extended",
-            ?_assertEqual(check_good(good_extended()), [])
+            ?_assert(check_good(good_extended(), []))
+        },
+        {"acceptable extended - json_escape",
+            ?_assert(check_good(good_extended(), [json_escape]))
+        },
+        {"acceptable extended - json_escape",
+            ?_assert(check_good(good_extended(), [loose_unicode]))
         }
     ].
 
@@ -831,10 +846,10 @@ good_characters_test_() ->
 reserved_test_() ->
     [
         {"reserved noncharacters - badjson",
-            ?_assertEqual(check_bad(reserved_space()), [])
+            ?_assert(check_bad(reserved_space()))
         },
         {"reserved noncharacters - replaced",
-            ?_assertEqual(check_replaced(reserved_space()), [])
+            ?_assert(check_replaced(reserved_space()))
         }
     ].
 
@@ -842,10 +857,10 @@ reserved_test_() ->
 noncharacters_test_() ->
     [
         {"noncharacters - badjson",
-            ?_assertEqual(check_bad(noncharacters()), [])
+            ?_assert(check_bad(noncharacters()))
         },
         {"noncharacters - replaced",
-            ?_assertEqual(check_replaced(noncharacters()), [])
+            ?_assert(check_replaced(noncharacters()))
         }
     ].
 
@@ -853,31 +868,31 @@ noncharacters_test_() ->
 extended_noncharacters_test_() ->
     [
         {"extended noncharacters - badjson",
-            ?_assertEqual(check_bad(extended_noncharacters()), [])
+            ?_assert(check_bad(extended_noncharacters()))
         },
         {"extended noncharacters - replaced",
-            ?_assertEqual(check_replaced(extended_noncharacters()), [])
+            ?_assert(check_replaced(extended_noncharacters()))
         }
     ].
 
 
 check_bad(List) ->
-    lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
+    [] == lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 
 
 check_replaced(List) ->
-    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
             ; (_) -> false 
         end,
         check(List, [loose_unicode], [])
     ).
 
 
-check_good(List) ->
-    lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
-        check(List, [], [])
+check_good(List, Opts) ->
+    [] == lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
+        check(List, Opts, [])
     ).
 
 
@@ -889,7 +904,6 @@ check([H|T], Opts, Acc) ->
 
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
 
-
 extended_noncharacters() ->
     [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
         ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
@@ -900,15 +914,11 @@ extended_noncharacters() ->
         ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
         ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
-
 surrogates() -> lists:seq(16#d800, 16#dfff).
-
 
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 
-
 good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
-
 
 good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
         16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
