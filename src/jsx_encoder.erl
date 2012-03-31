@@ -464,6 +464,7 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
+maybe_replace(X, #opts{dirty_strings=true}) when is_integer(X) -> [X];
 maybe_replace($\b, #opts{json_escape=true}) -> [$b, $\\];
 maybe_replace($\t, #opts{json_escape=true}) -> [$t, $\\];
 maybe_replace($\n, #opts{json_escape=true}) -> [$n, $\\];
@@ -800,7 +801,8 @@ escapes_test_() ->
             encode(<<16#2028/utf8, 16#2029/utf8>>, [json_escape, no_jsonp_escapes]),
             [{string, <<16#2028/utf8, 16#2029/utf8>>}, end_json]
         )},
-        {"control escape", ?_assertEqual(encode(<<0>>, [json_escape]), [{string, <<"\\u0000">>}, end_json])}
+        {"control escape", ?_assertEqual(encode(<<0>>, [json_escape]), [{string, <<"\\u0000">>}, end_json])},
+        {"dirty strings", ?_assertEqual(encode(<<"\n">>, [json_escape, dirty_strings]), [{string, <<"\n">>}, end_json])}
     ].
 
 
