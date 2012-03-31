@@ -1462,16 +1462,29 @@ escape_forward_slash_test_() ->
     ].
 
 
-json_escape_test_() ->
+escapes_test_() ->
     [
-        {"json escape test", ?_assertEqual(
-            decode(<<"[\"a string\\n\"]">>, [json_escape]),
-            [start_array, {string, <<"a string\\n">>}, end_array, end_json]
+        {"backspace escape", ?_assertEqual(decode(<<"\"\\b\"">>, [json_escape]), [{string, <<"\\b">>}, end_json])},
+        {"formfeed escape", ?_assertEqual(decode(<<"\"\\f\"">>, [json_escape]), [{string, <<"\\f">>}, end_json])},
+        {"newline escape", ?_assertEqual(decode(<<"\"\\n\"">>, [json_escape]), [{string, <<"\\n">>}, end_json])},
+        {"carriage return escape", ?_assertEqual(decode(<<"\"\\r\"">>, [json_escape]), [{string, <<"\\r">>}, end_json])},
+        {"tab escape", ?_assertEqual(decode(<<"\"\\t\"">>, [json_escape]), [{string, <<"\\t">>}, end_json])},
+        {"quote escape", ?_assertEqual(decode(<<"\"\\\"\"">>, [json_escape]), [{string, <<"\\\"">>}, end_json])},
+        {"single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [json_escape, single_quotes]), [{string, <<"\\'">>}, end_json])},
+        {"no single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [json_escape]), [{string, <<"'">>}, end_json])},
+        {"forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [json_escape, escape_forward_slash]), [{string, <<"\\/">>}, end_json])},
+        {"no forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [json_escape]), [{string, <<"/">>}, end_json])},
+        {"back slash escape", ?_assertEqual(decode(<<"\"\\\\\"">>, [json_escape]), [{string, <<"\\\\">>}, end_json])},
+        {"jsonp escape", ?_assertEqual(
+            decode(<<$\", 16#2028/utf8, 16#2029/utf8, $\">>, [json_escape]),
+            [{string, <<"\\u2028\\u2029">>}, end_json]
         )},
-        {"no json escape test", ?_assertEqual(
-            decode(<<"[\"a string\\n\"]">>),
-            [start_array, {string, <<"a string\n">>}, end_array, end_json]
-        )}
+        {"no jsonp escape", ?_assertEqual(
+            decode(<<$\", 16#2028/utf8, 16#2029/utf8, $\">>, [json_escape, no_jsonp_escapes]),
+            [{string, <<16#2028/utf8, 16#2029/utf8>>}, end_json]
+        )},
+        {"control escape", ?_assertEqual(decode(<<$\", "\\u0000"/utf8, $\">>, [json_escape]), [{string, <<"\\u0000">>}, end_json])},
+        {"dirty strings", ?_assertEqual(decode(<<"\"\\n\"">>, [json_escape, dirty_strings]), [{string, <<"\n">>}, end_json])}
     ].
 
 
@@ -1532,8 +1545,23 @@ good_characters_test_() ->
         {"acceptable codepoints",
             ?_assert(check_good(good()))
         },
+        {"acceptable codepoints - json_escape",
+            ?_assert(check_good(good(), [json_escape]))
+        },
+        {"acceptable codepoints - loose_unicode",
+            ?_assert(check_good(good(), [json_escape]))
+        },
+        {"acceptable codepoints - json_escape + loose_unicode",
+            ?_assert(check_good(good(), [json_escape, loose_unicode]))
+        },
         {"acceptable extended",
             ?_assert(check_good(good_extended()))
+        },
+        {"acceptable extended - json_escape",
+            ?_assert(check_good(good_extended(), [json_escape]))
+        },
+        {"acceptable extended - json_escape",
+            ?_assert(check_good(good_extended(), [loose_unicode]))
         }
     ].
     
@@ -1595,7 +1623,7 @@ good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
     ] ++ lists:seq(16#100000, 16#10fffd).
 
 
-%% erlang refuses to encode certain codepoints, so fake them all
+%% erlang refuses to decode certain codepoints, so fake them all
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
 to_fake_utf(N, utf8) when N < 16#0800 ->
     <<0:5, Y:5, X:6>> = <<N:16>>,
