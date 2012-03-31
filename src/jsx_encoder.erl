@@ -820,7 +820,7 @@ surrogates_test_() ->
 good_characters_test_() ->
     [
         {"acceptable codepoints",
-            ?_assert(check_good(good(), []))
+            ?_assert(check_good(good()))
         },
         {"acceptable codepoints - json_escape",
             ?_assert(check_good(good(), [json_escape]))
@@ -832,7 +832,7 @@ good_characters_test_() ->
             ?_assert(check_good(good(), [json_escape, loose_unicode]))
         },
         {"acceptable extended",
-            ?_assert(check_good(good_extended(), []))
+            ?_assert(check_good(good_extended()))
         },
         {"acceptable extended - json_escape",
             ?_assert(check_good(good_extended(), [json_escape]))
@@ -883,12 +883,13 @@ check_bad(List) ->
 
 
 check_replaced(List) ->
-    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
-            ; (_) -> false 
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false 
         end,
         check(List, [loose_unicode], [])
     ).
 
+
+check_good(List) -> check_good(List, []).
 
 check_good(List, Opts) ->
     [] == lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
