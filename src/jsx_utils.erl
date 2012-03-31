@@ -25,7 +25,7 @@
 
 -export([parse_opts/1]).
 -export([extract_opts/1]).
--export([json_escape/2]).
+-export([json_escape/2, json_escape_sequence/1]).
 
 -include("jsx_opts.hrl").
 
@@ -321,7 +321,7 @@ json_escape(Str, _, L, Len) when L =:= Len ->
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    unicode:characters_to_binary([$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))]).
+    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
 
 
 to_hex(10) -> $a;
