@@ -1249,6 +1249,16 @@ bad_utf8_test_() ->
     ].
 
 
+decode(JSON) -> decode(JSON, []).
+
+decode(JSON, Opts) ->
+    try
+        (decoder(jsx, [], Opts))(JSON)
+    catch
+        error:badarg -> {error, badjson}
+    end.
+
+
 ignore_bad_escapes_test_() ->
     [
         {"ignore unrecognized escape sequence", ?_assertEqual(
@@ -1459,7 +1469,7 @@ json_escape_test_() ->
             [start_array, {string, <<"a string\\n">>}, end_array, end_json]
         )},
         {"no json escape test", ?_assertEqual(
-            decode(<<"[\"a string\\n\"]">>, []),
+            decode(<<"[\"a string\\n\"]">>),
             [start_array, {string, <<"a string\n">>}, end_array, end_json]
         )}
     ].
@@ -1468,10 +1478,10 @@ json_escape_test_() ->
 noncharacters_test_() ->
     [
         {"noncharacters - badjson",
-            ?_assertEqual(check_bad(noncharacters()), [])
+            ?_assert(check_bad(noncharacters()))
         },
         {"noncharacters - replaced",
-            ?_assertEqual(check_replaced(noncharacters()), [])
+            ?_assert(check_replaced(noncharacters()))
         }
     ].
 
@@ -1479,10 +1489,10 @@ noncharacters_test_() ->
 extended_noncharacters_test_() ->
     [
         {"extended noncharacters - badjson",
-            ?_assertEqual(check_bad(extended_noncharacters()), [])
+            ?_assert(check_bad(extended_noncharacters()))
         },
         {"extended noncharacters - replaced",
-            ?_assertEqual(check_replaced(extended_noncharacters()), [])
+            ?_assert(check_replaced(extended_noncharacters()))
         }
     ].
 
@@ -1490,10 +1500,10 @@ extended_noncharacters_test_() ->
 surrogates_test_() ->
     [
         {"surrogates - badjson",
-            ?_assertEqual(check_bad(surrogates()), [])
+            ?_assert(check_bad(surrogates()))
         },
         {"surrogates - replaced",
-            ?_assertEqual(check_replaced(surrogates()), [])
+            ?_assert(check_replaced(surrogates()))
         }
     ].
 
@@ -1501,7 +1511,7 @@ surrogates_test_() ->
 control_test_() ->
     [
         {"control characters - badjson",
-            ?_assertEqual(check_bad(control_characters()), [])
+            ?_assert(check_bad(control_characters()))
         }
     ].
 
@@ -1509,10 +1519,10 @@ control_test_() ->
 reserved_test_() ->
     [
         {"reserved noncharacters - badjson",
-            ?_assertEqual(check_bad(reserved_space()), [])
+            ?_assert(check_bad(reserved_space()))
         },
         {"reserved noncharacters - replaced",
-            ?_assertEqual(check_replaced(reserved_space()), [])
+            ?_assert(check_replaced(reserved_space()))
         }
     ].
 
@@ -1520,31 +1530,32 @@ reserved_test_() ->
 good_characters_test_() ->
     [
         {"acceptable codepoints",
-            ?_assertEqual(check_good(good()), [])
+            ?_assert(check_good(good()))
         },
         {"acceptable extended",
-            ?_assertEqual(check_good(good_extended()), [])
+            ?_assert(check_good(good_extended()))
         }
     ].
     
 
 check_bad(List) ->
-    lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
+    [] == lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 
 
 check_replaced(List) ->
-    lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true
-            ; (_) -> false 
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false 
         end,
         check(List, [loose_unicode], [])
     ).
 
 
-check_good(List) ->
-    lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
-        check(List, [], [])
+check_good(List) -> check_good(List, []).
+
+check_good(List, Opts) ->
+    [] == lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
+        check(List, Opts, [])
     ).
 
 
@@ -1554,16 +1565,7 @@ check([H|T], Opts, Acc) ->
     check(T, Opts, [{H, R}] ++ Acc).
 
 
-decode(JSON, Opts) ->
-    try
-        (decoder(jsx, [], Opts))(JSON)
-    catch
-        error:badarg -> {error, badjson}
-    end.
-
-
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
-
 
 extended_noncharacters() ->
     [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
@@ -1575,15 +1577,11 @@ extended_noncharacters() ->
         ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
         ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
-
 surrogates() -> lists:seq(16#d800, 16#dfff).
-
 
 control_characters() -> lists:seq(1, 31).
 
-
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
-
 
 good() -> [32, 33]
             ++ lists:seq(16#23, 16#5b)
@@ -1591,7 +1589,6 @@ good() -> [32, 33]
             ++ lists:seq(16#e000, 16#fdcf)
             ++ lists:seq(16#fdf0, 16#fffd).
 
-        
 good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
         16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
         16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
