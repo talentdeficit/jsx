@@ -1255,8 +1255,6 @@ bad_utf8_test_() ->
     ].
 
 
-decode(JSON) -> decode(JSON, []).
-
 decode(JSON, Opts) ->
     try
         (decoder(jsx, [], Opts))(JSON)
