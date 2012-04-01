@@ -1475,6 +1475,7 @@ escapes_test_() ->
         {"tab escape", ?_assertEqual(decode(<<"\"\\t\"">>, [json_escape]), [{string, <<"\\t">>}, end_json])},
         {"quote escape", ?_assertEqual(decode(<<"\"\\\"\"">>, [json_escape]), [{string, <<"\\\"">>}, end_json])},
         {"single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [json_escape, single_quotes]), [{string, <<"\\'">>}, end_json])},
+        {"naked single quote escape", ?_assertEqual(decode(<<"'\\''">>, [json_escape, single_quotes]), [{string, <<"\\'">>}, end_json])},
         {"no single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [json_escape]), [{string, <<"'">>}, end_json])},
         {"forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [json_escape, escape_forward_slash]), [{string, <<"\\/">>}, end_json])},
         {"no forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [json_escape]), [{string, <<"/">>}, end_json])},
