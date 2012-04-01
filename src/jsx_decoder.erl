@@ -29,15 +29,7 @@
 -spec decoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:decoder().
 
 decoder(Handler, State, Opts) ->
-    fun(JSON) ->
-        value(
-            JSON,
-            {Handler, Handler:init(State)},
-            [],
-            jsx_utils:parse_opts(Opts)
-        )
-    end.
-
+    fun(JSON) -> value(JSON, {Handler, Handler:init(State)}, [], jsx_utils:parse_opts(Opts)) end.
 
 
 -include("jsx_opts.hrl").
@@ -83,8 +75,9 @@ decoder(Handler, State, Opts) ->
 
 %% some useful guards
 -define(is_hex(Symbol),
-    (Symbol >= $a andalso Symbol =< $z); (Symbol >= $A andalso Symbol =< $Z); 
-        (Symbol >= $0 andalso Symbol =< $9)
+    (Symbol >= $a andalso Symbol =< $z);
+    (Symbol >= $A andalso Symbol =< $Z); 
+    (Symbol >= $0 andalso Symbol =< $9)
 ).
 
 -define(is_nonzero(Symbol),
@@ -695,18 +688,16 @@ negative(Bin, Handler, Stack, Opts) ->
 
 
 zero(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_object,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
 zero(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_array,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
@@ -732,18 +723,16 @@ zero(Bin, Handler, Stack, Opts) ->
 integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [[S] ++ Acc|Stack], Opts);
 integer(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_object,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
 integer(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_array,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
@@ -770,8 +759,7 @@ integer(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-initial_decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
-        when S =:= ?zero; ?is_nonzero(S) ->
+initial_decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Opts);
 initial_decimal(<<>>, Handler, Stack, Opts) ->
     ?incomplete(initial_decimal, <<>>, Handler, Stack, Opts);
@@ -783,18 +771,16 @@ decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
         when S=:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Opts);
 decimal(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_object,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
 decimal(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_array,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
@@ -802,8 +788,7 @@ decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
     key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
 decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
     value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
-decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
-        when S =:= $e; S =:= $E ->
+decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [{Int, Frac, []}|Stack], Opts);
 decimal(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
@@ -818,11 +803,9 @@ decimal(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
-        when S =:= ?zero; ?is_nonzero(S) ->
+e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);   
-e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
-        when S =:= ?positive; S =:= ?negative ->
+e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
 e(<<>>, Handler, Stack, Opts) ->  
     ?incomplete(e, <<>>, Handler, Stack, Opts);
@@ -830,8 +813,7 @@ e(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-ex(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
-        when S =:= ?zero; ?is_nonzero(S) ->
+ex(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
 ex(<<>>, Handler, Stack, Opts) ->  
     ?incomplete(ex, <<>>, Handler, Stack, Opts);
@@ -839,22 +821,19 @@ ex(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-exp(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts)
-        when S =:= ?zero; ?is_nonzero(S) ->
+exp(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
 exp(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_object,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
 exp(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(Rest,
-        {Handler, Handler:handle_event(end_array,
-            Handler:handle_event(format_number(Acc), State)
-        )},
+    maybe_done(
+        Rest,
+        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
         Stack,
         Opts
     );
