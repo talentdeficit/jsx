@@ -36,49 +36,69 @@ parse_opts(Opts) ->
 
 parse_opts([], Opts) ->
     Opts;
-parse_opts([loose_unicode|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{loose_unicode=true});
-parse_opts([escape_forward_slash|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{escape_forward_slash=true});
+parse_opts([replaced_bad_utf8|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{replaced_bad_utf8=true});
+parse_opts([escaped_forward_slashes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escaped_forward_slashes=true});
 parse_opts([explicit_end|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{explicit_end=true});
-parse_opts([single_quotes|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{single_quotes=true});
-parse_opts([no_jsonp_escapes|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{no_jsonp_escapes=true});
+parse_opts([single_quoted_strings|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{single_quoted_strings=true});
+parse_opts([unescaped_jsonp|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{unescaped_jsonp=true});
 parse_opts([comments|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{comments=true});
-parse_opts([json_escape|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{json_escape=true});
+parse_opts([escaped_strings|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escaped_strings=true});
 parse_opts([dirty_strings|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{dirty_strings=true});
-parse_opts([ignore_bad_escapes|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{ignore_bad_escapes=true});
+parse_opts([ignored_bad_escapes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{ignored_bad_escapes=true});
 parse_opts([relax|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{
-        loose_unicode = true,
-        single_quotes = true,
+        replaced_bad_utf8 = true,
+        single_quoted_strings = true,
         comments = true,
-        ignore_bad_escapes = true
+        ignored_bad_escapes = true
     });
+%% deprecated flags
+parse_opts([loose_unicode|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{replaced_bad_utf8=true});
+parse_opts([escape_forward_slash|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escaped_forward_slashes=true});
+parse_opts([single_quotes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{single_quoted_strings=true});
+parse_opts([no_jsonp_escapes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{unescaped_jsonp=true});
+parse_opts([json_escape|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{escaped_strings=true});
+parse_opts([ignore_bad_escapes|Rest], Opts) ->
+    parse_opts(Rest, Opts#opts{ignored_bad_escapes=true});
 parse_opts(_, _) ->
     {error, badarg}.
 
 
 valid_flags() ->
     [
-        loose_unicode,
-        escape_forward_slash,
-        explicit_end,
-        single_quotes,
-        no_jsonp_escapes,
+        replaced_bad_utf8,
+        escaped_forward_slashes,
+        single_quoted_strings,
+        unescaped_jsonp,
         comments,
-        json_escape,
+        escaped_strings,
         dirty_strings,
-        ignore_bad_escapes,
-        relax
+        ignored_bad_escapes,
+        explicit_end,
+        relax,
+        %% deprecated flags
+        loose_unicode,          %% replaced_bad_utf8
+        escape_forward_slash,   %% escaped_forward_slashes
+        single_quotes,          %% single_quotes_strings
+        no_jsonp_escapes,       %% unescaped_jsonp
+        json_escape,            %% escaped_strings
+        ignore_bad_escapes      %% ignored_bad_escapes
     ].
-
+ 
 
 extract_opts(Opts) ->
     extract_parser_opts(Opts, []).
@@ -128,24 +148,24 @@ opts_test_() ->
         {"all flags",
             ?_assertEqual(
                 parse_opts([
-                    loose_unicode,
-                    escape_forward_slash,
+                    replaced_bad_utf8,
+                    escaped_forward_slashes,
                     explicit_end,
-                    single_quotes,
-                    no_jsonp_escapes,
+                    single_quoted_strings,
+                    unescaped_jsonp,
                     comments,
                     dirty_strings,
-                    ignore_bad_escapes
+                    ignored_bad_escapes
                 ]),
                 #opts{
-                    loose_unicode=true,
-                    escape_forward_slash=true,
+                    replaced_bad_utf8=true,
+                    escaped_forward_slashes=true,
                     explicit_end=true,
-                    single_quotes=true,
-                    no_jsonp_escapes=true,
+                    single_quoted_strings=true,
+                    unescaped_jsonp=true,
                     comments=true,
                     dirty_strings=true,
-                    ignore_bad_escapes=true
+                    ignored_bad_escapes=true
                 }
             )
         },
@@ -153,10 +173,10 @@ opts_test_() ->
             ?_assertEqual(
                 parse_opts([relax]),
                 #opts{
-                    loose_unicode=true,
-                    single_quotes=true,
+                    replaced_bad_utf8=true,
+                    single_quoted_strings=true,
                     comments=true,
-                    ignore_bad_escapes=true
+                    ignored_bad_escapes=true
                 }
             )
         }

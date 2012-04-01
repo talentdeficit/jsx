@@ -130,55 +130,45 @@ encoder_decoder_equiv_test_() ->
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
                 ) =:= (jsx_encoder:encoder(?MODULE, [], []))([<<"a">>, 17, 3.14, true, [{<<"k">>, false}], []])
             )
-        },
-        {"string escape equivalency",
-            ?_assertEqual(
-                (jsx_decoder:decoder(?MODULE, [], [json_escape, loose_unicode]))(
-                    <<"\"\\u0000\\b\\t\\n\\f\\r\\\\\\\"'/", 16#2028/utf8, 16#2029/utf8, 239, 191, 191, "\"">>
-                ),
-                (jsx_encoder:encoder(?MODULE, [], [json_escape, loose_unicode]))(
-                    <<0, $\b, $\t, $\n, $\f, $\r, $\\, $\", $', $/, 16#2028/utf8, 16#2029/utf8, 239, 191, 191>>
-                )
-            )
         }
     ].
 
 
-single_quotes_test_() ->
+single_quoted_strings_test_() ->
     [
         {"single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key':true}">>, [single_quotes]),
+                to_term(<<"{'key':true}">>, [single_quoted_strings]),
                 [{<<"key">>, true}]
             )
         },
         {"multiple single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key':true, 'another key':true}">>, [single_quotes]),
+                to_term(<<"{'key':true, 'another key':true}">>, [single_quoted_strings]),
                 [{<<"key">>, true}, {<<"another key">>, true}]
             )
         },
         {"nested single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quotes]),
+                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quoted_strings]),
                 [{<<"key">>, [{<<"key">>, true}, {<<"another key">>, true}]}]
             )
         },
         {"single quoted string",
             ?_assertEqual(
-                to_term(<<"['string']">>, [single_quotes]),
+                to_term(<<"['string']">>, [single_quoted_strings]),
                 [<<"string">>]
             )
         },
         {"single quote in double quoted string",
             ?_assertEqual(
-                to_term(<<"[\"a single quote: '\"]">>, [single_quotes]),
+                to_term(<<"[\"a single quote: '\"]">>, [single_quoted_strings]),
                 [<<"a single quote: '">>]
             )
         },
         {"escaped single quote in single quoted string",
             ?_assertEqual(
-                to_term(<<"['a single quote: \\'']">>, [single_quotes]),
+                to_term(<<"['a single quote: \\'']">>, [single_quoted_strings]),
                 [<<"a single quote: '">>]
             )
         },
@@ -191,7 +181,7 @@ single_quotes_test_() ->
         {"mismatched quotes",
             ?_assertError(
                 badarg,
-                to_term(<<"['mismatched\"]">>, [single_quotes])
+                to_term(<<"['mismatched\"]">>, [single_quoted_strings])
             )
         }
     ].
