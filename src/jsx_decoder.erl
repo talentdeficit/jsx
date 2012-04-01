@@ -263,11 +263,11 @@ string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|Stack], Opts);
+            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
         [_Acc, single_quote|_Stack] ->
             ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts]);
         [Acc|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, Stack, Opts)
+            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
     end;
 string(<<35, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Opts);
@@ -282,11 +282,11 @@ string(<<?singlequote, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
         true ->
             case Stack of
                 [single_quote, key|S] ->
-                    colon(Rest, {Handler, Handler:handle_event({key, maybe_escape(?end_seq(Acc), Opts)}, State)}, [key|S], Opts)
+                    colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|S], Opts)
                 ; [single_quote|S] ->
-                    maybe_done(Rest, {Handler, Handler:handle_event({string, maybe_escape(?end_seq(Acc), Opts)}, State)}, S, Opts)
+                    maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, S, Opts)
                 ; _ ->
-                    string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
+                    string(Rest, {Handler, State}, [?acc_seq(Acc, maybe_replace(?singlequote, Opts))|Stack], Opts)
             end
         ; false ->
             string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
@@ -305,8 +305,8 @@ string(<<45, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 45)|Stack], Opts);
 string(<<46, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 46)|Stack], Opts);
-string(<<47, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, 47)|Stack], Opts);
+string(<<$/, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($/, Opts))|Stack], Opts);
 string(<<48, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 48)|Stack], Opts);
 string(<<49, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
@@ -467,6 +467,8 @@ string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
 string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 16#2028; X == 16#2029 ->
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Opts))|Stack], Opts);
 string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     case S of
         %% not strictly true, but exceptions are already taken care of in preceding clauses
@@ -524,10 +526,6 @@ string(Bin, Handler, Stack, Opts) ->
             end
     end.
 
-
-maybe_escape(Str, Opts=#opts{json_escape=true}) -> jsx_utils:json_escape(Str, Opts);
-maybe_escape(Str, _Opts) -> Str.
-
     
 %% we don't need to guard against partial utf here, because it's already taken
 %%   care of in string
@@ -571,23 +569,23 @@ strip_continuations(Rest, Handler, [_, Acc|Stack], Opts) ->
 
 
 escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\b)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\b, Opts))|Stack], Opts);
 escape(<<$f, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\f)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\f, Opts))|Stack], Opts);
 escape(<<$n, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\n)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\n, Opts))|Stack], Opts);
 escape(<<$r, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\r)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\r, Opts))|Stack], Opts);
 escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\t)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\t, Opts))|Stack], Opts);
 escape(<<?rsolidus, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\\)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\\, Opts))|Stack], Opts);
 escape(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{escape_forward_slash=true}) ->
-    string(Rest, Handler, [?acc_seq(Acc, $/)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($/, Opts))|Stack], Opts);
 escape(<<?doublequote, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    string(Rest, Handler, [?acc_seq(Acc, $\")|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\", Opts))|Stack], Opts);
 escape(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Opts = #opts{single_quotes=true}) ->
-    string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Opts);
+    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(?singlequote, Opts))|Stack], Opts);
 escape(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     escaped_unicode(Rest, Handler, Stack, Opts);
 escape(<<>>, Handler, Stack, Opts) ->
@@ -613,7 +611,7 @@ escaped_unicode(<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Opts)
                 ; false -> ?error([<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Opts])
             end
         %% anything else
-        ; X -> string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts)
+        ; X -> string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Opts))|Stack], Opts)
     end;
 escaped_unicode(Bin, Handler, Stack, Opts) ->
     case is_partial_escape(Bin) of
@@ -673,6 +671,35 @@ is_partial_low(_) -> false.
 %% stole this from the unicode spec    
 surrogate_to_codepoint(High, Low) ->
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
+
+
+maybe_replace(X, #opts{dirty_strings=true}) when is_integer(X) -> [X];
+maybe_replace($\b, #opts{json_escape=true}) -> [$\\, $b];
+maybe_replace($\t, #opts{json_escape=true}) -> [$\\, $t];
+maybe_replace($\n, #opts{json_escape=true}) -> [$\\, $n];
+maybe_replace($\f, #opts{json_escape=true}) -> [$\\, $f];
+maybe_replace($\r, #opts{json_escape=true}) -> [$\\, $r];
+maybe_replace($\", #opts{json_escape=true}) -> [$\\, $\"];
+maybe_replace($', Opts=#opts{json_escape=true}) ->
+    case Opts#opts.single_quotes of
+        true -> [$\\, $']
+        ; false -> [$']
+    end;
+maybe_replace($/, Opts=#opts{json_escape=true}) ->
+    case Opts#opts.escape_forward_slash of
+        true -> [$\\, $/]
+        ; false -> [$/]
+    end;
+maybe_replace($\\, #opts{json_escape=true}) -> [$\\, $\\];
+maybe_replace(X, Opts=#opts{json_escape=true})  when X == 16#2028; X == 16#2029 ->
+    case Opts#opts.no_jsonp_escapes of
+        true -> [X]
+        ; false -> jsx_utils:json_escape_sequence(X)
+    end;
+maybe_replace(X, #opts{json_escape=true}) when X < 32 ->
+    jsx_utils:json_escape_sequence(X);
+maybe_replace(X, _Opts) -> [X].
+
 
 
 %% like strings, numbers are collected in an intermediate accumulator before
@@ -1463,7 +1490,8 @@ escapes_test_() ->
             [{string, <<16#2028/utf8, 16#2029/utf8>>}, end_json]
         )},
         {"control escape", ?_assertEqual(decode(<<$\", "\\u0000"/utf8, $\">>, [json_escape]), [{string, <<"\\u0000">>}, end_json])},
-        {"dirty strings", ?_assertEqual(decode(<<"\"\\n\"">>, [json_escape, dirty_strings]), [{string, <<"\n">>}, end_json])}
+        {"dirty strings", ?_assertEqual(decode(<<"\"\\n\"">>, [json_escape, dirty_strings]), [{string, <<"\n">>}, end_json])},
+        {"ignore bad escapes", ?_assertEqual(decode(<<"\"\\x25\"">>, [json_escape, ignore_bad_escapes]), [{string, <<"\\x25">>}, end_json])}
     ].
 
 
@@ -1535,12 +1563,6 @@ good_characters_test_() ->
         },
         {"acceptable extended",
             ?_assert(check_good(good_extended()))
-        },
-        {"acceptable extended - json_escape",
-            ?_assert(check_good(good_extended(), [json_escape]))
-        },
-        {"acceptable extended - json_escape",
-            ?_assert(check_good(good_extended(), [loose_unicode]))
         }
     ].
     
