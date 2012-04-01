@@ -130,6 +130,16 @@ encoder_decoder_equiv_test_() ->
                     <<"[\"a\", 17, 3.14, true, {\"k\":false}, []]">>
                 ) =:= (jsx_encoder:encoder(?MODULE, [], []))([<<"a">>, 17, 3.14, true, [{<<"k">>, false}], []])
             )
+        },
+        {"string escape equivalency",
+            ?_assertEqual(
+                (jsx_decoder:decoder(?MODULE, [], [json_escape, loose_unicode]))(
+                    <<"\"\\u0000\\b\\t\\n\\f\\r\\\\\\\"'/", 16#2028/utf8, 16#2029/utf8, 239, 191, 191, "\"">>
+                ),
+                (jsx_encoder:encoder(?MODULE, [], [json_escape, loose_unicode]))(
+                    <<0, $\b, $\t, $\n, $\f, $\r, $\\, $\", $', $/, 16#2028/utf8, 16#2029/utf8, 239, 191, 191>>
+                )
+            )
         }
     ].
 
