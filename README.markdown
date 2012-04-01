@@ -103,23 +103,23 @@ json objects are represented by erlang proplists. the empty object has the speci
 
 jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms and have no value. functions may have additional options beyond these, see individual function documentation for details
 
-#### `loose_unicode` ####
+#### `replaced_bad_utf8` ####
 
 json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. if this option is present attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec. this applies both to malformed unicode and disallowed codepoints
 
-#### `escape_forward_slash` ####
+#### `escaped_forward_slashes` ####
 
 json strings are escaped according to the json spec. this means forward slashes are never escaped. unfortunately, a microsoft implementation of json uses escaped forward slashes in json formatted date strings. without this option it is impossible to get date strings that some microsoft tools understand
 
-#### `explicit_end` ####
-
-this option treats all exhausted inputs as incomplete, as explained below. the parser will not attempt to return a final state until the function is called with the value `end_stream`
-
-#### `single_quotes` ####
+#### `single_quoted_strings` ####
  
-some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to deliminate keys and strings. this option allows json containing single quotes as structural (deliminator) characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings deliminated by single quotes. the parser will never emit json with keys or strings deliminated by single quotes
+some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to deliminate keys and strings. this option allows json containing single quotes as structural (deliminator) characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings deliminated by single quotes
 
-#### `no_jsonp_escapes` ####
+double quotes must ALWAYS be escaped, regardless of what kind of quotes deliminate the string they are found in
+
+the parser will never emit json with keys or strings deliminated by single quotes
+
+#### `unescaped_jsonp` ####
 
 javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `"\u2028"` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
 
@@ -127,21 +127,25 @@ javascript interpreters treat the codepoints `u+2028` and `u+2029` as significan
 
 json has no official comments but some parsers allow c style comments. this flag allows comments (both `// ...` and `/* ... */` style) anywhere whitespace is allowed
 
-#### `json_escape` ####
+#### `escaped_strings` ####
 
-by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings for output in json, removing control codes and replacing them with the appropriate escapes
+by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
 
 #### `dirty_strings` ####
 
 json escaping is lossy, it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
 
-#### `ignore_bad_escapes` ####
+#### `ignored_bad_escapes` ####
 
-during decoding, ignore unrecognized escape sequences and leave them as is in the stream
+during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that if you combine this option with `escaped_strings` the escape character itself will be escaped
+
+#### `explicit_end` ####
+
+this option treats all exhausted inputs as incomplete, as explained below. the parser will not attempt to return a final state until the function is called with the value `end_stream`
 
 #### `relax` ####
 
-relax is a synonym for `[loose_unicode, single_quotes, comments, ignore_bad_escapes]`
+relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for what you don't care how janky and awful your json input is, you just want the parser to do the best it can
 
 
 ### <a name="incompletes">incomplete input</a> ###
