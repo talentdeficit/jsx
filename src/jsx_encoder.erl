@@ -481,7 +481,6 @@ maybe_replace($/, Opts=#opts{json_escape=true}) ->
         true -> [$/, $\\]
         ; false -> [$/]
     end;
-maybe_replace($\\, #opts{ignore_bad_escapes=true}) -> [$\\];
 maybe_replace($\\, #opts{json_escape=true}) -> [$\\, $\\];
 maybe_replace(X, Opts=#opts{json_escape=true})  when X == 16#2028; X == 16#2029 ->
     case Opts#opts.no_jsonp_escapes of
@@ -804,7 +803,7 @@ escapes_test_() ->
         )},
         {"control escape", ?_assertEqual(encode(<<0>>, [json_escape]), [{string, <<"\\u0000">>}, end_json])},
         {"dirty strings", ?_assertEqual(encode(<<"\n">>, [json_escape, dirty_strings]), [{string, <<"\n">>}, end_json])},
-        {"ignore bad escapes", ?_assertEqual(encode(<<"\\x25">>, [json_escape, ignore_bad_escapes]), [{string, <<"\\x25">>}, end_json])}
+        {"ignore bad escapes", ?_assertEqual(encode(<<"\\x25">>, [json_escape, ignore_bad_escapes]), [{string, <<"\\\\x25">>}, end_json])}
     ].
 
 
