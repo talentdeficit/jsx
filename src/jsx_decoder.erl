@@ -464,52 +464,48 @@ string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
 string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 16#2028; X == 16#2029 ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Opts))|Stack], Opts);
-string(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
-    case S of
-        %% not strictly true, but exceptions are already taken care of in preceding clauses
-        S when S >= 16#20, S < 16#d800 ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S > 16#dfff, S < 16#fdd0 ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S > 16#fdef, S < 16#fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#10000, S < 16#1fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#20000, S < 16#2fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#30000, S < 16#3fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#40000, S < 16#4fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#50000, S < 16#5fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#60000, S < 16#6fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#70000, S < 16#7fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#80000, S < 16#8fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#90000, S < 16#9fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#a0000, S < 16#afffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#b0000, S < 16#bfffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#c0000, S < 16#cfffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#d0000, S < 16#dfffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#e0000, S < 16#efffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#f0000, S < 16#ffffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; S when S >= 16#100000, S < 16#10fffe ->
-            string(Rest, Handler, [?acc_seq(Acc, S)|Stack], Opts)
-        ; _ ->
-            case Opts#opts.replaced_bad_utf8 of
-                true -> noncharacter(<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
-                ; false -> ?error([<<S/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts])
-            end
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#20, X < 16#d800 ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X > 16#dfff, X < 16#fdd0 ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X > 16#fdef, X < 16#fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#10000, X < 16#1fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#20000, X < 16#2fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#30000, X < 16#3fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#40000, X < 16#4fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#50000, X < 16#5fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#60000, X < 16#6fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#70000, X < 16#7fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#80000, X < 16#8fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#90000, X < 16#9fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#a0000, X < 16#afffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#b0000, X < 16#bfffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#c0000, X < 16#cfffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#d0000, X < 16#dfffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#e0000, X < 16#efffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#f0000, X < 16#ffffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#100000, X < 16#10fffe ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
+    case Opts#opts.replaced_bad_utf8 of
+        true -> noncharacter(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts)
+        ; false -> ?error([<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts])
     end;
 string(Bin, Handler, Stack, Opts) ->
     case partial_utf(Bin) of 
