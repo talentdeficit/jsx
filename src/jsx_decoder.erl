@@ -972,7 +972,7 @@ single_comment(<<?newline, Rest/binary>>, Handler, Stack, Opts) ->
     end_comment(Rest, Handler, Stack, Opts);
 single_comment(<<_/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     single_comment(Rest, Handler, Stack, Opts);
-single_comment(<<>>, Handler, [done], Opts) ->
+single_comment(<<>>, Handler, [done], Opts=#opts{explicit_end=false}) ->
     end_comment(<<>>, Handler, [done], Opts);   
 single_comment(<<>>, Handler, Stack, Opts) ->
     ?incomplete(single_comment, <<>>, Handler, Stack, Opts);

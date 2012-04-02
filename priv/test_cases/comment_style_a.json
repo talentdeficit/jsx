@@ -1,0 +1,10 @@
+// comment
+{ // comment
+  "key" // comment
+    : // comment
+  [ // comment
+    true // comment
+      , // comment
+    false // comment
+  ] // comment    
+} // comment
