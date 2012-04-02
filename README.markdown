@@ -60,7 +60,7 @@ to minify a json string: `jsx:format(JSON)`
 
 json must be a binary encoded in `utf8`. if it's invalid `utf8` or invalid json, it probably won't parse without errors. there are a few non-standard extensions to the parser available that may change that, they are detailed in the options section below
 
-jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">`, `<<"true">>` and `<<"\"hello world\"">>` without problems
+jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">>`, `<<"true">>` and `<<"\"hello world\"">>` without complaint
 
 #### erlang ####
 
@@ -74,7 +74,7 @@ when converting from erlang to json, numbers are represented with their shortest
 
 #### strings ####
 
-the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters, `"` and the escape character, `\`) and that are encoded in `utf8`
+the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (strings are sequences of unicode codepoints deliminated by `"` (`u+0022`) that may not contain control codes unless properly escaped with `\` (`u+005c`)) and that are encoded in `utf8`
 
 the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
 
@@ -82,7 +82,7 @@ json string escapes of the form `\uXXXX` will be converted to their equivalent c
 
 in the interests of pragmatism, there is an option for looser parsing, see options below
 
-all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates
+all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although see options below)
 
 this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -121,7 +121,7 @@ the parser will never emit json with keys or strings deliminated by single quote
 
 #### `unescaped_jsonp` ####
 
-javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `"\u2028"` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
+javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
 
 #### `comments` ####
 
@@ -145,7 +145,7 @@ this option treats all exhausted inputs as incomplete, as explained below. the p
 
 #### `relax` ####
 
-relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for what you don't care how janky and awful your json input is, you just want the parser to do the best it can
+relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
 
 
 ### <a name="incompletes">incomplete input</a> ###
