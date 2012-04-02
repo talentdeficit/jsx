@@ -151,8 +151,7 @@ value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
 value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
     value(Rest, Handler, Stack, Opts);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> value(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);
+    comment(Rest, Handler, [value|Stack], Opts);
 value(<<>>, Handler, Stack, Opts) ->
     ?incomplete(value, <<>>, Handler, Stack, Opts);
 value(Bin, Handler, Stack, Opts) ->
@@ -168,8 +167,7 @@ object(<<?end_object, Rest/binary>>, {Handler, State}, [key|Stack], Opts) ->
 object(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     object(Rest, Handler, Stack, Opts);
 object(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> object(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);
+    comment(Rest, Handler, [object|Stack], Opts);
 object(<<>>, Handler, Stack, Opts) ->
     ?incomplete(object, <<>>, Handler, Stack, Opts);
 object(Bin, Handler, Stack, Opts) ->
@@ -201,8 +199,7 @@ array(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
     array(Rest, Handler, Stack, Opts);
 array(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> array(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);
+    comment(Rest, Handler, [array|Stack], Opts);
 array(<<>>, Handler, Stack, Opts) ->
     ?incomplete(array, <<>>, Handler, Stack, Opts);
 array(Bin, Handler, Stack, Opts) ->
@@ -214,8 +211,7 @@ colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Opts) ->
 colon(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     colon(Rest, Handler, Stack, Opts);
 colon(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> colon(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);
+    comment(Rest, Handler, [colon|Stack], Opts);
 colon(<<>>, Handler, Stack, Opts) ->
     ?incomplete(colon, <<>>, Handler, Stack, Opts);
 colon(Bin, Handler, Stack, Opts) ->
@@ -229,8 +225,7 @@ key(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quoted_st
 key(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Opts);
 key(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> key(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);       
+    comment(Rest, Handler, [key|Stack], Opts);       
 key(<<>>, Handler, Stack, Opts) ->
     ?incomplete(key, <<>>, Handler, Stack, Opts);
 key(Bin, Handler, Stack, Opts) ->
@@ -737,8 +732,7 @@ zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 zero(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 zero(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts);  
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts);  
 zero(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 zero(<<>>, Handler, Stack, Opts) ->
@@ -776,8 +770,7 @@ integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E 
 integer(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 integer(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
 integer(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 integer(<<>>, Handler, Stack, Opts) ->
@@ -820,8 +813,7 @@ decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts) when S =:= $e; S
 decimal(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 decimal(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
 decimal(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 decimal(<<>>, Handler, Stack, Opts) ->
@@ -871,8 +863,7 @@ exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
 exp(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 exp(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [Resume|Stack], Opts); 
+    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
 exp(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
 exp(<<>>, Handler, Stack, Opts) ->
@@ -974,19 +965,19 @@ null(Bin, Handler, Stack, Opts) ->
 comment(<<?solidus, Rest/binary>>, Handler, Stack, Opts) ->
     single_comment(Rest, Handler, Stack, Opts);
 comment(<<?star, Rest/binary>>, Handler, Stack, Opts) ->
-    multi_comment(Rest, Handler, Stack, Opts);
+    multi_comment(Rest, Handler, Stack, Opts); 
 comment(<<>>, Handler, Stack, Opts) ->
     ?incomplete(comment, <<>>, Handler, Stack, Opts);
 comment(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-single_comment(<<?newline, Rest/binary>>, Handler, [Resume|Stack], Opts) ->
-    Resume(Rest, Handler, Stack, Opts);
-single_comment(<<>>, Handler, [Resume|Stack], Opts) ->
-    Resume(<<>>, Handler, Stack, Opts);
-single_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Opts) ->
+single_comment(<<?newline, Rest/binary>>, Handler, Stack, Opts) ->
+    end_comment(Rest, Handler, Stack, Opts);
+single_comment(<<_/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     single_comment(Rest, Handler, Stack, Opts);
+single_comment(<<>>, Handler, [done], Opts) ->
+    end_comment(<<>>, Handler, [done], Opts);   
 single_comment(<<>>, Handler, Stack, Opts) ->
     ?incomplete(single_comment, <<>>, Handler, Stack, Opts);
 single_comment(Bin, Handler, Stack, Opts) ->
@@ -1003,8 +994,8 @@ multi_comment(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-end_multi_comment(<<?solidus, Rest/binary>>, Handler, [Resume|Stack], Opts) ->
-    Resume(Rest, Handler, Stack, Opts);
+end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Opts) ->
+    end_comment(Rest, Handler, Stack, Opts);
 end_multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     multi_comment(Rest, Handler, Stack, Opts);
 end_multi_comment(<<>>, Handler, Stack, Opts) ->
@@ -1013,6 +1004,20 @@ end_multi_comment(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
+end_comment(Rest, Handler, [Resume|Stack], Opts) ->
+    case Resume of
+        value -> value(Rest, Handler, Stack, Opts)
+        ; object -> object(Rest, Handler, Stack, Opts)
+        ; array -> array(Rest, Handler, Stack, Opts)
+        ; colon -> colon(Rest, Handler, Stack, Opts)
+        ; key -> key(Rest, Handler, Stack, Opts)
+        ; maybe_done -> maybe_done(Rest, Handler, Stack, Opts)
+        ; done -> done(Rest, Handler, Stack, Opts)
+    end.
+
+
+maybe_done(Rest, {Handler, State}, [], Opts) ->
+    done(Rest, {Handler, Handler:handle_event(end_json, State)}, [], Opts);
 maybe_done(<<?end_object, Rest/binary>>, {Handler, State}, [object|Stack], Opts) ->
     maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
 maybe_done(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
@@ -1024,12 +1029,9 @@ maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Opts) ->
 maybe_done(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Handler, Stack, Opts);
 maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> maybe_done(R, H, S, O) end,
-    comment(Rest, Handler, [Resume|Stack], Opts);
+    comment(Rest, Handler, [maybe_done|Stack], Opts);
 maybe_done(<<>>, Handler, Stack, Opts) when length(Stack) > 0 -> 
     ?incomplete(maybe_done, <<>>, Handler, Stack, Opts);
-maybe_done(Rest, {Handler, State}, [], Opts) ->
-    done(Rest, {Handler, Handler:handle_event(end_json, State)}, [], Opts);
 maybe_done(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
@@ -1037,8 +1039,7 @@ maybe_done(Bin, Handler, Stack, Opts) ->
 done(<<S, Rest/binary>>, Handler, [], Opts) when ?is_whitespace(S) ->
     done(Rest, Handler, [], Opts);
 done(<<?solidus, Rest/binary>>, Handler, [], Opts=#opts{comments=true}) ->
-    Resume = fun(R, H, S, O) -> done(R, H, S, O) end,
-    comment(Rest, Handler, [Resume], Opts);
+    comment(Rest, Handler, [done], Opts);
 done(<<>>, {Handler, State}, [], Opts = #opts{explicit_end=true}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 done(<<Stream/binary>>, {Handler, State}, [], Opts)
