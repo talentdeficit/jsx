@@ -29,7 +29,7 @@
 -spec decoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:decoder().
 
 decoder(Handler, State, Opts) ->
-    fun(JSON) -> value(JSON, {Handler, Handler:init(State)}, [], jsx_utils:parse_opts(Opts)) end.
+    fun(JSON) -> start(JSON, {Handler, Handler:init(State)}, [], jsx_utils:parse_opts(Opts)) end.
 
 
 -include("jsx_opts.hrl").
@@ -126,6 +126,30 @@ decoder(Handler, State, Opts) ->
 -define(acc_seq(Seq, C, D), [C, D] ++ Seq).
 
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
+
+
+start(<<16#ef, Rest/binary>>, Handler, Stack, Opts) ->
+    maybe_bom(Rest, Handler, Stack, Opts);
+start(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(start, <<>>, Handler, Stack, Opts);
+start(Bin, Handler, Stack, Opts) ->
+    value(Bin, Handler, Stack, Opts).
+
+
+maybe_bom(<<16#bb, Rest/binary>>, Handler, Stack, Opts) ->
+    definitely_bom(Rest, Handler, Stack, Opts);
+maybe_bom(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(maybe_bom, <<>>, Handler, Stack, Opts);
+maybe_bom(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
+
+
+definitely_bom(<<16#bf, Rest/binary>>, Handler, Stack, Opts) ->
+    value(Rest, Handler, Stack, Opts);
+definitely_bom(<<>>, Handler, Stack, Opts) ->
+    ?incomplete(definitely_bom, <<>>, Handler, Stack, Opts);
+definitely_bom(Bin, Handler, Stack, Opts) ->
+    ?error([Bin, Handler, Stack, Opts]).
 
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
