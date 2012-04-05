@@ -812,7 +812,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace lists with empty lists", ?_assertEqual(
-            encode(Term, [{pre_encoders, [fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end]}]),
+            encode(Term, [{pre_encoder, fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -825,7 +825,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace objects with empty objects", ?_assertEqual(
-            encode(Term, [{pre_encoders, [fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end]}]),
+            encode(Term, [{pre_encoder, fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end}]),
             [
                 start_object,
                 end_object,
@@ -833,7 +833,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace all non-list values with false", ?_assertEqual(
-            encode(Term, [{pre_encoders, [fun(V) when is_list(V) -> V; (_) -> false end]}]),
+            encode(Term, [{pre_encoder, fun(V) when is_list(V) -> V; (_) -> false end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -852,7 +852,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace all atoms with atom_to_list", ?_assertEqual(
-            encode(Term, [{pre_encoders, [fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end]}]),
+            encode(Term, [{pre_encoder, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
