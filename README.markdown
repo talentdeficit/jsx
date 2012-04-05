@@ -101,7 +101,7 @@ json objects are represented by erlang proplists. the empty object has the speci
 
 ### <a name="options">options</a> ###
 
-jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms and have no value. functions may have additional options beyond these, see individual function documentation for details
+jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms or {atom, Term} tuples. functions may have additional options beyond these, see individual function documentation for details
 
 #### `replaced_bad_utf8` ####
 
@@ -146,6 +146,12 @@ this option treats all exhausted inputs as incomplete, as explained below. the p
 #### `relax` ####
 
 relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
+
+#### `{pre_encoder, F}` or `{pre_encoders, [F, G,...]}` ####
+
+pre encoders are functions of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and lists are). if more than one pre encoder is declared, the input will be passed to each of them in the order they are declared
+
+input can be any term, but final output from the chain should be otherwise recognized input to the encoder
 
 
 ### <a name="incompletes">incomplete input</a> ###
