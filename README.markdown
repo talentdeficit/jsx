@@ -149,7 +149,7 @@ relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ign
 
 #### `{pre_encoder, F}` or `{pre_encoders, [F, G,...]}` ####
 
-pre encoders are functions of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and lists are). if more than one pre encoder is declared, the input will be passed to each of them in the order they are declared
+pre encoders are functions of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and arrays are). if more than one pre encoder is declared, the input will be passed to each of them in the order they are declared
 
 input can be any term, but final output from the chain should be otherwise recognized input to the encoder
 
