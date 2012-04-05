@@ -61,6 +61,10 @@ parse_opts([relax|Rest], Opts) ->
         comments = true,
         ignored_bad_escapes = true
     });
+parse_opts([{pre_encoders, Encoders}|Rest], Opts) when is_list(Encoders) ->
+    lists:foreach(fun(F) when is_function(F, 1) -> ok end, Encoders),
+    AllEncoders = Opts#opts.pre_encoders ++ Encoders,
+    parse_opts(Rest, Opts#opts{pre_encoders=AllEncoders});
 %% deprecated flags
 parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{replaced_bad_utf8=true});
@@ -90,6 +94,7 @@ valid_flags() ->
         ignored_bad_escapes,
         explicit_end,
         relax,
+        pre_encoders,
         %% deprecated flags
         loose_unicode,          %% replaced_bad_utf8
         escape_forward_slash,   %% escaped_forward_slashes

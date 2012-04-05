@@ -49,7 +49,7 @@ encoder(Handler, State, Opts) ->
 
 
 start(Term, {Handler, State}, Opts) ->
-    Handler:handle_event(end_json, value(Term, {Handler, State}, Opts)).
+    Handler:handle_event(end_json, value(pre_encode(Term, Opts), {Handler, State}, Opts)).
 
 
 value(String, {Handler, State}, Opts) when is_binary(String) ->
@@ -82,7 +82,7 @@ object([{Key, Value}|Rest], {Handler, State}, Opts) ->
         {
             Handler,
             value(
-                Value,
+                pre_encode(Value, Opts),
                 {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
                 Opts
             )
@@ -94,9 +94,12 @@ object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
 list([Value|Rest], {Handler, State}, Opts) ->
-    list(Rest, {Handler, value(Value, {Handler, State}, Opts)}, Opts);
+    list(Rest, {Handler, value(pre_encode(Value, Opts), {Handler, State}, Opts)}, Opts);
 list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+
+
+pre_encode(Value, Opts) -> lists:foldl(fun(F, V) -> F(V) end, Value, Opts#opts.pre_encoders).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
@@ -777,6 +780,118 @@ encode_test_() ->
                 [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
             )
         }
+    ].
+
+
+pre_encoders_test_() ->
+    Term = [
+        {<<"object">>, [
+            {<<"literals">>, [true, false, null]},
+            {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
+            {<<"numbers">>, [1, 1.0, 1.0e0]}
+        ]}
+    ],
+    [
+        {"no pre encode", ?_assertEqual(
+            encode(Term, []),
+            [
+                start_object,
+                    {key, <<"object">>}, start_object,
+                        {key, <<"literals">>}, start_array,
+                            {literal, true}, {literal, false}, {literal, null},
+                        end_array,
+                        {key, <<"strings">>}, start_array,
+                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
+                        end_array,
+                        {key, <<"numbers">>}, start_array,
+                            {integer, 1}, {float, 1.0}, {float, 1.0},
+                        end_array,
+                    end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"replace lists with empty lists", ?_assertEqual(
+            encode(Term, [{pre_encoders, [fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end]}]),
+            [
+                start_object,
+                    {key, <<"object">>}, start_object,
+                        {key, <<"literals">>}, start_array, end_array,
+                        {key, <<"strings">>}, start_array, end_array,
+                        {key, <<"numbers">>}, start_array, end_array,
+                    end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"replace objects with empty objects", ?_assertEqual(
+            encode(Term, [{pre_encoders, [fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end]}]),
+            [
+                start_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"replace all non-list values with false", ?_assertEqual(
+            encode(Term, [{pre_encoders, [fun(V) when is_list(V) -> V; (_) -> false end]}]),
+            [
+                start_object,
+                    {key, <<"object">>}, start_object,
+                        {key, <<"literals">>}, start_array,
+                            {literal, false}, {literal, false}, {literal, false},
+                        end_array,
+                        {key, <<"strings">>}, start_array,
+                            {literal, false}, {literal, false}, {literal, false},
+                        end_array,
+                        {key, <<"numbers">>}, start_array,
+                            {literal, false}, {literal, false}, {literal, false},
+                        end_array,
+                    end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"replace all atoms with atom_to_list", ?_assertEqual(
+            encode(Term, [{pre_encoders, [fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end]}]),
+            [
+                start_object,
+                    {key, <<"object">>}, start_object,
+                        {key, <<"literals">>}, start_array,
+                            {string, <<"true">>}, {string, <<"false">>}, {string, <<"null">>},
+                        end_array,
+                        {key, <<"strings">>}, start_array,
+                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
+                        end_array,
+                        {key, <<"numbers">>}, start_array,
+                            {integer, 1}, {float, 1.0}, {float, 1.0},
+                        end_array,
+                    end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"replace all atoms to strings and back", ?_assertEqual(
+            encode(Term, [{pre_encoders, [
+                fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end,
+                fun(<<"true">>) -> true; (<<"false">>) -> false; (<<"null">>) -> null; (V) -> V end
+            ]}]),
+            [
+                start_object,
+                    {key, <<"object">>}, start_object,
+                        {key, <<"literals">>}, start_array,
+                            {literal, true}, {literal, false}, {literal, null},
+                        end_array,
+                        {key, <<"strings">>}, start_array,
+                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
+                        end_array,
+                        {key, <<"numbers">>}, start_array,
+                            {integer, 1}, {float, 1.0}, {float, 1.0},
+                        end_array,
+                    end_object,
+                end_object,
+                end_json
+            ]
+        )}
     ].
 
 

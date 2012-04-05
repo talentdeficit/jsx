@@ -7,5 +7,6 @@
     escaped_strings = false,
     dirty_strings = false,
     ignored_bad_escapes = false,
-    explicit_end = false
+    explicit_end = false,
+    pre_encoders = []
 }).
