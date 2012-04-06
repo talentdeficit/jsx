@@ -185,5 +185,46 @@ naked_test_() ->
         {"naked literal", ?_assertEqual(to_term(<<"true">>, []), true)},
         {"naked string", ?_assertEqual(to_term(<<"\"string\"">>, []), <<"string">>)}
     ].
+
+post_decoders_test_() ->
+    JSON = <<"{\"object\": {
+        \"literals\": [true, false, null],
+        \"strings\": [\"foo\", \"bar\", \"baz\"],
+        \"numbers\": [1, 1.0, 1e0]
+    }}">>,
+    [
+        {"no post_decode", ?_assertEqual(
+            to_term(JSON, []),
+            [{<<"object">>, [
+                {<<"literals">>, [true, false, null]},
+                {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
+                {<<"numbers">>, [1, 1.0, 1.0]}
+            ]}]
+        )},
+        {"replace arrays with empty arrays", ?_assertEqual(
+            to_term(JSON, [{post_decode, fun([T|_] = V)  when is_tuple(T) -> V; (V) when is_list(V) -> []; (V) -> V end}]),
+            [{<<"object">>, [{<<"literals">>, []}, {<<"strings">>, []}, {<<"numbers">>, []}]}]
+        )},
+        {"replace objects with empty objects", ?_assertEqual(
+            to_term(JSON, [{post_decode, fun(V) when is_list(V) -> [{}]; (V) -> V end}]),
+            [{}]
+        )},
+        {"replace all non-list values with false", ?_assertEqual(
+            to_term(JSON, [{post_decode, fun(V) when is_list(V) -> V; (_) -> false end}]),
+            [{<<"object">>, [
+                {<<"literals">>, [false, false, false]},
+                {<<"strings">>, [false, false, false]},
+                {<<"numbers">>, [false, false, false]}
+            ]}]            
+        )},
+        {"atoms_to_strings", ?_assertEqual(
+            to_term(JSON, [{post_decode, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
+            [{<<"object">>, [
+                {<<"literals">>, [<<"true">>, <<"false">>, <<"null">>]},
+                {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
+                {<<"numbers">>, [1, 1.0, 1.0]}
+            ]}]
+        )}
+    ].
     
 -endif.
