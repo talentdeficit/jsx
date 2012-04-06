@@ -149,7 +149,6 @@ relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ign
 
 #### `{pre_encode, F}` ####
 
-
 `F` is a function of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and arrays are). if more than one pre encoder is declared, a `badarg` exception will occur
 
 input can be any term, but output from the function must be a valid type for input
@@ -240,8 +239,19 @@ types:
         * `binary`
         * `atom`
         * `existing_atom`
+    - `{post_decode, F}`
 
 the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
+
+`{post_decode, F}` is a user defined function of arity 1 that is called on each output value (objects, arrays, strings, numbers and literals). it may return any value to be substituted in the returned term. for example:
+
+```erlang
+    1> F = fun(V) when is_list(V) -> V; (V) -> false end.
+    2> jsx:to_term(<<"{"a list": [true, "a string", 1]}">>, [{post_decode, F}]).
+      [{<<"a list">>, [false, false, false]}]
+```
+
+if more than one decoder is declared a badarg exception will result
 
 #### converting erlang terms to json ####
     
