@@ -84,8 +84,8 @@ parse_opts([json_escape|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{escaped_strings=true});
 parse_opts([ignore_bad_escapes|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{ignored_bad_escapes=true});
-parse_opts(_, _) ->
-    {error, badarg}.
+parse_opts(Options, Opts) ->
+    erlang:error(badarg, [Options, Opts]).
 
 
 valid_flags() ->
