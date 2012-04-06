@@ -128,6 +128,11 @@ decoder(Handler, State, Opts) ->
 -define(end_seq(Seq), unicode:characters_to_binary(lists:reverse(Seq))).
 
 
+handle_event([], Handler, _Opts) -> Handler;
+handle_event([Event|Rest], Handler, Opts) -> handle_event(Rest, handle_event(Event, Handler, Opts), Opts);
+handle_event(Event, {Handler, State}, _Opts) -> {Handler, Handler:handle_event(Event, State)}.
+
+
 start(<<16#ef, Rest/binary>>, Handler, Stack, Opts) ->
     maybe_bom(Rest, Handler, Stack, Opts);
 start(<<>>, Handler, Stack, Opts) ->
@@ -168,10 +173,10 @@ value(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
     zero(Rest, Handler, [[$0]|Stack], Opts);
 value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [[S]|Stack], Opts);
-value(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
-value(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
+value(<<?start_object, Rest/binary>>, Handler, Stack, Opts) ->
+    object(Rest, handle_event(start_object, Handler, Opts), [key|Stack], Opts);
+value(<<?start_array, Rest/binary>>, Handler, Stack, Opts) ->
+    array(Rest, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
 value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
     value(Rest, Handler, Stack, Opts);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
@@ -186,8 +191,8 @@ object(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
 object(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quoted_strings=true}) ->
     string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
-object(<<?end_object, Rest/binary>>, {Handler, State}, [key|Stack], Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
+object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Opts) ->
+    maybe_done(Rest, handle_event(end_object, Handler, Opts), Stack, Opts);
 object(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     object(Rest, Handler, Stack, Opts);
 object(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
@@ -214,12 +219,12 @@ array(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
     zero(Rest, Handler, [[$0]|Stack], Opts);
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [[S]|Stack], Opts);
-array(<<?start_object, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    object(Rest, {Handler, Handler:handle_event(start_object, State)}, [key|Stack], Opts);
-array(<<?start_array, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    array(Rest, {Handler, Handler:handle_event(start_array, State)}, [array|Stack], Opts);
-array(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(end_array, State)}, Stack, Opts);
+array(<<?start_object, Rest/binary>>, Handler, Stack, Opts) ->
+    object(Rest, handle_event(start_object, Handler, Opts), [key|Stack], Opts);
+array(<<?start_array, Rest/binary>>, Handler, Stack, Opts) ->
+    array(Rest, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
+array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Opts) ->
+    maybe_done(Rest, handle_event(end_array, Handler, Opts), Stack, Opts);
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
     array(Rest, Handler, Stack, Opts);
 array(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
@@ -279,14 +284,14 @@ string(<<32, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 32)|Stack], Opts);
 string(<<33, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 33)|Stack], Opts);
-string(<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts) ->
+string(<<?doublequote, Rest/binary>>, Handler, S, Opts) ->
     case S of
         [Acc, key|Stack] ->
-            colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|Stack], Opts);
+            colon(Rest, handle_event({key, ?end_seq(Acc)}, Handler, Opts), [key|Stack], Opts);
         [_Acc, single_quote|_Stack] ->
-            ?error([<<?doublequote, Rest/binary>>, {Handler, State}, S, Opts]);
+            ?error([<<?doublequote, Rest/binary>>, Handler, S, Opts]);
         [Acc|Stack] ->
-            maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, Stack, Opts)
+            maybe_done(Rest, handle_event({string, ?end_seq(Acc)}, Handler, Opts), Stack, Opts)
     end;
 string(<<35, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Opts);
@@ -296,19 +301,19 @@ string(<<37, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 37)|Stack], Opts);
 string(<<38, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 38)|Stack], Opts);
-string(<<?singlequote, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) ->
+string(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     case Opts#opts.single_quoted_strings of
         true ->
             case Stack of
                 [single_quote, key|S] ->
-                    colon(Rest, {Handler, Handler:handle_event({key, ?end_seq(Acc)}, State)}, [key|S], Opts)
+                    colon(Rest, handle_event({key, ?end_seq(Acc)}, Handler, Opts), [key|S], Opts)
                 ; [single_quote|S] ->
-                    maybe_done(Rest, {Handler, Handler:handle_event({string, ?end_seq(Acc)}, State)}, S, Opts)
+                    maybe_done(Rest, handle_event({string, ?end_seq(Acc)}, Handler, Opts), S, Opts)
                 ; _ ->
-                    string(Rest, {Handler, State}, [?acc_seq(Acc, maybe_replace(?singlequote, Opts))|Stack], Opts)
+                    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(?singlequote, Opts))|Stack], Opts)
             end
         ; false ->
-            string(Rest, {Handler, State}, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
+            string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Opts)
     end;
 string(<<40, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 40)|Stack], Opts);
@@ -729,32 +734,22 @@ negative(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-zero(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-zero(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-zero(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
-zero(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+zero(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Opts), Stack, Opts);
+zero(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest, handle_event(end_array, handle_event(format_number(Acc), Handler, Opts), Opts), Stack, Opts);
+zero(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    key(Rest, handle_event(format_number(Acc), Handler, Opts), [key|Stack], Opts);
+zero(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    value(Rest, handle_event(format_number(Acc), Handler, Opts), [array|Stack], Opts);
 zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
-zero(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
-zero(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts);  
-zero(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+zero(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);  
+zero(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 zero(<<>>, Handler, Stack, Opts) ->
     ?incomplete(zero, <<>>, Handler, Stack, Opts);
 zero(Bin, Handler, Stack, Opts) ->
@@ -763,36 +758,26 @@ zero(Bin, Handler, Stack, Opts) ->
 
 integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [[S] ++ Acc|Stack], Opts);
-integer(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-integer(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-integer(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
-integer(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+integer(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Opts), Stack, Opts);
+integer(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Opts), Stack, Opts);
+integer(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    key(Rest, handle_event(format_number(Acc), Handler, Opts), [key|Stack], Opts);
+integer(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    value(Rest, handle_event(format_number(Acc), Handler, Opts), [array|Stack], Opts);
 integer(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
 integer(<<?zero, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     integer(Rest, Handler, [[?zero] ++ Acc|Stack], Opts);
 integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [{Acc, [], []}|Stack], Opts);
-integer(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
-integer(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
-integer(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+integer(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+integer(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 integer(<<>>, Handler, Stack, Opts) ->
     ?incomplete(integer, <<>>, Handler, Stack, Opts);
 integer(Bin, Handler, Stack, Opts) ->
@@ -810,32 +795,22 @@ initial_decimal(Bin, Handler, Stack, Opts) ->
 decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts)
         when S=:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Opts);
-decimal(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-decimal(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
-decimal(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
+decimal(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Opts), Stack, Opts);
+decimal(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Opts), Stack, Opts);
+decimal(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    key(Rest, handle_event(format_number(Acc), Handler, Opts), [key|Stack], Opts);
+decimal(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    value(Rest, handle_event(format_number(Acc), Handler, Opts), [array|Stack], Opts);
 decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [{Int, Frac, []}|Stack], Opts);
-decimal(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
-decimal(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
-decimal(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+decimal(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+decimal(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+decimal(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 decimal(<<>>, Handler, Stack, Opts) ->
     ?incomplete(decimal, <<>>, Handler, Stack, Opts);
 decimal(Bin, Handler, Stack, Opts) ->
@@ -862,30 +837,20 @@ ex(Bin, Handler, Stack, Opts) ->
 
 exp(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-exp(<<?end_object, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_object, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-exp(<<?end_array, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    maybe_done(
-        Rest,
-        {Handler, Handler:handle_event(end_array, Handler:handle_event(format_number(Acc), State))},
-        Stack,
-        Opts
-    );
-exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, object|Stack], Opts) ->
-    key(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [key|Stack], Opts);
-exp(<<?comma, Rest/binary>>, {Handler, State}, [Acc, array|Stack], Opts) ->
-    value(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [array|Stack], Opts);
-exp(<<S, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts) when ?is_whitespace(S) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
-exp(<<?solidus, Rest/binary>>, {Handler, State}, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, {Handler, Handler:handle_event(format_number(Acc), State)}, [maybe_done|Stack], Opts); 
-exp(<<>>, {Handler, State}, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, {Handler, Handler:handle_event(format_number(Acc), State)}, Stack, Opts);
+exp(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Opts), Stack, Opts);
+exp(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Opts), Stack, Opts);
+exp(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Opts) ->
+    key(Rest, handle_event(format_number(Acc), Handler, Opts), [key|Stack], Opts);
+exp(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
+    value(Rest, handle_event(format_number(Acc), Handler, Opts), [array|Stack], Opts);
+exp(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+exp(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+exp(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 exp(<<>>, Handler, Stack, Opts) ->
     ?incomplete(exp, <<>>, Handler, Stack, Opts);
 exp(Bin, Handler, Stack, Opts) ->
@@ -918,8 +883,8 @@ tru(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-true(<<$e, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event({literal, true}, State)}, Stack, Opts);
+true(<<$e, Rest/binary>>, Handler, Stack, Opts) ->
+    maybe_done(Rest, handle_event({literal, true}, Handler, Opts), Stack, Opts);
 true(<<>>, Handler, Stack, Opts) ->  
     ?incomplete(true, <<>>, Handler, Stack, Opts);
 true(Bin, Handler, Stack, Opts) ->
@@ -950,8 +915,8 @@ fals(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
     
 
-false(<<$e, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event({literal, false}, State)}, Stack, Opts);
+false(<<$e, Rest/binary>>, Handler, Stack, Opts) ->
+    maybe_done(Rest, handle_event({literal, false}, Handler, Opts), Stack, Opts);
 false(<<>>, Handler, Stack, Opts) ->  
     ?incomplete(false, <<>>, Handler, Stack, Opts);
 false(Bin, Handler, Stack, Opts) ->
@@ -974,8 +939,8 @@ nul(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-null(<<$l, Rest/binary>>, {Handler, State}, Stack, Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event({literal, null}, State)}, Stack, Opts);
+null(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
+    maybe_done(Rest, handle_event({literal, null}, Handler, Opts), Stack, Opts);
 null(<<>>, Handler, Stack, Opts) ->  
     ?incomplete(null, <<>>, Handler, Stack, Opts);
 null(Bin, Handler, Stack, Opts) ->
@@ -1036,12 +1001,12 @@ end_comment(Rest, Handler, [Resume|Stack], Opts) ->
     end.
 
 
-maybe_done(Rest, {Handler, State}, [], Opts) ->
-    done(Rest, {Handler, Handler:handle_event(end_json, State)}, [], Opts);
-maybe_done(<<?end_object, Rest/binary>>, {Handler, State}, [object|Stack], Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(end_object, State)}, Stack, Opts);
-maybe_done(<<?end_array, Rest/binary>>, {Handler, State}, [array|Stack], Opts) ->
-    maybe_done(Rest, {Handler, Handler:handle_event(end_array, State)}, Stack, Opts);
+maybe_done(Rest, Handler, [], Opts) ->
+    done(Rest, handle_event(end_json, Handler, Opts), [], Opts);
+maybe_done(<<?end_object, Rest/binary>>, Handler, [object|Stack], Opts) ->
+    maybe_done(Rest, handle_event(end_object, Handler, Opts), Stack, Opts);
+maybe_done(<<?end_array, Rest/binary>>, Handler, [array|Stack], Opts) ->
+    maybe_done(Rest, handle_event(end_array, Handler, Opts), Stack, Opts);
 maybe_done(<<?comma, Rest/binary>>, Handler, [object|Stack], Opts) ->
     key(Rest, Handler, [key|Stack], Opts);
 maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Opts) ->
