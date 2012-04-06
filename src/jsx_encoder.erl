@@ -99,7 +99,8 @@ list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-pre_encode(Value, Opts) -> lists:foldl(fun(F, V) -> F(V) end, Value, Opts#opts.pre_encoders).
+pre_encode(Value, #opts{pre_encode=false}) -> Value;
+pre_encode(Value, Opts) -> (Opts#opts.pre_encode)(Value).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
@@ -812,7 +813,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace lists with empty lists", ?_assertEqual(
-            encode(Term, [{pre_encoder, fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end}]),
+            encode(Term, [{pre_encode, fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -825,7 +826,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace objects with empty objects", ?_assertEqual(
-            encode(Term, [{pre_encoder, fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end}]),
+            encode(Term, [{pre_encode, fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end}]),
             [
                 start_object,
                 end_object,
@@ -833,7 +834,7 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace all non-list values with false", ?_assertEqual(
-            encode(Term, [{pre_encoder, fun(V) when is_list(V) -> V; (_) -> false end}]),
+            encode(Term, [{pre_encode, fun(V) when is_list(V) -> V; (_) -> false end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -852,34 +853,12 @@ pre_encoders_test_() ->
             ]
         )},
         {"replace all atoms with atom_to_list", ?_assertEqual(
-            encode(Term, [{pre_encoder, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
+            encode(Term, [{pre_encode, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
                         {key, <<"literals">>}, start_array,
                             {string, <<"true">>}, {string, <<"false">>}, {string, <<"null">>},
-                        end_array,
-                        {key, <<"strings">>}, start_array,
-                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
-                        end_array,
-                        {key, <<"numbers">>}, start_array,
-                            {integer, 1}, {float, 1.0}, {float, 1.0},
-                        end_array,
-                    end_object,
-                end_object,
-                end_json
-            ]
-        )},
-        {"replace all atoms to strings and back", ?_assertEqual(
-            encode(Term, [{pre_encoders, [
-                fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end,
-                fun(<<"true">>) -> true; (<<"false">>) -> false; (<<"null">>) -> null; (V) -> V end
-            ]}]),
-            [
-                start_object,
-                    {key, <<"object">>}, start_object,
-                        {key, <<"literals">>}, start_array,
-                            {literal, true}, {literal, false}, {literal, null},
                         end_array,
                         {key, <<"strings">>}, start_array,
                             {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
