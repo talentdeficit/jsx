@@ -61,14 +61,17 @@ parse_opts([relax|Rest], Opts) ->
         comments = true,
         ignored_bad_escapes = true
     });
-parse_opts([{pre_encoder, Encoder}|Rest], Opts) when is_function(Encoder, 1) ->
-    AllEncoders = Opts#opts.pre_encoders ++ [Encoder],
-    parse_opts(Rest, Opts#opts{pre_encoders=AllEncoders});
-parse_opts([{pre_encoders, Encoders}|Rest], Opts) when is_list(Encoders) ->
-    lists:foreach(fun(F) when is_function(F, 1) -> ok end, Encoders),
-    AllEncoders = Opts#opts.pre_encoders ++ Encoders,
-    parse_opts(Rest, Opts#opts{pre_encoders=AllEncoders});
+parse_opts([{pre_encode, Encoder}|Rest] = Options, Opts) when is_function(Encoder, 1) ->
+    case Opts#opts.pre_encode of
+        false -> parse_opts(Rest, Opts#opts{pre_encode=Encoder})
+        ; _ -> erlang:error(badarg, [Options, Opts])
+    end;
 %% deprecated flags
+parse_opts([{pre_encoder, Encoder}|Rest] = Options, Opts) when is_function(Encoder, 1) ->
+    case Opts#opts.pre_encode of
+        false -> parse_opts(Rest, Opts#opts{pre_encode=Encoder})
+        ; _ -> erlang:error(badarg, [Options, Opts])
+    end;
 parse_opts([loose_unicode|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{replaced_bad_utf8=true});
 parse_opts([escape_forward_slash|Rest], Opts) ->
@@ -97,9 +100,9 @@ valid_flags() ->
         ignored_bad_escapes,
         explicit_end,
         relax,
-        pre_encoder,
-        pre_encoders,
+        pre_encode,
         %% deprecated flags
+        pre_encoder,            %% pre_encode
         loose_unicode,          %% replaced_bad_utf8
         escape_forward_slash,   %% escaped_forward_slashes
         single_quotes,          %% single_quotes_strings

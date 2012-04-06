@@ -147,11 +147,12 @@ this option treats all exhausted inputs as incomplete, as explained below. the p
 
 relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
 
-#### `{pre_encoder, F}` or `{pre_encoders, [F, G,...]}` ####
+#### `{pre_encode, F}` ####
 
-pre encoders are functions of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and arrays are). if more than one pre encoder is declared, the input will be passed to each of them in the order they are declared
 
-input can be any term, but final output from the chain should be otherwise recognized input to the encoder
+`F` is a function of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and arrays are). if more than one pre encoder is declared, a `badarg` exception will occur
+
+input can be any term, but output from the function must be a valid type for input
 
 
 ### <a name="incompletes">incomplete input</a> ###
