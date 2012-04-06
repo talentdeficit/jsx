@@ -28,7 +28,8 @@
 
 
 -record(opts, {
-    labels = binary
+    labels = binary,
+    post_decode = false
 }).
 
 -type opts() :: list().
@@ -49,7 +50,6 @@ to_term(Source, Opts) when is_list(Opts) ->
     (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
 
-
 parse_opts(Opts) -> parse_opts(Opts, #opts{}).
 
 parse_opts([{labels, Val}|Rest], Opts)
@@ -57,42 +57,43 @@ parse_opts([{labels, Val}|Rest], Opts)
     parse_opts(Rest, Opts#opts{labels = Val});
 parse_opts([labels|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{labels = binary});
+parse_opts([{post_decode, F}|Rest], Opts=#opts{post_decode=false}) when is_function(F, 1) ->
+    parse_opts(Rest, Opts#opts{post_decode=F});
+parse_opts([{post_decode, _}|_] = Options, Opts) ->
+    erlang:error(badarg, [Options, Opts]);
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
     Opts.
 
 
-
 init(Opts) -> {[[]], parse_opts(Opts)}.
-
 
 
 handle_event(end_json, {[[Terms]], _Opts}) -> Terms;
 
 handle_event(start_object, {Terms, Opts}) -> {[[]|Terms], Opts};
 handle_event(end_object, {[[], {key, Key}, Last|Terms], Opts}) ->
-    {[[{Key, [{}]}] ++ Last] ++ Terms, Opts};
+    {[[{Key, post_decode([{}], Opts)}] ++ Last] ++ Terms, Opts};
 handle_event(end_object, {[Object, {key, Key}, Last|Terms], Opts}) ->
-    {[[{Key, lists:reverse(Object)}] ++ Last] ++ Terms, Opts};
+    {[[{Key, post_decode(lists:reverse(Object), Opts)}] ++ Last] ++ Terms, Opts};
 handle_event(end_object, {[[], Last|Terms], Opts}) ->
-    {[[[{}]] ++ Last] ++ Terms, Opts};
+    {[[post_decode([{}], Opts)] ++ Last] ++ Terms, Opts};
 handle_event(end_object, {[Object, Last|Terms], Opts}) ->
-    {[[lists:reverse(Object)] ++ Last] ++ Terms, Opts};
+    {[[post_decode(lists:reverse(Object), Opts)] ++ Last] ++ Terms, Opts};
     
 handle_event(start_array, {Terms, Opts}) -> {[[]|Terms], Opts};
 handle_event(end_array, {[List, {key, Key}, Last|Terms], Opts}) ->
-    {[[{Key, lists:reverse(List)}] ++ Last] ++ Terms, Opts};
+    {[[{Key, post_decode(lists:reverse(List), Opts)}] ++ Last] ++ Terms, Opts};
 handle_event(end_array, {[Current, Last|Terms], Opts}) ->
-    {[[lists:reverse(Current)] ++ Last] ++ Terms, Opts};
+    {[[post_decode(lists:reverse(Current), Opts)] ++ Last] ++ Terms, Opts};
 
 handle_event({key, Key}, {Terms, Opts}) -> {[{key, format_key(Key, Opts)}] ++ Terms, Opts};
 
 handle_event({_, Event}, {[{key, Key}, Last|Terms], Opts}) ->
-    {[[{Key, Event}] ++ Last] ++ Terms, Opts};
+    {[[{Key, post_decode(Event, Opts)}] ++ Last] ++ Terms, Opts};
 handle_event({_, Event}, {[Last|Terms], Opts}) ->
-    {[[Event] ++ Last] ++ Terms, Opts}.
-
+    {[[post_decode(Event, Opts)] ++ Last] ++ Terms, Opts}.
 
 
 format_key(Key, Opts) ->
@@ -102,6 +103,9 @@ format_key(Key, Opts) ->
         ; existing_atom -> binary_to_existing_atom(Key, utf8)
     end.
 
+
+post_decode(Value, #opts{post_decode=false}) -> Value;
+post_decode(Value, Opts) -> (Opts#opts.post_decode)(Value).
 
 
 %% eunit tests
