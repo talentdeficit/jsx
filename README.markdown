@@ -247,7 +247,7 @@ the option `labels` controls how keys are converted from json to erlang terms. `
 
 ```erlang
     1> F = fun(V) when is_list(V) -> V; (V) -> false end.
-    2> jsx:to_term(<<"{"a list": [true, "a string", 1]}">>, [{post_decode, F}]).
+    2> jsx:to_term(<<"{\"a list\": [true, \"a string\", 1]}">>, [{post_decode, F}]).
       [{<<"a list">>, [false, false, false]}]
 ```
 
