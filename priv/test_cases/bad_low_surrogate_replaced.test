@@ -1,4 +1,4 @@
 {name, "bad_low_surrogate_replaced"}.
 {jsx, [start_array,{string, <<16#fffd/utf8, 16#fffd/utf8>>},end_array,end_json]}.
 {json, "bad_low_surrogate_replaced.json"}.
-{jsx_flags, [loose_unicode]}.
+{jsx_flags, [replaced_bad_utf8]}.

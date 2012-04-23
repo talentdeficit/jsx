@@ -134,41 +134,41 @@ encoder_decoder_equiv_test_() ->
     ].
 
 
-single_quotes_test_() ->
+single_quoted_strings_test_() ->
     [
         {"single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key':true}">>, [single_quotes]),
+                to_term(<<"{'key':true}">>, [single_quoted_strings]),
                 [{<<"key">>, true}]
             )
         },
         {"multiple single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key':true, 'another key':true}">>, [single_quotes]),
+                to_term(<<"{'key':true, 'another key':true}">>, [single_quoted_strings]),
                 [{<<"key">>, true}, {<<"another key">>, true}]
             )
         },
         {"nested single quoted keys",
             ?_assertEqual(
-                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quotes]),
+                to_term(<<"{'key': {'key':true, 'another key':true}}">>, [single_quoted_strings]),
                 [{<<"key">>, [{<<"key">>, true}, {<<"another key">>, true}]}]
             )
         },
         {"single quoted string",
             ?_assertEqual(
-                to_term(<<"['string']">>, [single_quotes]),
+                to_term(<<"['string']">>, [single_quoted_strings]),
                 [<<"string">>]
             )
         },
         {"single quote in double quoted string",
             ?_assertEqual(
-                to_term(<<"[\"a single quote: '\"]">>, [single_quotes]),
+                to_term(<<"[\"a single quote: '\"]">>, [single_quoted_strings]),
                 [<<"a single quote: '">>]
             )
         },
         {"escaped single quote in single quoted string",
             ?_assertEqual(
-                to_term(<<"['a single quote: \\'']">>, [single_quotes]),
+                to_term(<<"['a single quote: \\'']">>, [single_quoted_strings]),
                 [<<"a single quote: '">>]
             )
         },
@@ -181,7 +181,7 @@ single_quotes_test_() ->
         {"mismatched quotes",
             ?_assertError(
                 badarg,
-                to_term(<<"['mismatched\"]">>, [single_quotes])
+                to_term(<<"['mismatched\"]">>, [single_quoted_strings])
             )
         }
     ].

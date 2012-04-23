@@ -1,0 +1,4 @@
+{name, "comment_style_a"}.
+{jsx, [start_object,{key, <<"key">>}, start_array, {literal, true}, {literal, false}, end_array, end_object,end_json]}.
+{json, "comment_style_a.json"}.
+{jsx_flags, [comments]}.

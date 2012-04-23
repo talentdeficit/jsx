@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx uses [rebar][rebar] for it's build chain and [meck][meck] for it's test suite
+jsx uses [rebar][rebar] for it's build chain
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
 
@@ -60,7 +60,7 @@ to minify a json string: `jsx:format(JSON)`
 
 json must be a binary encoded in `utf8`. if it's invalid `utf8` or invalid json, it probably won't parse without errors. there are a few non-standard extensions to the parser available that may change that, they are detailed in the options section below
 
-jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">`, `<<"true">>` and `<<"\"hello world\"">>` without problems
+jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">>`, `<<"true">>` and `<<"\"hello world\"">>` without complaint
 
 #### erlang ####
 
@@ -74,7 +74,7 @@ when converting from erlang to json, numbers are represented with their shortest
 
 #### strings ####
 
-the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (properly escaped control characters, `"` and the escape character, `\`) and that are encoded in `utf8`
+the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (strings are sequences of unicode codepoints deliminated by `"` (`u+0022`) that may not contain control codes unless properly escaped with `\` (`u+005c`)) and that are encoded in `utf8`
 
 the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
 
@@ -82,7 +82,7 @@ json string escapes of the form `\uXXXX` will be converted to their equivalent c
 
 in the interests of pragmatism, there is an option for looser parsing, see options below
 
-all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. the same restrictions apply as for strings encountered within json texts. that means no unpaired surrogates
+all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although see options below)
 
 this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -101,47 +101,57 @@ json objects are represented by erlang proplists. the empty object has the speci
 
 ### <a name="options">options</a> ###
 
-jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms and have no value. functions may have additional options beyond these, see individual function documentation for details
+jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms or {atom, Term} tuples. functions may have additional options beyond these, see individual function documentation for details
 
-#### `loose_unicode` ####
+#### `replaced_bad_utf8` ####
 
 json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. if this option is present attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec. this applies both to malformed unicode and disallowed codepoints
 
-#### `escape_forward_slash` ####
+#### `escaped_forward_slashes` ####
 
 json strings are escaped according to the json spec. this means forward slashes are never escaped. unfortunately, a microsoft implementation of json uses escaped forward slashes in json formatted date strings. without this option it is impossible to get date strings that some microsoft tools understand
 
-#### `explicit_end` ####
-
-this option treats all exhausted inputs as incomplete, as explained below. the parser will not attempt to return a final state until the function is called with the value `end_stream`
-
-#### `single_quotes` ####
+#### `single_quoted_strings` ####
  
-some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to deliminate keys and strings. this option allows json containing single quotes as structural (deliminator) characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings deliminated by single quotes. the parser will never emit json with keys or strings deliminated by single quotes
+some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to deliminate keys and strings. this option allows json containing single quotes as structural (deliminator) characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings deliminated by single quotes
 
-#### `no_jsonp_escapes` ####
+double quotes must ALWAYS be escaped, regardless of what kind of quotes deliminate the string they are found in
 
-javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `"\u2028"` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
+the parser will never emit json with keys or strings deliminated by single quotes
+
+#### `unescaped_jsonp` ####
+
+javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping if, for some reason, you object to this
 
 #### `comments` ####
 
 json has no official comments but some parsers allow c style comments. this flag allows comments (both `// ...` and `/* ... */` style) anywhere whitespace is allowed
 
-#### `json_escape` ####
+#### `escaped_strings` ####
 
-by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings for output in json, removing control codes and replacing them with the appropriate escapes
+by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint and encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
 
 #### `dirty_strings` ####
 
 json escaping is lossy, it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
 
-#### `ignore_bad_escapes` ####
+#### `ignored_bad_escapes` ####
 
-during decoding, ignore unrecognized escape sequences and leave them as is in the stream
+during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that if you combine this option with `escaped_strings` the escape character itself will be escaped
+
+#### `explicit_end` ####
+
+this option treats all exhausted inputs as incomplete, as explained below. the parser will not attempt to return a final state until the function is called with the value `end_stream`
 
 #### `relax` ####
 
-relax is a synonym for `[loose_unicode, single_quotes, comments, ignore_bad_escapes]`
+relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
+
+#### `{pre_encode, F}` ####
+
+`F` is a function of arity 1 that pre-process input to the encoder. only input evaluated in a *value* context is pre-processed in this manner (so keys are not pre-processed, but objects and arrays are). if more than one pre encoder is declared, a `badarg` exception will occur
+
+input can be any term, but output from the function must be a valid type for input
 
 
 ### <a name="incompletes">incomplete input</a> ###
@@ -229,8 +239,19 @@ types:
         * `binary`
         * `atom`
         * `existing_atom`
+    - `{post_decode, F}`
 
 the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms, and results in a badarg error if keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom`, except it will not add new atoms to the atom table
+
+`{post_decode, F}` is a user defined function of arity 1 that is called on each output value (objects, arrays, strings, numbers and literals). it may return any value to be substituted in the returned term. for example:
+
+```erlang
+    1> F = fun(V) when is_list(V) -> V; (V) -> false end.
+    2> jsx:to_term(<<"{\"a list\": [true, \"a string\", 1]}">>, [{post_decode, F}]).
+      [{<<"a list">>, [false, false, false]}]
+```
+
+if more than one decoder is declared a badarg exception will result
 
 #### converting erlang terms to json ####
     
