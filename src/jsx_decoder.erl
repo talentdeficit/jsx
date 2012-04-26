@@ -600,7 +600,7 @@ escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\t, Opts))|Stack], Opts);
 escape(<<?rsolidus, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\\, Opts))|Stack], Opts);
-escape(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{escaped_forward_slashes=true}) ->
+escape(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace($/, Opts))|Stack], Opts);
 escape(<<?doublequote, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\", Opts))|Stack], Opts);

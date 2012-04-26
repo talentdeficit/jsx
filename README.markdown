@@ -109,7 +109,7 @@ json text input and json strings SHOULD be utf8 encoded binaries, appropriately 
 
 #### `escaped_forward_slashes` ####
 
-json strings are escaped according to the json spec. this means forward slashes are never escaped. unfortunately, a microsoft implementation of json uses escaped forward slashes in json formatted date strings. without this option it is impossible to get date strings that some microsoft tools understand
+json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding, you may want to use this if you are embedding JSON directly into a HTML or XML document. See: [html4-non-html-data]
 
 #### `single_quoted_strings` ####
  
@@ -343,4 +343,4 @@ jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaie
 [MIT]: http://www.opensource.org/licenses/mit-license.html
 [rebar]: https://github.com/basho/rebar
 [meck]: https://github.com/eproxus/meck
-[rfc4627]: http://tools.ietf.org/html/rfc4627
+[rfc4627]: http://tools.ietf.org/html/rfc4627[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
