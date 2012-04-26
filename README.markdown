@@ -101,7 +101,7 @@ json objects are represented by erlang proplists. the empty object has the speci
 
 ### <a name="options">options</a> ###
 
-jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms or {atom, Term} tuples. functions may have additional options beyond these, see individual function documentation for details
+jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms or `{atom, Term}` tuples. functions may have additional options beyond these, see individual function documentation for details
 
 #### `replaced_bad_utf8` ####
 
