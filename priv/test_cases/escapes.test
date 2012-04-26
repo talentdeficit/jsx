@@ -1,0 +1,5 @@
+{name, "escapes"}.
+{jsx, [start_array,
+ {string,<<"\"\\/\b\f\n\r\t ">>},
+ end_array,end_json]}.
+{json, "escapes.json"}.
