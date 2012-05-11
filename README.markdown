@@ -32,15 +32,28 @@ jsx uses [rebar][rebar] for it's build chain
 
 to build the library: `rebar compile`
 
-to convert a utf8 binary containing a json string into an erlang term: `jsx:to_term(JSON)`
+to convert a utf8 binary containing a json string into an erlang term
 
-to convert an erlang term into a utf8 binary containing a json string: `jsx:to_json(Term)`
+```erlang
+    1> jsx:to_term(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
+    [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
+```
 
-to check if a binary is valid json: `jsx:is_json(JSON)`
+to convert an erlang term into a utf8 binary containing a json string
 
-to check if a term is valid json: `jsx:is_term(Term)`
+```erlang
+    1> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+    <<"[\"a\",\"list\",\"of\",\"words\"]">> 
+```
 
-to minify a json string: `jsx:format(JSON)`
+to check if a binary or a term is valid json
+
+```erlang
+    1> jsx:is_json(<<"[1]">>).
+    true
+    2> jsx:is_term(1).
+    true
+```
 
 
 ## <a name="api">api</a> ##
