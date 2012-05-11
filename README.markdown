@@ -8,7 +8,7 @@ jsx is released under the terms of the [MIT][MIT] license
 
 jsx uses [rebar][rebar] for it's build chain
 
-[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
+[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=)](http://travis-ci.org/talentdeficit/jsx)
 
 
 ## index ##
@@ -30,7 +30,19 @@ jsx uses [rebar][rebar] for it's build chain
 
 ## <a name="quickstart">quickstart</a> ##
 
-to build the library: `rebar compile`
+to build the library
+
+```bash
+    tanga:jsx alisdair$ rebar compile
+    ==> jsx (compile)
+    Compiled src/jsx_verify.erl
+    Compiled src/jsx_utils.erl
+    Compiled src/jsx_to_term.erl
+    Compiled src/jsx_to_json.erl
+    Compiled src/jsx.erl
+    Compiled src/jsx_encoder.erl
+    Compiled src/jsx_decoder.erl
+```
 
 to convert a utf8 binary containing a json string into an erlang term
 
