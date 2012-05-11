@@ -343,4 +343,5 @@ jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaie
 [MIT]: http://www.opensource.org/licenses/mit-license.html
 [rebar]: https://github.com/basho/rebar
 [meck]: https://github.com/eproxus/meck
-[rfc4627]: http://tools.ietf.org/html/rfc4627[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
+[rfc4627]: http://tools.ietf.org/html/rfc4627
+[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
