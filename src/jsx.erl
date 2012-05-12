@@ -26,7 +26,7 @@
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
--export([format/1, format/2]).
+-export([format/1, format/2, minify/1, prettify/1]).
 -export([encoder/3, decoder/3]).
 %% old api
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
@@ -58,6 +58,16 @@ term_to_json(Source, Opts) -> to_json(Source, Opts).
 format(Source) -> format(Source, []).
 
 format(Source, Opts) -> jsx_to_json:format(Source, Opts).
+
+
+-spec minify(Source::binary()) -> binary().
+
+minify(Source) -> format(Source, []).
+
+
+-spec prettify(Source::binary()) -> binary().
+
+prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
 -spec to_term(Source::binary()) -> list({binary(), any()})
