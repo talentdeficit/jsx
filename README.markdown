@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx uses [rebar][rebar] for it's build chain
+jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=)](http://travis-ci.org/talentdeficit/jsx)
 
@@ -30,18 +30,27 @@ jsx uses [rebar][rebar] for it's build chain
 
 ## <a name="quickstart">quickstart</a> ##
 
-to build the library
+to build the library 
+
+```bash
+    tanga:jsx alisdair$ sinan build
+```
+or
 
 ```bash
     tanga:jsx alisdair$ rebar compile
-    ==> jsx (compile)
-    Compiled src/jsx_verify.erl
-    Compiled src/jsx_utils.erl
-    Compiled src/jsx_to_term.erl
-    Compiled src/jsx_to_json.erl
-    Compiled src/jsx.erl
-    Compiled src/jsx_encoder.erl
-    Compiled src/jsx_decoder.erl
+```
+
+to run tests
+
+```bash
+    tanga:jsx alisdair$ sinan -r tests eunit
+```
+
+or
+
+```bash
+    tanga:jsx alisdair$ rebar eunit
 ```
 
 to convert a utf8 binary containing a json string into an erlang term
@@ -367,5 +376,6 @@ jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaie
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
 [rebar]: https://github.com/basho/rebar
+[sinan]: https://github.com/erlware/sinan
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2

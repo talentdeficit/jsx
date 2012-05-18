@@ -2,3 +2,4 @@ ebin/
 deps/
 *.orig
 /.eunit
+_build/
