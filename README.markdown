@@ -33,47 +33,47 @@ jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
 to build the library 
 
 ```bash
-    tanga:jsx alisdair$ sinan build
+tanga:jsx alisdair$ sinan build
 ```
 or
 
 ```bash
-    tanga:jsx alisdair$ rebar compile
+tanga:jsx alisdair$ rebar compile
 ```
 
 to run tests
 
 ```bash
-    tanga:jsx alisdair$ sinan -r tests eunit
+tanga:jsx alisdair$ sinan -r tests eunit
 ```
 
 or
 
 ```bash
-    tanga:jsx alisdair$ rebar eunit
+tanga:jsx alisdair$ rebar eunit
 ```
 
 to convert a utf8 binary containing a json string into an erlang term
 
 ```erlang
-    1> jsx:to_term(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
-    [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
+1> jsx:to_term(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
+[{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
 ```
 
 to convert an erlang term into a utf8 binary containing a json string
 
 ```erlang
-    1> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
-    <<"[\"a\",\"list\",\"of\",\"words\"]">> 
+1> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+<<"[\"a\",\"list\",\"of\",\"words\"]">> 
 ```
 
 to check if a binary or a term is valid json
 
 ```erlang
-    1> jsx:is_json(<<"[1]">>).
-    true
-    2> jsx:is_term(1).
-    true
+1> jsx:is_json(<<"[1]">>).
+true
+2> jsx:is_term(1).
+true
 ```
 
 
