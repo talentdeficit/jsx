@@ -58,24 +58,57 @@ to convert a utf8 binary containing a json string into an erlang term
 ```erlang
 1> jsx:to_term(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
 [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
+2> jsx:to_term(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
+[<<"a">>, <<"list">>, <<"of">>, <<"words">>]
 ```
 
 to convert an erlang term into a utf8 binary containing a json string
 
 ```erlang
-1> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
-<<"[\"a\",\"list\",\"of\",\"words\"]">> 
+1> jsx:to_json([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
+<<"{\"library\": \"jsx\", \"awesome\": true}">>
+2> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+<<"[\"a\",\"list\",\"of\",\"words\"]">>
 ```
 
 to check if a binary or a term is valid json
 
 ```erlang
-1> jsx:is_json(<<"[1]">>).
+1> jsx:is_json(<<"[\"this is json\"]">>).
 true
-2> jsx:is_term(1).
+2> jsx:is_json("[\"this is not\"]").
+false
+3> jsx:is_term([<<"this is a term">>]).
 true
+4> jsx:is_term(["this is not"]).
+false
 ```
 
+to minify some json
+
+```erlang
+1> jsx:minify(<<"{
+  \"a list\": [
+    1,
+    2,
+    3
+  ]
+}">>).
+<<"{\"a list\":[1,2,3]}">>
+```
+
+to prettify some json
+
+```erlang
+1> jsx:prettify(<<"{\"a list\":[1,2,3]}">>).
+<<"{
+  \"a list\": [
+    1,
+    2,
+    3
+  ]
+}">>
+```
 
 ## <a name="api">api</a> ##
 
