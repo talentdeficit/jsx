@@ -30,7 +30,8 @@
 -record(opts, {
     space = 0,
     indent = 0,
-    depth = 0
+    depth = 0,
+    pre_encode = false
 }).
 
 -type opts() :: list().
@@ -58,6 +59,10 @@ parse_opts([{indent, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
     parse_opts(Rest, Opts#opts{indent = Val});
 parse_opts([indent|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{indent = 1});
+parse_opts([{pre_encode, F}|Rest], Opts=#opts{pre_encode=false}) when is_function(F, 1) ->
+    parse_opts(Rest, Opts#opts{pre_encode=F});
+parse_opts([{pre_encode, _}|_] = Options, Opts) ->
+    erlang:error(badarg, [Options, Opts]);
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
@@ -135,15 +140,17 @@ handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
 handle_event(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
 
 
-encode(string, String, _Opts) ->
-    [?quote, String, ?quote];
-encode(literal, Literal, _Opts) ->
-    erlang:atom_to_list(Literal);
-encode(integer, Integer, _Opts) ->
-    erlang:integer_to_list(Integer);
-encode(float, Float, _Opts) ->
-    [Output] = io_lib:format("~p", [Float]), Output.
+encode(string, String, Opts) ->
+    [?quote, pre_encode(String,Opts), ?quote];
+encode(literal, Literal, Opts) ->
+    erlang:atom_to_list(pre_encode(Literal,Opts));
+encode(integer, Integer, Opts) ->
+    erlang:integer_to_list(pre_encode(Integer,Opts));
+encode(float, Float, Opts) ->
+    [Output] = io_lib:format("~p", [pre_encode(Float,Opts)]), Output.
 
+pre_encode(Value, #opts{pre_encode=false}) -> Value;
+pre_encode(Value, Opts) -> (Opts#opts.pre_encode)(Value).
 
 space(Opts) ->
     case Opts#opts.space of
@@ -219,6 +226,62 @@ basic_format_test_() ->
                 <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
             )
         }
+    ].
+
+my_pre_encode(undefined) -> null; 
+my_pre_encode(X) -> X.
+
+pre_encode_to_json_test_() ->
+    Opts = [{pre_encode,fun(X) -> my_pre_encode(X) end}],
+    [
+        {"empty object", ?_assertEqual(to_json([{}], Opts), <<"{}">>)},
+        {"empty array", ?_assertEqual(to_json([], Opts), <<"[]">>)},
+        {"naked integer", ?_assertEqual(to_json(123, Opts), <<"123">>)},
+        {"naked float", ?_assertEqual(to_json(1.23, Opts) , <<"1.23">>)},
+        {"naked string", ?_assertEqual(to_json(<<"hi">>, Opts), <<"\"hi\"">>)},
+        {"naked string with control character", ?_assertEqual(
+            to_json(<<"hi\n">>, Opts), <<"\"hi\\n\"">>
+        )},
+        {"naked literal", ?_assertEqual(to_json(true, Opts), <<"true">>)},
+        {"naked undefined", ?_assertEqual(to_json(undefined, Opts), <<"null">>)},
+        {"simple object", ?_assertEqual(
+            to_json(
+                [{<<"key">>, <<"value">>}],
+                Opts
+            ), 
+            <<"{\"key\":\"value\"}">>
+        )},
+        {"nested object", ?_assertEqual(
+            to_json(
+                [{<<"k">>,[{<<"k">>,<<"v">>}]},{<<"j">>,[{}]}],
+                Opts
+            ),
+            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
+        )},
+        {"simple array", ?_assertEqual(to_json([true, false, null], Opts), <<"[true,false,null]">>)},
+        {"really simple array", ?_assertEqual(to_json([1], Opts), <<"[1]">>)},
+        {"nested array", ?_assertEqual(to_json([[[]]], Opts), <<"[[[]]]">>)},
+        {"nested structures", ?_assertEqual(
+            to_json(
+                [
+                    [
+                        {<<"key">>, <<"value">>},
+                        {<<"another key">>, <<"another value">>},
+                        {<<"a list">>, [true, false]}
+                    ],
+                    [[[{}]]]
+                ],
+                Opts
+            ),
+            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+        )},
+        {"simple nested structure", ?_assertEqual(
+            to_json(
+                [[], [{<<"k">>, [[], [{}]]}, {<<"j">>, [{}]}], []],
+                Opts
+            ),
+            <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
+        )}
     ].
 
 basic_to_json_test_() ->
