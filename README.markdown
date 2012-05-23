@@ -1,4 +1,4 @@
-# <a name="introduction">jsx (v1.2.1)</a> #
+# jsx (v1.2.1) #
 
 a sane [json][json] implementation for erlang, inspired by [yajl][yajl]
 
@@ -13,22 +13,40 @@ jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
 
 ## index ##
 
-* [introduction](#intro)
 * [quickstart](#quickstart)
-* [the api](#api)
-  - [json <-> erlang mapping](#mapping)
+* [the api](#the-api)
+  - [json <-> erlang mapping](#json---erlang-mapping)
+    * [json representation](#json-representation)
+    * [erlang representation](#erlang-representation)
+    * [numbers](#numbers)
+    * [strings](#strings)
+    * [true, false and null](##true-false-and-null)
+    * [arrays](#arrays)
+    * [objects](#objects)
   - [options](#options)
-  - [incomplete input](#incompletes)
-  - [the encoder and decoder](#core)
-  - [handler callbacks](#handler)
-  - [converting json to erlang and vice versa](#convert)
-  - [formatting and minifying json text](#format)
-  - [verifying json and terms are valid input](#verify)
-* [acknowledgments](#thanks)
+    * [replaced_bad_utf](#replaced_bad_utf8)
+    * [escaped_forward_slashes](#escaped_forward_slashes)
+    * [single_quoted_strings](#single_quoted_strings)
+    * [unescaped_jsonp](#unescaped_jsonp)
+    * [comments](#comments)
+    * [escaped_strings](#escaped_strings)
+    * [dirty_strings](#dirty_strings)
+    * [ignored_bad_escapes](#ignored_bad_escapes)
+    * [explicit_end](#explicit_end)
+    * [relax](#relax)
+    * [{pre_encode, F}](#pre_encode-f)
+  - [incomplete input](#incomplete-input)
+  - [the encoder and decoder](##the-encoder-and-decoder)
+  - [handler callbacks](#handler-callbacks)
+  - [converting json to erlang terms](#converting-json-to-erlang-terms)
+  - [converting erlang terms to json](#converting-erlang-terms-to-json)
+  - [formatting json texts](#formatting-json-texts)
+  - [verifying json texts](#verifying-json-texts)
+  - [verifying terms](#verifying-terms)
+* [acknowledgements](#acknowledgements)
 
 
-
-## <a name="quickstart">quickstart</a> ##
+## quickstart ##
 
 to build the library 
 
@@ -110,10 +128,10 @@ to prettify some json
 }">>
 ```
 
-## <a name="api">api</a> ##
+## the api ##
 
 
-### <a name="mapping">json &lt;-> erlang mapping</a> ###
+### json &lt;-> erlang mapping ###
 
 **json**                        | **erlang**
 --------------------------------|--------------------------------
@@ -141,7 +159,7 @@ when converting from erlang to json, numbers are represented with their shortest
 
 #### strings ####
 
-the [json spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (strings are sequences of unicode codepoints deliminated by `"` (`u+0022`) that may not contain control codes unless properly escaped with `\` (`u+005c`)) and that are encoded in `utf8`
+the json [spec][rfc4627] is frustratingly vague on the exact details of json strings. json must be unicode, but no encoding is specified. javascript explicitly allows strings containing codepoints explicitly disallowed by unicode. json allows implementations to set limits on the content of strings and other implementations attempt to resolve this in various ways. this implementation, in default operation, only accepts strings that meet the constraints set out in the json spec (strings are sequences of unicode codepoints deliminated by `"` (`u+0022`) that may not contain control codes unless properly escaped with `\` (`u+005c`)) and that are encoded in `utf8`
 
 the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates that appear otherwise are an error
 
@@ -166,7 +184,7 @@ json arrays are represented with erlang lists of json values as described in thi
 json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent using the shorthand form of property lists using atoms as properties so all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers). values should be valid json values
 
 
-### <a name="options">options</a> ###
+### options ###
 
 jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. flags are always atoms or `{atom, Term}` tuples. functions may have additional options beyond these, see individual function documentation for details
 
@@ -176,7 +194,7 @@ json text input and json strings SHOULD be utf8 encoded binaries, appropriately 
 
 #### `escaped_forward_slashes` ####
 
-json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding, you may want to use this if you are embedding JSON directly into a HTML or XML document. See: [html4-non-html-data]
+json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding, you may want to use this if you are embedding json directly into a html or xml document
 
 #### `single_quoted_strings` ####
  
@@ -221,14 +239,14 @@ relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ign
 input can be any term, but output from the function must be a valid type for input
 
 
-### <a name="incompletes">incomplete input</a> ###
+### incomplete input ###
 
 jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor or to parse large json texts without needing to keep them entirely in memory
 
 however, it is important to recognize that jsx is greedy by default. if input is exhausted and the json text is not unambiguously incomplete jsx will consider the parsing complete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour, see above
 
 
-### <a name="core">the encoder and decoder</a> ###
+### the encoder and decoder ###
 
 jsx is built on top of two finite state automata, one that handles json texts and one that handles erlang terms. both take a callback module as an argument that acts similar to a fold over a list of json 'events'. these events and the handler module's callbacks are detailed in the next section
 
@@ -250,7 +268,7 @@ types:
 decoder returns an anonymous function that handles binary json input and encoder returns an anonymous function that handles erlang term input. these are safe to reuse for multiple inputs
 
 
-### <a name="handler">handler callbacks</a> ###
+### handler callbacks ###
 
 `Handler` should export the following pair of functions
 
@@ -284,9 +302,7 @@ the event `end_json` will always be the last event emitted, you should take care
 both `key` and `string` are `utf8` encoded binaries with all escaped values converted into the appropriate codepoints
 
 
-### <a name="convert">converting json to erlang and vice versa</a> ###
-
-#### converting json to erlang terms ####
+### converting json to erlang terms ###
 
 `to_term` parses a JSON text (a utf8 encoded binary) and produces an erlang term (see json <-> erlang mapping details above)
 
@@ -320,7 +336,7 @@ the option `labels` controls how keys are converted from json to erlang terms. `
 
 if more than one decoder is declared a badarg exception will result
 
-#### converting erlang terms to json ####
+### converting erlang terms to json ###
     
 `to_json` parses an erlang term and produces a JSON text (see json <-> erlang mapping details below)
 
@@ -344,9 +360,7 @@ the option `{space, N}` inserts `N` spaces after every comma and colon in your j
 the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
 
 
-### <a name="format">formatting and minifying json text</a> ###
-
-#### formatting json texts ####
+### formatting json texts ###
     
 produces a JSON text from JSON text, reformatted
 
@@ -371,10 +385,8 @@ the option `{indent, N}` inserts a newline and `N` spaces for each level of inde
 calling `format` with no options results in minified json text
 
 
-### <a name="verify">verifying json and terms are valid input</a> ###
+### verifying json texts ###
 
-#### verifying json texts ####
-    
 returns true if input is a valid JSON text, false if not
 
 `is_json(MaybeJSON)` -> `true` | `false` | `{incomplete, Fun}`
@@ -387,7 +399,7 @@ types:
 * `Opts` = as above
 
 
-#### verifying terms ####
+### verifying terms ###
     
 returns true if input is a valid erlang term that represents a JSON text, false if not
 
@@ -401,7 +413,7 @@ types:
 * `Opts` = as above
 
 
-## <a name="thanks">acknowledgements</a> ##
+## acknowledgements ##
 
 jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaiel, john engelhart, bob ippolito, fernando benavides, alex kropivny, steve strong, michael truog and dmitry kolesnikov
 
@@ -411,4 +423,5 @@ jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaie
 [rebar]: https://github.com/basho/rebar
 [sinan]: https://github.com/erlware/sinan
 [meck]: https://github.com/eproxus/meck
-[rfc4627]: http://tools.ietf.org/html/rfc4627[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
+[rfc4627]: http://tools.ietf.org/html/rfc4627
+[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
