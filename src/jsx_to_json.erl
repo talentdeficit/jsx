@@ -30,7 +30,8 @@
 -record(opts, {
     space = 0,
     indent = 0,
-    depth = 0
+    depth = 0,
+    pre_encode = false
 }).
 
 -type opts() :: list().
@@ -58,6 +59,10 @@ parse_opts([{indent, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
     parse_opts(Rest, Opts#opts{indent = Val});
 parse_opts([indent|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{indent = 1});
+parse_opts([{pre_encode, F}|Rest], Opts=#opts{pre_encode=false}) when is_function(F, 1) ->
+    parse_opts(Rest, Opts#opts{pre_encode=F});
+parse_opts([{pre_encode, _}|_] = Options, Opts) ->
+    erlang:error(badarg, [Options, Opts]);
 parse_opts([_|Rest], Opts) ->
     parse_opts(Rest, Opts);
 parse_opts([], Opts) ->
@@ -178,31 +183,32 @@ indent_or_space(Opts) ->
 
 basic_format_test_() ->
     [
-        {"empty object", ?_assertEqual(format(<<"{}">>, []), <<"{}">>)},
-        {"empty array", ?_assertEqual(format(<<"[]">>, []), <<"[]">>)},
-        {"naked integer", ?_assertEqual(format(<<"123">>, []), <<"123">>)},
-        {"naked float", ?_assertEqual(format(<<"1.23">>, []), <<"1.23">>)},
-        {"naked string", ?_assertEqual(format(<<"\"hi\"">>, []), <<"\"hi\"">>)},
+        {"empty object", ?_assertEqual(<<"{}">>, format(<<"{}">>, []))},
+        {"empty array", ?_assertEqual(<<"[]">>, format(<<"[]">>, []))},
+        {"naked integer", ?_assertEqual(<<"123">>, format(<<"123">>, []))},
+        {"naked float", ?_assertEqual(<<"1.23">>, format(<<"1.23">>, []))},
+        {"naked string", ?_assertEqual(<<"\"hi\"">>, format(<<"\"hi\"">>, []))},
         {"naked string with control character", ?_assertEqual(
-            format(<<"\"hi\\n\"">>, []), <<"\"hi\\n\"">>
+            <<"\"hi\\n\"">>, format(<<"\"hi\\n\"">>, [])
         )},
-        {"naked literal", ?_assertEqual(format(<<"true">>, []), <<"true">>)},
+        {"naked literal", ?_assertEqual(<<"true">>, format(<<"true">>, []))},
         {"simple object", ?_assertEqual(
-            format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, []),
-            <<"{\"key\":\"value\"}">>
+            <<"{\"key\":\"value\"}">>,
+            format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, [])
         )},
-        {"really simple object", ?_assertEqual(format(<<"{\"k\":\"v\"}">>, []) , <<"{\"k\":\"v\"}">>)},
+        {"really simple object", ?_assertEqual(<<"{\"k\":\"v\"}">>, format(<<"{\"k\":\"v\"}">>, []) )},
         {"nested object", ?_assertEqual(
-            format(<<"{\"k\":{\"k\":\"v\"}, \"j\":{}}">>, []),
-            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
+            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>,
+            format(<<"{\"k\":{\"k\":\"v\"}, \"j\":{}}">>, [])
         )},
         {"simple array", ?_assertEqual(
-            format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, []),
-            <<"[true,false,null]">>
+            <<"[true,false,null]">>,
+            format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, [])
         )},
-        {"really simple array", ?_assertEqual(format(<<"[1]">>, []), <<"[1]">>)},
-        {"nested array", ?_assertEqual(format(<<"[[[]]]">>, []), <<"[[[]]]">>)},
+        {"really simple array", ?_assertEqual(<<"[1]">>, format(<<"[1]">>, []))},
+        {"nested array", ?_assertEqual(<<"[[[]]]">>, format(<<"[[[]]]">>, []))},
         {"nested structures", ?_assertEqual(
+            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>,
             format(<<"[
                 {
                     \"key\":\"value\",
@@ -210,46 +216,53 @@ basic_format_test_() ->
                     \"a list\": [true, false]
                 },
                 [[{}]]
-            ]">>, []), 
-            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+            ]">>, [])
         )},
         {"simple nested structure",
             ?_assertEqual(
-                format(<<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>, []),
-                <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
+                <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>,
+                format(<<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>, [])
             )
         }
     ].
 
 basic_to_json_test_() ->
     [
-        {"empty object", ?_assertEqual(to_json([{}], []), <<"{}">>)},
-        {"empty array", ?_assertEqual(to_json([], []), <<"[]">>)},
-        {"naked integer", ?_assertEqual(to_json(123, []), <<"123">>)},
-        {"naked float", ?_assertEqual(to_json(1.23, []) , <<"1.23">>)},
-        {"naked string", ?_assertEqual(to_json(<<"hi">>, []), <<"\"hi\"">>)},
+        {"empty object", ?_assertEqual(<<"{}">>, to_json([{}], []))},
+        {"empty array", ?_assertEqual(<<"[]">>, to_json([], []))},
+        {"naked integer", ?_assertEqual(<<"123">>, to_json(123, []))},
+        {"naked float", ?_assertEqual(<<"1.23">>, to_json(1.23, []) )},
+        {"naked string", ?_assertEqual(<<"\"hi\"">>, to_json(<<"hi">>, []))},
         {"naked string with control character", ?_assertEqual(
-            to_json(<<"hi\n">>, []), <<"\"hi\\n\"">>
+            <<"\"hi\\n\"">>, to_json(<<"hi\n">>, [])
         )},
-        {"naked literal", ?_assertEqual(to_json(true, []), <<"true">>)},
+        {"naked literal", ?_assertEqual(<<"true">>, to_json(true, []))},
         {"simple object", ?_assertEqual(
+            <<"{\"key\":\"value\"}">>,
             to_json(
                 [{<<"key">>, <<"value">>}],
                 []
-            ), 
-            <<"{\"key\":\"value\"}">>
+            )
+        )},
+        {"simple proplist", ?_assertEqual(
+            <<"[{\"key1\":\"value\",\"key2\":3}]">>,
+            to_json(
+                [ [{key1, <<"value">>}, {key2, 3}] ],
+                []
+            )
         )},
         {"nested object", ?_assertEqual(
+            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>,
             to_json(
                 [{<<"k">>,[{<<"k">>,<<"v">>}]},{<<"j">>,[{}]}],
                 []
-            ),
-            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
+            )
         )},
-        {"simple array", ?_assertEqual(to_json([true, false, null], []), <<"[true,false,null]">>)},
-        {"really simple array", ?_assertEqual(to_json([1], []), <<"[1]">>)},
-        {"nested array", ?_assertEqual(to_json([[[]]], []), <<"[[[]]]">>)},
+        {"simple array", ?_assertEqual(<<"[true,false,null]">>, to_json([true, false, null], []))},
+        {"really simple array", ?_assertEqual(<<"[1]">>, to_json([1], []))},
+        {"nested array", ?_assertEqual(<<"[[[]]]">>, to_json([[[]]], []))},
         {"nested structures", ?_assertEqual(
+            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>,
             to_json(
                 [
                     [
@@ -260,15 +273,86 @@ basic_to_json_test_() ->
                     [[[{}]]]
                 ],
                 []
-            ),
-            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
+            )
         )},
         {"simple nested structure", ?_assertEqual(
+            <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>,
             to_json(
                 [[], [{<<"k">>, [[], [{}]]}, {<<"j">>, [{}]}], []],
                 []
-            ),
-            <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
+            )
+        )}
+    ].
+
+%% This pre-encoder transforms undefined to nulls and most atoms to binary strings
+pre_encode_to_json_test_() ->
+    Pre = fun(undefined) -> null;
+             (true) -> true;
+             (false) -> false;
+             (null) -> null;
+             (X) when is_atom(X) -> atom_to_binary(X,utf8);
+             (X) -> X
+          end,
+    Opts = [{pre_encode, Pre}],
+    [
+        {"empty object", ?_assertEqual(<<"{}">>, to_json([{}], Opts))},
+        {"empty array", ?_assertEqual(<<"[]">>, to_json([], Opts))},
+        {"naked integer", ?_assertEqual(<<"123">>, to_json(123, Opts))},
+        {"naked float", ?_assertEqual(<<"1.23">>, to_json(1.23, Opts) )},
+        {"naked string", ?_assertEqual(<<"\"hi\"">>, to_json(<<"hi">>, Opts))},
+        {"naked string with control character", ?_assertEqual(
+            <<"\"hi\\n\"">>, to_json(<<"hi\n">>, Opts)
+        )},
+        {"naked literal", ?_assertEqual(<<"true">>, to_json(true, Opts))},
+        {"naked undefined", ?_assertEqual(<<"null">>, to_json(undefined, Opts))},
+        {"simple object", ?_assertEqual(
+            <<"{\"key\":\"value\"}">>,
+            to_json( [{<<"key">>, <<"value">>}], Opts) 
+        )},
+        {"simple proplist", ?_assertEqual(
+            <<"[{\"key1\":\"value\",\"key2\":3}]">>,
+            to_json(
+                [ [{key1, <<"value">>}, {key2, 3}] ],
+                Opts
+            )
+        )},
+        {"simple atom_proplist", ?_assertEqual(
+            <<"[{\"key1\":\"value\",\"key2\":3}]">>,
+            to_json(
+                [ [{key1, value}, {key2, 3}] ],
+                Opts
+            )
+        )},
+        {"nested object", ?_assertEqual(
+            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>,
+            to_json(
+                [{<<"k">>,[{<<"k">>,<<"v">>}]},{<<"j">>,[{}]}],
+                Opts
+            )
+        )},
+        {"simple array", ?_assertEqual(<<"[true,false,null]">>, to_json([true, false, null], Opts))},
+        {"really simple array", ?_assertEqual(<<"[1]">>, to_json([1], Opts))},
+        {"nested array", ?_assertEqual(<<"[[[]]]">>, to_json([[[]]], Opts))},
+        {"nested structures", ?_assertEqual(
+            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>,
+            to_json(
+                [
+                    [
+                        {<<"key">>, <<"value">>},
+                        {<<"another key">>, <<"another value">>},
+                        {<<"a list">>, [true, false]}
+                    ],
+                    [[[{}]]]
+                ],
+                Opts
+            )
+        )},
+        {"simple nested structure", ?_assertEqual(
+            <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>,
+            to_json(
+                [[], [{<<"k">>, [[], [{}]]}, {<<"j">>, [{}]}], []],
+                Opts
+            )
         )}
     ].
 
