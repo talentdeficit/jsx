@@ -37,9 +37,18 @@
 -endif.
 
 
+-type json() :: list({binary(), json()})
+    | list(json())
+    | true
+    | false
+    | null
+    | integer()
+    | float()
+    | binary().
 
--spec to_json(Source::any()) -> binary().
--spec to_json(Source::any(), Opts::jsx_to_json:opts()) -> binary().
+
+-spec to_json(Source::json()) -> binary().
+-spec to_json(Source::json(), Opts::jsx_to_json:opts()) -> binary().
 
 to_json(Source) -> to_json(Source, []).
 
@@ -70,22 +79,8 @@ minify(Source) -> format(Source, []).
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec to_term(Source::binary()) -> list({binary(), any()})
-    | list(any())
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--spec to_term(Source::binary(), Opts::jsx_to_term:opts()) -> list({binary(), any()})
-    | list(any())
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
+-spec to_term(Source::binary()) -> json().
+-spec to_term(Source::binary(), Opts::jsx_to_term:opts()) -> json().
 
 to_term(Source) -> to_term(Source, []).
 
@@ -98,8 +93,8 @@ json_to_term(Source) -> to_term(Source, []).
 json_to_term(Source, Opts) -> to_term(Source, Opts).
 
 
--spec is_json(Source::binary()) -> true | false.
--spec is_json(Source::binary(), Opts::jsx_verify:opts()) -> true | false.
+-spec is_json(Source::any()) -> true | false.
+-spec is_json(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
 
