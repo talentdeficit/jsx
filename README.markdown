@@ -18,7 +18,7 @@ jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
   - [json <-> erlang mapping](#json---erlang-mapping)
   - [options](#options)
   - [incomplete input](#incomplete-input)
-  - [the encoder and decoder](##the-encoder-and-decoder)
+  - [the encoder and decoder](#the-encoder-and-decoder)
   - [handler callbacks](#handler-callbacks)
   - [converting json to erlang terms](#converting-json-to-erlang-terms)
   - [converting erlang terms to json](#converting-erlang-terms-to-json)
@@ -406,4 +406,3 @@ jsx wouldn't be what it is without the contributions of paul davis, lloyd hilaie
 [sinan]: https://github.com/erlware/sinan
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
-[html4-non-html-data]: http://www.w3.org/TR/html4/appendix/notes.html#h-B.3.2
