@@ -161,6 +161,7 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
+clean_string(Bin, Opts=#opts{dirty_strings=true}) -> Bin;
 clean_string(Bin, Opts) ->
     case Opts#opts.replaced_bad_utf8 orelse Opts#opts.escaped_strings of
         true -> clean(Bin, [], Opts)
@@ -522,7 +523,6 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
-maybe_replace(X, #opts{dirty_strings=true}) when is_integer(X) -> [X];
 maybe_replace($\b, #opts{escaped_strings=true}) -> [$b, $\\];
 maybe_replace($\t, #opts{escaped_strings=true}) -> [$t, $\\];
 maybe_replace($\n, #opts{escaped_strings=true}) -> [$n, $\\];
