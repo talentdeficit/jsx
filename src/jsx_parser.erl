@@ -49,7 +49,7 @@ parser(Handler, State, Opts) ->
                 case State([end_json],
                         Handler,
                         Stack,
-                        Opts#opts{explicit_end=false}) of
+                        Opts) of
                     {incomplete, _} -> ?error([Handler, Stack, Opts])
                     ; Events -> Events
                 end 
