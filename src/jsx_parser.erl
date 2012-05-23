@@ -555,6 +555,22 @@ maybe_replace(badutf, #opts{replaced_bad_utf8=true}) -> [16#fffd].
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+
+incomplete_test_() ->
+    F = parser(jsx, [], []),
+    [
+        {"incomplete test", ?_assertEqual(
+            begin
+                {incomplete, A} = F(start_object),
+                {incomplete, B} = A(key),
+                {incomplete, C} = B(true),
+                {incomplete, D} = C(end_object),
+                D(end_json)
+            end,
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )}
+    ].
+
 encode(Term) -> encode(Term, []).
 
 encode(Term, Opts) ->
