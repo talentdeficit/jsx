@@ -6,7 +6,7 @@ copyright 2011, 2012 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
+jsx may be built using either [sinan][sinan] or [rebar][rebar]
 
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
@@ -25,26 +25,16 @@ jsx uses [sinan][sinan] or [rebar][rebar] for it's build chain
 
 ## quickstart ##
 
-to build the library 
+to build the library and run tests
 
 ```bash
 tanga:jsx alisdair$ sinan build
+tanga:jsx alisdair$ sinan -r tests eunit
 ```
 or
 
 ```bash
 tanga:jsx alisdair$ rebar compile
-```
-
-to run tests
-
-```bash
-tanga:jsx alisdair$ sinan -r tests eunit
-```
-
-or
-
-```bash
 tanga:jsx alisdair$ rebar eunit
 ```
 
