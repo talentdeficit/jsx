@@ -472,7 +472,7 @@ what exactly constitutes valid json may be altered per [options](#data_types)
 
 ## callback exports ##
 
-the following functions should be exported from a `jsx` callback module
+the following functions should be exported from a jsx callback module
 
 ### Module:init/1 ###
 
