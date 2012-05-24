@@ -358,7 +358,8 @@ the option `labels` controls how keys are converted from json to erlang terms. `
 [{<<"a list">>, [false, false, false]}]
 ```
 
-if more than one decoder is declared a `badarg` error exception will result
+if more than one post decoder is declared a `badarg` error exception will result
+
 raises a `badarg` error exception if input is not valid json
 
 
@@ -385,7 +386,7 @@ encode(Term, Opts) -> JSON
 <<"{\"a list\": [false, false, false]}">>
 ```
 
-if more than one decoder is declared a `badarg` error exception will result
+if more than one pre encoder is declared a `badarg` error exception will result
 
 the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
