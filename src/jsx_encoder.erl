@@ -107,7 +107,7 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Opts=#opts{dirty_strings=true}) -> Bin;
+clean_string(Bin, #opts{dirty_strings=true}) -> Bin;
 clean_string(Bin, Opts) ->
     case Opts#opts.replaced_bad_utf8 orelse Opts#opts.escaped_strings of
         true -> clean(Bin, [], Opts)
