@@ -23,13 +23,14 @@
 
 -module(jsx).
 
--export([to_json/1, to_json/2]).
--export([to_term/1, to_term/2]).
+-export([encode/1, encode/2, decode/1, decode/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
 -export([format/1, format/2, minify/1, prettify/1]).
 -export([encoder/3, decoder/3, parser/3]).
 %% old api
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
+-export([to_json/1, to_json/2]).
+-export([to_term/1, to_term/2]).
 
 %% test handler
 -ifdef(TEST).
@@ -49,18 +50,19 @@
 -type json_text() :: binary().
 
 
--spec to_json(Source::json_term()) -> json_text().
--spec to_json(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text().
+-spec encode(Source::json_term()) -> json_text().
+-spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text().
 
-to_json(Source) -> to_json(Source, []).
+encode(Source) -> encode(Source, []).
 
-to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
+encode(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
-%% old api, alias for to_json/x
+%% old api, alias for encode/x
 
-term_to_json(Source) -> to_json(Source, []).
-
-term_to_json(Source, Opts) -> to_json(Source, Opts).
+to_json(Source) -> encode(Source, []).
+to_json(Source, Opts) -> encode(Source, Opts).
+term_to_json(Source) -> encode(Source, []).
+term_to_json(Source, Opts) -> encode(Source, Opts).
 
 
 -spec format(Source::json_text()) -> json_text().
@@ -81,18 +83,19 @@ minify(Source) -> format(Source, []).
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec to_term(Source::json_text()) -> json_term().
--spec to_term(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term().
+-spec decode(Source::json_text()) -> json_term().
+-spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term().
 
-to_term(Source) -> to_term(Source, []).
+decode(Source) -> decode(Source, []).
 
-to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
+decode(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 %% old api, alias for to_term/x
 
-json_to_term(Source) -> to_term(Source, []).
-
-json_to_term(Source, Opts) -> to_term(Source, Opts).
+to_term(Source) -> decode(Source, []).
+to_term(Source, Opts) -> decode(Source, Opts).
+json_to_term(Source) -> decode(Source, []).
+json_to_term(Source, Opts) -> decode(Source, Opts).
 
 
 -spec is_json(Source::any()) -> true | false.
@@ -242,7 +245,7 @@ jsx_decoder_gen([Test|Rest]) ->
     JSX = proplists:get_value(jsx, Test),
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator, fun() ->
-        [{Name, ?_assertEqual(decode(JSON, Flags), JSX)},
+        [{Name, ?_assertEqual(test_decode(JSON, Flags), JSX)},
             {Name ++ " (incremental)",
                 ?_assertEqual(incremental_decode(JSON, Flags), JSX)
             }
@@ -282,7 +285,7 @@ parse_tests([], _Dir, Acc) ->
     Acc.
 
 
-decode(JSON, Flags) ->
+test_decode(JSON, Flags) ->
     try
         case (jsx_decoder:decoder(?MODULE, [], Flags))(JSON) of
             {incomplete, More} ->
