@@ -41,18 +41,18 @@ tanga:jsx alisdair$ rebar eunit
 to convert a utf8 binary containing a json string into an erlang term
 
 ```erlang
-1> jsx:to_term(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
+1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
 [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
-2> jsx:to_term(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
+2> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
 [<<"a">>, <<"list">>, <<"of">>, <<"words">>]
 ```
 
 to convert an erlang term into a utf8 binary containing a json string
 
 ```erlang
-1> jsx:to_json([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
+1> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
 <<"{\"library\": \"jsx\", \"awesome\": true}">>
-2> jsx:to_json([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+2> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
 <<"[\"a\",\"list\",\"of\",\"words\"]">>
 ```
 
