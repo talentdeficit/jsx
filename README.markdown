@@ -381,7 +381,7 @@ encode(Term, Opts) -> JSON
 
 ```erlang
 1> F = fun(V) when is_list(V) -> V; (V) -> false end.
-2> jsx:encode([{<<"a list">>, [true, <<"a string">>, 1]}], [{pre_encode, F}].
+2> jsx:encode([{<<"a list">>, [true, <<"a string">>, 1]}], [{pre_encode, F}]).
 <<"{\"a list\": [false, false, false]}">>
 ```
 
