@@ -25,75 +25,74 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
 
 ## quickstart ##
 
-to build the library and run tests
+*   to build the library and run tests
 
-```bash
-tanga:jsx alisdair$ sinan build
-tanga:jsx alisdair$ sinan -r tests eunit
-```
-or
+    ```bash
+    tanga:jsx alisdair$ sinan build
+    tanga:jsx alisdair$ sinan -r tests eunit
+    ```
+    or
+    ```bash
+    tanga:jsx alisdair$ rebar compile
+    tanga:jsx alisdair$ rebar eunit
+    ```
 
-```bash
-tanga:jsx alisdair$ rebar compile
-tanga:jsx alisdair$ rebar eunit
-```
+*   to convert a utf8 binary containing a json string into an erlang term
 
-to convert a utf8 binary containing a json string into an erlang term
+    ```erlang
+    1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
+    [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
+    2> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
+    [<<"a">>, <<"list">>, <<"of">>, <<"words">>]
+    ```
 
-```erlang
-1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
-[{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
-2> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
-[<<"a">>, <<"list">>, <<"of">>, <<"words">>]
-```
+*   to convert an erlang term into a utf8 binary containing a json string
 
-to convert an erlang term into a utf8 binary containing a json string
+    ```erlang
+    1> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
+    <<"{\"library\": \"jsx\", \"awesome\": true}">>
+    2> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+    <<"[\"a\",\"list\",\"of\",\"words\"]">>
+    ```
 
-```erlang
-1> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
-<<"{\"library\": \"jsx\", \"awesome\": true}">>
-2> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
-<<"[\"a\",\"list\",\"of\",\"words\"]">>
-```
+*   to check if a binary or a term is valid json
 
-to check if a binary or a term is valid json
+    ```erlang
+    1> jsx:is_json(<<"[\"this is json\"]">>).
+    true
+    2> jsx:is_json("[\"this is not\"]").
+    false
+    3> jsx:is_term([<<"this is a term">>]).
+    true
+    4> jsx:is_term(["this is not"]).
+    false
+    ```
 
-```erlang
-1> jsx:is_json(<<"[\"this is json\"]">>).
-true
-2> jsx:is_json("[\"this is not\"]").
-false
-3> jsx:is_term([<<"this is a term">>]).
-true
-4> jsx:is_term(["this is not"]).
-false
-```
+*   to minify some json
 
-to minify some json
+    ```erlang
+    1> jsx:minify(<<"{
+      \"a list\": [
+        1,
+        2,
+        3
+      ]
+    }">>).
+    <<"{\"a list\":[1,2,3]}">>
+    ```
 
-```erlang
-1> jsx:minify(<<"{
-  \"a list\": [
-    1,
-    2,
-    3
-  ]
-}">>).
-<<"{\"a list\":[1,2,3]}">>
-```
+*   to prettify some json
 
-to prettify some json
-
-```erlang
-1> jsx:prettify(<<"{\"a list\":[1,2,3]}">>).
-<<"{
-  \"a list\": [
-    1,
-    2,
-    3
-  ]
-}">>
-```
+    ```erlang
+    1> jsx:prettify(<<"{\"a list\":[1,2,3]}">>).
+    <<"{
+      \"a list\": [
+        1,
+        2,
+        3
+      ]
+    }">>
+    ```
 
 
 ## description ##
