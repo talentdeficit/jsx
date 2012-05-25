@@ -60,7 +60,7 @@ to minify a json string: `jsx:format(JSON)`
 
 json must be a binary encoded in `utf8`. if it's invalid `utf8` or invalid json, it probably won't parse without errors. there are a few non-standard extensions to the parser available that may change that, they are detailed in the options section below
 
-jsx also supports json fragments; valid json values that are not complete json. that means jsx will parse things like `<<"1">>`, `<<"true">>` and `<<"\"hello world\"">>` without complaint
+jsx also supports json fragments: valid json values that are not complete json. that means jsx will parse things like `<<"1">>`, `<<"true">>` and `<<"\"hello world\"">>` without complaint
 
 #### erlang ####
 
