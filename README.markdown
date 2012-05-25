@@ -304,7 +304,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 ## exports ##
 
 
-*   ### encoder/3, decoder/3 and parser/3 ###
+*   `encoder/3`, `decoder/3` & `parser/3`
 
     ```erlang
     decoder(Module, Args, Opts) -> Fun((JSONText) -> any())
@@ -331,7 +331,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     see [below](#callback_exports) for details on the callback module
 
-*   ### decode/1,2 ###
+*   `decode/1,2`
 
     ```erlang
     decode(JSON) -> Term
@@ -361,7 +361,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     raises a `badarg` error exception if input is not valid json
 
 
-*   ### encode/1,2 ###
+*   `encode/1,2`
 
     ```erlang
     encode(Term) -> JSON
@@ -393,7 +393,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     raises a `badarg` error exception if input is not a valid erlang representation of json
 
 
-*   ### format/1,2 ###
+*   `format/1,2`
 
     ```erlang
     format(JSON) -> JSON
@@ -413,7 +413,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     raises a `badarg` error exception if input is not valid json
 
 
-*   ### minify/1 ###
+*   `minify/1`
 
     ```erlang
     minify(JSON) -> JSON
@@ -426,7 +426,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     raises a `badarg` error exception if input is not valid json
 
 
-*   ### prettify/1 ###
+*   `prettify/1`
 
     ```erlang
     prettify(JSON) -> JSON
@@ -439,7 +439,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     raises a `badarg` error exception if input is not valid json
 
 
-*   ### is_json/1,2 ###
+*   `is_json/1,2`
 
     ```erlang
     is_json(MaybeJSON) -> true | false
@@ -454,7 +454,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
     what exactly constitutes valid json may be altered per [options](#data_types)
 
 
-*   ### is_term/1,2 ###
+*   `is_term/1,2`
 
     ```erlang
     is_term(MaybeJSON) -> true | false
@@ -473,7 +473,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
 the following functions should be exported from a jsx callback module
 
-*   ### Module:init/1 ###
+*   `Module:init/1
 
     ```erlang
     Module:init(Args) -> InitialState
@@ -484,7 +484,7 @@ the following functions should be exported from a jsx callback module
 
     whenever any of `encoder/3`, `decoder/3` or `parser/3` are called, this function is called with the `Args` argument provided in the calling function to obtain `InitialState`
 
-### * Module:handle_event/2 ###
+*   `Module:handle_event/2`
 
     ```erlang
     Module:handle_event(Event, State) -> NewState
