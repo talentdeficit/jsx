@@ -168,8 +168,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 ## data types ##
 
 
-*
-    ```erlang
+*   ```erlang
     json_term() = [json_term()]
         | [{binary() | atom(), json_term()}]
         | true
