@@ -602,7 +602,7 @@ encode_test_() ->
         {"naked float - full rep", ?_assertEqual(
             encode([{float, 1.23}, end_json]), [{float, 1.23}, end_json]
         )},
-        {"naked literal - simple red", ?_assertEqual(
+        {"naked literal - simple rep", ?_assertEqual(
             encode([null, end_json]), [{literal, null}, end_json]
         )},
         {"naked literal - full rep", ?_assertEqual(
