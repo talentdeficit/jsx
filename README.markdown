@@ -100,12 +100,15 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
 
 jsx is an erlang application for consuming, producing and manipulating [json][json]
 
-jsx strives to be quick but complete, correct but pragmatic, and approachable but powerful. it handles json as encountered in common use with extensions to handle even less common usage. comments, strings quoted with `'` instead of `"`, json fragments and json streams, and invalid utf8 are all supported
+json has a [spec][rfc4627] but common usage differs subtly. it's common usage jsx attempts to address, with guidance from the spec
 
-jsx is a collection of functions useful when dealing with json in erlang. jsx is also a json compiler with separate parsing and semantic analysis stages. new, custom, semantic analysis steps are relatively simple to add. the syntactic analysis stage is also exposed separately for use with user defined tokenizers
+all json produced and consumed by jsx should be `utf8` encoded text or a reasonable approximation thereof. ascii works too, but anything beyond that i'm not going to make any promises
 
+the [spec][rfc4627] thinks json values must be wrapped in a json array or object but everyone else disagrees so jsx allows naked json values by default. if you're a curmudgeon who's offended by this deviation, you can just check that all values returned by jsx functions are lists, alright?
 
-### json &lt;-> erlang mapping ###
+here is a table of how various json values map to erlang:
+
+#### json &lt;-> erlang mapping ####
 
 **json**                        | **erlang**
 --------------------------------|--------------------------------
@@ -114,16 +117,6 @@ jsx is a collection of functions useful when dealing with json in erlang. jsx is
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `[]` and `[JSON]`
 `object`                        | `[{}]` and `[{binary() OR atom(), JSON}]`
-
-*   json
-
-    json must be a binary encoded in `utf8`. if it's invalid `utf8` or invalid json, it probably won't parse without errors. there are a few non-standard extensions to the parser available that may change that. they are detailed in the [options](#data_types) section below
-
-    jsx also supports json fragments: valid json values that are not complete json. that means jsx will parse things like `<<"1">>`, `<<"true">>` and `<<"\"hello world\"">>` without complaint
-
-*   erlang
-
-    only the erlang terms in the table above are supported. non-supported terms result in badarg errors. jsx is never going to support erlang lists instead of binaries, mostly because you can't discriminate between lists of integers and strings without hinting, and hinting is silly
 
 *   numbers
 
@@ -137,11 +130,9 @@ jsx is a collection of functions useful when dealing with json in erlang. jsx is
 
     the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates encountered otherwise result in errors
 
-    json string escapes of the form `\uXXXX` will be converted to their equivalent codepoints during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec (like the two cases above) will not be
+    json string escapes of the form `\uXXXX` will be converted to their equivalent codepoints during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec will not be. in the interest of pragmatism there is an option for looser parsing. see the options section in [data types](#data_types)
 
-    in the interest of pragmatism there is an option for looser parsing. see [options](#data_types) below
-
-    all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although see [options](#data_types) below)
+    all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although, again, see the options section in [data types](#data_types))
 
     this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -155,10 +146,10 @@ jsx is a collection of functions useful when dealing with json in erlang. jsx is
 
 *   objects
 
-    json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent the use of the shorthand form of property lists using atoms as properties so all properties must be tuples. all keys must be encoded as in `string`, above, or as atoms (which will be escaped and converted to binaries for presentation to handlers). values should be valid json values
+    json objects are represented by erlang proplists. the empty object has the special representation `[{}]` to differentiate it from the empty list. ambiguities like `[true, false]` prevent the use of the shorthand form of property lists using atoms as properties so all properties must be tuples. all keys must be encoded as in `string` or as atoms (which will be escaped and converted to binaries for presentation to handlers). values should be valid json values
 
 
-### incomplete input ###
+#### incomplete input ####
 
 jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`, `encoder/3` or `parser/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor, or to parse large json texts without needing to keep them entirely in memory
 
@@ -180,7 +171,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
         | binary()
     ```
 
-    the erlang representation of json. binaries should be `utf8` encoded (but see below in options)
+    the erlang representation of json. binaries should be `utf8` encoded, or close at least
 
 *   `json_text()`
 
@@ -327,9 +318,9 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     `Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
 
-    `Opts` are detailed [above](#data_types) 
+    `Opts` are detailed in [options](#data_types) 
 
-    see [below](#callback_exports) for details on the callback module
+    see [callback exports](#callback_exports) for details on the callback module
 
 *   `decode/1,2`
 
