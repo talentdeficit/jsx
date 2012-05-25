@@ -484,7 +484,7 @@ the following functions should be exported from a jsx callback module
 
     whenever any of `encoder/3`, `decoder/3` or `parser/3` are called, this function is called with the `Args` argument provided in the calling function to obtain `InitialState`
 
-*   ### Module:handle_event/2 ###
+### * Module:handle_event/2 ###
 
     ```erlang
     Module:handle_event(Event, State) -> NewState
