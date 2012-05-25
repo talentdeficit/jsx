@@ -318,7 +318,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     `Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
 
-    `Opts` are detailed in [options](#data_types) 
+    `Opts` are detailed in [data types](#data_types) 
 
     see [callback exports](#callback_exports) for details on the callback module
 
