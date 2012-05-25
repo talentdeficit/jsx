@@ -1245,7 +1245,7 @@ decode(JSON, Opts) ->
     try
         (decoder(jsx, [], Opts))(JSON)
     catch
-        error:badarg -> {error, badjson}
+        error:badarg -> {error, badarg}
     end.
 
 
@@ -1482,7 +1482,7 @@ escapes_test_() ->
 
 noncharacters_test_() ->
     [
-        {"noncharacters - badjson",
+        {"noncharacters - badarg",
             ?_assert(check_bad(noncharacters()))
         },
         {"noncharacters - replaced",
@@ -1493,7 +1493,7 @@ noncharacters_test_() ->
 
 extended_noncharacters_test_() ->
     [
-        {"extended noncharacters - badjson",
+        {"extended noncharacters - badarg",
             ?_assert(check_bad(extended_noncharacters()))
         },
         {"extended noncharacters - replaced",
@@ -1504,7 +1504,7 @@ extended_noncharacters_test_() ->
 
 surrogates_test_() ->
     [
-        {"surrogates - badjson",
+        {"surrogates - badarg",
             ?_assert(check_bad(surrogates()))
         },
         {"surrogates - replaced",
@@ -1515,7 +1515,7 @@ surrogates_test_() ->
 
 control_test_() ->
     [
-        {"control characters - badjson",
+        {"control characters - badarg",
             ?_assert(check_bad(control_characters()))
         }
     ].
@@ -1523,7 +1523,7 @@ control_test_() ->
 
 reserved_test_() ->
     [
-        {"reserved noncharacters - badjson",
+        {"reserved noncharacters - badarg",
             ?_assert(check_bad(reserved_space()))
         },
         {"reserved noncharacters - replaced",
@@ -1553,7 +1553,7 @@ good_characters_test_() ->
     
 
 check_bad(List) ->
-    [] == lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
+    [] == lists:dropwhile(fun({_, {error, badarg}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 

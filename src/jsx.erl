@@ -290,20 +290,20 @@ test_decode(JSON, Flags) ->
         case (jsx_decoder:decoder(?MODULE, [], Flags))(JSON) of
             {incomplete, More} ->
                 case More(<<" ">>) of
-                    {incomplete, _} -> {error, badjson}
+                    {incomplete, _} -> {error, badarg}
                     ; Events -> Events
                 end
             ; Events -> Events
         end
     catch
-        error:badarg -> {error, badjson}
+        error:badarg -> {error, badarg}
     end.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
-	catch error:badarg -> {error, badjson}
+	catch error:badarg -> {error, badarg}
 	end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->

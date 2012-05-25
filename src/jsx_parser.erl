@@ -549,7 +549,8 @@ maybe_replace(X, #opts{escaped_strings=true}) when X < 32 ->
     lists:reverse(jsx_utils:json_escape_sequence(X));
 maybe_replace(noncharacter, #opts{replaced_bad_utf8=true}) -> [16#fffd];
 maybe_replace(surrogate, #opts{replaced_bad_utf8=true}) -> [16#fffd];
-maybe_replace(badutf, #opts{replaced_bad_utf8=true}) -> [16#fffd].
+maybe_replace(badutf, #opts{replaced_bad_utf8=true}) -> [16#fffd];
+maybe_replace(_, _) -> erlang:error(badarg).
 
 
 -ifdef(TEST).
@@ -573,9 +574,9 @@ incomplete_test_() ->
 
 encode(Term) -> encode(Term, []).
 
-encode(Term, Opts) ->
+encode(Term, Opts) -> 
     try (parser(jsx, [], Opts))(Term)
-    catch _:_ -> {error, badjson}
+    catch error:badarg -> {error, badarg}
     end.
 
 
@@ -704,6 +705,26 @@ encode_test_() ->
         {"atom keys", ?_assertEqual(
             encode([start_object, {key, key}, {string, <<"value">>}, end_object, end_json]),
             [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
+        )}
+    ].
+
+encode_failures_test_() ->
+    [
+        {"unwrapped values", ?_assertEqual(
+            {error, badarg},
+            encode([{string, <<"a string\n">>}, {string, <<"a string\n">>}, end_json])
+        )},
+        {"unbalanced array", ?_assertEqual(
+            {error, badarg},
+            encode([start_array, end_array, end_array, end_json])
+        )},
+        {"premature finish", ?_assertEqual(
+            {error, badarg},
+            encode([start_object, {key, <<"key">>, start_array, end_json}])
+        )},
+        {"really premature finish", ?_assertEqual(
+            {error, badarg},
+            encode([end_json])
         )}
     ].
 
@@ -938,7 +959,7 @@ escapes_test_() ->
 
 surrogates_test_() ->
     [
-        {"surrogates - badjson",
+        {"surrogates - badarg",
             ?_assert(check_bad(surrogates()))
         },
         {"surrogates - replaced",
@@ -975,7 +996,7 @@ good_characters_test_() ->
 
 reserved_test_() ->
     [
-        {"reserved noncharacters - badjson",
+        {"reserved noncharacters - badarg",
             ?_assert(check_bad(reserved_space()))
         },
         {"reserved noncharacters - replaced",
@@ -986,7 +1007,7 @@ reserved_test_() ->
 
 noncharacters_test_() ->
     [
-        {"noncharacters - badjson",
+        {"noncharacters - badarg",
             ?_assert(check_bad(noncharacters()))
         },
         {"noncharacters - replaced",
@@ -997,7 +1018,7 @@ noncharacters_test_() ->
 
 extended_noncharacters_test_() ->
     [
-        {"extended noncharacters - badjson",
+        {"extended noncharacters - badarg",
             ?_assert(check_bad(extended_noncharacters()))
         },
         {"extended noncharacters - replaced",
@@ -1007,7 +1028,7 @@ extended_noncharacters_test_() ->
 
 
 check_bad(List) ->
-    [] == lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
+    [] == lists:dropwhile(fun({_, {error, badarg}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 

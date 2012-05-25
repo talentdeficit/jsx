@@ -495,7 +495,8 @@ maybe_replace(X, #opts{escaped_strings=true}) when X < 32 ->
     lists:reverse(jsx_utils:json_escape_sequence(X));
 maybe_replace(noncharacter, #opts{replaced_bad_utf8=true}) -> [16#fffd];
 maybe_replace(surrogate, #opts{replaced_bad_utf8=true}) -> [16#fffd];
-maybe_replace(badutf, #opts{replaced_bad_utf8=true}) -> [16#fffd].
+maybe_replace(badutf, #opts{replaced_bad_utf8=true}) -> [16#fffd];
+maybe_replace(_, _) -> erlang:error(badarg).
 
 
 -ifdef(TEST).
@@ -707,7 +708,7 @@ encode(Term) -> encode(Term, []).
 
 encode(Term, Opts) ->
     try (encoder(jsx, [], Opts))(Term)
-    catch _:_ -> {error, badjson}
+    catch _:_ -> {error, badarg}
     end.
 
 
@@ -903,7 +904,7 @@ escapes_test_() ->
 
 surrogates_test_() ->
     [
-        {"surrogates - badjson",
+        {"surrogates - badarg",
             ?_assert(check_bad(surrogates()))
         },
         {"surrogates - replaced",
@@ -940,7 +941,7 @@ good_characters_test_() ->
 
 reserved_test_() ->
     [
-        {"reserved noncharacters - badjson",
+        {"reserved noncharacters - badarg",
             ?_assert(check_bad(reserved_space()))
         },
         {"reserved noncharacters - replaced",
@@ -951,7 +952,7 @@ reserved_test_() ->
 
 noncharacters_test_() ->
     [
-        {"noncharacters - badjson",
+        {"noncharacters - badarg",
             ?_assert(check_bad(noncharacters()))
         },
         {"noncharacters - replaced",
@@ -962,7 +963,7 @@ noncharacters_test_() ->
 
 extended_noncharacters_test_() ->
     [
-        {"extended noncharacters - badjson",
+        {"extended noncharacters - badarg",
             ?_assert(check_bad(extended_noncharacters()))
         },
         {"extended noncharacters - replaced",
@@ -972,7 +973,7 @@ extended_noncharacters_test_() ->
 
 
 check_bad(List) ->
-    [] == lists:dropwhile(fun({_, {error, badjson}}) -> true ; (_) -> false end,
+    [] == lists:dropwhile(fun({_, {error, badarg}}) -> true ; (_) -> false end,
         check(List, [], [])
     ).
 
