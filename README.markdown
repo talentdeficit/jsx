@@ -304,242 +304,245 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 ## exports ##
 
 
-### encoder/3, decoder/3 and parser/3 ###
+*   ### encoder/3, decoder/3 and parser/3 ###
 
-```erlang
-decoder(Module, Args, Opts) -> Fun((JSONText) -> any())
-encoder(Module, Args, Opts) -> Fun((JSONTerm) -> any())
-parser(Module, Args, Opts) -> Fun((Tokens) -> any())
+    ```erlang
+    decoder(Module, Args, Opts) -> Fun((JSONText) -> any())
+    encoder(Module, Args, Opts) -> Fun((JSONTerm) -> any())
+    parser(Module, Args, Opts) -> Fun((Tokens) -> any())
 
-  Module = atom()
-  Args = any()
-  Opts = options()
-  JSONText = json_text()
-  JSONTerm = json_term()
-  Tokens = tokens()
-```
+      Module = atom()
+      Args = any()
+      Opts = options()
+      JSONText = json_text()
+      JSONTerm = json_term()
+      Tokens = tokens()
+    ```
 
-jsx is a json compiler with distinct tokenizing, syntactic analysis and semantic analysis stages (actually, semantic analysis takes place during syntactic analysis, for efficiency). included are two tokenizers; one that handles json texts (`decoder/3`) and one that handles erlang terms (`encoder/3`). there is also an entry point to the syntactic analysis stage for use with user-defined tokenizers (`parser/3`)
+    jsx is a json compiler with distinct tokenizing, syntactic analysis and semantic analysis stages (actually, semantic analysis takes place during syntactic analysis, for efficiency). included are two tokenizers; one that handles json texts (`decoder/3`) and one that handles erlang terms (`encoder/3`). there is also an entry point to the syntactic analysis stage for use with user-defined tokenizers (`parser/3`)
 
-all three functions return an anonymous function that takes the appropriate type of input and returns the result of performing semantic analysis, the tuple `{incomplete, F}` where `F` is a new anonymous function (see [incomplete input](#incomplete_input)) or a `badarg` error exception if syntactic analysis fails
+    all three functions return an anonymous function that takes the appropriate type of input and returns the result of performing semantic analysis, the tuple `{incomplete, F}` where `F` is a new anonymous function (see [incomplete input](#incomplete_input)) or a `badarg` error exception if syntactic analysis fails
 
-`Module` is the name of the callback module
+    `Module` is the name of the callback module
 
-`Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
+    `Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
 
-`Opts` are detailed [above](#data_types) 
+    `Opts` are detailed [above](#data_types) 
 
-see [below](#callback_exports) for details on the callback module
+    see [below](#callback_exports) for details on the callback module
 
+*   ### decode/1,2 ###
 
-### decode/1,2 ###
+    ```erlang
+    decode(JSON) -> Term
+    decode(JSON, Opts) -> Term
 
-```erlang
-decode(JSON) -> Term
-decode(JSON, Opts) -> Term
+      JSON = json_text()
+      Term = json_term()
+      Opts = [option() | labels | {labels, Label} | {post_decode, F}]
+        Label = binary | atom | existing_atom
+        F = fun((any()) -> any())
+    ```
 
-  JSON = json_text()
-  Term = json_term()
-  Opts = [option() | labels | {labels, Label} | {post_decode, F}]
-    Label = binary | atom | existing_atom
-    F = fun((any()) -> any())
-```
+    `decode` parses a json text (a `utf8` encoded binary) and produces an erlang term (see [json <-> erlang mapping](#json---erlang-mapping))
 
-`decode` parses a json text (a `utf8` encoded binary) and produces an erlang term (see [json <-> erlang mapping](#json---erlang-mapping))
+    the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms and results in a badarg error if the keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom` except it will not add new atoms to the atom table
 
-the option `labels` controls how keys are converted from json to erlang terms. `binary` does no conversion beyond normal escaping. `atom` converts keys to erlang atoms and results in a badarg error if the keys fall outside the range of erlang atoms. `existing_atom` is identical to `atom` except it will not add new atoms to the atom table
+    `{post_decode, F}` is a user defined function of arity 1 that is called on each output value (objects, arrays, strings, numbers and literals). it may return any value to be substituted in the returned term. for example:
 
-`{post_decode, F}` is a user defined function of arity 1 that is called on each output value (objects, arrays, strings, numbers and literals). it may return any value to be substituted in the returned term. for example:
+    ```erlang
+    1> F = fun(V) when is_list(V) -> V; (V) -> false end.
+    2> jsx:decode(<<"{\"a list\": [true, \"a string\", 1]}">>, [{post_decode, F}]).
+    [{<<"a list">>, [false, false, false]}]
+    ```
 
-```erlang
-1> F = fun(V) when is_list(V) -> V; (V) -> false end.
-2> jsx:decode(<<"{\"a list\": [true, \"a string\", 1]}">>, [{post_decode, F}]).
-[{<<"a list">>, [false, false, false]}]
-```
+    declaring more than one post-decoder will result in a `badarg` error exception
 
-declaring more than one post-decoder will result in a `badarg` error exception
-
-raises a `badarg` error exception if input is not valid json
-
-
-### encode/1,2 ###
-
-```erlang
-encode(Term) -> JSON
-encode(Term, Opts) -> JSON
-
-  Term = json_term()
-  JSON = json_text()
-  Opts = [option() | {pre_encode, F} | space | {space, N} | indent | {indent, N}]
-    F = fun((any()) -> any())
-    N = pos_integer()
-```
-
-`encode` parses a json text (a `utf8` encoded binary) and produces an erlang term (see [json <-> erlang mapping](#json---erlang-mapping))
-
-`{pre_encode, F}` is a user defined function of arity 1 that is called on each input value. it may return any valid json value to be substituted in the returned json. for example:
-
-```erlang
-1> F = fun(V) when is_list(V) -> V; (V) -> false end.
-2> jsx:encode([{<<"a list">>, [true, <<"a string">>, 1]}], [{pre_encode, F}]).
-<<"{\"a list\": [false, false, false]}">>
-```
-
-declaring more than one pre-encoder will result in a `badarg` error exception
-
-the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
-
-the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
-
-raises a `badarg` error exception if input is not a valid erlang representation of json
+    raises a `badarg` error exception if input is not valid json
 
 
-### format/1,2 ###
+*   ### encode/1,2 ###
 
-```erlang
-format(JSON) -> JSON
-format(JSON, Opts) -> JSON
+    ```erlang
+    encode(Term) -> JSON
+    encode(Term, Opts) -> JSON
 
-  JSON = json_text()
-  Opts = [option() | space | {space, N} | indent | {indent, N}]
-    N = pos_integer()
-```
+      Term = json_term()
+      JSON = json_text()
+      Opts = [option() | {pre_encode, F} | space | {space, N} | indent | {indent, N}]
+        F = fun((any()) -> any())
+        N = pos_integer()
+    ```
 
-`format` parses a json text (a `utf8` encoded binary) and produces a new json text according to the format rules specified by `Opts`
+    `encode` parses a json text (a `utf8` encoded binary) and produces an erlang term (see [json <-> erlang mapping](#json---erlang-mapping))
 
-the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
+    the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
-the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
+    the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
 
-raises a `badarg` error exception if input is not valid json
+    `{pre_encode, F}` is a user defined function of arity 1 that is called on each input value. it may return any valid json value to be substituted in the returned json. for example:
 
+    ```erlang
+    1> F = fun(V) when is_list(V) -> V; (V) -> false end.
+    2> jsx:encode([{<<"a list">>, [true, <<"a string">>, 1]}], [{pre_encode, F}]).
+    <<"{\"a list\": [false, false, false]}">>
+    ```
 
-### minify/1 ###
+    declaring more than one pre-encoder will result in a `badarg` error exception
 
-```erlang
-minify(JSON) -> JSON
-
-  JSON = json_text()
-```
-
-`minify` parses a json text (a `utf8` encoded binary) and produces a new json text stripped of whitespace
-
-raises a `badarg` error exception if input is not valid json
-
-
-### prettify/1 ###
-
-```erlang
-prettify(JSON) -> JSON
-
-  JSON = json_text()
-```
-
-`prettify` parses a json text (a `utf8` encoded binary) and produces a new json text equivalent to `format(JSON, [{space, 1}, {indent, 2}])`
-
-raises a `badarg` error exception if input is not valid json
+    raises a `badarg` error exception if input is not a valid erlang representation of json
 
 
-### is_json/1,2 ###
+*   ### format/1,2 ###
 
-```erlang
-is_json(MaybeJSON) -> true | false
-is_json(MaybeJSON, Opts) -> true | false
+    ```erlang
+    format(JSON) -> JSON
+    format(JSON, Opts) -> JSON
 
-  MaybeJSON = any()
-  Opts = options()
-```
+      JSON = json_text()
+      Opts = [option() | space | {space, N} | indent | {indent, N}]
+        N = pos_integer()
+    ```
 
-returns true if input is a valid json text, false if not
+    `format` parses a json text (a `utf8` encoded binary) and produces a new json text according to the format rules specified by `Opts`
 
-what exactly constitutes valid json may be altered per [options](#data_types)
+    the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
+    
+    the option `{indent, N}` inserts a newline and `N` spaces for each level of indentation in your json output. note that this overrides spaces inserted after a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
+
+    raises a `badarg` error exception if input is not valid json
 
 
-### is_term/1,2 ###
+*   ### minify/1 ###
 
-```erlang
-is_term(MaybeJSON) -> true | false
-is_term(MaybeJSON, Opts) -> true | false
+    ```erlang
+    minify(JSON) -> JSON
 
-  MaybeJSON = any()
-  Opts = options()
-```
+      JSON = json_text()
+    ```
 
-returns true if input is a valid erlang representation of json, false if not
+    `minify` parses a json text (a `utf8` encoded binary) and produces a new json text stripped of whitespace
 
-what exactly constitutes valid json may be altered per [options](#data_types)
+    raises a `badarg` error exception if input is not valid json
+
+
+*   ### prettify/1 ###
+
+    ```erlang
+    prettify(JSON) -> JSON
+
+      JSON = json_text()
+    ```
+
+    `prettify` parses a json text (a `utf8` encoded binary) and produces a new json text equivalent to `format(JSON, [{space, 1}, {indent, 2}])`
+
+    raises a `badarg` error exception if input is not valid json
+
+
+*   ### is_json/1,2 ###
+
+    ```erlang
+    is_json(MaybeJSON) -> true | false
+    is_json(MaybeJSON, Opts) -> true | false
+
+      MaybeJSON = any()
+      Opts = options()
+    ```
+
+    returns true if input is a valid json text, false if not
+
+    what exactly constitutes valid json may be altered per [options](#data_types)
+
+
+*   ### is_term/1,2 ###
+
+    ```erlang
+    is_term(MaybeJSON) -> true | false
+    is_term(MaybeJSON, Opts) -> true | false
+
+      MaybeJSON = any()
+      Opts = options()
+    ```
+
+    returns true if input is a valid erlang representation of json, false if not
+
+    what exactly constitutes valid json may be altered per [options](#data_types)
 
 
 ## callback exports ##
 
 the following functions should be exported from a jsx callback module
 
-### Module:init/1 ###
+*   ### Module:init/1 ###
 
-```erlang
-Module:init(Args) -> InitialState
+    ```erlang
+    Module:init(Args) -> InitialState
 
-  Args = any()
-  InitialState = any()
-```
+      Args = any()
+      InitialState = any()
+    ```
 
-whenever any of `encoder/3`, `decoder/3` or `parser/3` are called, this function is called with the `Args` argument provided in the calling function to obtain `InitialState`
+    whenever any of `encoder/3`, `decoder/3` or `parser/3` are called, this function is called with the `Args` argument provided in the calling function to obtain `InitialState`
 
-### Module:handle_event/2 ###
+*   ### Module:handle_event/2 ###
 
-```erlang
-Module:handle_event(Event, State) -> NewState
+    ```erlang
+    Module:handle_event(Event, State) -> NewState
 
-  Event = events()
-  State = any()
-  NewState = any()
-```
+      Event = events()
+      State = any()
+      NewState = any()
+    ```
 
-semantic analysis is performed by repeatedly calling `handle_event/2` with a stream of events emitted by the tokenizer and the current state. the new state returned is used as the input to the next call to `handle_event/2`. the following events must be handled:
+    semantic analysis is performed by repeatedly calling `handle_event/2` with a stream of events emitted by the tokenizer and the current state. the new state returned is used as the input to the next call to `handle_event/2`. the following events must be handled:
 
-* `start_object`<p>the start of a json object</p>
+    -   `start_object`
+    
+        the start of a json object
 
-* `end_object`<p>the end of a json object</p>
+    -   `end_object`
+    
+        the end of a json object
 
-* `start_array`
+    -   `start_array`
 
-the start of a json array
+        the start of a json array
 
-* `end_array`
+    -   `end_array`
 
-the end of a json array
+        the end of a json array
 
-* `{key, binary()}`
+    -   `{key, binary()}`
 
-a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
+        a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
 
-* `{string, binary()}`
+    -   `{string, binary()}`
 
-a json string. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
+        a json string. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
 
-* `{integer, integer()}`
+    -   `{integer, integer()}`
 
-an erlang integer (bignum)
+        an erlang integer (bignum)
 
-* `{float, float()}`
+    -   `{float, float()}`
 
-an erlang float
+        an erlang float
 
-* `{literal, true}`
+    -   `{literal, true}`
 
-the atom `true`
+        the atom `true`
 
-* `{literal, false}`
+    -   `{literal, false}`
 
-the atom `false`
+        the atom `false`
 
-* `{literal, null}`
+    -   `{literal, null}`
 
-the atom `null`
+        the atom `null`
 
-* `end_json`
+    -   `end_json`
 
-this event is emitted when syntactic analysis is completed. you should do any cleanup and return the result of your semantic analysis
+        this event is emitted when syntactic analysis is completed. you should do any cleanup and return the result of your semantic analysis
 
 
 ## acknowledgements ##
