@@ -489,13 +489,9 @@ Module:handle_event(Event, State) -> NewState
 
 semantic analysis is performed by repeatedly calling `handle_event/2` with a stream of events emitted by the tokenizer and the current state. the new state returned is used as the input to the next call to `handle_event/2`. the following events must be handled:
 
-* `start_object`
+* `start_object`<p>the start of a json object</p>
 
-the start of a json object
-
-* `end_object`
-
-the end of a json object
+* `end_object`<p>the end of a json object</p>
 
 * `start_array`
 
