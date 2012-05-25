@@ -473,7 +473,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
 the following functions should be exported from a jsx callback module
 
-*   `Module:init/1
+*   `Module:init/1`
 
     ```erlang
     Module:init(Args) -> InitialState
