@@ -153,7 +153,7 @@ here is a table of how various json values map to erlang:
 
 jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`, `encoder/3` or `parser/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor, or to parse large json texts without needing to keep them entirely in memory
 
-however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour. see [options](#data_types)
+however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour. see the options, in [data types](#data_types)
 
 
 ## data types ##
@@ -209,7 +209,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     the internal representation used during syntactic analysis
 
-*   `event()`
+*   `events()` & `event()`
 
     ```erlang
     event() = start_object
@@ -442,7 +442,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     returns true if input is a valid json text, false if not
 
-    what exactly constitutes valid json may be altered per [options](#data_types)
+    what exactly constitutes valid json may be altered per the options, detailed in [data types](#data_types)
 
 
 *   `is_term/1,2`
@@ -457,7 +457,7 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
     returns true if input is a valid erlang representation of json, false if not
 
-    what exactly constitutes valid json may be altered per [options](#data_types)
+    what exactly constitutes valid json may be altered per the options, detailed in [data types](#data_types)
 
 
 ## callback exports ##
@@ -505,11 +505,11 @@ the following functions should be exported from a jsx callback module
 
     -   `{key, binary()}`
 
-        a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
+        a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see the options under [data types](#data_types) for possible exceptions
 
     -   `{string, binary()}`
 
-        a json string. it will usually be a `utf8` encoded binary. see [options](#data_types) for possible exceptions
+        a json string. it will usually be a `utf8` encoded binary. see the options under [data types](#data_types) for possible exceptions
 
     -   `{integer, integer()}`
 
