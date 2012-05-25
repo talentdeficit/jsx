@@ -167,8 +167,9 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
 
 ## data types ##
 
+*   `json_term()`
 
-*   ```erlang
+    ```erlang
     json_term() = [json_term()]
         | [{binary() | atom(), json_term()}]
         | true
@@ -179,13 +180,17 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
         | binary()
     ```
 
-*   the erlang representation of json. binaries should be `utf8` encoded (but see below in options)
+    the erlang representation of json. binaries should be `utf8` encoded (but see below in options)
+
+*   `json_text()`
 
     ```erlang
     json_text() = binary()
     ```
 
-*   a utf8 encoded binary containing a json string
+    a utf8 encoded binary containing a json string
+
+*   `tokens()` & `token()`
 
     ```erlang
     tokens() = token() | [token()]
@@ -211,7 +216,9 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
         | end_json
     ```
 
-*   the internal representation used during syntactic analysis
+    the internal representation used during syntactic analysis
+
+*   `event()`
 
     ```erlang
     event() = start_object
@@ -228,7 +235,9 @@ however, it is important to recognize that jsx is greedy by default. jsx will co
         | end_json
     ```
 
-*   the internal representation used during semantic analysis
+    the internal representation used during semantic analysis
+
+*   `options()` & `option()`
 
     ```erlang
     options() = [option()]
