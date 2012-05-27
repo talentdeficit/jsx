@@ -243,49 +243,49 @@ option() = replaced_bad_utf8
 
 jsx functions all take a common set of options. not all flags have meaning in all contexts, but they are always valid options. functions may have additional options beyond these. see [individual function documentation](#exports) for details
 
-    - `replaced_bad_utf8`
+- `replaced_bad_utf8`
 
-        json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec when this option is present. this applies both to malformed unicode and disallowed codepoints
+    json text input and json strings SHOULD be utf8 encoded binaries, appropriately escaped as per the json spec. attempts are made to replace invalid codepoints with `u+FFFD` as per the unicode spec when this option is present. this applies both to malformed unicode and disallowed codepoints
 
-    - `escaped_forward_slashes`
+- `escaped_forward_slashes`
 
-        json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding; you may want to use this if you are embedding json directly into a html or xml document
+    json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding; you may want to use this if you are embedding json directly into a html or xml document
 
-  - `single_quoted_strings`
+- `single_quoted_strings`
 
-        some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to delimit keys and strings. this option allows json containing single quotes as structural characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings delimited by single quotes
+    some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to delimit keys and strings. this option allows json containing single quotes as structural characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings delimited by single quotes
 
-        double quotes must ALWAYS be escaped, regardless of what kind of quotes delimit the string they are found in
+    double quotes must ALWAYS be escaped, regardless of what kind of quotes delimit the string they are found in
 
-        the parser will never emit json with keys or strings delimited by single quotes
+    the parser will never emit json with keys or strings delimited by single quotes
 
-    - `unescaped_jsonp`
+- `unescaped_jsonp`
 
-        javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping
+    javascript interpreters treat the codepoints `u+2028` and `u+2029` as significant whitespace. json strings that contain either of these codepoints will be parsed incorrectly by some javascript interpreters. by default, these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to retain compatibility. this option simply removes that escaping
 
-    - `comments`
+- `comments`
 
-        json has no official comments but some parsers allow c style comments. anywhere whitespace is allowed this flag allows comments (both `// ...` and `/* ... */` style)
+    json has no official comments but some parsers allow c style comments. anywhere whitespace is allowed this flag allows comments (both `// ...` and `/* ... */` style)
 
-    - `escaped_strings`
+- `escaped_strings`
 
-        by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint while encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
+    by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint while encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
 
-    - `dirty_strings`
+- `dirty_strings`
 
-        json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
+    json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
 
-    - `ignored_bad_escapes`
+- `ignored_bad_escapes`
 
-        during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that combining this option with `escaped_strings` will result in the escape character itself being escaped
+    during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that combining this option with `escaped_strings` will result in the escape character itself being escaped
 
-    - `explicit_end`
+- `explicit_end`
 
-        this option treats all exhausted inputs as incomplete. the parser will not attempt to return a final state until the function is called with the value `end_stream`
+    this option treats all exhausted inputs as incomplete. the parser will not attempt to return a final state until the function is called with the value `end_stream`
 
-    - `relax`
+- `relax`
 
-        relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
+    relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
 
 
 ## exports ##
