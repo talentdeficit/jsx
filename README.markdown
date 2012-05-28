@@ -24,6 +24,14 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
   - [`event()`](#event)
   - [`option()`](#option)
 * [exports](#exports)
+  - [`encoder/3`, `decoder/3` & `parser/3`](#encoder3-decoder3--parser3)
+  - [`decode/1,2`](#decode12)
+  - [`encode/1,2`](#encode12)
+  - [`format/1,2`](#format12)
+  - [`minify/1`](#minify1)
+  - [`prettify/1`](#prettify1)
+  - [`is_json/1,2`](#is_json12)
+  - [`is_term/1,2`](#is_term12)
 * [callback exports](#callback_exports)
 * [acknowledgements](#acknowledgements)
 
@@ -135,9 +143,9 @@ here is a table of how various json values map to erlang:
 
     the utf8 restriction means improperly paired surrogates are explicitly disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid surrogate pairs. surrogates encountered otherwise result in errors
 
-    json string escapes of the form `\uXXXX` will be converted to their equivalent codepoints during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec will not be. in the interest of pragmatism there is an option for looser parsing. see the options section in [data types](#data_types)
+    json string escapes of the form `\uXXXX` will be converted to their equivalent codepoints during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec will not be. in the interest of pragmatism there is an option for looser parsing. see [options](#option)
 
-    all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although, again, see the options section in [data types](#data_types))
+    all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although, again, see [options](#option))
 
     this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -158,7 +166,7 @@ here is a table of how various json values map to erlang:
 
 jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`, `encoder/3` or `parser/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor, or to parse large json texts without needing to keep them entirely in memory
 
-however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour. see the options, in [data types](#data_types)
+however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the option `explicit_end` can be used to modify this behaviour. see [options](#option)
 
 
 ## data types ##
@@ -319,7 +327,7 @@ all three functions return an anonymous function that takes the appropriate type
 
 `Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
 
-`Opts` are detailed in [data types](#data_types) 
+`Opts` are detailed [here](#option) 
 
 check out [callback module documentation](#callback_exports) for details of the callback module interface
 
@@ -443,7 +451,7 @@ is_json(MaybeJSON, Opts) -> true | false
 
 returns true if input is a valid json text, false if not
 
-what exactly constitutes valid json may be altered per the options, detailed in [data types](#data_types)
+what exactly constitutes valid json may be altered per the [options](#option)
 
 
 #### `is_term/1,2` ####
@@ -458,8 +466,7 @@ is_term(MaybeJSON, Opts) -> true | false
 
 returns true if input is a valid erlang representation of json, false if not
 
-what exactly constitutes valid json may be altered per the options, detailed in [data types](#data_types)
-
+what exactly constitutes valid json may be altered per the [options](#option)
 
 ## callback exports ##
 
@@ -506,11 +513,11 @@ semantic analysis is performed by repeatedly calling `handle_event/2` with a str
 
 -   `{key, binary()}`
 
-    a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see the options under [data types](#data_types) for possible exceptions
+    a key in a json object. this is guaranteed to follow either `start_object` or a json value. it will usually be a `utf8` encoded binary. see the [options](#option) for possible exceptions
 
 -   `{string, binary()}`
 
-    a json string. it will usually be a `utf8` encoded binary. see the options under [data types](#data_types) for possible exceptions
+    a json string. it will usually be a `utf8` encoded binary. see the [options](#option) for possible exceptions
 
 -   `{integer, integer()}`
 
