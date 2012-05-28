@@ -33,6 +33,8 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
   - [`is_json/1,2`](#is_json12)
   - [`is_term/1,2`](#is_term12)
 * [callback exports](#callback_exports)
+  - [`Module:init/1`](#moduleinit1)
+  - [`Module:handle_event/2`](#modulehandle_event2)
 * [acknowledgements](#acknowledgements)
 
 
