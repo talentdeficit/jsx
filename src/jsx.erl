@@ -23,13 +23,14 @@
 
 -module(jsx).
 
--export([to_json/1, to_json/2]).
--export([to_term/1, to_term/2]).
+-export([encode/1, encode/2, decode/1, decode/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
--export([format/1, format/2]).
--export([encoder/3, decoder/3]).
+-export([format/1, format/2, minify/1, prettify/1]).
+-export([encoder/3, decoder/3, parser/3]).
 %% old api
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
+-export([to_json/1, to_json/2]).
+-export([to_term/1, to_term/2]).
 
 %% test handler
 -ifdef(TEST).
@@ -37,59 +38,68 @@
 -endif.
 
 
+-type json_term() :: list({binary(), json_term()})
+    | list(json_term())
+    | true
+    | false
+    | null
+    | integer()
+    | float()
+    | binary().
 
--spec to_json(Source::any()) -> binary().
--spec to_json(Source::any(), Opts::jsx_to_json:opts()) -> binary().
-
-to_json(Source) -> to_json(Source, []).
-
-to_json(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
-
-%% old api, alias for to_json/x
-
-term_to_json(Source) -> to_json(Source, []).
-
-term_to_json(Source, Opts) -> to_json(Source, Opts).
+-type json_text() :: binary().
 
 
--spec format(Source::binary()) -> binary().
--spec format(Source::binary(), Opts::jsx_to_json:opts()) -> binary().
+-spec encode(Source::json_term()) -> json_text().
+-spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text().
+
+encode(Source) -> encode(Source, []).
+
+encode(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
+
+%% old api, alias for encode/x
+
+to_json(Source) -> encode(Source, []).
+to_json(Source, Opts) -> encode(Source, Opts).
+term_to_json(Source) -> encode(Source, []).
+term_to_json(Source, Opts) -> encode(Source, Opts).
+
+
+-spec format(Source::json_text()) -> json_text().
+-spec format(Source::json_text(), Opts::jsx_to_json:opts()) -> json_text().
 
 format(Source) -> format(Source, []).
 
 format(Source, Opts) -> jsx_to_json:format(Source, Opts).
 
 
--spec to_term(Source::binary()) -> list({binary(), any()})
-    | list(any())
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--spec to_term(Source::binary(), Opts::jsx_to_term:opts()) -> list({binary(), any()})
-    | list(any())
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
+-spec minify(Source::json_text()) -> json_text().
 
-to_term(Source) -> to_term(Source, []).
+minify(Source) -> format(Source, []).
 
-to_term(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
+
+-spec prettify(Source::json_text()) -> json_text().
+
+prettify(Source) -> format(Source, [space, {indent, 2}]).
+
+
+-spec decode(Source::json_text()) -> json_term().
+-spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term().
+
+decode(Source) -> decode(Source, []).
+
+decode(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 %% old api, alias for to_term/x
 
-json_to_term(Source) -> to_term(Source, []).
+to_term(Source) -> decode(Source, []).
+to_term(Source, Opts) -> decode(Source, Opts).
+json_to_term(Source) -> decode(Source, []).
+json_to_term(Source, Opts) -> decode(Source, Opts).
 
-json_to_term(Source, Opts) -> to_term(Source, Opts).
 
-
--spec is_json(Source::binary()) -> true | false.
--spec is_json(Source::binary(), Opts::jsx_verify:opts()) -> true | false.
+-spec is_json(Source::any()) -> true | false.
+-spec is_json(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
 
@@ -104,14 +114,47 @@ is_term(Source) -> is_term(Source, []).
 is_term(Source, Opts) -> jsx_verify:is_term(Source, Opts).
 
 
--spec decoder(Handler::module(), State::any(), Opts::list()) -> fun().
+-type decoder() :: fun((json_text() | end_stream) -> any()).
+
+-spec decoder(Handler::module(), State::any(), Opts::list()) -> decoder().
 
 decoder(Handler, State, Opts) -> jsx_decoder:decoder(Handler, State, Opts).
 
 
--spec encoder(Handler::module(), State::any(), Opts::list()) -> fun().
+-type encoder() :: fun((json_term() | end_stream) -> any()).
+
+-spec encoder(Handler::module(), State::any(), Opts::list()) -> encoder().
 
 encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
+
+
+-type token() :: [token()]
+    | start_object
+    | end_object
+    | start_array
+    | end_array
+    | {key, binary()}
+    | {string, binary()}
+    | binary()
+    | {number, integer() | float()}
+    | {integer, integer()}
+    | {float, float()}
+    | integer()
+    | float()
+    | {literal, true}
+    | {literal, false}
+    | {literal, null}
+    | true
+    | false
+    | null
+    | end_json.
+    
+
+-type parser() :: fun((token() | end_stream) -> any()).
+
+-spec parser(Handler::module(), State::any(), Opts::list()) -> parser().
+
+parser(Handler, State, Opts) -> jsx_parser:parser(Handler, State, Opts).
 
 
 
@@ -202,7 +245,7 @@ jsx_decoder_gen([Test|Rest]) ->
     JSX = proplists:get_value(jsx, Test),
     Flags = proplists:get_value(jsx_flags, Test, []),
     {generator, fun() ->
-        [{Name, ?_assertEqual(decode(JSON, Flags), JSX)},
+        [{Name, ?_assertEqual(test_decode(JSON, Flags), JSX)},
             {Name ++ " (incremental)",
                 ?_assertEqual(incremental_decode(JSON, Flags), JSX)
             }
@@ -242,25 +285,25 @@ parse_tests([], _Dir, Acc) ->
     Acc.
 
 
-decode(JSON, Flags) ->
+test_decode(JSON, Flags) ->
     try
         case (jsx_decoder:decoder(?MODULE, [], Flags))(JSON) of
             {incomplete, More} ->
                 case More(<<" ">>) of
-                    {incomplete, _} -> {error, badjson}
+                    {incomplete, _} -> {error, badarg}
                     ; Events -> Events
                 end
             ; Events -> Events
         end
     catch
-        error:badarg -> {error, badjson}
+        error:badarg -> {error, badarg}
     end.
 
     
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
-	catch error:badarg -> {error, badjson}
+	catch error:badarg -> {error, badarg}
 	end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->

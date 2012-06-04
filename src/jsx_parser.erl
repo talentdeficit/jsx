@@ -1,6 +1,6 @@
 %% The MIT License
 
-%% Copyright (c) 2011 Alisdair Sullivan <alisdairsullivan@yahoo.ca>
+%% Copyright (c) 2012 Alisdair Sullivan <alisdairsullivan@yahoo.ca>
 
 %% Permission is hereby granted, free of charge, to any person obtaining a copy
 %% of this software and associated documentation files (the "Software"), to deal
@@ -21,26 +21,21 @@
 %% THE SOFTWARE.
 
 
--module(jsx_encoder).
+-module(jsx_parser).
 
--export([encoder/3]).
+-export([parser/3]).
 
--spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
 
-encoder(Handler, State, Opts) ->
-    fun(JSON) ->
-        start(
-            JSON,
-            {Handler, Handler:init(State)},
-            jsx_utils:parse_opts(Opts)
-        )
-    end.
+-spec parser(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:parser().
 
+parser(Handler, State, Opts) ->
+    fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_utils:parse_opts(Opts)) end.
 
 
 -include("jsx_opts.hrl").
 
 
+%% error, incomplete and event macros
 -ifndef(error).
 -define(error(Args),
     erlang:error(badarg, Args)
@@ -48,59 +43,118 @@ encoder(Handler, State, Opts) ->
 -endif.
 
 
-start(Term, {Handler, State}, Opts) ->
-    Handler:handle_event(end_json, value(pre_encode(Term, Opts), {Handler, State}, Opts)).
+-ifndef(incomplete).
+-define(incomplete(State, Handler, Stack, Opts),
+    {incomplete, fun(end_stream) ->
+                case State([end_json],
+                        Handler,
+                        Stack,
+                        Opts) of
+                    {incomplete, _} -> ?error([Handler, Stack, Opts])
+                    ; Events -> Events
+                end 
+            ; (Tokens) ->
+                State(Tokens, Handler, Stack, Opts)
+        end
+    }
+).
+-endif.
 
 
-value(String, {Handler, State}, Opts) when is_binary(String) ->
-    Handler:handle_event({string, clean_string(String, Opts)}, State);
-value(Float, {Handler, State}, _Opts) when is_float(Float) ->
-    Handler:handle_event({float, Float}, State);
-value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
-    Handler:handle_event({integer, Int}, State);
-value(Literal, {Handler, State}, _Opts)
-        when Literal == true; Literal == false; Literal == null ->
-    Handler:handle_event({literal, Literal}, State);
-value([{}], {Handler, State}, _Opts) ->
-    Handler:handle_event(end_object, Handler:handle_event(start_object, State));
-value([], {Handler, State}, _Opts) ->
-    Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value(List, {Handler, State}, Opts) when is_list(List) ->
-    list_or_object(List, {Handler, State}, Opts);
-value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+handle_event([], Handler, _Opts) -> Handler;
+handle_event([Event|Rest], Handler, Opts) -> handle_event(Rest, handle_event(Event, Handler, Opts), Opts);
+handle_event(Event, {Handler, State}, _Opts) -> {Handler, Handler:handle_event(Event, State)}.
 
 
-list_or_object([Tuple|_] = List, {Handler, State}, Opts) when is_tuple(Tuple) ->
-    object(List, {Handler, Handler:handle_event(start_object, State)}, Opts);
-list_or_object(List, {Handler, State}, Opts) ->
-    list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
+value([start_object|Tokens], Handler, Stack, Opts) ->
+    object(Tokens, handle_event(start_object, Handler, Opts), [object|Stack], Opts);
+value([start_array|Tokens], Handler, Stack, Opts) ->
+    array(Tokens, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
+value([{literal, true}|Tokens], Handler, [], Opts) ->
+    done(Tokens, handle_event({literal, true}, Handler, Opts), [], Opts);
+value([{literal, false}|Tokens], Handler, [], Opts) ->
+    done(Tokens, handle_event({literal, false}, Handler, Opts), [], Opts);
+value([{literal, null}|Tokens], Handler, [], Opts) ->
+    done(Tokens, handle_event({literal, null}, Handler, Opts), [], Opts);
+value([{literal, true}|Tokens], Handler, Stack, Opts) ->
+    maybe_done(Tokens, handle_event({literal, true}, Handler, Opts), Stack, Opts);
+value([{literal, false}|Tokens], Handler, Stack, Opts) ->
+    maybe_done(Tokens, handle_event({literal, false}, Handler, Opts), Stack, Opts);
+value([{literal, null}|Tokens], Handler, Stack, Opts) ->
+    maybe_done(Tokens, handle_event({literal, null}, Handler, Opts), Stack, Opts);
+value([Literal|Tokens], Handler, Stack, Opts) when Literal == true; Literal == false; Literal == null ->
+    value([{literal, Literal}] ++ Tokens, Handler, Stack, Opts);
+value([{integer, Number}|Tokens], Handler, [], Opts) when is_integer(Number) ->
+    done(Tokens, handle_event({integer, Number}, Handler, Opts), [], Opts);
+value([{float, Number}|Tokens], Handler, [], Opts) when is_float(Number) ->
+    done(Tokens, handle_event({float, Number}, Handler, Opts), [], Opts);
+value([{integer, Number}|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
+    maybe_done(Tokens, handle_event({integer, Number}, Handler, Opts), Stack, Opts);
+value([{float, Number}|Tokens], Handler, Stack, Opts) when is_float(Number) ->
+    maybe_done(Tokens, handle_event({float, Number}, Handler, Opts), Stack, Opts);
+value([{number, Number}|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
+    value([{integer, Number}] ++ Tokens, Handler, Stack, Opts);
+value([{number, Number}|Tokens], Handler, Stack, Opts) when is_float(Number) ->
+    value([{float, Number}] ++ Tokens, Handler, Stack, Opts);
+value([Number|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
+    value([{integer, Number}] ++ Tokens, Handler, Stack, Opts);
+value([Number|Tokens], Handler, Stack, Opts) when is_float(Number) ->
+    value([{float, Number}] ++ Tokens, Handler, Stack, Opts);
+value([{string, String}|Tokens], Handler, [], Opts) when is_binary(String) ->
+    done(Tokens, handle_event({string, clean_string(String, Opts)}, Handler, Opts), [], Opts);
+value([{string, String}|Tokens], Handler, Stack, Opts) when is_binary(String) ->
+    maybe_done(Tokens, handle_event({string, clean_string(String, Opts)}, Handler, Opts), Stack, Opts);
+value([String|Tokens], Handler, Stack, Opts) when is_binary(String) ->
+    value([{string, String}] ++ Tokens, Handler, Stack, Opts);
+value([], Handler, Stack, Opts) ->
+    ?incomplete(value, Handler, Stack, Opts);
+value(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Opts]);
+value(Token, Handler, Stack, Opts) ->
+    value([Token], Handler, Stack, Opts).
 
+object([end_object|Tokens], Handler, [object|Stack], Opts) ->
+    maybe_done(Tokens, handle_event(end_object, Handler, Opts), Stack, Opts);
+object([{key, Key}|Tokens], Handler, Stack, Opts) when is_atom(Key); is_binary(Key) ->
+    value(Tokens, handle_event({key, clean_string(fix_key(Key), Opts)}, Handler, Opts), Stack, Opts);
+object([Key|Tokens], Handler, Stack, Opts) when is_atom(Key); is_binary(Key) ->
+    value(Tokens, handle_event({key, clean_string(fix_key(Key), Opts)}, Handler, Opts), Stack, Opts);
+object([], Handler, Stack, Opts) ->
+    ?incomplete(object, Handler, Stack, Opts);
+object(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Opts]);
+object(Token, Handler, Stack, Opts) ->
+    object([Token], Handler, Stack, Opts).
 
-object([{Key, Value}|Rest], {Handler, State}, Opts) ->
-    object(
-        Rest,
-        {
-            Handler,
-            value(
-                pre_encode(Value, Opts),
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
-                Opts
-            )
-        },
-        Opts
-    );
-object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
-object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+array([end_array|Tokens], Handler, [array|Stack], Opts) ->
+    maybe_done(Tokens, handle_event(end_array, Handler, Opts), Stack, Opts);
+array([], Handler, Stack, Opts) ->
+    ?incomplete(array, Handler, Stack, Opts);
+array(Tokens, Handler, Stack, Opts) when is_list(Tokens) ->
+    value(Tokens, Handler, Stack, Opts);
+array(Token, Handler, Stack, Opts) ->
+    array([Token], Handler, Stack, Opts).
 
+maybe_done([end_json], Handler, [], Opts) ->
+    done([], Handler, [], Opts);
+maybe_done(Tokens, Handler, [object|_] = Stack, Opts) when is_list(Tokens) ->
+    object(Tokens, Handler, Stack, Opts);
+maybe_done(Tokens, Handler, [array|_] = Stack, Opts) when is_list(Tokens) ->
+    array(Tokens, Handler, Stack, Opts);
+maybe_done([], Handler, Stack, Opts) ->
+    ?incomplete(maybe_done, Handler, Stack, Opts);
+maybe_done(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Opts]);
+maybe_done(Token, Handler, Stack, Opts) ->
+    maybe_done([Token], Handler, Stack, Opts).
 
-list([Value|Rest], {Handler, State}, Opts) ->
-    list(Rest, {Handler, value(pre_encode(Value, Opts), {Handler, State}, Opts)}, Opts);
-list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
-list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
-
-
-pre_encode(Value, #opts{pre_encode=false}) -> Value;
-pre_encode(Value, Opts) -> (Opts#opts.pre_encode)(Value).
+done(Tokens, Handler, [], Opts) when Tokens == [end_json]; Tokens == [] ->
+    {_, State} = handle_event(end_json, Handler, Opts),
+    State;
+done(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Opts]);
+done(Token, Handler, Stack, Opts) ->
+    done([Token], Handler, Stack, Opts).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
@@ -503,6 +557,178 @@ maybe_replace(_, _) -> erlang:error(badarg).
 -include_lib("eunit/include/eunit.hrl").
 
 
+incomplete_test_() ->
+    F = parser(jsx, [], []),
+    [
+        {"incomplete test", ?_assertEqual(
+            begin
+                {incomplete, A} = F(start_object),
+                {incomplete, B} = A(key),
+                {incomplete, C} = B(true),
+                {incomplete, D} = C(end_object),
+                D(end_json)
+            end,
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+        )}
+    ].
+
+encode(Term) -> encode(Term, []).
+
+encode(Term, Opts) -> 
+    try (parser(jsx, [], Opts))(Term)
+    catch error:badarg -> {error, badarg}
+    end.
+
+
+encode_test_() ->    
+    [
+        {"naked string", ?_assertEqual(
+            encode([{string, <<"a string\n">>}, end_json]), [{string, <<"a string\n">>}, end_json]
+        )},
+        {"naked integer - simple rep", ?_assertEqual(
+            encode([123, end_json]), [{integer, 123}, end_json]
+        )},
+        {"naked integer - alt rep", ?_assertEqual(
+            encode([{number, 123}, end_json]), [{integer, 123}, end_json]
+        )},
+        {"naked integer - full rep", ?_assertEqual(
+            encode([{integer, 123}, end_json]), [{integer, 123}, end_json]
+        )},
+        {"naked float - simple rep", ?_assertEqual(
+            encode([1.23, end_json]), [{float, 1.23}, end_json]
+        )},
+        {"naked float - alt rep", ?_assertEqual(
+            encode([{number, 1.23}, end_json]), [{float, 1.23}, end_json]
+        )},
+        {"naked float - full rep", ?_assertEqual(
+            encode([{float, 1.23}, end_json]), [{float, 1.23}, end_json]
+        )},
+        {"naked literal - simple rep", ?_assertEqual(
+            encode([null, end_json]), [{literal, null}, end_json]
+        )},
+        {"naked literal - full rep", ?_assertEqual(
+            encode([{literal, null}, end_json]), [{literal, null}, end_json]
+        )},
+        {"empty object", ?_assertEqual(
+            encode([start_object, end_object, end_json]), [start_object, end_object, end_json]
+        )},
+        {"empty list", ?_assertEqual(
+            encode([start_array, end_array, end_json]), [start_array, end_array, end_json]
+        )},
+        {"simple list", ?_assertEqual(
+                encode([
+                    start_array,
+                    {integer, 1},
+                    {integer, 2},
+                    {integer, 3},
+                    {literal, true},
+                    {literal, false},
+                    end_array,
+                    end_json
+                ]),
+                [
+                    start_array,
+                    {integer, 1},
+                    {integer, 2},
+                    {integer, 3},
+                    {literal, true},
+                    {literal, false},
+                    end_array,
+                    end_json
+                ]
+            )
+        },
+        {"simple object", ?_assertEqual(
+                encode([
+                    start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    end_object,
+                    end_json
+                ]),
+                [
+                    start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    end_object,
+                    end_json
+                ]
+            )
+        },
+        {"complex term", ?_assertEqual(
+                encode([
+                    start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    {key, <<"c">>},
+                    start_array,
+                        {integer, 1},
+                        {integer, 2},
+                        {integer, 3},
+                    end_array,
+                    {key, <<"d">>},
+                    start_object,
+                        {key, <<"key">>},
+                        {string, <<"value">>},
+                    end_object,
+                    end_object,
+                    end_json
+                ]),
+                [
+                    start_object,
+                    {key, <<"a">>},
+                    {literal, true},
+                    {key, <<"b">>},
+                    {literal, false},
+                    {key, <<"c">>},
+                    start_array,
+                        {integer, 1},
+                        {integer, 2},
+                        {integer, 3},
+                    end_array,
+                    {key, <<"d">>},
+                    start_object,
+                        {key, <<"key">>},
+                        {string, <<"value">>},
+                    end_object,
+                    end_object,
+                    end_json
+                ]
+            )
+        },
+        {"atom keys", ?_assertEqual(
+            encode([start_object, {key, key}, {string, <<"value">>}, end_object, end_json]),
+            [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
+        )}
+    ].
+
+encode_failures_test_() ->
+    [
+        {"unwrapped values", ?_assertEqual(
+            {error, badarg},
+            encode([{string, <<"a string\n">>}, {string, <<"a string\n">>}, end_json])
+        )},
+        {"unbalanced array", ?_assertEqual(
+            {error, badarg},
+            encode([start_array, end_array, end_array, end_json])
+        )},
+        {"premature finish", ?_assertEqual(
+            {error, badarg},
+            encode([start_object, {key, <<"key">>, start_array, end_json}])
+        )},
+        {"really premature finish", ?_assertEqual(
+            {error, badarg},
+            encode([end_json])
+        )}
+    ].
+
+
 xcode(Bin) -> xcode(Bin, #opts{}).
 
 xcode(Bin, [replaced_bad_utf8]) -> xcode(Bin, #opts{replaced_bad_utf8=true});
@@ -704,177 +930,6 @@ bad_utf8_test_() ->
     ].
 
 
-encode(Term) -> encode(Term, []).
-
-encode(Term, Opts) ->
-    try (encoder(jsx, [], Opts))(Term)
-    catch _:_ -> {error, badarg}
-    end.
-
-
-encode_test_() ->    
-    [
-        {"naked string", ?_assertEqual(encode(<<"a string\n">>), [{string, <<"a string\n">>}, end_json])},
-        {"escaped naked string", ?_assertEqual(encode(<<"a string\n">>, [escaped_strings]), [{string, <<"a string\\n">>}, end_json])},
-        {"naked integer", ?_assertEqual(encode(123), [{integer, 123}, end_json])},
-        {"naked float", ?_assertEqual(encode(1.23), [{float, 1.23}, end_json])},
-        {"naked literal", ?_assertEqual(encode(null), [{literal, null}, end_json])},
-        {"empty object", ?_assertEqual(encode([{}]), [start_object, end_object, end_json])},
-        {"empty list", ?_assertEqual(encode([]), [start_array, end_array, end_json])},
-        {"simple list", ?_assertEqual(
-                encode([1,2,3,true,false]),
-                [
-                    start_array,
-                    {integer, 1},
-                    {integer, 2},
-                    {integer, 3},
-                    {literal, true},
-                    {literal, false},
-                    end_array,
-                    end_json
-                ]
-            )
-        },
-        {"simple object", ?_assertEqual(
-                encode([{<<"a">>, true}, {<<"b">>, false}]),
-                [
-                    start_object,
-                    {key, <<"a">>},
-                    {literal, true},
-                    {key, <<"b">>},
-                    {literal, false},
-                    end_object,
-                    end_json
-                ]
-            )
-        },
-        {"complex term", ?_assertEqual(
-                encode([
-                    {<<"a">>, true},
-                    {<<"b">>, false},
-                    {<<"c">>, [1,2,3]},
-                    {<<"d">>, [{<<"key">>, <<"value">>}]}
-                ]),
-                [
-                    start_object,
-                    {key, <<"a">>},
-                    {literal, true},
-                    {key, <<"b">>},
-                    {literal, false},
-                    {key, <<"c">>},
-                    start_array,
-                        {integer, 1},
-                        {integer, 2},
-                        {integer, 3},
-                    end_array,
-                    {key, <<"d">>},
-                    start_object,
-                        {key, <<"key">>},
-                        {string, <<"value">>},
-                    end_object,
-                    end_object,
-                    end_json
-                ]
-            )
-        },
-        {"atom keys", ?_assertEqual(
-                encode([{key, <<"value">>}]),
-                [start_object, {key, <<"key">>}, {string, <<"value">>}, end_object, end_json]
-            )
-        }
-    ].
-
-
-pre_encoders_test_() ->
-    Term = [
-        {<<"object">>, [
-            {<<"literals">>, [true, false, null]},
-            {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
-            {<<"numbers">>, [1, 1.0, 1.0e0]}
-        ]}
-    ],
-    [
-        {"no pre encode", ?_assertEqual(
-            encode(Term, []),
-            [
-                start_object,
-                    {key, <<"object">>}, start_object,
-                        {key, <<"literals">>}, start_array,
-                            {literal, true}, {literal, false}, {literal, null},
-                        end_array,
-                        {key, <<"strings">>}, start_array,
-                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
-                        end_array,
-                        {key, <<"numbers">>}, start_array,
-                            {integer, 1}, {float, 1.0}, {float, 1.0},
-                        end_array,
-                    end_object,
-                end_object,
-                end_json
-            ]
-        )},
-        {"replace lists with empty lists", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) -> case V of [{_,_}|_] -> V; [{}] -> V; V when is_list(V) -> []; _ -> V end end}]),
-            [
-                start_object,
-                    {key, <<"object">>}, start_object,
-                        {key, <<"literals">>}, start_array, end_array,
-                        {key, <<"strings">>}, start_array, end_array,
-                        {key, <<"numbers">>}, start_array, end_array,
-                    end_object,
-                end_object,
-                end_json
-            ]
-        )},
-        {"replace objects with empty objects", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) -> case V of [{_,_}|_] -> [{}]; _ -> V end end}]),
-            [
-                start_object,
-                end_object,
-                end_json
-            ]
-        )},
-        {"replace all non-list values with false", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) when is_list(V) -> V; (_) -> false end}]),
-            [
-                start_object,
-                    {key, <<"object">>}, start_object,
-                        {key, <<"literals">>}, start_array,
-                            {literal, false}, {literal, false}, {literal, false},
-                        end_array,
-                        {key, <<"strings">>}, start_array,
-                            {literal, false}, {literal, false}, {literal, false},
-                        end_array,
-                        {key, <<"numbers">>}, start_array,
-                            {literal, false}, {literal, false}, {literal, false},
-                        end_array,
-                    end_object,
-                end_object,
-                end_json
-            ]
-        )},
-        {"replace all atoms with atom_to_list", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
-            [
-                start_object,
-                    {key, <<"object">>}, start_object,
-                        {key, <<"literals">>}, start_array,
-                            {string, <<"true">>}, {string, <<"false">>}, {string, <<"null">>},
-                        end_array,
-                        {key, <<"strings">>}, start_array,
-                            {string, <<"foo">>}, {string, <<"bar">>}, {string, <<"baz">>},
-                        end_array,
-                        {key, <<"numbers">>}, start_array,
-                            {integer, 1}, {float, 1.0}, {float, 1.0},
-                        end_array,
-                    end_object,
-                end_object,
-                end_json
-            ]
-        )}
-    ].
-
-
 escapes_test_() ->
     [
         {"backspace escape", ?_assertEqual(encode(<<"\b">>, [escaped_strings]), [{string, <<"\\b">>}, end_json])},
@@ -1034,6 +1089,5 @@ to_fake_utf(N, utf8) when N < 16#10000 ->
 to_fake_utf(N, utf8) ->
     <<0:3, W:3, Z:6, Y:6, X:6>> = <<N:24>>,
     <<2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6>>.
-
 
 -endif.

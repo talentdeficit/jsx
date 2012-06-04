@@ -1,3 +1,3 @@
 {name, "unbalanced array"}.
-{jsx, {error, badjson}}.
+{jsx, {error, badarg}}.
 {json, "unbalanced_array.json"}.
