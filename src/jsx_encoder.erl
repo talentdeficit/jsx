@@ -70,7 +70,7 @@ value(List, {Handler, State}, Opts) when is_list(List) ->
 value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-list_or_object([Tuple|_] = List, {Handler, State}, Opts) when is_tuple(Tuple) ->
+list_or_object([{Key, _Value}|_] = List, {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
     object(List, {Handler, Handler:handle_event(start_object, State)}, Opts);
 list_or_object(List, {Handler, State}, Opts) ->
     list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
@@ -577,7 +577,7 @@ bad_utf8_test_() ->
         },
         {"all continuation bytes",
             ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
-        },        
+        },
         {"all continuation bytes replaced",
             ?_assertEqual(
                 xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [replaced_bad_utf8]),
@@ -712,7 +712,7 @@ encode(Term, Opts) ->
     end.
 
 
-encode_test_() ->    
+encode_test_() ->
     [
         {"naked string", ?_assertEqual(encode(<<"a string\n">>), [{string, <<"a string\n">>}, end_json])},
         {"escaped naked string", ?_assertEqual(encode(<<"a string\n">>, [escaped_strings]), [{string, <<"a string\\n">>}, end_json])},
@@ -979,7 +979,7 @@ check_bad(List) ->
 
 
 check_replaced(List) ->
-    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false 
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false
         end,
         check(List, [replaced_bad_utf8], [])
     ).
@@ -997,7 +997,7 @@ check([], _Opts, Acc) -> Acc;
 check([H|T], Opts, Acc) ->
     R = encode(to_fake_utf(H, utf8), Opts),
     check(T, Opts, [{H, R}] ++ Acc).
-    
+
 
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
 
@@ -1018,7 +1018,7 @@ reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
 
 good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
-        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
+        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000,
         16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
     ] ++ lists:seq(16#100000, 16#10fffd).
 
@@ -1027,7 +1027,7 @@ good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
 to_fake_utf(N, utf8) when N < 16#0080 -> <<N:8>>;
 to_fake_utf(N, utf8) when N < 16#0800 ->
     <<0:5, Y:5, X:6>> = <<N:16>>,
-    <<2#110:3, Y:5, 2#10:2, X:6>>; 
+    <<2#110:3, Y:5, 2#10:2, X:6>>;
 to_fake_utf(N, utf8) when N < 16#10000 ->
     <<Z:4, Y:6, X:6>> = <<N:16>>,
     <<2#1110:4, Z:4, 2#10:2, Y:6, 2#10:2, X:6>>;
