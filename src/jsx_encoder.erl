@@ -65,8 +65,10 @@ value([{}], {Handler, State}, _Opts) ->
     Handler:handle_event(end_object, Handler:handle_event(start_object, State));
 value([], {Handler, State}, _Opts) ->
     Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value(List, {Handler, State}, Opts) when is_list(List) ->
-    list_or_object(List, {Handler, State}, Opts);
+value([Tuple|Rest], Handler, Opts) when is_tuple(Tuple) ->
+    list_or_object([pre_encode(Tuple, Opts)|Rest], Handler, Opts);
+value(List, Handler, Opts) when is_list(List) ->
+    list_or_object(List, Handler, Opts);
 value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
@@ -76,7 +78,7 @@ list_or_object(List, {Handler, State}, Opts) ->
     list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
 
 
-object([{Key, Value}|Rest], {Handler, State}, Opts) ->
+object([{Key, Value}|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
     object(
         Rest,
         {
@@ -834,8 +836,8 @@ pre_encoders_test_() ->
                 end_json
             ]
         )},
-        {"replace all non-list values with false", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) when is_list(V) -> V; (_) -> false end}]),
+        {"replace all non-list and non_tuple values with false", ?_assertEqual(
+            encode(Term, [{pre_encode, fun(V) when is_list(V); is_tuple(V) -> V; (_) -> false end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -868,6 +870,33 @@ pre_encoders_test_() ->
                             {integer, 1}, {float, 1.0}, {float, 1.0},
                         end_array,
                     end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"pre_encode tuple", ?_assertEqual(
+            encode({1, 2, 3}, [{pre_encode, fun(Tuple) when is_tuple(Tuple) -> tuple_to_list(Tuple); (V) -> V end}]),
+            [
+                start_array,
+                    {integer, 1}, {integer, 2}, {integer, 3},
+                end_array,
+                end_json 
+            ]
+        )},
+        {"pre_encode 2-tuples", ?_assertEqual(
+            encode([{number, 1}], [{pre_encode, fun({K, V}) -> {K, V + 1}; (V) -> V end}]),
+            [
+                start_object,
+                    {key, <<"number">>}, {integer, 2},
+                end_object,
+                end_json
+            ]
+        )},
+        {"pre_encode one field record", ?_assertEqual(
+            encode([{foo, bar}], [{pre_encode, fun({foo, V}) -> {V, undefined}; (undefined) -> false; (V) -> V end}]),
+            [
+                start_object,
+                    {key, <<"bar">>}, {literal, false},
                 end_object,
                 end_json
             ]
