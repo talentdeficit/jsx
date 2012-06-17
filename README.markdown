@@ -43,13 +43,13 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
 #### to build the library and run tests ####
 
 ```bash
-tanga:jsx alisdair$ sinan build
-tanga:jsx alisdair$ sinan -r tests eunit
+$ sinan build
+$ sinan -r tests eunit
 ```
 or
 ```bash
-tanga:jsx alisdair$ rebar compile
-tanga:jsx alisdair$ rebar eunit
+$ rebar compile
+$ rebar eunit
 ```
 
 #### to convert a utf8 binary containing a json string into an erlang term ####
