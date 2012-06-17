@@ -264,7 +264,7 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
 - `escaped_forward_slashes`
 
-    json strings are escaped according to the json spec. this means forward slashes (solidus) are optionally escaped. this option is only relevant for encoding; you may want to use this if you are embedding json directly into a html or xml document
+    json strings are escaped according to the json spec. this means forward slashes (solidus) are only escaped when this flag is present. otherwise they are left unescaped. this option is only relevant for encoding; you may want to use this if you are embedding json directly into a html or xml document
 
 - `single_quoted_strings`
 
