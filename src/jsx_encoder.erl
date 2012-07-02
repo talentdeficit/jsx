@@ -65,8 +65,10 @@ value([{}], {Handler, State}, _Opts) ->
     Handler:handle_event(end_object, Handler:handle_event(start_object, State));
 value([], {Handler, State}, _Opts) ->
     Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value(List, {Handler, State}, Opts) when is_list(List) ->
-    list_or_object(List, {Handler, State}, Opts);
+value([Tuple|Rest], Handler, Opts) when is_tuple(Tuple) ->
+    list_or_object([pre_encode(Tuple, Opts)|Rest], Handler, Opts);
+value(List, Handler, Opts) when is_list(List) ->
+    list_or_object(List, Handler, Opts);
 value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
@@ -76,7 +78,7 @@ list_or_object(List, {Handler, State}, Opts) ->
     list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
 
 
-object([{Key, Value}|Rest], {Handler, State}, Opts) ->
+object([{Key, Value}|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
     object(
         Rest,
         {
@@ -577,7 +579,7 @@ bad_utf8_test_() ->
         },
         {"all continuation bytes",
             ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
-        },        
+        },
         {"all continuation bytes replaced",
             ?_assertEqual(
                 xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [replaced_bad_utf8]),
@@ -712,7 +714,7 @@ encode(Term, Opts) ->
     end.
 
 
-encode_test_() ->    
+encode_test_() ->
     [
         {"naked string", ?_assertEqual(encode(<<"a string\n">>), [{string, <<"a string\n">>}, end_json])},
         {"escaped naked string", ?_assertEqual(encode(<<"a string\n">>, [escaped_strings]), [{string, <<"a string\\n">>}, end_json])},
@@ -834,8 +836,8 @@ pre_encoders_test_() ->
                 end_json
             ]
         )},
-        {"replace all non-list values with false", ?_assertEqual(
-            encode(Term, [{pre_encode, fun(V) when is_list(V) -> V; (_) -> false end}]),
+        {"replace all non-list and non_tuple values with false", ?_assertEqual(
+            encode(Term, [{pre_encode, fun(V) when is_list(V); is_tuple(V) -> V; (_) -> false end}]),
             [
                 start_object,
                     {key, <<"object">>}, start_object,
@@ -868,6 +870,33 @@ pre_encoders_test_() ->
                             {integer, 1}, {float, 1.0}, {float, 1.0},
                         end_array,
                     end_object,
+                end_object,
+                end_json
+            ]
+        )},
+        {"pre_encode tuple", ?_assertEqual(
+            encode({1, 2, 3}, [{pre_encode, fun(Tuple) when is_tuple(Tuple) -> tuple_to_list(Tuple); (V) -> V end}]),
+            [
+                start_array,
+                    {integer, 1}, {integer, 2}, {integer, 3},
+                end_array,
+                end_json 
+            ]
+        )},
+        {"pre_encode 2-tuples", ?_assertEqual(
+            encode([{number, 1}], [{pre_encode, fun({K, V}) -> {K, V + 1}; (V) -> V end}]),
+            [
+                start_object,
+                    {key, <<"number">>}, {integer, 2},
+                end_object,
+                end_json
+            ]
+        )},
+        {"pre_encode one field record", ?_assertEqual(
+            encode([{foo, bar}], [{pre_encode, fun({foo, V}) -> {V, undefined}; (undefined) -> false; (V) -> V end}]),
+            [
+                start_object,
+                    {key, <<"bar">>}, {literal, false},
                 end_object,
                 end_json
             ]
@@ -979,7 +1008,7 @@ check_bad(List) ->
 
 
 check_replaced(List) ->
-    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false 
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false
         end,
         check(List, [replaced_bad_utf8], [])
     ).
@@ -997,7 +1026,7 @@ check([], _Opts, Acc) -> Acc;
 check([H|T], Opts, Acc) ->
     R = encode(to_fake_utf(H, utf8), Opts),
     check(T, Opts, [{H, R}] ++ Acc).
-    
+
 
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
 
@@ -1018,7 +1047,7 @@ reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 good() -> lists:seq(16#0000, 16#d7ff) ++ lists:seq(16#e000, 16#fdcf) ++ lists:seq(16#fdf0, 16#fffd).
 
 good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
-        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
+        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000,
         16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
     ] ++ lists:seq(16#100000, 16#10fffd).
 
@@ -1027,7 +1056,7 @@ good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
 to_fake_utf(N, utf8) when N < 16#0080 -> <<N:8>>;
 to_fake_utf(N, utf8) when N < 16#0800 ->
     <<0:5, Y:5, X:6>> = <<N:16>>,
-    <<2#110:3, Y:5, 2#10:2, X:6>>; 
+    <<2#110:3, Y:5, 2#10:2, X:6>>;
 to_fake_utf(N, utf8) when N < 16#10000 ->
     <<Z:4, Y:6, X:6>> = <<N:16>>,
     <<2#1110:4, Z:4, 2#10:2, Y:6, 2#10:2, X:6>>;
