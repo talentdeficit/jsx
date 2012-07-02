@@ -1,3 +1,7 @@
+v1.3.1
+
+* `pre_encode` is now able to handle tuples
+
 v1.3
 
 * introduces `prettify/1` and `minify/1`, shortcuts for `format/2`
