@@ -65,22 +65,38 @@ value([{}], {Handler, State}, _Opts) ->
     Handler:handle_event(end_object, Handler:handle_event(start_object, State));
 value([], {Handler, State}, _Opts) ->
     Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value([Tuple|Rest], Handler, Opts) when is_tuple(Tuple) ->
-    list_or_object([pre_encode(Tuple, Opts)|Rest], Handler, Opts);
+value([Tuple|_] = List, Handler, Opts) when is_tuple(Tuple) ->
+    list_or_object(List, Handler, Opts);
 value(List, Handler, Opts) when is_list(List) ->
     list_or_object(List, Handler, Opts);
 value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-list_or_object([Tuple|_] = List, {Handler, State}, Opts) when is_tuple(Tuple) ->
-    object(List, {Handler, Handler:handle_event(start_object, State)}, Opts);
-list_or_object(List, {Handler, State}, Opts) ->
-    list(List, {Handler, Handler:handle_event(start_array, State)}, Opts).
+list_or_object([Term|Rest], {Handler, State}, Opts) ->
+	case pre_encode(Term, Opts) of
+		{K, V} ->
+			object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Opts)
+		; T ->
+			list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Opts)
+	end.
 
 
-object([{Key, Value}|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
+object([{Key, Value}, Next|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
     object(
-        Rest,
+        [pre_encode(Next, Opts)|Rest],
+        {
+            Handler,
+            value(
+                pre_encode(Value, Opts),
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
+                Opts
+            )
+        },
+        Opts
+    );
+object([{Key, Value}], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
+    object(
+        [],
         {
             Handler,
             value(
@@ -95,8 +111,10 @@ object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
 object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
-list([Value|Rest], {Handler, State}, Opts) ->
-    list(Rest, {Handler, value(pre_encode(Value, Opts), {Handler, State}, Opts)}, Opts);
+list([Value, Next|Rest], {Handler, State}, Opts) ->
+    list([pre_encode(Next, Opts)|Rest], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
+list([Value], {Handler, State}, Opts) ->
+	list([], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
 list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
@@ -884,10 +902,10 @@ pre_encoders_test_() ->
             ]
         )},
         {"pre_encode 2-tuples", ?_assertEqual(
-            encode([{number, 1}], [{pre_encode, fun({K, V}) -> {K, V + 1}; (V) -> V end}]),
+            encode([{two, 1}, {three, 2}], [{pre_encode, fun({K, V}) -> {K, V + 1}; (V) -> V end}]),
             [
                 start_object,
-                    {key, <<"number">>}, {integer, 2},
+                    {key, <<"two">>}, {integer, 2}, {key, <<"three">>}, {integer, 3},
                 end_object,
                 end_json
             ]
@@ -900,7 +918,16 @@ pre_encoders_test_() ->
                 end_object,
                 end_json
             ]
-        )}
+        )},
+		{"pre_encode list", ?_assertEqual(
+			encode([1,2,3], [{pre_encode, fun(X) when is_integer(X) -> X + 1; (V) -> V end}]),
+			[
+				start_array,
+					{integer, 2}, {integer, 3}, {integer, 4},
+				end_array,
+				end_json
+			]
+		)}
     ].
 
 
