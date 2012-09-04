@@ -82,13 +82,14 @@ list_or_object([Term|Rest], {Handler, State}, Opts) ->
 
 
 object([{Key, Value}, Next|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
-    object(
+    V = pre_encode(Value, Opts),
+	object(
         [pre_encode(Next, Opts)|Rest],
         {
             Handler,
             value(
-                pre_encode(Value, Opts),
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
+				V,
+				{Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
                 Opts
             )
         },
