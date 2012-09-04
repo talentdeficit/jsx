@@ -1,4 +1,4 @@
-# jsx (v1.3.1) #
+# jsx (v1.3.2) #
 
 an erlang application for consuming, producing and manipulating [json][json]. inspired by [yajl][yajl]
 
@@ -8,7 +8,7 @@ jsx is released under the terms of the [MIT][MIT] license
 
 jsx may be built using either [sinan][sinan] or [rebar][rebar]
 
-[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
+[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
 
 
 ## index ##

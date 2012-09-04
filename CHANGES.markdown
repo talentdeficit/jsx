@@ -1,3 +1,7 @@
+v1.3.2
+
+* `pre_encode` is now able to handle tuples *correctly*
+
 v1.3.1
 
 * `pre_encode` is now able to handle tuples
