@@ -1,3 +1,7 @@
+v1.3.3
+
+* `pre_encode` now orders input in the order you'd expect
+
 v1.3.2
 
 * `pre_encode` is now able to handle tuples *correctly*
