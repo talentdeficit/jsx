@@ -8,8 +8,6 @@ jsx is released under the terms of the [MIT][MIT] license
 
 jsx may be built using either [sinan][sinan] or [rebar][rebar]
 
-[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=master)](http://travis-ci.org/talentdeficit/jsx)
-
 
 
 ## index ##
