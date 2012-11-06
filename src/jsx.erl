@@ -32,6 +32,8 @@
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
 
+-export_type([json_term/0, json_text/0]).
+
 %% test handler
 -ifdef(TEST).
 -export([init/1, handle_event/2]).
@@ -148,7 +150,7 @@ encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
     | false
     | null
     | end_json.
-    
+
 
 -type parser() :: fun((token() | end_stream) -> any()).
 
@@ -235,10 +237,10 @@ init([]) -> [].
 
 handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
 handle_event(Event, State) -> [Event] ++ State.
-    
 
 
-jsx_decoder_gen([]) -> [];    
+
+jsx_decoder_gen([]) -> [];
 jsx_decoder_gen([Test|Rest]) ->
     Name = proplists:get_value(name, Test),
     JSON = proplists:get_value(json, Test),
@@ -273,7 +275,7 @@ load_tests([Test|Rest], Dir, Acc) ->
 
 parse_tests(TestSpec, Dir) ->
     parse_tests(TestSpec, Dir, []).
-    
+
 parse_tests([{json, Path}|Rest], Dir, Acc) when is_list(Path) ->
     case file:read_file(Dir ++ "/" ++ Path) of
         {ok, Bin} -> parse_tests(Rest, Dir, [{json, Bin}] ++ Acc)
@@ -299,7 +301,7 @@ test_decode(JSON, Flags) ->
         error:badarg -> {error, badarg}
     end.
 
-    
+
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
 	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
 	try incremental_decode_loop(P(C), Rest)
@@ -314,5 +316,5 @@ incremental_decode_loop({incomplete, More}, <<>>) ->
 incremental_decode_loop({incomplete, More}, <<C:1/binary, Rest/binary>>) ->
     incremental_decode_loop(More(C), Rest).
 
-    
+
 -endif.
