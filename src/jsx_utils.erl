@@ -110,7 +110,7 @@ valid_flags() ->
         json_escape,            %% escaped_strings
         ignore_bad_escapes      %% ignored_bad_escapes
     ].
- 
+
 
 extract_opts(Opts) ->
     extract_parser_opts(Opts, []).

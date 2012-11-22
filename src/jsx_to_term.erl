@@ -45,7 +45,7 @@
 
 
 -spec to_term(Source::binary(), Opts::opts()) -> json_value().
-    
+
 to_term(Source, Opts) when is_list(Opts) ->
     (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source).
 
@@ -81,7 +81,7 @@ handle_event(end_object, {[[], Last|Terms], Opts}) ->
     {[[post_decode([{}], Opts)] ++ Last] ++ Terms, Opts};
 handle_event(end_object, {[Object, Last|Terms], Opts}) ->
     {[[post_decode(lists:reverse(Object), Opts)] ++ Last] ++ Terms, Opts};
-    
+
 handle_event(start_array, {Terms, Opts}) -> {[[]|Terms], Opts};
 handle_event(end_array, {[List, {key, Key}, Last|Terms], Opts}) ->
     {[[{Key, post_decode(lists:reverse(List), Opts)}] ++ Last] ++ Terms, Opts};
@@ -148,7 +148,7 @@ comp_json() ->
         {},
         [],
         [{},{}],
-        {\"key\": [], \"another key\": {}}    
+        {\"key\": [], \"another key\": {}}
     ]">>.
 
 comp_term() ->
@@ -215,7 +215,7 @@ post_decoders_test_() ->
                 {<<"literals">>, [false, false, false]},
                 {<<"strings">>, [false, false, false]},
                 {<<"numbers">>, [false, false, false]}
-            ]}]            
+            ]}]
         )},
         {"atoms_to_strings", ?_assertEqual(
             to_term(JSON, [{post_decode, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
@@ -226,5 +226,5 @@ post_decoders_test_() ->
             ]}]
         )}
     ].
-    
+
 -endif.

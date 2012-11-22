@@ -35,7 +35,7 @@
 
 
 -spec is_json(Source::binary(), Opts::opts()) -> true | false.
-    
+
 is_json(Source, Opts) when is_list(Opts) ->
     try (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
     catch error:badarg -> false
@@ -92,39 +92,39 @@ json_true_test_() ->
     [
         {"empty object", ?_assert(is_json(<<"{}">>, []))},
         {"empty array", ?_assert(is_json(<<"[]">>, []))},
-        {"whitespace", 
-            ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>, 
+        {"whitespace",
+            ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>,
                     []
                 )
             )
         },
-        {"nested terms", 
+        {"nested terms",
             ?_assert(is_json(
-                    <<"[{ \"x\": [ {}, {}, {} ], \"y\": [{}] }, {}, [[[]]]]">>, 
+                    <<"[{ \"x\": [ {}, {}, {} ], \"y\": [{}] }, {}, [[[]]]]">>,
                     []
                 )
             )
         },
-        {"numbers", 
+        {"numbers",
             ?_assert(is_json(
-                    <<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>, 
+                    <<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>,
                     []
                 )
             )
         },
-        {"strings", 
+        {"strings",
             ?_assert(is_json(
-                    <<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>, 
+                    <<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>,
                     []
                 )
             )
         },
-        {"literals", 
+        {"literals",
             ?_assert(is_json(<<"[ true, false, null ]">>, []))
         },
-        {"nested objects", 
+        {"nested objects",
             ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []))
-        },        
+        },
         {"repeated key ok", ?_assert(is_json(
                     <<"{\"key\": true, \"key\": true}">>,
                     [repeated_keys]
@@ -142,7 +142,7 @@ json_true_test_() ->
 json_false_test_() ->
     [
         {"unbalanced list", ?_assertNot(is_json(<<"[]]">>, []))},
-        {"trailing comma", 
+        {"trailing comma",
             ?_assertNot(is_json(<<"[ true, false, null, ]">>, []))
         },
         {"unquoted key", ?_assertNot(is_json(<<"{ key: false }">>, []))},
@@ -168,21 +168,21 @@ term_true_test_() ->
         {"empty object", ?_assert(is_term([{}], []))},
         {"empty array", ?_assert(is_term([], []))},
         {"whitespace", ?_assert(is_term([    true      ], []))},
-        {"nested terms", 
+        {"nested terms",
             ?_assert(is_term([[{x, [[{}], [{}], [{}]]}, {y, [{}]}], [{}], [[[]]]], []))
         },
-        {"numbers", 
+        {"numbers",
             ?_assert(is_term([-1.0, -1, -0, 0, 1.0e-1, 1, 1.0, 1.0e1], []))
         },
-        {"strings", 
+        {"strings",
             ?_assert(is_term(
-                    [<<"a">>, <<"string">>, <<"in">>, <<"multiple">>, <<"acts">>], 
+                    [<<"a">>, <<"string">>, <<"in">>, <<"multiple">>, <<"acts">>],
                     []
                 )
             )
         },
         {"literals", ?_assert(is_term([ true, false, null ], []))},
-        {"nested objects", ?_assert(is_term([{key, [{key, true}]}], []))},        
+        {"nested objects", ?_assert(is_term([{key, [{key, true}]}], []))},
         {"repeated key ok", ?_assert(is_term(
                     [{key, true}, {key, true}],
                     []
@@ -224,6 +224,6 @@ term_false_test_() ->
             )
         }
     ].
-        
-    
+
+
 -endif.

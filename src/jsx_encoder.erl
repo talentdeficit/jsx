@@ -899,7 +899,7 @@ pre_encoders_test_() ->
                 start_array,
                     {integer, 1}, {integer, 2}, {integer, 3},
                 end_array,
-                end_json 
+                end_json
             ]
         )},
         {"pre_encode 2-tuples", ?_assertEqual(

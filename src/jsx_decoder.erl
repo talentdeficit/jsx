@@ -76,7 +76,7 @@ decoder(Handler, State, Opts) ->
 %% some useful guards
 -define(is_hex(Symbol),
     (Symbol >= $a andalso Symbol =< $z);
-    (Symbol >= $A andalso Symbol =< $Z); 
+    (Symbol >= $A andalso Symbol =< $Z);
     (Symbol >= $0 andalso Symbol =< $9)
 ).
 
@@ -177,7 +177,7 @@ value(<<?start_object, Rest/binary>>, Handler, Stack, Opts) ->
     object(Rest, handle_event(start_object, Handler, Opts), [key|Stack], Opts);
 value(<<?start_array, Rest/binary>>, Handler, Stack, Opts) ->
     array(Rest, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
-value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+value(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     value(Rest, Handler, Stack, Opts);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
     comment(Rest, Handler, [value|Stack], Opts);
@@ -202,7 +202,7 @@ object(<<>>, Handler, Stack, Opts) ->
 object(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
-   
+
 array(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
     string(Rest, Handler, [?new_seq()|Stack], Opts);
 array(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quoted_strings=true}) ->
@@ -225,7 +225,7 @@ array(<<?start_array, Rest/binary>>, Handler, Stack, Opts) ->
     array(Rest, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
 array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Opts) ->
     maybe_done(Rest, handle_event(end_array, Handler, Opts), Stack, Opts);
-array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) -> 
+array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     array(Rest, Handler, Stack, Opts);
 array(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
     comment(Rest, Handler, [array|Stack], Opts);
@@ -254,7 +254,7 @@ key(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quoted_st
 key(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Opts);
 key(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
-    comment(Rest, Handler, [key|Stack], Opts);       
+    comment(Rest, Handler, [key|Stack], Opts);
 key(<<>>, Handler, Stack, Opts) ->
     ?incomplete(key, <<>>, Handler, Stack, Opts);
 key(Bin, Handler, Stack, Opts) ->
@@ -270,7 +270,7 @@ key(Bin, Handler, Stack, Opts) ->
 partial_utf(<<>>) -> true;
 partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
 partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
-partial_utf(<<X, Y, Z>>) 
+partial_utf(<<X, Y, Z>>)
         when X >= 16#f0, X =< 16#f4,
             Y >= 16#80, Y =< 16#bf,
             Z >= 16#80, Z =< 16#bf ->
@@ -537,7 +537,7 @@ string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
         ; false -> ?error([<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts])
     end;
 string(Bin, Handler, Stack, Opts) ->
-    case partial_utf(Bin) of 
+    case partial_utf(Bin) of
         true -> ?incomplete(string, Bin, Handler, Stack, Opts)
         ; false ->
             case Opts#opts.replaced_bad_utf8 of
@@ -546,7 +546,7 @@ string(Bin, Handler, Stack, Opts) ->
             end
     end.
 
-    
+
 %% we don't need to guard against partial utf here, because it's already taken
 %%   care of in string
 %% surrogates
@@ -580,7 +580,7 @@ strip_continuations(Rest, Handler, [0, Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Opts);
 strip_continuations(<<X, Rest/binary>>, Handler,  [N|Stack], Opts) when X >= 128, X =< 191 ->
     strip_continuations(Rest, Handler, [N - 1|Stack], Opts);
-%% incomplete    
+%% incomplete
 strip_continuations(<<>>, Handler, Stack, Opts) ->
     ?incomplete(strip_continuations, <<>>, Handler, Stack, Opts);
 %% not a continuation byte, dispatch back to string
@@ -616,7 +616,7 @@ escape(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-%% this code is ugly and unfortunate, but so is json's handling of escaped 
+%% this code is ugly and unfortunate, but so is json's handling of escaped
 %%   unicode codepoint sequences.
 escaped_unicode(<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Opts)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
@@ -650,7 +650,7 @@ is_partial_escape(_) -> false.
 low_surrogate(<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Opts)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        X when X >= 16#dc00, X =< 16#dfff -> 
+        X when X >= 16#dc00, X =< 16#dfff ->
             Y = surrogate_to_codepoint(High, X),
             case (Y =< 16#d800 orelse Y >= 16#e000) of
                 true -> string(Rest, Handler, [?acc_seq(Acc, Y)|Stack], Opts)
@@ -677,7 +677,7 @@ low_surrogate(Bin, Handler, [High, Acc|Stack], Opts) ->
                 ; false -> ?error([Bin, Handler, [High, Acc|Stack], Opts])
             end
     end.
-        
+
 
 is_partial_low(<<?rsolidus, $u, A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
 is_partial_low(<<?rsolidus, $u, A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
@@ -688,7 +688,7 @@ is_partial_low(<<>>) -> true;
 is_partial_low(_) -> false.
 
 
-%% stole this from the unicode spec    
+%% stole this from the unicode spec
 surrogate_to_codepoint(High, Low) ->
     (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
 
@@ -728,7 +728,7 @@ negative(<<$0, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     zero(Rest, Handler, ["0" ++ Acc|Stack], Opts);
 negative(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_nonzero(S) ->
     integer(Rest, Handler, [[S] ++ Acc|Stack], Opts);
-negative(<<>>, Handler, Stack, Opts) ->  
+negative(<<>>, Handler, Stack, Opts) ->
     ?incomplete(negative, <<>>, Handler, Stack, Opts);
 negative(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -747,7 +747,7 @@ zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
 zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 zero(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);  
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
 zero(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 zero(<<>>, Handler, Stack, Opts) ->
@@ -775,7 +775,7 @@ integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E 
 integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 integer(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
 integer(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 integer(<<>>, Handler, Stack, Opts) ->
@@ -808,7 +808,7 @@ decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Opts) when S =:= $e; S
 decimal(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 decimal(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
 decimal(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 decimal(<<>>, Handler, Stack, Opts) ->
@@ -818,10 +818,10 @@ decimal(Bin, Handler, Stack, Opts) ->
 
 
 e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);   
+    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
 e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?positive; S =:= ?negative ->
     ex(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-e(<<>>, Handler, Stack, Opts) ->  
+e(<<>>, Handler, Stack, Opts) ->
     ?incomplete(e, <<>>, Handler, Stack, Opts);
 e(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -829,7 +829,7 @@ e(Bin, Handler, Stack, Opts) ->
 
 ex(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Opts) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Opts);
-ex(<<>>, Handler, Stack, Opts) ->  
+ex(<<>>, Handler, Stack, Opts) ->
     ?incomplete(ex, <<>>, Handler, Stack, Opts);
 ex(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -848,7 +848,7 @@ exp(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
 exp(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 exp(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts); 
+    comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
 exp(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
     maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 exp(<<>>, Handler, Stack, Opts) ->
@@ -869,7 +869,7 @@ format_number({Int, Frac, Exp}) ->
 
 tr(<<$r, Rest/binary>>, Handler, Stack, Opts) ->
     tru(Rest, Handler, Stack, Opts);
-tr(<<>>, Handler, Stack, Opts) ->  
+tr(<<>>, Handler, Stack, Opts) ->
     ?incomplete(tr, <<>>, Handler, Stack, Opts);
 tr(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -877,7 +877,7 @@ tr(Bin, Handler, Stack, Opts) ->
 
 tru(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     true(Rest, Handler, Stack, Opts);
-tru(<<>>, Handler, Stack, Opts) ->  
+tru(<<>>, Handler, Stack, Opts) ->
     ?incomplete(tru, <<>>, Handler, Stack, Opts);
 tru(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -885,7 +885,7 @@ tru(Bin, Handler, Stack, Opts) ->
 
 true(<<$e, Rest/binary>>, Handler, Stack, Opts) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Opts), Stack, Opts);
-true(<<>>, Handler, Stack, Opts) ->  
+true(<<>>, Handler, Stack, Opts) ->
     ?incomplete(true, <<>>, Handler, Stack, Opts);
 true(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -893,31 +893,31 @@ true(Bin, Handler, Stack, Opts) ->
 
 fa(<<$a, Rest/binary>>, Handler, Stack, Opts) ->
     fal(Rest, Handler, Stack, Opts);
-fa(<<>>, Handler, Stack, Opts) ->  
+fa(<<>>, Handler, Stack, Opts) ->
     ?incomplete(fa, <<>>, Handler, Stack, Opts);
 fa(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
-    
+
 
 fal(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
     fals(Rest, Handler, Stack, Opts);
-fal(<<>>, Handler, Stack, Opts) ->  
+fal(<<>>, Handler, Stack, Opts) ->
     ?incomplete(fal, <<>>, Handler, Stack, Opts);
 fal(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
-    
+
 
 fals(<<$s, Rest/binary>>, Handler, Stack, Opts) ->
     false(Rest, Handler, Stack, Opts);
-fals(<<>>, Handler, Stack, Opts) ->  
+fals(<<>>, Handler, Stack, Opts) ->
     ?incomplete(fals, <<>>, Handler, Stack, Opts);
 fals(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
-    
+
 
 false(<<$e, Rest/binary>>, Handler, Stack, Opts) ->
     maybe_done(Rest, handle_event({literal, false}, Handler, Opts), Stack, Opts);
-false(<<>>, Handler, Stack, Opts) ->  
+false(<<>>, Handler, Stack, Opts) ->
     ?incomplete(false, <<>>, Handler, Stack, Opts);
 false(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -925,7 +925,7 @@ false(Bin, Handler, Stack, Opts) ->
 
 nu(<<$u, Rest/binary>>, Handler, Stack, Opts) ->
     nul(Rest, Handler, Stack, Opts);
-nu(<<>>, Handler, Stack, Opts) ->  
+nu(<<>>, Handler, Stack, Opts) ->
     ?incomplete(nu, <<>>, Handler, Stack, Opts);
 nu(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -933,7 +933,7 @@ nu(Bin, Handler, Stack, Opts) ->
 
 nul(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
     null(Rest, Handler, Stack, Opts);
-nul(<<>>, Handler, Stack, Opts) ->  
+nul(<<>>, Handler, Stack, Opts) ->
     ?incomplete(nul, <<>>, Handler, Stack, Opts);
 nul(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -941,7 +941,7 @@ nul(Bin, Handler, Stack, Opts) ->
 
 null(<<$l, Rest/binary>>, Handler, Stack, Opts) ->
     maybe_done(Rest, handle_event({literal, null}, Handler, Opts), Stack, Opts);
-null(<<>>, Handler, Stack, Opts) ->  
+null(<<>>, Handler, Stack, Opts) ->
     ?incomplete(null, <<>>, Handler, Stack, Opts);
 null(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -950,7 +950,7 @@ null(Bin, Handler, Stack, Opts) ->
 comment(<<?solidus, Rest/binary>>, Handler, Stack, Opts) ->
     single_comment(Rest, Handler, Stack, Opts);
 comment(<<?star, Rest/binary>>, Handler, Stack, Opts) ->
-    multi_comment(Rest, Handler, Stack, Opts); 
+    multi_comment(Rest, Handler, Stack, Opts);
 comment(<<>>, Handler, Stack, Opts) ->
     ?incomplete(comment, <<>>, Handler, Stack, Opts);
 comment(Bin, Handler, Stack, Opts) ->
@@ -962,7 +962,7 @@ single_comment(<<?newline, Rest/binary>>, Handler, Stack, Opts) ->
 single_comment(<<_/utf8, Rest/binary>>, Handler, Stack, Opts) ->
     single_comment(Rest, Handler, Stack, Opts);
 single_comment(<<>>, Handler, [done], Opts=#opts{explicit_end=false}) ->
-    end_comment(<<>>, Handler, [done], Opts);   
+    end_comment(<<>>, Handler, [done], Opts);
 single_comment(<<>>, Handler, Stack, Opts) ->
     ?incomplete(single_comment, <<>>, Handler, Stack, Opts);
 single_comment(Bin, Handler, Stack, Opts) ->
@@ -1015,7 +1015,7 @@ maybe_done(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, Handler, Stack, Opts);
 maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
     comment(Rest, Handler, [maybe_done|Stack], Opts);
-maybe_done(<<>>, Handler, Stack, Opts) when length(Stack) > 0 -> 
+maybe_done(<<>>, Handler, Stack, Opts) when length(Stack) > 0 ->
     ?incomplete(maybe_done, <<>>, Handler, Stack, Opts);
 maybe_done(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
@@ -1114,7 +1114,7 @@ bad_utf8_test_() ->
         },
         {"all continuation bytes",
             ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
-        },        
+        },
         {"all continuation bytes replaced",
             ?_assertEqual(
                 xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [replaced_bad_utf8]),
@@ -1531,7 +1531,7 @@ reserved_test_() ->
         }
     ].
 
-    
+
 good_characters_test_() ->
     [
         {"acceptable codepoints",
@@ -1550,7 +1550,7 @@ good_characters_test_() ->
             ?_assert(check_good(good_extended()))
         }
     ].
-    
+
 
 check_bad(List) ->
     [] == lists:dropwhile(fun({_, {error, badarg}}) -> true ; (_) -> false end,
@@ -1559,7 +1559,7 @@ check_bad(List) ->
 
 
 check_replaced(List) ->
-    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false 
+    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false
         end,
         check(List, [replaced_bad_utf8], [])
     ).
@@ -1604,7 +1604,7 @@ good() -> [32, 33]
             ++ lists:seq(16#fdf0, 16#fffd).
 
 good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
-        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 
+        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000,
         16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
     ] ++ lists:seq(16#100000, 16#10fffd).
 
@@ -1613,7 +1613,7 @@ good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
 to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
 to_fake_utf(N, utf8) when N < 16#0800 ->
     <<0:5, Y:5, X:6>> = <<N:16>>,
-    <<34/utf8, 2#110:3, Y:5, 2#10:2, X:6, 34/utf8>>; 
+    <<34/utf8, 2#110:3, Y:5, 2#10:2, X:6, 34/utf8>>;
 to_fake_utf(N, utf8) when N < 16#10000 ->
     <<Z:4, Y:6, X:6>> = <<N:16>>,
     <<34/utf8, 2#1110:4, Z:4, 2#10:2, Y:6, 2#10:2, X:6, 34/utf8>>;

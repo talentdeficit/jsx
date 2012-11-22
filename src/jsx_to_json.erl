@@ -37,13 +37,13 @@
 
 
 -spec to_json(Source::any(), Opts::opts()) -> binary().
-    
+
 to_json(Source, Opts) when is_list(Opts) ->
     (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts ++ [escaped_strings])))(Source).
 
 
 -spec format(Source::binary(), Opts::opts()) -> binary().
-    
+
 format(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
     (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts ++ [escaped_strings])))(Source).
 
@@ -210,7 +210,7 @@ basic_format_test_() ->
                     \"a list\": [true, false]
                 },
                 [[{}]]
-            ]">>, []), 
+            ]">>, []),
             <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
         )},
         {"simple nested structure",
@@ -236,7 +236,7 @@ basic_to_json_test_() ->
             to_json(
                 [{<<"key">>, <<"value">>}],
                 []
-            ), 
+            ),
             <<"{\"key\":\"value\"}">>
         )},
         {"nested object", ?_assertEqual(
@@ -280,14 +280,14 @@ opts_test_() ->
         )},
         {"specific indent/space", ?_assertEqual(
             format(
-                <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>, 
+                <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>,
                 [{space, 2}, {indent, 3}]
             ),
             <<"{\n   \"key\":  [],\n   \"another key\":  true\n}">>
         )},
         {"nested structures", ?_assertEqual(
             format(
-                <<"[{\"key\":\"value\", \"another key\": \"another value\"}, [[true, false, null]]]">>, 
+                <<"[{\"key\":\"value\", \"another key\": \"another value\"}, [[true, false, null]]]">>,
                 [{space, 2}, {indent, 2}]
             ),
             <<"[\n  {\n    \"key\":  \"value\",\n    \"another key\":  \"another value\"\n  },\n  [\n    [\n      true,\n      false,\n      null\n    ]\n  ]\n]">>
@@ -310,5 +310,5 @@ opts_test_() ->
         )}
     ].
 
-    
+
 -endif.
