@@ -179,6 +179,81 @@ encoder_decoder_equiv_test_() ->
     ].
 
 
+partial_numbers_test_() ->
+    [
+        {"partial integer",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"integer\": 12345">>),
+                    F(<<"67890}">>)
+                end =:= [{<<"integer">>, 1234567890}]
+            )
+        },
+        {"partial integer",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"integer\": 1234567890">>),
+                    F(<<"}">>)
+                end =:= [{<<"integer">>, 1234567890}]
+            )
+        },
+        {"partial float",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"float\": 1.">>),
+                    F(<<"23}">>)
+                end =:= [{<<"float">>, 1.23}]
+            )
+        },
+        {"partial float",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"float\": 1.2">>),
+                    F(<<"3}">>)
+                end =:= [{<<"float">>, 1.23}]
+            )
+        },
+        {"partial float",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"float\": 1.23">>),
+                    F(<<"}">>)
+                end =:= [{<<"float">>, 1.23}]
+            )
+        },
+        {"partial exp",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"exp\": 1.0e">>),
+                    F(<<"1}">>)
+                end =:= [{<<"exp">>, 10.0}]
+            )
+        },
+        {"partial exp",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"exp\": 1.0e1">>),
+                    F(<<"2}">>)
+                end =:= [{<<"exp">>, 1.0e12}]
+            )
+        },
+        {"partial exp",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"exp\": 1.0e1">>),
+                    F(<<"}">>)
+                end =:= [{<<"exp">>, 10.0}]
+            )
+        },
+        {"partial zero",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"zero\": 0">>),
+                    F(<<".0}">>)
+                end =:= [{<<"zero">>, 0.0}]
+            )
+        },
+        {"partial zero",
+            ?_assert(begin
+                    {incomplete, F} = jsx:decode(<<"{\"zero\": 0">>),
+                    F(<<"}">>)
+                end =:= [{<<"zero">>, 0}]
+            )
+        }
+    ].
+
+
 single_quoted_strings_test_() ->
     [
         {"single quoted keys",

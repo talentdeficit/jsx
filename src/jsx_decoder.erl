@@ -748,8 +748,8 @@ zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 zero(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
-zero(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+zero(<<>>, Handler, [Acc|[]], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), [], Opts);
 zero(<<>>, Handler, Stack, Opts) ->
     ?incomplete(zero, <<>>, Handler, Stack, Opts);
 zero(Bin, Handler, Stack, Opts) ->
@@ -776,8 +776,8 @@ integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) -
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 integer(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
-integer(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+integer(<<>>, Handler, [Acc|[]], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), [], Opts);
 integer(<<>>, Handler, Stack, Opts) ->
     ?incomplete(integer, <<>>, Handler, Stack, Opts);
 integer(Bin, Handler, Stack, Opts) ->
@@ -809,8 +809,8 @@ decimal(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) -
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 decimal(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
-decimal(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+decimal(<<>>, Handler, [Acc|[]], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), [], Opts);
 decimal(<<>>, Handler, Stack, Opts) ->
     ?incomplete(decimal, <<>>, Handler, Stack, Opts);
 decimal(Bin, Handler, Stack, Opts) ->
@@ -849,8 +849,8 @@ exp(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 exp(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Opts), [maybe_done|Stack], Opts);
-exp(<<>>, Handler, [Acc|Stack], Opts = #opts{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
+exp(<<>>, Handler, [Acc|[]], Opts = #opts{explicit_end=false}) ->
+    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Opts), [], Opts);
 exp(<<>>, Handler, Stack, Opts) ->
     ?incomplete(exp, <<>>, Handler, Stack, Opts);
 exp(Bin, Handler, Stack, Opts) ->
