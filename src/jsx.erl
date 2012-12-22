@@ -56,7 +56,6 @@
 -spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text().
 
 encode(Source) -> encode(Source, []).
-
 encode(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 %% old api, alias for encode/x
@@ -71,7 +70,6 @@ term_to_json(Source, Opts) -> encode(Source, Opts).
 -spec format(Source::json_text(), Opts::jsx_to_json:opts()) -> json_text().
 
 format(Source) -> format(Source, []).
-
 format(Source, Opts) -> jsx_to_json:format(Source, Opts).
 
 
@@ -89,7 +87,6 @@ prettify(Source) -> format(Source, [space, {indent, 2}]).
 -spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term().
 
 decode(Source) -> decode(Source, []).
-
 decode(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 %% old api, alias for to_term/x
@@ -104,7 +101,6 @@ json_to_term(Source, Opts) -> decode(Source, Opts).
 -spec is_json(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
-
 is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
 
 
@@ -112,7 +108,6 @@ is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
 -spec is_term(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_term(Source) -> is_term(Source, []).
-
 is_term(Source, Opts) -> jsx_verify:is_term(Source, Opts).
 
 
