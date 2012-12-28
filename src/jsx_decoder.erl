@@ -1541,7 +1541,7 @@ good_characters_test_() ->
             ?_assert(check_good(good(), [escaped_strings]))
         },
         {"acceptable codepoints - replaced_bad_utf8",
-            ?_assert(check_good(good(), [escaped_strings]))
+            ?_assert(check_good(good(), [replaced_bad_utf8]))
         },
         {"acceptable codepoints - escaped_strings + replaced_bad_utf8",
             ?_assert(check_good(good(), [escaped_strings, replaced_bad_utf8]))
@@ -1582,14 +1582,16 @@ check([H|T], Opts, Acc) ->
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
 
 extended_noncharacters() ->
-    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
-        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
-        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
-        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
-        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
-        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
-        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
-        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
+    [
+        16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff,
+        16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff,
+        16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff,
+        16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff,
+        16#9fffe, 16#9ffff, 16#afffe, 16#affff,
+        16#bfffe, 16#bffff, 16#cfffe, 16#cffff,
+        16#dfffe, 16#dffff, 16#efffe, 16#effff,
+        16#ffffe, 16#fffff, 16#10fffe, 16#10ffff
+    ].
 
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
@@ -1597,13 +1599,17 @@ control_characters() -> lists:seq(1, 31).
 
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 
-good() -> [32, 33]
-            ++ lists:seq(16#23, 16#5b)
-            ++ lists:seq(16#5d, 16#d7ff)
-            ++ lists:seq(16#e000, 16#fdcf)
-            ++ lists:seq(16#fdf0, 16#fffd).
+good() ->
+    [32, 33]
+        ++ lists:seq(16#23, 16#5b)
+        ++ lists:seq(16#5d, 16#d7ff)
+        ++ lists:seq(16#e000, 16#fdcf)
+        ++ lists:seq(16#fdf0, 16#fffd).
 
-good_extended() -> [16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
+good_extended() ->
+    lists:seq(16#10000, 16#1fffd) ++
+    [
+        16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
         16#60000, 16#70000, 16#80000, 16#90000, 16#a0000,
         16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
     ] ++ lists:seq(16#100000, 16#10fffd).
