@@ -491,9 +491,11 @@ string(<<126, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Opts);
 string(<<127, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Opts);
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#20, X < 16#2028 ->
+    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
 string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X == 16#2028; X == 16#2029 ->
     string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Opts))|Stack], Opts);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X >= 16#20, X < 16#d800 ->
+string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X > 16#2029, X < 16#d800 ->
     string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
 string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Opts) when X > 16#dfff, X < 16#fdd0 ->
     string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Opts);
