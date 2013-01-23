@@ -203,26 +203,6 @@ object(Bin, Handler, Stack, Opts) ->
     ?error([Bin, Handler, Stack, Opts]).
 
 
-array(<<?doublequote, Rest/binary>>, Handler, Stack, Opts) ->
-    string(Rest, Handler, [?new_seq()|Stack], Opts);
-array(<<?singlequote, Rest/binary>>, Handler, Stack, Opts = #opts{single_quoted_strings=true}) ->
-    string(Rest, Handler, [?new_seq(), single_quote|Stack], Opts);
-array(<<$t, Rest/binary>>, Handler, Stack, Opts) ->
-    tr(Rest, Handler, Stack, Opts);
-array(<<$f, Rest/binary>>, Handler, Stack, Opts) ->
-    fa(Rest, Handler, Stack, Opts);
-array(<<$n, Rest/binary>>, Handler, Stack, Opts) ->
-    nu(Rest, Handler, Stack, Opts);
-array(<<?negative, Rest/binary>>, Handler, Stack, Opts) ->
-    negative(Rest, Handler, [[$-]|Stack], Opts);
-array(<<?zero, Rest/binary>>, Handler, Stack, Opts) ->
-    zero(Rest, Handler, [[$0]|Stack], Opts);
-array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [[S]|Stack], Opts);
-array(<<?start_object, Rest/binary>>, Handler, Stack, Opts) ->
-    object(Rest, handle_event(start_object, Handler, Opts), [key|Stack], Opts);
-array(<<?start_array, Rest/binary>>, Handler, Stack, Opts) ->
-    array(Rest, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
 array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Opts) ->
     maybe_done(Rest, handle_event(end_array, Handler, Opts), Stack, Opts);
 array(<<S, Rest/binary>>, Handler, Stack, Opts) when ?is_whitespace(S) ->
@@ -232,7 +212,7 @@ array(<<?solidus, Rest/binary>>, Handler, Stack, Opts=#opts{comments=true}) ->
 array(<<>>, Handler, Stack, Opts) ->
     ?incomplete(array, <<>>, Handler, Stack, Opts);
 array(Bin, Handler, Stack, Opts) ->
-    ?error([Bin, Handler, Stack, Opts]).
+    value(Bin, Handler, Stack, Opts).
 
 
 colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Opts) ->
