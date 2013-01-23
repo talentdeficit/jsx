@@ -52,11 +52,10 @@
 -type json_text() :: binary().
 
 
--spec encode(Source::json_term()) -> json_text().
--spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text().
+-spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
+-spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text() | {incomplete, encoder()}.
 
 encode(Source) -> encode(Source, []).
-
 encode(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
 
 %% old api, alias for encode/x
@@ -67,29 +66,27 @@ term_to_json(Source) -> encode(Source, []).
 term_to_json(Source, Opts) -> encode(Source, Opts).
 
 
--spec format(Source::json_text()) -> json_text().
--spec format(Source::json_text(), Opts::jsx_to_json:opts()) -> json_text().
+-spec format(Source::json_text()) -> json_text() | {incomplete, decoder()}.
+-spec format(Source::json_text(), Opts::jsx_to_json:opts()) -> json_text() | {incomplete, decoder()}.
 
 format(Source) -> format(Source, []).
-
 format(Source, Opts) -> jsx_to_json:format(Source, Opts).
 
 
--spec minify(Source::json_text()) -> json_text().
+-spec minify(Source::json_text()) -> json_text()  | {incomplete, decoder()}.
 
 minify(Source) -> format(Source, []).
 
 
--spec prettify(Source::json_text()) -> json_text().
+-spec prettify(Source::json_text()) -> json_text() | {incomplete, decoder()}.
 
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec decode(Source::json_text()) -> json_term().
--spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term().
+-spec decode(Source::json_text()) -> json_term() | {incomplete, decoder()}.
+-spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term()  | {incomplete, decoder()}.
 
 decode(Source) -> decode(Source, []).
-
 decode(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
 
 %% old api, alias for to_term/x
@@ -104,7 +101,6 @@ json_to_term(Source, Opts) -> decode(Source, Opts).
 -spec is_json(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
-
 is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
 
 
@@ -112,7 +108,6 @@ is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
 -spec is_term(Source::any(), Opts::jsx_verify:opts()) -> true | false.
 
 is_term(Source) -> is_term(Source, []).
-
 is_term(Source, Opts) -> jsx_verify:is_term(Source, Opts).
 
 
