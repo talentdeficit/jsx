@@ -24,7 +24,7 @@
 -module(jsx_utils).
 
 -export([parse_opts/1]).
--export([extract_opts/1]).
+-export([extract_opts/1, valid_flags/0]).
 -export([json_escape_sequence/1]).
 
 -include("jsx_opts.hrl").

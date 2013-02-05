@@ -58,8 +58,16 @@ parse_opts([{indent, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
     parse_opts(Rest, Opts#opts{indent = Val});
 parse_opts([indent|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{indent = 1});
-parse_opts([_|Rest], Opts) ->
-    parse_opts(Rest, Opts);
+parse_opts([{K, _}|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
+parse_opts([K|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
 parse_opts([], Opts) ->
     Opts.
 

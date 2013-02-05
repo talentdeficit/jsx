@@ -59,10 +59,16 @@ parse_opts([labels|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{labels = binary});
 parse_opts([{post_decode, F}|Rest], Opts=#opts{post_decode=false}) when is_function(F, 1) ->
     parse_opts(Rest, Opts#opts{post_decode=F});
-parse_opts([{post_decode, _}|_] = Options, Opts) ->
-    erlang:error(badarg, [Options, Opts]);
-parse_opts([_|Rest], Opts) ->
-    parse_opts(Rest, Opts);
+parse_opts([{K, _}|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
+parse_opts([K|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
 parse_opts([], Opts) ->
     Opts.
 

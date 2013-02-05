@@ -56,8 +56,16 @@ parse_opts([{repeated_keys, Val}|Rest], Opts) when Val == true; Val == false ->
     parse_opts(Rest, Opts#opts{repeated_keys = Val});
 parse_opts([repeated_keys|Rest], Opts) ->
     parse_opts(Rest, Opts#opts{repeated_keys = true});
-parse_opts([_|Rest], Opts) ->
-    parse_opts(Rest, Opts);
+parse_opts([{K, _}|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
+parse_opts([K|Rest] = Options, Opts) ->
+    case lists:member(K, jsx_utils:valid_flags()) of
+        true -> parse_opts(Rest, Opts)
+        ; false -> erlang:error(badarg, [Options, Opts])
+    end;
 parse_opts([], Opts) ->
     Opts.
 
@@ -88,141 +96,19 @@ handle_event(_, State) -> State.
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-json_true_test_() ->
-    [
-        {"empty object", ?_assert(is_json(<<"{}">>, []))},
-        {"empty array", ?_assert(is_json(<<"[]">>, []))},
-        {"whitespace",
-            ?_assert(is_json(<<" \n    \t   \r   [true]   \t    \n\r  ">>,
-                    []
-                )
-            )
-        },
-        {"nested terms",
-            ?_assert(is_json(
-                    <<"[{ \"x\": [ {}, {}, {} ], \"y\": [{}] }, {}, [[[]]]]">>,
-                    []
-                )
-            )
-        },
-        {"numbers",
-            ?_assert(is_json(
-                    <<"[ -1.0, -1, -0, 0, 1e-1, 1, 1.0, 1e1 ]">>,
-                    []
-                )
-            )
-        },
-        {"strings",
-            ?_assert(is_json(
-                    <<"[ \"a\", \"string\", \"in\", \"multiple\", \"acts\" ]">>,
-                    []
-                )
-            )
-        },
-        {"literals",
-            ?_assert(is_json(<<"[ true, false, null ]">>, []))
-        },
-        {"nested objects",
-            ?_assert(is_json(<<"{\"key\": { \"key\": true}}">>, []))
-        },
-        {"repeated key ok", ?_assert(is_json(
-                    <<"{\"key\": true, \"key\": true}">>,
-                    [repeated_keys]
-                )
-            )
-        },
-        {"nested repeated key", ?_assert(is_json(
-                    <<"{\"key\": { \"key\": true }}">>,
-                    [{repeated_keys, false}]
-                )
-            )
-        }
-    ].
 
-json_false_test_() ->
+opts_test_() ->
     [
-        {"unbalanced list", ?_assertNot(is_json(<<"[]]">>, []))},
-        {"trailing comma",
-            ?_assertNot(is_json(<<"[ true, false, null, ]">>, []))
-        },
-        {"unquoted key", ?_assertNot(is_json(<<"{ key: false }">>, []))},
-        {"repeated key", ?_assertNot(is_json(
-                <<"{\"key\": true, \"key\": true}">>,
-                [{repeated_keys, false}])
-            )
-        },
-        {"nested repeated key", ?_assertNot(is_json(
-                <<"{\"key\": { \"a\": true, \"a\": false }}">>,
-                [{repeated_keys, false}])
-            )
-        }
-    ].
-
-json_incomplete_test_() ->
-    [
-        {"incomplete test", ?_assertMatch({incomplete, _}, is_json(<<"[">>, []))}
-    ].
-
-term_true_test_() ->
-    [
-        {"empty object", ?_assert(is_term([{}], []))},
-        {"empty array", ?_assert(is_term([], []))},
-        {"whitespace", ?_assert(is_term([    true      ], []))},
-        {"nested terms",
-            ?_assert(is_term([[{x, [[{}], [{}], [{}]]}, {y, [{}]}], [{}], [[[]]]], []))
-        },
-        {"numbers",
-            ?_assert(is_term([-1.0, -1, -0, 0, 1.0e-1, 1, 1.0, 1.0e1], []))
-        },
-        {"strings",
-            ?_assert(is_term(
-                    [<<"a">>, <<"string">>, <<"in">>, <<"multiple">>, <<"acts">>],
-                    []
-                )
-            )
-        },
-        {"literals", ?_assert(is_term([ true, false, null ], []))},
-        {"nested objects", ?_assert(is_term([{key, [{key, true}]}], []))},
-        {"repeated key ok", ?_assert(is_term(
-                    [{key, true}, {key, true}],
-                    []
-                )
-            )
-        },
-        {"nested repeated key", ?_assert(is_term(
-                    [{key, [{key, true}]}],
-                    [{repeated_keys, false}]
-                )
-            )
-        }
-    ].
-
-term_false_test_() ->
-    [
-        {"repeated key", ?_assertNot(is_term(
-                    [{<<"key">>, true}, {<<"key">>, true}],
-                    [{repeated_keys, false}]
-                )
-            )
-        },
-        {"repeated key alternate representation", ?_assertNot(is_term(
-                    [{<<"key">>, true}, {key, true}],
-                    [{repeated_keys, false}]
-                )
-            )
-        },
-        {"repeated key alternate representation two", ?_assertNot(is_term(
-                    [{key, true}, {'key', true}],
-                    [{repeated_keys, false}]
-                )
-            )
-        },
-        {"nested repeated key", ?_assertNot(is_term(
-                    [{key, [{a, true}, {a, false}]}],
-                    [{repeated_keys, false}]
-                )
-            )
-        }
+        {"empty opts", ?_assertEqual(#opts{}, parse_opts([]))},
+        {"bare repeated keys", ?_assertEqual(#opts{}, parse_opts([repeated_keys]))},
+        {"repeated keys true", ?_assertEqual(
+            #opts{},
+            parse_opts([{repeated_keys, true}])
+        )},
+        {"repeated keys false", ?_assertEqual(
+            #opts{repeated_keys=false},
+            parse_opts([{repeated_keys, false}])
+        )}
     ].
 
 
