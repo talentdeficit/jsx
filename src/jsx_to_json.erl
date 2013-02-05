@@ -184,138 +184,28 @@ indent_or_space(Opts) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-basic_format_test_() ->
-    [
-        {"empty object", ?_assertEqual(format(<<"{}">>, []), <<"{}">>)},
-        {"empty array", ?_assertEqual(format(<<"[]">>, []), <<"[]">>)},
-        {"naked integer", ?_assertEqual(format(<<"123">>, []), <<"123">>)},
-        {"naked float", ?_assertEqual(format(<<"1.23">>, []), <<"1.23">>)},
-        {"naked string", ?_assertEqual(format(<<"\"hi\"">>, []), <<"\"hi\"">>)},
-        {"naked string with control character", ?_assertEqual(
-            format(<<"\"hi\\n\"">>, []), <<"\"hi\\n\"">>
-        )},
-        {"naked literal", ?_assertEqual(format(<<"true">>, []), <<"true">>)},
-        {"simple object", ?_assertEqual(
-            format(<<"  { \"key\"  :\n\t \"value\"\r\r\r\n }  ">>, []),
-            <<"{\"key\":\"value\"}">>
-        )},
-        {"really simple object", ?_assertEqual(format(<<"{\"k\":\"v\"}">>, []) , <<"{\"k\":\"v\"}">>)},
-        {"nested object", ?_assertEqual(
-            format(<<"{\"k\":{\"k\":\"v\"}, \"j\":{}}">>, []),
-            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
-        )},
-        {"simple array", ?_assertEqual(
-            format(<<" [\n\ttrue,\n\tfalse  ,  \n \tnull\n] ">>, []),
-            <<"[true,false,null]">>
-        )},
-        {"really simple array", ?_assertEqual(format(<<"[1]">>, []), <<"[1]">>)},
-        {"nested array", ?_assertEqual(format(<<"[[[]]]">>, []), <<"[[[]]]">>)},
-        {"nested structures", ?_assertEqual(
-            format(<<"[
-                {
-                    \"key\":\"value\",
-                    \"another key\": \"another value\",
-                    \"a list\": [true, false]
-                },
-                [[{}]]
-            ]">>, []),
-            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
-        )},
-        {"simple nested structure",
-            ?_assertEqual(
-                format(<<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>, []),
-                <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
-            )
-        }
-    ].
-
-basic_to_json_test_() ->
-    [
-        {"empty object", ?_assertEqual(to_json([{}], []), <<"{}">>)},
-        {"empty array", ?_assertEqual(to_json([], []), <<"[]">>)},
-        {"naked integer", ?_assertEqual(to_json(123, []), <<"123">>)},
-        {"naked float", ?_assertEqual(to_json(1.23, []) , <<"1.23">>)},
-        {"naked string", ?_assertEqual(to_json(<<"hi">>, []), <<"\"hi\"">>)},
-        {"naked string with control character", ?_assertEqual(
-            to_json(<<"hi\n">>, []), <<"\"hi\\n\"">>
-        )},
-        {"naked literal", ?_assertEqual(to_json(true, []), <<"true">>)},
-        {"simple object", ?_assertEqual(
-            to_json(
-                [{<<"key">>, <<"value">>}],
-                []
-            ),
-            <<"{\"key\":\"value\"}">>
-        )},
-        {"nested object", ?_assertEqual(
-            to_json(
-                [{<<"k">>,[{<<"k">>,<<"v">>}]},{<<"j">>,[{}]}],
-                []
-            ),
-            <<"{\"k\":{\"k\":\"v\"},\"j\":{}}">>
-        )},
-        {"simple array", ?_assertEqual(to_json([true, false, null], []), <<"[true,false,null]">>)},
-        {"really simple array", ?_assertEqual(to_json([1], []), <<"[1]">>)},
-        {"nested array", ?_assertEqual(to_json([[[]]], []), <<"[[[]]]">>)},
-        {"nested structures", ?_assertEqual(
-            to_json(
-                [
-                    [
-                        {<<"key">>, <<"value">>},
-                        {<<"another key">>, <<"another value">>},
-                        {<<"a list">>, [true, false]}
-                    ],
-                    [[[{}]]]
-                ],
-                []
-            ),
-            <<"[{\"key\":\"value\",\"another key\":\"another value\",\"a list\":[true,false]},[[{}]]]">>
-        )},
-        {"simple nested structure", ?_assertEqual(
-            to_json(
-                [[], [{<<"k">>, [[], [{}]]}, {<<"j">>, [{}]}], []],
-                []
-            ),
-            <<"[[],{\"k\":[[],{}],\"j\":{}},[]]">>
-        )}
-    ].
 
 opts_test_() ->
     [
+        {"empty opts", ?_assertEqual(#opts{}, parse_opts([]))},
         {"unspecified indent/space", ?_assertEqual(
-            format(<<" [\n\ttrue,\n\tfalse,\n\tnull\n] ">>, [space, indent]),
-            <<"[\n true,\n false,\n null\n]">>
+            #opts{space=1, indent=1},
+            parse_opts([space, indent])
         )},
-        {"specific indent/space", ?_assertEqual(
-            format(
-                <<"\n{\n\"key\"  :  [],\n\"another key\"  :  true\n}\n">>,
-                [{space, 2}, {indent, 3}]
-            ),
-            <<"{\n   \"key\":  [],\n   \"another key\":  true\n}">>
+        {"specific indent", ?_assertEqual(
+            #opts{indent=4},
+            parse_opts([{indent, 4}])
         )},
-        {"nested structures", ?_assertEqual(
-            format(
-                <<"[{\"key\":\"value\", \"another key\": \"another value\"}, [[true, false, null]]]">>,
-                [{space, 2}, {indent, 2}]
-            ),
-            <<"[\n  {\n    \"key\":  \"value\",\n    \"another key\":  \"another value\"\n  },\n  [\n    [\n      true,\n      false,\n      null\n    ]\n  ]\n]">>
+        {"specific space", ?_assertEqual(
+            #opts{space=2},
+            parse_opts([{space, 2}])
         )},
-        {"array spaces", ?_assertEqual(
-            format(<<"[1,2,3]">>, [{space, 2}]),
-            <<"[1,  2,  3]">>
+        {"specific space and indent", ?_assertEqual(
+            #opts{space=2, indent=2},
+            parse_opts([{space, 2}, {indent, 2}])
         )},
-        {"object spaces", ?_assertEqual(
-            format(<<"{\"a\":true,\"b\":true,\"c\":true}">>, [{space, 2}]),
-            <<"{\"a\":  true,  \"b\":  true,  \"c\":  true}">>
-        )},
-        {"array indent", ?_assertEqual(
-            format(<<"[1.23, 1.23, 1.23]">>, [{indent, 2}]),
-            <<"[\n  1.23,\n  1.23,\n  1.23\n]">>
-        )},
-        {"object indent", ?_assertEqual(
-            format(<<"{\"a\":true,\"b\":true,\"c\":true}">>, [{indent, 2}]),
-            <<"{\n  \"a\":true,\n  \"b\":true,\n  \"c\":true\n}">>
-        )}
+        {"invalid opt flag", ?_assertError(badarg, parse_opts([error]))},
+        {"invalid opt tuple", ?_assertError(badarg, parse_opts([{error, true}]))}
     ].
 
 
