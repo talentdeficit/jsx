@@ -91,8 +91,8 @@ handle_event(end_object, {[Object, Last|Terms], Opts}) ->
 handle_event(start_array, {Terms, Opts}) -> {[[]|Terms], Opts};
 handle_event(end_array, {[List, {key, Key}, Last|Terms], Opts}) ->
     {[[{Key, post_decode(lists:reverse(List), Opts)}] ++ Last] ++ Terms, Opts};
-handle_event(end_array, {[Current, Last|Terms], Opts}) ->
-    {[[post_decode(lists:reverse(Current), Opts)] ++ Last] ++ Terms, Opts};
+handle_event(end_array, {[List, Last|Terms], Opts}) ->
+    {[[post_decode(lists:reverse(List), Opts)] ++ Last] ++ Terms, Opts};
 
 handle_event({key, Key}, {Terms, Opts}) -> {[{key, format_key(Key, Opts)}] ++ Terms, Opts};
 
@@ -119,117 +119,147 @@ post_decode(Value, Opts) -> (Opts#opts.post_decode)(Value).
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
-basic_test_() ->
+
+opts_test_() ->
+    %% for post_decode tests
+    F = fun(X) -> X end,
+    G = fun(X, Y) -> {X, Y} end,
     [
-        {"empty object", ?_assertEqual(to_term(<<"{}">>, []), [{}])},
-        {"simple object", ?_assertEqual(to_term(<<"{\"key\": true}">>, []), [{<<"key">>, true}])},
-        {"less simple object", ?_assertEqual(
-            to_term(<<"{\"a\": 1, \"b\": 2}">>, []),
-            [{<<"a">>, 1}, {<<"b">>, 2}]
+        {"empty opts", ?_assertEqual(#opts{}, parse_opts([]))},
+        {"implicit binary labels", ?_assertEqual(#opts{}, parse_opts([labels]))},
+        {"binary labels", ?_assertEqual(#opts{}, parse_opts([{labels, binary}]))},
+        {"atom labels", ?_assertEqual(#opts{labels=atom}, parse_opts([{labels, atom}]))},
+        {"existing atom labels", ?_assertEqual(
+            #opts{labels=existing_atom},
+            parse_opts([{labels, existing_atom}])
         )},
-        {"nested object", ?_assertEqual(
-            to_term(<<"{\"key\": {\"key\": true}}">>, []),
-            [{<<"key">>, [{<<"key">>, true}]}]
+        {"post decode", ?_assertEqual(
+            #opts{post_decode=F},
+            parse_opts([{post_decode, F}])
         )},
-        {"empty array", ?_assert(to_term(<<"[]">>, []) =:= [])},
-        {"list of lists", ?_assertEqual(to_term(<<"[[],[],[]]">>, []), [[], [], []])},
-        {"list of strings", ?_assertEqual(to_term(<<"[\"hi\", \"there\"]">>, []), [<<"hi">>, <<"there">>])},
-        {"list of numbers", ?_assertEqual(to_term(<<"[1, 2.0, 3e4, -5]">>, []), [1, 2.0, 3.0e4, -5])},
-        {"list of literals", ?_assertEqual(to_term(<<"[true,false,null]">>, []), [true,false,null])},
-        {"list of objects", ?_assertEqual(
-            to_term(<<"[{}, {\"a\":1, \"b\":2}, {\"key\":[true,false]}]">>, []),
-            [[{}], [{<<"a">>,1},{<<"b">>,2}], [{<<"key">>,[true,false]}]]
+        {"post decode wrong arity", ?_assertError(badarg, parse_opts([{post_decode, G}]))}
+    ].
+
+
+format_key_test_() ->
+    [
+        {"binary key", ?_assertEqual(<<"key">>, format_key(<<"key">>, #opts{labels=binary}))},
+        {"atom key", ?_assertEqual(key, format_key(<<"key">>, #opts{labels=atom}))},
+        {"existing atom key", ?_assertEqual(
+            key,
+            format_key(<<"key">>, #opts{labels=existing_atom})
+        )},
+        {"nonexisting atom key", ?_assertError(
+            badarg,
+            format_key(<<"nonexistentatom">>, #opts{labels=existing_atom})
         )}
     ].
 
-comprehensive_test_() ->
-    {"comprehensive test", ?_assertEqual(to_term(comp_json(), []), comp_term())}.
-
-comp_json() ->
-    <<"[
-        {\"a key\": {\"a key\": -17.346, \"another key\": 3e152, \"last key\": 14}},
-        [0,1,2,3,4,5],
-        [{\"a\": \"a\", \"b\": \"b\"}, {\"c\": \"c\", \"d\": \"d\"}],
-        [true, false, null],
-        {},
-        [],
-        [{},{}],
-        {\"key\": [], \"another key\": {}}
-    ]">>.
-
-comp_term() ->
-    [
-        [{<<"a key">>, [{<<"a key">>, -17.346}, {<<"another key">>, 3.0e152}, {<<"last key">>, 14}]}],
-        [0,1,2,3,4,5],
-        [[{<<"a">>, <<"a">>}, {<<"b">>, <<"b">>}], [{<<"c">>, <<"c">>}, {<<"d">>, <<"d">>}]],
-        [true, false, null],
-        [{}],
-        [],
-        [[{}], [{}]],
-        [{<<"key">>, []}, {<<"another key">>, [{}]}]
-    ].
-
-atom_labels_test_() ->
-    {"atom labels test", ?_assertEqual(to_term(comp_json(), [{labels, atom}]), atom_term())}.
-
-atom_term() ->
-    [
-        [{'a key', [{'a key', -17.346}, {'another key', 3.0e152}, {'last key', 14}]}],
-        [0,1,2,3,4,5],
-        [[{a, <<"a">>}, {b, <<"b">>}], [{'c', <<"c">>}, {'d', <<"d">>}]],
-        [true, false, null],
-        [{}],
-        [],
-        [[{}], [{}]],
-        [{key, []}, {'another key', [{}]}]
-    ].
-
-naked_test_() ->
-    [
-        {"naked integer", ?_assertEqual(to_term(<<"123">>, []), 123)},
-        {"naked float", ?_assertEqual(to_term(<<"-4.32e-17">>, []), -4.32e-17)},
-        {"naked literal", ?_assertEqual(to_term(<<"true">>, []), true)},
-        {"naked string", ?_assertEqual(to_term(<<"\"string\"">>, []), <<"string">>)}
-    ].
 
 post_decoders_test_() ->
-    JSON = <<"{\"object\": {
-        \"literals\": [true, false, null],
-        \"strings\": [\"foo\", \"bar\", \"baz\"],
-        \"numbers\": [1, 1.0, 1e0]
-    }}">>,
+    Events = [
+        [{}],
+        [{<<"key">>, <<"value">>}],
+        [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
+        [],
+        [<<"string">>],
+        [true, false, null],
+        true,
+        false,
+        null,
+        <<"hello">>,
+        <<"world">>,
+        1,
+        1.0
+    ],
     [
         {"no post_decode", ?_assertEqual(
-            to_term(JSON, []),
-            [{<<"object">>, [
-                {<<"literals">>, [true, false, null]},
-                {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
-                {<<"numbers">>, [1, 1.0, 1.0]}
-            ]}]
+            Events,
+            [ post_decode(Event, #opts{}) || Event <- Events ]
         )},
         {"replace arrays with empty arrays", ?_assertEqual(
-            to_term(JSON, [{post_decode, fun([T|_] = V)  when is_tuple(T) -> V; (V) when is_list(V) -> []; (V) -> V end}]),
-            [{<<"object">>, [{<<"literals">>, []}, {<<"strings">>, []}, {<<"numbers">>, []}]}]
+            [
+                [{}],
+                [{<<"key">>, <<"value">>}],
+                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
+                [],
+                [],
+                [],
+                true,
+                false,
+                null,
+                <<"hello">>,
+                <<"world">>,
+                1,
+                1.0
+            ],
+            [ post_decode(Event, #opts{
+                    post_decode=fun([T|_] = V) when is_tuple(T) -> V; (V) when is_list(V) -> []; (V) -> V end
+                }) || Event <- Events
+            ]
         )},
         {"replace objects with empty objects", ?_assertEqual(
-            to_term(JSON, [{post_decode, fun(V) when is_list(V) -> [{}]; (V) -> V end}]),
-            [{}]
+            [
+                [{}],
+                [{}],
+                [{}],
+                [],
+                [<<"string">>],
+                [true, false, null],
+                true,
+                false,
+                null,
+                <<"hello">>,
+                <<"world">>,
+                1,
+                1.0
+            ],
+            [ post_decode(Event, #opts{
+                    post_decode=fun([T|_]) when is_tuple(T) -> [{}]; (V) -> V end
+                }) || Event <- Events
+            ]
         )},
-        {"replace all non-list values with false", ?_assertEqual(
-            to_term(JSON, [{post_decode, fun(V) when is_list(V) -> V; (_) -> false end}]),
-            [{<<"object">>, [
-                {<<"literals">>, [false, false, false]},
-                {<<"strings">>, [false, false, false]},
-                {<<"numbers">>, [false, false, false]}
-            ]}]
+        {"replace all non-array/non-object values with false", ?_assertEqual(
+            [
+                [{}],
+                [{<<"key">>, <<"value">>}],
+                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
+                [],
+                [<<"string">>],
+                [true, false, null],
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ],
+            [ post_decode(Event, #opts{
+                    post_decode=fun(V) when is_list(V) -> V; (_) -> false end
+                }) || Event <- Events
+            ]
         )},
         {"atoms_to_strings", ?_assertEqual(
-            to_term(JSON, [{post_decode, fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end}]),
-            [{<<"object">>, [
-                {<<"literals">>, [<<"true">>, <<"false">>, <<"null">>]},
-                {<<"strings">>, [<<"foo">>, <<"bar">>, <<"baz">>]},
-                {<<"numbers">>, [1, 1.0, 1.0]}
-            ]}]
+            [
+                [{}],
+                [{<<"key">>, <<"value">>}],
+                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
+                [],
+                [<<"string">>],
+                [true, false, null],
+                <<"true">>,
+                <<"false">>,
+                <<"null">>,
+                <<"hello">>,
+                <<"world">>,
+                1,
+                1.0
+            ],
+            [ post_decode(Event, #opts{
+                    post_decode=fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end
+                }) || Event <- Events
+            ]
         )}
     ].
 
