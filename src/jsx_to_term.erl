@@ -137,7 +137,9 @@ opts_test_() ->
             #opts{post_decode=F},
             parse_opts([{post_decode, F}])
         )},
-        {"post decode wrong arity", ?_assertError(badarg, parse_opts([{post_decode, G}]))}
+        {"post decode wrong arity", ?_assertError(badarg, parse_opts([{post_decode, G}]))},
+        {"invalid opt flag", ?_assertError(badarg, parse_opts([error]))},
+        {"invalid opt tuple", ?_assertError(badarg, parse_opts([{error, true}]))}
     ].
 
 

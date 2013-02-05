@@ -108,7 +108,9 @@ opts_test_() ->
         {"repeated keys false", ?_assertEqual(
             #opts{repeated_keys=false},
             parse_opts([{repeated_keys, false}])
-        )}
+        )},
+        {"invalid opt flag", ?_assertError(badarg, parse_opts([error]))},
+        {"invalid opt tuple", ?_assertError(badarg, parse_opts([{error, true}]))}
     ].
 
 
