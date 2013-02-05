@@ -209,4 +209,47 @@ opts_test_() ->
     ].
 
 
+space_test_() ->
+    [
+        {"no space", ?_assertEqual([], space(#opts{space=0}))},
+        {"one space", ?_assertEqual(<<" ">>, space(#opts{space=1}))},
+        {"four spaces", ?_assertEqual(<<"    ">>, space(#opts{space=4}))}
+    ].
+
+
+indent_test_() ->
+    [
+        {"no indent", ?_assertEqual([], indent(#opts{indent=0, depth=1}))},
+        {"indent 1 depth 1", ?_assertEqual(
+            [[?newline], ?space],
+            indent(#opts{indent=1, depth=1})
+        )},
+        {"indent 1 depth 2", ?_assertEqual(
+            [[[?newline], ?space], ?space],
+            indent(#opts{indent=1, depth=2})
+        )},
+        {"indent 4 depth 1", ?_assertEqual(
+            [[?newline], <<"    ">>],
+            indent(#opts{indent=4, depth=1})
+        )},
+        {"indent 4 depth 2", ?_assertEqual(
+            [[[?newline], <<"    ">>], <<"    ">>],
+            indent(#opts{indent=4, depth=2})
+        )}
+    ].
+
+
+indent_or_space_test_() ->
+    [
+        {"no indent so space", ?_assertEqual(
+            <<" ">>,
+            indent_or_space(#opts{space=1, indent=0, depth=1})
+        )},
+        {"indent so no space", ?_assertEqual(
+            [[?newline], ?space],
+            indent_or_space(#opts{space=1, indent=1, depth=1})
+        )}
+    ].
+
+
 -endif.
