@@ -156,7 +156,7 @@ encode(float, Float, _Opts) ->
 space(Opts) ->
     case Opts#opts.space of
         0 -> []
-        ; X when X > 0 -> [ ?space || _ <- lists:seq(1, X) ]
+        ; X when X > 0 -> binary:copy(?space, X)
     end.
 
 
@@ -164,7 +164,7 @@ indent(Opts) ->
     case Opts#opts.indent of
         0 -> []
         ; X when X > 0 ->
-            Indent = [ ?space || _ <- lists:seq(1, X) ],
+            Indent = binary:copy(?space, X),
             indent(Indent, Opts#opts.depth, [?newline])
     end.
 
