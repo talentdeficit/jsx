@@ -106,7 +106,7 @@ valid_flags() ->
         pre_encoder,            %% pre_encode
         loose_unicode,          %% replaced_bad_utf8
         escape_forward_slash,   %% escaped_forward_slashes
-        single_quotes,          %% single_quotes_strings
+        single_quotes,          %% single_quoted_strings
         no_jsonp_escapes,       %% unescaped_jsonp
         json_escape,            %% escaped_strings
         ignore_bad_escapes      %% ignored_bad_escapes
@@ -581,7 +581,31 @@ opts_test_() ->
                 }
             )
         },
-        {"two pre-encoders defined", ?_assertError(
+        {"deprecated flags", ?_assertEqual(
+            parse_opts([
+                {pre_encoder, fun lists:length/1},
+                loose_unicode,
+                escape_forward_slash,
+                single_quotes,
+                no_jsonp_escapes,
+                json_escape,
+                ignore_bad_escapes
+            ]),
+            #opts{
+                pre_encode=fun lists:length/1,
+                replaced_bad_utf8=true,
+                escaped_forward_slashes=true,
+                single_quoted_strings=true,
+                unescaped_jsonp=true,
+                escaped_strings=true,
+                ignored_bad_escapes=true
+            }
+        )},
+        {"pre_encode flag", ?_assertEqual(
+            parse_opts([{pre_encode, fun lists:length/1}]),
+            #opts{pre_encode=fun lists:length/1}
+        )},
+        {"two pre_encoders defined", ?_assertError(
             badarg,
             parse_opts([
                 {pre_encode, fun(_) -> true end},
