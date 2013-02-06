@@ -580,7 +580,14 @@ opts_test_() ->
                     ignored_bad_escapes=true
                 }
             )
-        }
+        },
+        {"two pre-encoders defined", ?_assertError(
+            badarg,
+            parse_opts([
+                {pre_encode, fun(_) -> true end},
+                {pre_encode, fun(_) -> false end}
+            ])
+        )}
     ].
 
 
