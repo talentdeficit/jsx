@@ -548,16 +548,6 @@ opts_test_() ->
     [
         {"all flags",
             ?_assertEqual(
-                parse_opts([
-                    replaced_bad_utf8,
-                    escaped_forward_slashes,
-                    explicit_end,
-                    single_quoted_strings,
-                    unescaped_jsonp,
-                    comments,
-                    dirty_strings,
-                    ignored_bad_escapes
-                ]),
                 #opts{
                     replaced_bad_utf8=true,
                     escaped_forward_slashes=true,
@@ -567,30 +557,31 @@ opts_test_() ->
                     comments=true,
                     dirty_strings=true,
                     ignored_bad_escapes=true
-                }
+                },
+                parse_opts([
+                    replaced_bad_utf8,
+                    escaped_forward_slashes,
+                    explicit_end,
+                    single_quoted_strings,
+                    unescaped_jsonp,
+                    comments,
+                    dirty_strings,
+                    ignored_bad_escapes
+                ])
             )
         },
         {"relax flag",
             ?_assertEqual(
-                parse_opts([relax]),
                 #opts{
                     replaced_bad_utf8=true,
                     single_quoted_strings=true,
                     comments=true,
                     ignored_bad_escapes=true
-                }
+                },
+                parse_opts([relax])
             )
         },
         {"deprecated flags", ?_assertEqual(
-            parse_opts([
-                {pre_encoder, fun lists:length/1},
-                loose_unicode,
-                escape_forward_slash,
-                single_quotes,
-                no_jsonp_escapes,
-                json_escape,
-                ignore_bad_escapes
-            ]),
             #opts{
                 pre_encode=fun lists:length/1,
                 replaced_bad_utf8=true,
@@ -599,11 +590,20 @@ opts_test_() ->
                 unescaped_jsonp=true,
                 escaped_strings=true,
                 ignored_bad_escapes=true
-            }
+            },
+            parse_opts([
+                {pre_encoder, fun lists:length/1},
+                loose_unicode,
+                escape_forward_slash,
+                single_quotes,
+                no_jsonp_escapes,
+                json_escape,
+                ignore_bad_escapes
+            ])
         )},
         {"pre_encode flag", ?_assertEqual(
-            parse_opts([{pre_encode, fun lists:length/1}]),
-            #opts{pre_encode=fun lists:length/1}
+            #opts{pre_encode=fun lists:length/1},
+            parse_opts([{pre_encode, fun lists:length/1}])
         )},
         {"two pre_encoders defined", ?_assertError(
             badarg,
@@ -611,7 +611,8 @@ opts_test_() ->
                 {pre_encode, fun(_) -> true end},
                 {pre_encode, fun(_) -> false end}
             ])
-        )}
+        )},
+        {"bad option flag", ?_assertError(badarg, parse_opts([error]))}
     ].
 
 
