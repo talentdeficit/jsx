@@ -639,41 +639,45 @@ surrogates() -> [ to_fake_utf8(N) || N <- lists:seq(16#d800, 16#dfff) ].
 reserved_space() -> [ to_fake_utf8(N) || N <- lists:seq(16#fdd0, 16#fdef) ].
 
 
-fail_ensure(Codepoints) ->
+fail_ensure(Codepoints, Title) ->
     {generator,
         fun() -> case Codepoints of
             [N|Rest] ->
-                [ ?_assertError(badarg, ensure_clean(N)) | fail_clean(Rest) ]
+                [ {Title, ?_assertError(badarg, ensure_clean(N))}
+                    | fail_ensure(Rest, Title)
+                ]
             ; [] -> []
         end end
     }.
 
-fail_clean(Codepoints) ->
+fail_clean(Codepoints, Title) ->
     {generator,
         fun() -> case Codepoints of
             [N|Rest] ->
-                [ ?_assertError(badarg, clean(N, [], #opts{})) | fail_clean(Rest) ]
+                [ {Title, ?_assertError(badarg, clean(N, [], #opts{}))}
+                    | fail_clean(Rest, Title)
+                ]
             ; [] -> []
         end end
     }.
 
-fail_bad(Codepoints) ->
+fail_bad(Codepoints, Title) ->
     {generator,
         fun() -> case Codepoints of
             [N|Rest] ->
-                [ ?_assertError(badarg, clean(N, [], #opts{})) | fail_bad(Rest) ]
+                [ {Title, ?_assertError(badarg, clean(N, [], #opts{}))}
+                    | fail_bad(Rest, Title)
+                ]
             ; [] -> []
         end end
     }.
 
-replace_bad(Codepoints) ->
+replace_bad(Codepoints, Title) ->
     {generator,
         fun() -> case Codepoints of
             [N|Rest] ->
-                [ ?_assertEqual(
-                        <<16#fffd/utf8>>,
-                        clean(N, [], #opts{replaced_bad_utf8=true}))
-                    | fail_bad(Rest)
+                [ {Title, ?_assertEqual(<<16#fffd/utf8>>, clean(N, [], #opts{replaced_bad_utf8=true}))}
+                    | replace_bad(Rest, Title)
                 ]
             ; [] -> []
         end end
@@ -685,10 +689,10 @@ ensure_clean_test_() ->
         {"basic codepoints", ?_assertEqual(ok, ensure_clean(codepoints()))},
         {"escapables", ?_assertEqual(ok, ensure_clean(unicode:characters_to_binary(escapables())))},
         {"extended codepoints", ?_assertEqual(ok, ensure_clean(extended_codepoints()))},
-        {"noncharacters", fail_ensure(noncharacters())},
-        {"extended noncharacter", fail_ensure(extended_noncharacters())},
-        {"surrogates", fail_ensure(surrogates())},
-        {"reserved_space", fail_ensure(reserved_space())}
+        fail_ensure(noncharacters(), "noncharacters"),
+        fail_ensure(extended_noncharacters(), "extended noncharacters"),
+        fail_ensure(surrogates(), "surrogates"),
+        fail_ensure(reserved_space(), "reserved space")
     ].
 
 
@@ -698,15 +702,15 @@ clean_test_() ->
             codepoints(),
             clean(codepoints(), [], #opts{})
         )},
-        {"escapables", fail_clean(escapables())},
+        fail_clean(escapables(), "escapables"),
         {"extended codepoints", ?_assertEqual(
             extended_codepoints(),
             clean(extended_codepoints(), [], #opts{})
         )},
-        {"noncharacters", fail_clean(noncharacters())},
-        {"extended noncharacter", fail_clean(extended_noncharacters())},
-        {"surrogates", fail_clean(surrogates())},
-        {"reserved_space", fail_clean(reserved_space())}
+        fail_clean(noncharacters(), "noncharacters"),
+        fail_clean(extended_noncharacters(), "extended noncharacters"),
+        fail_clean(surrogates(), "surrogates"),
+        fail_clean(reserved_space(), "reserved space")
     ].
 
 
@@ -891,12 +895,12 @@ bad_utf8_test_() ->
             <<16#fffd/utf8>>,
             clean_string(to_fake_utf8(16#ffff), #opts{replaced_bad_utf8=true})
         )},
-        {"extended noncharacters", fail_bad(extended_noncharacters())},
-        {"extended noncharacters replaced", replace_bad(extended_noncharacters())},
-        {"surrogates", fail_bad(surrogates())},
-        {"surrogates replaced", replace_bad(surrogates())},
-        {"reserved_space", fail_bad(reserved_space())},
-        {"reserved_space replaced", replace_bad(reserved_space())},
+        fail_bad(extended_noncharacters(), "extended noncharacters"),
+        replace_bad(extended_noncharacters(), "extended noncharacters replaced"),
+        fail_bad(surrogates(), "surrogates"),
+        replace_bad(surrogates(), "surrogates replaced"),
+        fail_bad(reserved_space(), "reserved space"),
+        replace_bad(reserved_space(), "reserved space replaced"),
         {"orphan continuation byte u+0080", ?_assertError(
             badarg,
             clean_string(<<16#0080>>, #opts{})
