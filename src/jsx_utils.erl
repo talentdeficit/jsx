@@ -712,6 +712,62 @@ clean_test_() ->
 
 escape_test_() ->
     [
+        {"escape backspace", ?_assertEqual(
+            <<"\\b">>,
+            clean_string(to_fake_utf8(16#0008), #opts{escaped_strings=true})
+        )},
+        {"escape tab", ?_assertEqual(
+            <<"\\t">>,
+            clean_string(to_fake_utf8(16#0009), #opts{escaped_strings=true})
+        )},
+        {"escape newline", ?_assertEqual(
+            <<"\\n">>,
+            clean_string(to_fake_utf8(16#000a), #opts{escaped_strings=true})
+        )},
+        {"escape formfeed", ?_assertEqual(
+            <<"\\f">>,
+            clean_string(to_fake_utf8(16#000c), #opts{escaped_strings=true})
+        )},
+        {"escape carriage return", ?_assertEqual(
+            <<"\\r">>,
+            clean_string(to_fake_utf8(16#000d), #opts{escaped_strings=true})
+        )},
+        {"escape quote", ?_assertEqual(
+            <<"\\\"">>,
+            clean_string(to_fake_utf8(16#0022), #opts{escaped_strings=true})
+        )},
+        {"escape forward slash", ?_assertEqual(
+            <<"\\/">>,
+            clean_string(to_fake_utf8(16#002f), #opts{escaped_strings=true, escaped_forward_slashes=true})
+        )},
+        {"do not escape forward slash", ?_assertEqual(
+            <<"/">>,
+            clean_string(to_fake_utf8(16#002f), #opts{escaped_strings=true})
+        )},
+        {"escape backslash", ?_assertEqual(
+            <<"\\\\">>,
+            clean_string(to_fake_utf8(16#005c), #opts{escaped_strings=true})
+        )},
+        {"escape jsonp (u2028)", ?_assertEqual(
+            <<"\\u2028">>,
+            clean_string(to_fake_utf8(16#2028), #opts{escaped_strings=true})
+        )},
+        {"do not escape jsonp (u2028)", ?_assertEqual(
+            <<16#2028/utf8>>,
+            clean_string(to_fake_utf8(16#2028), #opts{escaped_strings=true, unescaped_jsonp=true})
+        )},
+        {"escape jsonp (u2029)", ?_assertEqual(
+            <<"\\u2029">>,
+            clean_string(to_fake_utf8(16#2029), #opts{escaped_strings=true})
+        )},
+        {"do not escape jsonp (u2029)", ?_assertEqual(
+            <<16#2029/utf8>>,
+            clean_string(to_fake_utf8(16#2029), #opts{escaped_strings=true, unescaped_jsonp=true})
+        )},
+        {"dirty string", ?_assertEqual(
+            <<"\n">>,
+            clean_string(to_fake_utf8(16#000a), #opts{escaped_strings=true, dirty_strings=true})
+        )},
         {"escape u0000", ?_assertEqual(
             <<"\\u0000">>,
             clean_string(to_fake_utf8(16#0000), #opts{escaped_strings=true})
@@ -744,29 +800,9 @@ escape_test_() ->
             <<"\\u0007">>,
             clean_string(to_fake_utf8(16#0007), #opts{escaped_strings=true})
         )},
-        {"escape u0008", ?_assertEqual(
-            <<"\\b">>,
-            clean_string(to_fake_utf8(16#0008), #opts{escaped_strings=true})
-        )},
-        {"escape u0009", ?_assertEqual(
-            <<"\\t">>,
-            clean_string(to_fake_utf8(16#0009), #opts{escaped_strings=true})
-        )},
-        {"escape u000a", ?_assertEqual(
-            <<"\\n">>,
-            clean_string(to_fake_utf8(16#000a), #opts{escaped_strings=true})
-        )},
         {"escape u000b", ?_assertEqual(
             <<"\\u000b">>,
             clean_string(to_fake_utf8(16#000b), #opts{escaped_strings=true})
-        )},
-        {"escape u000c", ?_assertEqual(
-            <<"\\f">>,
-            clean_string(to_fake_utf8(16#000c), #opts{escaped_strings=true})
-        )},
-        {"escape u000d", ?_assertEqual(
-            <<"\\r">>,
-            clean_string(to_fake_utf8(16#000d), #opts{escaped_strings=true})
         )},
         {"escape u000e", ?_assertEqual(
             <<"\\u000e">>,
@@ -839,26 +875,6 @@ escape_test_() ->
         {"escape u001f", ?_assertEqual(
             <<"\\u001f">>,
             clean_string(to_fake_utf8(16#001f), #opts{escaped_strings=true})
-        )},
-        {"escape u0022", ?_assertEqual(
-            <<"\\\"">>,
-            clean_string(to_fake_utf8(16#0022), #opts{escaped_strings=true})
-        )},
-        {"escape u002f", ?_assertEqual(
-            <<"\\/">>,
-            clean_string(to_fake_utf8(16#002f), #opts{escaped_strings=true, escaped_forward_slashes=true})
-        )},
-        {"escape u005c", ?_assertEqual(
-            <<"\\\\">>,
-            clean_string(to_fake_utf8(16#005c), #opts{escaped_strings=true})
-        )},
-        {"escape u2028", ?_assertEqual(
-            <<"\\u2028">>,
-            clean_string(to_fake_utf8(16#2028), #opts{escaped_strings=true})
-        )},
-        {"escape u2029", ?_assertEqual(
-            <<"\\u2029">>,
-            clean_string(to_fake_utf8(16#2029), #opts{escaped_strings=true})
         )}
     ].
 

@@ -341,32 +341,4 @@ encode_failures_test_() ->
     ].
 
 
-
-
-
-escapes_test_() ->
-    [
-        {"backspace escape", ?_assertEqual(encode(<<"\b">>, [escaped_strings]), [{string, <<"\\b">>}, end_json])},
-        {"formfeed escape", ?_assertEqual(encode(<<"\f">>, [escaped_strings]), [{string, <<"\\f">>}, end_json])},
-        {"newline escape", ?_assertEqual(encode(<<"\n">>, [escaped_strings]), [{string, <<"\\n">>}, end_json])},
-        {"carriage return escape", ?_assertEqual(encode(<<"\r">>, [escaped_strings]), [{string, <<"\\r">>}, end_json])},
-        {"tab escape", ?_assertEqual(encode(<<"\t">>, [escaped_strings]), [{string, <<"\\t">>}, end_json])},
-        {"quote escape", ?_assertEqual(encode(<<"\"">>, [escaped_strings]), [{string, <<"\\\"">>}, end_json])},
-        {"forward slash escape", ?_assertEqual(encode(<<"/">>, [escaped_strings, escaped_forward_slashes]), [{string, <<"\\/">>}, end_json])},
-        {"no forward slash escape", ?_assertEqual(encode(<<"/">>, [escaped_strings]), [{string, <<"/">>}, end_json])},
-        {"back slash escape", ?_assertEqual(encode(<<"\\">>, [escaped_strings]), [{string, <<"\\\\">>}, end_json])},
-        {"jsonp escape", ?_assertEqual(
-            encode(<<16#2028/utf8, 16#2029/utf8>>, [escaped_strings]),
-            [{string, <<"\\u2028\\u2029">>}, end_json]
-        )},
-        {"no jsonp escape", ?_assertEqual(
-            encode(<<16#2028/utf8, 16#2029/utf8>>, [escaped_strings, unescaped_jsonp]),
-            [{string, <<16#2028/utf8, 16#2029/utf8>>}, end_json]
-        )},
-        {"control escape", ?_assertEqual(encode(<<0>>, [escaped_strings]), [{string, <<"\\u0000">>}, end_json])},
-        {"dirty strings", ?_assertEqual(encode(<<"\n">>, [escaped_strings, dirty_strings]), [{string, <<"\n">>}, end_json])},
-        {"ignore bad escapes", ?_assertEqual(encode(<<"\\x25">>, [escaped_strings, ignored_bad_escapes]), [{string, <<"\\\\x25">>}, end_json])}
-    ].
-
-
 -endif.
