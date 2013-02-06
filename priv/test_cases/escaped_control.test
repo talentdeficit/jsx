@@ -1,3 +1,0 @@
-{name, "escaped_control"}.
-{jsx, [{string, <<18>>},end_json]}.
-{json, "escaped_control.json"}.

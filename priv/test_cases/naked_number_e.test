@@ -1,3 +1,0 @@
-{name, "naked_number_e"}.
-{jsx, [{integer,0},end_json]}.
-{json, "naked_number_e.json"}.

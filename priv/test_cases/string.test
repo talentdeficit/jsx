@@ -1,5 +1,0 @@
-{name, "string"}.
-{jsx, [start_array,
- {string,<<"this is a random string with \n embedded escapes in it">>},
- end_array,end_json]}.
-{json, "string.json"}.

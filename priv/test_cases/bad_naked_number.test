@@ -1,3 +1,0 @@
-{name, "bad naked number"}.
-{jsx, {error, badarg}}.
-{json, "bad_naked_number.json"}.

@@ -1,3 +1,0 @@
-{name, "deep array"}.
-{jsx, [start_array,start_array,start_array,end_array,end_array,end_array,end_json]}.
-{json, "deep_array.json"}.

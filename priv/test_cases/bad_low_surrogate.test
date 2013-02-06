@@ -1,3 +1,0 @@
-{name, "bad_low_surrogate"}.
-{jsx, {error, badarg}}.
-{json, "bad_low_surrogate.json"}.
