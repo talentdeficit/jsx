@@ -134,4 +134,21 @@ valid_term_test_() ->
     [ {Title, ?_assertEqual(true, is_term(Term, []))} || {Title, _, Term, _} <- Data ].
 
 
+handle_event_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:empty_object()
+        ++ jsx:literals()
+        ++ jsx:naked_literals()
+        ++ jsx:integers()
+        ++ jsx:naked_integers(),
+    [
+        {
+            Title, ?_assertEqual(
+                true,
+                lists:foldl(fun handle_event/2, {#opts{}, []}, Events ++ [end_json])
+            )
+        } || {Title, _, _, Events} <- Data
+    ].
+
+
 -endif.

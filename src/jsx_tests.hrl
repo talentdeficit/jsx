@@ -16,8 +16,8 @@ handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
 handle_event(Event, State) -> [Event] ++ State.
 
 
-empty_array() -> [{"empty array", <<"[]">>, [], [start_array, end_array, end_json]}].
-empty_object() -> [{"empty object", <<"{}">>, [{}], [start_object, end_object, end_json]}].
+empty_array() -> [{"empty array", <<"[]">>, [], [start_array, end_array]}].
+empty_object() -> [{"empty object", <<"{}">>, [{}], [start_object, end_object]}].
 
 
 naked_integers() ->
@@ -34,10 +34,10 @@ naked_integers() ->
             integer_to_list(X),
             list_to_binary(integer_to_list(X)),
             X,
-            [{integer, X}, end_json]
+            [{integer, X}]
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ] ++ [0]
-    ] ++ [{"-0", <<"-0">>, 0, [{integer, 0}, end_json]}].
+    ] ++ [{"-0", <<"-0">>, 0, [{integer, 0}]}].
 
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
@@ -50,7 +50,7 @@ naked_literals() ->
             atom_to_list(Literal),
             atom_to_binary(Literal, unicode),
             Literal,
-            [{literal, Literal}, end_json]
+            [{literal, Literal}]
         }
         || Literal <- [true, false, null]
     ].
@@ -65,7 +65,7 @@ wrap_with_array({Title, JSON, Term, Events}) ->
         "[" ++ Title ++ "]",
         <<"[", JSON/binary, "]">>,
         [Term],
-        [start_array, strip_end(Events), end_array, end_json]
+        [start_array, Events, end_array]
     }.
 
 
@@ -74,10 +74,5 @@ wrap_with_object({Title, JSON, Term, Events}) ->
         "{\"key\":" ++ Title ++ "}",
         <<"{\"key\":", JSON/binary, "}">>,
         [{<<"key">>, Term}],
-        [start_object, {key, <<"key">>}, strip_end(Events), end_object, end_json]
+        [start_object, {key, <<"key">>}, Events, end_object]
     }.
-
-
-strip_end(Events) ->
-    [end_json|Rest] = lists:reverse(Events),
-    lists:reverse(Rest).
