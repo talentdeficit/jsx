@@ -34,9 +34,8 @@
 
 -export_type([json_term/0, json_text/0]).
 
-%% test handler
 -ifdef(TEST).
--export([init/1, handle_event/2]).
+-include("jsx_tests.hrl").
 -endif.
 
 
@@ -152,18 +151,3 @@ encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
 -spec parser(Handler::module(), State::any(), Opts::list()) -> parser().
 
 parser(Handler, State, Opts) -> jsx_parser:parser(Handler, State, Opts).
-
-
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-
-%% stub test handler
-init([]) -> [].
-
-handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
-handle_event(Event, State) -> [Event] ++ State.
-
-
--endif.

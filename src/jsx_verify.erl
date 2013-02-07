@@ -114,4 +114,16 @@ opts_test_() ->
     ].
 
 
+valid_json_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:empty_object(),
+    [ {Title, ?_assertEqual(true, is_json(JSON, []))} || {Title, JSON, _, _} <- Data ].
+
+
+valid_term_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:empty_object(),
+    [ {Title, ?_assertEqual(true, is_term(Term, []))} || {Title, _, Term, _} <- Data ].
+
+
 -endif.
