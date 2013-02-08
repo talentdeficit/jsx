@@ -16,8 +16,8 @@ handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
 handle_event(Event, State) -> [Event] ++ State.
 
 
-empty_array() -> [{"empty array", <<"[]">>, [], [start_array, end_array]}].
-empty_object() -> [{"empty object", <<"{}">>, [{}], [start_object, end_object]}].
+empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
+empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
 
 
 naked_integers() ->
