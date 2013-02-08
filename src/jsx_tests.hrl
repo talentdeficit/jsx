@@ -20,12 +20,12 @@ handle_event(Event, State) -> [Event] ++ State.
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
 
 deep_array() ->
-    [Object] = empty_array(),
-    [repeat(fun wrap_with_array/1, Object, 10)].
+    [Test] = empty_array(),
+    [repeat(fun wrap_with_array/1, Test, 10)].
 
 really_deep_array() ->
-    [Object] = empty_array(),
-    [repeat(fun wrap_with_array/1, Object, 1000)].
+    [Test] = empty_array(),
+    [repeat(fun wrap_with_array/1, Test, 1000)].
 
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
 
@@ -51,7 +51,8 @@ naked_integers() ->
 
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
-        ++ [ wrap_with_object(Test) || Test <- naked_integers() ].
+        ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
+        ++ [listify("array of integers", naked_integers())].
 
 
 naked_literals() ->
@@ -88,5 +89,15 @@ wrap_with_object({Title, JSON, Term, Events}) ->
     }.
 
 
-repeat(_, Object, 0) -> Object;
-repeat(Fun, Object, Times) -> repeat(Fun, Fun(Object), Times - 1).
+repeat(_, Test, 0) -> Test;
+repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
+
+
+listify(Title, Tests) -> listify(Title, Tests, Acc).
+
+listify(Title, [], {_, JSON, Term, Events}) ->
+    {Title, <<"["/utf8, JSON/binary, "]"/utf8>>, Term, Events};
+listify(Title, [Test|Rest], Acc) ->
+    {_, A, M, X} = Test,
+    {_, B, N, Y} = Acc,
+    {Title, <<A/binary, ", "/utf8, B/binary>>, M ++ N, X ++ Y}.
