@@ -1,7 +1,8 @@
 %% data and helper functions for tests
 
 -export([init/1, handle_event/2]).
--export([empty_array/0, empty_object/0]).
+-export([empty_array/0, deep_array/0, really_deep_array/0]).
+-export([empty_object/0]).
 -export([literals/0, naked_literals/0]).
 -export([integers/0, naked_integers/0]).
 
@@ -17,6 +18,15 @@ handle_event(Event, State) -> [Event] ++ State.
 
 
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
+
+deep_array() ->
+    [Object] = empty_array(),
+    [repeat(fun wrap_with_array/1, Object, 10)].
+
+really_deep_array() ->
+    [Object] = empty_array(),
+    [repeat(fun wrap_with_array/1, Object, 1000)].
+
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
 
 
@@ -65,7 +75,7 @@ wrap_with_array({Title, JSON, Term, Events}) ->
         "[" ++ Title ++ "]",
         <<"[", JSON/binary, "]">>,
         [Term],
-        [start_array, Events, end_array]
+        [start_array] ++ Events ++ [end_array]
     }.
 
 
@@ -74,5 +84,9 @@ wrap_with_object({Title, JSON, Term, Events}) ->
         "{\"key\":" ++ Title ++ "}",
         <<"{\"key\":", JSON/binary, "}">>,
         [{<<"key">>, Term}],
-        [start_object, {key, <<"key">>}, Events, end_object]
+        [start_object, {key, <<"key">>}] ++ Events ++ [end_object]
     }.
+
+
+repeat(_, Object, 0) -> Object;
+repeat(Fun, Object, Times) -> repeat(Fun, Fun(Object), Times - 1).
