@@ -252,4 +252,43 @@ indent_or_space_test_() ->
     ].
 
 
+format_test_() ->
+    [
+        {"0.0", ?_assert(encode(float, 0.0, #opts{}) =:= "0.0")},
+        {"1.0", ?_assert(encode(float, 1.0, #opts{}) =:= "1.0")},
+        {"-1.0", ?_assert(encode(float, -1.0, #opts{}) =:= "-1.0")},
+        {"3.1234567890987654321", 
+            ?_assert(
+                encode(float, 3.1234567890987654321, #opts{}) =:= "3.1234567890987655")
+        },
+        {"1.0e23", ?_assert(encode(float, 1.0e23, #opts{}) =:= "1.0e23")},
+        {"0.3", ?_assert(encode(float, 3.0/10.0, #opts{}) =:= "0.3")},
+        {"0.0001", ?_assert(encode(float, 0.0001, #opts{}) =:= "0.0001")},
+        {"0.00001", ?_assert(encode(float, 0.00001, #opts{}) =:= "1.0e-5")},
+        {"0.00000001", ?_assert(encode(float, 0.00000001, #opts{}) =:= "1.0e-8")},
+        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #opts{}) =:= "1.0e-323")},
+        {"1.0e308", ?_assert(encode(float, 1.0e308, #opts{}) =:= "1.0e308")},
+        {"min normalized float", 
+            ?_assert(
+                encode(float, math:pow(2, -1022), #opts{}) =:= "2.2250738585072014e-308"
+            )
+        },
+        {"max normalized float", 
+            ?_assert(
+                encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #opts{}) 
+                    =:= "1.7976931348623157e308"
+            )
+        },
+        {"min denormalized float", 
+            ?_assert(encode(float, math:pow(2, -1074), #opts{}) =:= "5.0e-324")
+        },
+        {"max denormalized float", 
+            ?_assert(
+                encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #opts{}) 
+                    =:= "2.225073858507201e-308"
+            )
+        }
+    ].
+
+
 -endif.
