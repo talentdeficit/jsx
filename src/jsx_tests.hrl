@@ -5,6 +5,7 @@
 -export([empty_object/0]).
 -export([literals/0, naked_literals/0]).
 -export([integers/0, naked_integers/0]).
+-export([floats/0, naked_floats/0]).
 
 
 -include_lib("eunit/include/eunit.hrl").
@@ -26,6 +27,7 @@ deep_array() ->
 really_deep_array() ->
     [Test] = empty_array(),
     [repeat(fun wrap_with_array/1, Test, 1000)].
+
 
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
 
@@ -53,6 +55,36 @@ integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
         ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
         ++ [listify("array of integers", naked_integers())].
+
+
+naked_floats() ->
+    Raw = [
+        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+        1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+        1234567890.0987654321,
+        2.2250738585072014e-308,    %% min normalized float
+        1.7976931348623157e308,     %% max normalized float
+        5.0e-324,                   %% min denormalized float
+        2.225073858507201e-308      %% max denormalized float
+    ],
+    [
+        {
+            sane_float_to_list(X),
+            list_to_binary(sane_float_to_list(X)),
+            X,
+            [{float, X}]
+        }
+        || X <- Raw ++ [ -1 * Y || Y <- Raw ]
+    ] ++ [{"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]}].
+
+floats() ->
+    [ wrap_with_array(Test) || Test <- naked_floats() ]
+        ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
+        ++ [listify("array of floats", naked_floats())].
+
+sane_float_to_list(X) ->
+    [Output] = io_lib:format("~p", [X]),
+    Output.
 
 
 naked_literals() ->
