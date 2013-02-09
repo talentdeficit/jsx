@@ -68,7 +68,8 @@ naked_literals() ->
 
 literals() ->
     [ wrap_with_array(Test) || Test <- naked_literals() ]
-        ++ [ wrap_with_object(Test) || Test <- naked_literals() ].
+        ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
+        ++ [listify("array of literals", naked_literals())].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
@@ -93,11 +94,11 @@ repeat(_, Test, 0) -> Test;
 repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
 
 
-listify(Title, Tests) -> listify(Title, Tests, Acc).
+listify(Title, [{_, JSON, Term, Events}|Rest]) -> listify(Title, Rest, {Title, JSON, [Term], Events}).
 
 listify(Title, [], {_, JSON, Term, Events}) ->
     {Title, <<"["/utf8, JSON/binary, "]"/utf8>>, Term, Events};
 listify(Title, [Test|Rest], Acc) ->
-    {_, A, M, X} = Test,
-    {_, B, N, Y} = Acc,
-    {Title, <<A/binary, ", "/utf8, B/binary>>, M ++ N, X ++ Y}.
+    {_, A, M, X} = Acc,
+    {_, B, N, Y} = Test,
+    listify(Title, Rest, {Title, <<A/binary, ", "/utf8, B/binary>>, M ++ [N], X ++ Y}).
