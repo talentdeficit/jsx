@@ -53,8 +53,8 @@ naked_integers() ->
 
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
-        ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
-        ++ [listify("array of integers", naked_integers())].
+    ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
+    ++ [listify("array of integers", naked_integers())].
 
 
 naked_floats() ->
@@ -62,6 +62,10 @@ naked_floats() ->
         0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
         1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
         1234567890.0987654321,
+        0.0e0,
+        1234567890.0987654321e16,
+        0.1e0, 0.1e1, 0.1e2, 0.1e4, 0.1e8, 0.1e16, 0.1e308,
+        1.0e0, 1.0e1, 1.0e2, 1.0e4, 1.0e8, 1.0e16, 1.0e308,
         2.2250738585072014e-308,    %% min normalized float
         1.7976931348623157e308,     %% max normalized float
         5.0e-324,                   %% min denormalized float
@@ -75,12 +79,17 @@ naked_floats() ->
             [{float, X}]
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ]
-    ] ++ [{"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]}].
+    ]
+    ++ [{"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]}]
+    ++ [{"1e0", <<"1e0">>, 1.0, [{float, 1.0}]}]
+    ++ [{"0e0", <<"0e0">>, 0.0, [{float, 0.0}]}]
+    ++ [{"-1e0", <<"-1e0">>, -1.0, [{float, -1.0}]}].
+        
 
 floats() ->
     [ wrap_with_array(Test) || Test <- naked_floats() ]
-        ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
-        ++ [listify("array of floats", naked_floats())].
+    ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
+    ++ [listify("array of floats", naked_floats())].
 
 sane_float_to_list(X) ->
     [Output] = io_lib:format("~p", [X]),
@@ -100,8 +109,8 @@ naked_literals() ->
 
 literals() ->
     [ wrap_with_array(Test) || Test <- naked_literals() ]
-        ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
-        ++ [listify("array of literals", naked_literals())].
+    ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
+    ++ [listify("array of literals", naked_literals())].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
