@@ -73,23 +73,23 @@ value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
 
 list_or_object([Term|Rest], {Handler, State}, Opts) ->
-	case pre_encode(Term, Opts) of
-		{K, V} ->
-			object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Opts)
-		; T ->
-			list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Opts)
-	end.
+    case pre_encode(Term, Opts) of
+        {K, V} ->
+            object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Opts)
+        ; T ->
+            list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Opts)
+    end.
 
 
 object([{Key, Value}, Next|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
     V = pre_encode(Value, Opts),
-	object(
+    object(
         [pre_encode(Next, Opts)|Rest],
         {
             Handler,
             value(
-				V,
-				{Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
+                V,
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
                 Opts
             )
         },
@@ -115,13 +115,12 @@ object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 list([Value, Next|Rest], {Handler, State}, Opts) ->
     list([pre_encode(Next, Opts)|Rest], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
 list([Value], {Handler, State}, Opts) ->
-	list([], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
+    list([], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
 list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
 
-
-pre_encode(Value, #opts{pre_encode=false}) -> Value;
-pre_encode(Value, Opts) -> (Opts#opts.pre_encode)(Value).
+pre_encode(Value, #opts{pre_encode=false}) -> Value; pre_encode(Value, Opts) ->
+(Opts#opts.pre_encode)(Value).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
@@ -331,15 +330,15 @@ pre_encoders_test_() ->
                 end_json
             ]
         )},
-		{"pre_encode list", ?_assertEqual(
-			encode([1,2,3], [{pre_encode, fun(X) when is_integer(X) -> X + 1; (V) -> V end}]),
-			[
-				start_array,
-					{integer, 2}, {integer, 3}, {integer, 4},
-				end_array,
-				end_json
-			]
-		)}
+        {"pre_encode list", ?_assertEqual(
+            encode([1,2,3], [{pre_encode, fun(X) when is_integer(X) -> X + 1; (V) -> V end}]),
+            [
+                start_array,
+                    {integer, 2}, {integer, 3}, {integer, 4},
+                end_array,
+                end_json
+            ]
+        )}
     ].
 
 

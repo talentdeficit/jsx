@@ -373,10 +373,10 @@ test_decode(JSON, Flags) ->
 
 
 incremental_decode(<<C:1/binary, Rest/binary>>, Flags) ->
-	P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
-	try incremental_decode_loop(P(C), Rest)
-	catch error:badarg -> {error, badarg}
-	end.
+    P = jsx_decoder:decoder(?MODULE, [], Flags ++ [explicit_end]),
+    try incremental_decode_loop(P(C), Rest)
+    catch error:badarg -> {error, badarg}
+    end.
 
 incremental_decode_loop({incomplete, More}, <<>>) ->
     case More(end_stream) of
