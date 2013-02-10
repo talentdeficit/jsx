@@ -54,7 +54,8 @@ naked_integers() ->
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
     ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
-    ++ [listify("array of integers", naked_integers())].
+    ++ [listify(naked_integers())]
+    ++ [objectify(naked_integers())].
 
 
 naked_floats() ->
@@ -91,7 +92,8 @@ naked_floats() ->
 floats() ->
     [ wrap_with_array(Test) || Test <- naked_floats() ]
     ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
-    ++ [listify("array of floats", naked_floats())].
+    ++ [listify(naked_floats())]
+    ++ [objectify(naked_floats())].
 
 sane_float_to_list(X) ->
     [Output] = io_lib:format("~p", [X]),
@@ -112,7 +114,8 @@ naked_literals() ->
 literals() ->
     [ wrap_with_array(Test) || Test <- naked_literals() ]
     ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
-    ++ [listify("array of literals", naked_literals())].
+    ++ [listify(naked_literals())]
+    ++ [objectify(naked_literals())].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
@@ -137,11 +140,40 @@ repeat(_, Test, 0) -> Test;
 repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
 
 
-listify(Title, [{_, JSON, Term, Events}|Rest]) -> listify(Title, Rest, {Title, JSON, [Term], Events}).
+listify([{_, JSON, Term, Events}|Rest]) -> listify(Rest, {null, JSON, [Term], Events}).
 
-listify(Title, [], {_, JSON, Term, Events}) ->
-    {Title, <<"["/utf8, JSON/binary, "]"/utf8>>, Term, Events};
-listify(Title, [Test|Rest], Acc) ->
+listify([], {_, JSON, Term, Events}) ->
+    {
+        binary_to_list(<<"["/utf8, JSON/binary, "]"/utf8>>),
+        <<"["/utf8, JSON/binary, "]"/utf8>>,
+        Term,
+        [start_array, Events, end_array]
+    };
+listify([Test|Rest], Acc) ->
     {_, A, M, X} = Acc,
     {_, B, N, Y} = Test,
-    listify(Title, Rest, {Title, <<A/binary, ", "/utf8, B/binary>>, M ++ [N], X ++ Y}).
+    listify(Rest, {null, <<A/binary, ", "/utf8, B/binary>>, M ++ [N], X ++ Y}).
+
+
+objectify([{_, JSON, Term, Events}|Rest]) ->
+    objectify(
+        Rest,
+        {null, <<"\"", JSON/binary, "\": ", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
+    ).
+
+objectify([], {_, JSON, Term, Events}) ->
+    {
+        binary_to_list(<<"{"/utf8, JSON/binary, "}"/utf8>>),
+        <<"{"/utf8, JSON/binary, "}"/utf8>>,
+        Term,
+        [start_object] ++ Events ++ [end_object]
+    };
+objectify([Test|Rest], Acc) ->
+    {_, A, M, X} = Acc,
+    {_, B, N, [Y]} = Test,
+    objectify(Rest, {
+        null,
+        <<A/binary, ", \"", B/binary, "\": "/utf8, B/binary>>,
+        M ++ [{B, N}],
+        X ++ [{key, B}, Y]
+    }).
