@@ -291,4 +291,25 @@ format_test_() ->
     ].
 
 
+handle_event_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:deep_array()
+        ++ jsx:really_deep_array()
+        ++ jsx:empty_object()
+        ++ jsx:literals()
+        ++ jsx:naked_literals()
+        ++ jsx:integers()
+        ++ jsx:naked_integers()
+        ++ jsx:floats()
+        ++ jsx:naked_floats(),
+    [
+        {
+            Title, ?_assertEqual(
+                JSON,
+                lists:foldl(fun handle_event/2, {start, [], #opts{}}, Events ++ [end_json])
+            )
+        } || {Title, JSON, _, Events} <- Data
+    ].
+
+
 -endif.

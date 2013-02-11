@@ -6,6 +6,7 @@
 -export([literals/0, naked_literals/0]).
 -export([integers/0, naked_integers/0]).
 -export([floats/0, naked_floats/0]).
+-export([decodeables/0]).
 
 
 -include_lib("eunit/include/eunit.hrl").
@@ -49,7 +50,7 @@ naked_integers() ->
             [{integer, X}]
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ] ++ [0]
-    ] ++ [{"-0", <<"-0">>, 0, [{integer, 0}]}].
+    ].
 
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
@@ -80,13 +81,7 @@ naked_floats() ->
             [{float, X}]
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ]
-    ]
-    ++ [{"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]}]
-    ++ [{"1e0", <<"1e0">>, 1.0, [{float, 1.0}]}]
-    ++ [{"0e0", <<"0e0">>, 0.0, [{float, 0.0}]}]
-    ++ [{"1e4", <<"1e4">>, 1.0e4, [{float, 1.0e4}]}]
-    ++ [{"0e4", <<"0e4">>, 0.0, [{float, 0.0}]}]
-    ++ [{"-1e0", <<"-1e0">>, -1.0, [{float, -1.0}]}].
+    ].
         
 
 floats() ->
@@ -94,6 +89,22 @@ floats() ->
     ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
     ++ [listify(naked_floats())]
     ++ [objectify(naked_floats())].
+
+decodeables() ->
+    Tests  =  [
+        {"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]},
+        {"1e0", <<"1e0">>, 1.0, [{float, 1.0}]},
+        {"0e0", <<"0e0">>, 0.0, [{float, 0.0}]},
+        {"1e4", <<"1e4">>, 1.0e4, [{float, 1.0e4}]},
+        {"0e4", <<"0e4">>, 0.0, [{float, 0.0}]},
+        {"-1e0", <<"-1e0">>, -1.0, [{float, -1.0}]},
+        {"-0", <<"-0">>, 0, [{integer, 0}]}
+    ],
+    [ wrap_with_array(Test) || Test <- Tests ]
+    ++ [ wrap_with_object(Test) || Test <- Tests ]
+    ++ [listify(Tests)]
+    ++ [objectify(Tests)].
+    
 
 sane_float_to_list(X) ->
     [Output] = io_lib:format("~p", [X]),
@@ -147,18 +158,18 @@ listify([], {_, JSON, Term, Events}) ->
         binary_to_list(<<"["/utf8, JSON/binary, "]"/utf8>>),
         <<"["/utf8, JSON/binary, "]"/utf8>>,
         Term,
-        [start_array, Events, end_array]
+        [start_array] ++ Events ++ [end_array]
     };
 listify([Test|Rest], Acc) ->
     {_, A, M, X} = Acc,
     {_, B, N, Y} = Test,
-    listify(Rest, {null, <<A/binary, ", "/utf8, B/binary>>, M ++ [N], X ++ Y}).
+    listify(Rest, {null, <<A/binary, ","/utf8, B/binary>>, M ++ [N], X ++ Y}).
 
 
 objectify([{_, JSON, Term, Events}|Rest]) ->
     objectify(
         Rest,
-        {null, <<"\"", JSON/binary, "\": ", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
+        {null, <<"\"", JSON/binary, "\":", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
     ).
 
 objectify([], {_, JSON, Term, Events}) ->
@@ -173,7 +184,7 @@ objectify([Test|Rest], Acc) ->
     {_, B, N, [Y]} = Test,
     objectify(Rest, {
         null,
-        <<A/binary, ", \"", B/binary, "\": "/utf8, B/binary>>,
+        <<A/binary, ",\"", B/binary, "\":"/utf8, B/binary>>,
         M ++ [{B, N}],
         X ++ [{key, B}, Y]
     }).

@@ -265,4 +265,27 @@ post_decoders_test_() ->
         )}
     ].
 
+
+handle_event_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:deep_array()
+        ++ jsx:really_deep_array()
+        ++ jsx:empty_object()
+        ++ jsx:literals()
+        ++ jsx:naked_literals()
+        ++ jsx:integers()
+        ++ jsx:naked_integers()
+        ++ jsx:floats()
+        ++ jsx:naked_floats()
+        ++ jsx:decodeables(),
+    [
+        {
+            Title, ?_assertEqual(
+                Term,
+                lists:foldl(fun handle_event/2, {[[]], #opts{}}, Events ++ [end_json])
+            )
+        } || {Title, _, Term, Events} <- Data
+    ].
+
+
 -endif.

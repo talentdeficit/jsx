@@ -124,7 +124,8 @@ handle_event_test_() ->
         ++ jsx:integers()
         ++ jsx:naked_integers()
         ++ jsx:floats()
-        ++ jsx:naked_floats(),
+        ++ jsx:naked_floats()
+        ++ jsx:decodeables(),
     [
         {
             Title, ?_assertEqual(
