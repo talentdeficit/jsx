@@ -726,6 +726,8 @@ zero(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Opts) ->
     value(Rest, handle_event(format_number(Acc), Handler, Opts), [array|Stack], Opts);
 zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Opts) ->
     initial_decimal(Rest, Handler, [{Acc, []}|Stack], Opts);
+zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when S =:= $e; S =:= $E ->
+    e(Rest, Handler, [{Acc, [], []}|Stack], Opts);
 zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Opts) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Opts), Stack, Opts);
 zero(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Opts=#opts{comments=true}) ->
@@ -1609,5 +1611,26 @@ to_fake_utf(N, utf8) ->
     <<0:3, W:3, Z:6, Y:6, X:6>> = <<N:24>>,
     <<34/utf8, 2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6, 34/utf8>>.
 
+
+decode_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:deep_array()
+        ++ jsx:really_deep_array()
+        ++ jsx:empty_object()
+        ++ jsx:literals()
+        ++ jsx:naked_literals()
+        ++ jsx:integers()
+        ++ jsx:naked_integers()
+        ++ jsx:floats()
+        ++ jsx:naked_floats()
+        ++ jsx:decodeables(),
+    [
+        {
+            Title, ?_assertEqual(
+                Events ++ [end_json],
+                start(JSON, {jsx, []}, [], #opts{})
+            )
+        } || {Title, JSON, _, Events} <- Data
+    ].
 
 -endif.

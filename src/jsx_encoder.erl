@@ -136,4 +136,25 @@ clean_string(Bin, Opts) -> jsx_utils:clean_string(Bin, Opts).
 -include_lib("eunit/include/eunit.hrl").
 
 
+encode_test_() ->
+    Data = jsx:empty_array()
+        ++ jsx:deep_array()
+        ++ jsx:really_deep_array()
+        ++ jsx:empty_object()
+        ++ jsx:literals()
+        ++ jsx:naked_literals()
+        ++ jsx:integers()
+        ++ jsx:naked_integers()
+        ++ jsx:floats()
+        ++ jsx:naked_floats(),
+    [
+        {
+            Title, ?_assertEqual(
+                Events ++ [end_json],
+                start(Term, {jsx, []}, #opts{})
+            )
+        } || {Title, _, Term, Events} <- Data
+    ].
+
+
 -endif.
