@@ -181,10 +181,63 @@ objectify([], {_, JSON, Term, Events}) ->
     };
 objectify([Test|Rest], Acc) ->
     {_, A, M, X} = Acc,
-    {_, B, N, [Y]} = Test,
+    {_, B, N, Y} = Test,
     objectify(Rest, {
         null,
         <<A/binary, ",\"", B/binary, "\":"/utf8, B/binary>>,
         M ++ [{B, N}],
-        X ++ [{key, B}, Y]
+        X ++ [{key, B}] ++ Y
     }).
+
+
+listify_test_() ->
+    {"listify test", ?_assertEqual(
+                {
+                    "[true,1,\"hello world\",{}]",
+                    <<"[true,1,\"hello world\",{}]">>,
+                    [true, 1, <<"hello world">>, [{}]],
+                    [
+                        start_array,
+                        {literal, true},
+                        {integer, 1},
+                        {string, <<"hello world">>},
+                        start_object,
+                        end_object,
+                        end_array
+                    ]
+                },
+                listify([
+                    {"true", <<"true">>, true, [{literal, true}]},
+                    {"1", <<"1">>, 1, [{integer, 1}]},
+                    {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
+                    {"{}", <<"{}">>, [{}], [start_object, end_object]}
+                ])
+    )}.
+
+objectify_test_() ->
+    {"objectify test", ?_assertEqual(
+                {
+                    "{\"true\":true,\"1\":1,\"\"hello world\"\":\"hello world\",\"[]\":[]}",
+                    <<"{\"true\":true,\"1\":1,\"\"hello world\"\":\"hello world\",\"[]\":[]}">>,
+                    [{<<"true">>, true}, {<<"1">>, 1}, {<<"\"hello world\"">>, <<"hello world">>}, {<<"[]">>, []}],
+                    [
+                        start_object,
+                        {key, <<"true">>},
+                        {literal, true},
+                        {key, <<"1">>},
+                        {integer, 1},
+                        {key, <<"\"hello world\"">>},
+                        {string, <<"hello world">>},
+                        {key, <<"[]">>},
+                        start_array,
+                        end_array,
+                        end_object
+                    ]
+                },
+                objectify([
+                    {"true", <<"true">>, true, [{literal, true}]},
+                    {"1", <<"1">>, 1, [{integer, 1}]},
+                    {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
+                    {"[]", <<"[]">>, [], [start_array, end_array]}
+                ])
+    )}.
