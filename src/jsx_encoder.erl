@@ -25,20 +25,20 @@
 
 -export([encoder/3, pre_encode/2]).
 
--spec encoder(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:encoder().
+-spec encoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:encoder().
 
-encoder(Handler, State, Opts) ->
+encoder(Handler, State, Config) ->
     fun(JSON) ->
         start(
             JSON,
             {Handler, Handler:init(State)},
-            jsx_utils:parse_opts(Opts)
+            jsx_utils:parse_config(Config)
         )
     end.
 
 
 
--include("jsx_opts.hrl").
+-include("jsx_config.hrl").
 
 
 -ifndef(error).
@@ -48,87 +48,87 @@ encoder(Handler, State, Opts) ->
 -endif.
 
 
-start(Term, {Handler, State}, Opts) ->
-    Handler:handle_event(end_json, value(pre_encode(Term, Opts), {Handler, State}, Opts)).
+start(Term, {Handler, State}, Config) ->
+    Handler:handle_event(end_json, value(pre_encode(Term, Config), {Handler, State}, Config)).
 
 
-value(String, {Handler, State}, Opts) when is_binary(String) ->
-    Handler:handle_event({string, clean_string(String, Opts)}, State);
-value(Float, {Handler, State}, _Opts) when is_float(Float) ->
+value(String, {Handler, State}, Config) when is_binary(String) ->
+    Handler:handle_event({string, clean_string(String, Config)}, State);
+value(Float, {Handler, State}, _Config) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
-value(Int, {Handler, State}, _Opts) when is_integer(Int) ->
+value(Int, {Handler, State}, _Config) when is_integer(Int) ->
     Handler:handle_event({integer, Int}, State);
-value(Literal, {Handler, State}, _Opts)
+value(Literal, {Handler, State}, _Config)
         when Literal == true; Literal == false; Literal == null ->
     Handler:handle_event({literal, Literal}, State);
-value([{}], {Handler, State}, _Opts) ->
+value([{}], {Handler, State}, _Config) ->
     Handler:handle_event(end_object, Handler:handle_event(start_object, State));
-value([], {Handler, State}, _Opts) ->
+value([], {Handler, State}, _Config) ->
     Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value([Tuple|_] = List, Handler, Opts) when is_tuple(Tuple) ->
-    list_or_object(List, Handler, Opts);
-value(List, Handler, Opts) when is_list(List) ->
-    list_or_object(List, Handler, Opts);
-value(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+value([Tuple|_] = List, Handler, Config) when is_tuple(Tuple) ->
+    list_or_object(List, Handler, Config);
+value(List, Handler, Config) when is_list(List) ->
+    list_or_object(List, Handler, Config);
+value(Term, Handler, Config) -> ?error([Term, Handler, Config]).
 
 
-list_or_object([Term|Rest], {Handler, State}, Opts) ->
-    case pre_encode(Term, Opts) of
+list_or_object([Term|Rest], {Handler, State}, Config) ->
+    case pre_encode(Term, Config) of
         {K, V} ->
-            object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Opts)
+            object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Config)
         ; T ->
-            list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Opts)
+            list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Config)
     end.
 
 
-object([{Key, Value}, Next|Rest], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
-    V = pre_encode(Value, Opts),
+object([{Key, Value}, Next|Rest], {Handler, State}, Config) when is_atom(Key); is_binary(Key) ->
+    V = pre_encode(Value, Config),
     object(
-        [pre_encode(Next, Opts)|Rest],
+        [pre_encode(Next, Config)|Rest],
         {
             Handler,
             value(
                 V,
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
-                Opts
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Config)}, State)},
+                Config
             )
         },
-        Opts
+        Config
     );
-object([{Key, Value}], {Handler, State}, Opts) when is_atom(Key); is_binary(Key) ->
+object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Key) ->
     object(
         [],
         {
             Handler,
             value(
-                pre_encode(Value, Opts),
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Opts)}, State)},
-                Opts
+                pre_encode(Value, Config),
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Config)}, State)},
+                Config
             )
         },
-        Opts
+        Config
     );
-object([], {Handler, State}, _Opts) -> Handler:handle_event(end_object, State);
-object(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+object([], {Handler, State}, _Config) -> Handler:handle_event(end_object, State);
+object(Term, Handler, Config) -> ?error([Term, Handler, Config]).
 
 
-list([Value, Next|Rest], {Handler, State}, Opts) ->
-    list([pre_encode(Next, Opts)|Rest], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
-list([Value], {Handler, State}, Opts) ->
-	list([], {Handler, value(Value, {Handler, State}, Opts)}, Opts);
-list([], {Handler, State}, _Opts) -> Handler:handle_event(end_array, State);
-list(Term, Handler, Opts) -> ?error([Term, Handler, Opts]).
+list([Value, Next|Rest], {Handler, State}, Config) ->
+    list([pre_encode(Next, Config)|Rest], {Handler, value(Value, {Handler, State}, Config)}, Config);
+list([Value], {Handler, State}, Config) ->
+	list([], {Handler, value(Value, {Handler, State}, Config)}, Config);
+list([], {Handler, State}, _Config) -> Handler:handle_event(end_array, State);
+list(Term, Handler, Config) -> ?error([Term, Handler, Config]).
 
 
-pre_encode(Value, #opts{pre_encode=false}) -> io:format("~p~n", [Value]), Value;
-pre_encode(Value, Opts) -> (Opts#opts.pre_encode)(Value).
+pre_encode(Value, #config{pre_encode=false}) -> io:format("~p~n", [Value]), Value;
+pre_encode(Value, Config) -> (Config#config.pre_encode)(Value).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Opts) -> jsx_utils:clean_string(Bin, Opts).
+clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
 
 
 
@@ -142,7 +142,7 @@ encode_test_() ->
         {
             Title, ?_assertEqual(
                 Events ++ [end_json],
-                start(Term, {jsx, []}, #opts{})
+                start(Term, {jsx, []}, #config{})
             )
         } || {Title, _, Term, Events} <- Data
     ].

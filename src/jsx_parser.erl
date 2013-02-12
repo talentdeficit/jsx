@@ -26,13 +26,13 @@
 -export([parser/3]).
 
 
--spec parser(Handler::module(), State::any(), Opts::jsx:opts()) -> jsx:parser().
+-spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
 
-parser(Handler, State, Opts) ->
-    fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_utils:parse_opts(Opts)) end.
+parser(Handler, State, Config) ->
+    fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_utils:parse_config(Config)) end.
 
 
--include("jsx_opts.hrl").
+-include("jsx_config.hrl").
 
 
 %% error, incomplete and event macros
@@ -44,124 +44,124 @@ parser(Handler, State, Opts) ->
 
 
 -ifndef(incomplete).
--define(incomplete(State, Handler, Stack, Opts),
+-define(incomplete(State, Handler, Stack, Config),
     {incomplete, fun(end_stream) ->
                 case State([end_json],
                         Handler,
                         Stack,
-                        Opts) of
-                    {incomplete, _} -> ?error([Handler, Stack, Opts])
+                        Config) of
+                    {incomplete, _} -> ?error([Handler, Stack, Config])
                     ; Events -> Events
                 end
             ; (Tokens) ->
-                State(Tokens, Handler, Stack, Opts)
+                State(Tokens, Handler, Stack, Config)
         end
     }
 ).
 -endif.
 
 
-handle_event([], Handler, _Opts) -> Handler;
-handle_event([Event|Rest], Handler, Opts) -> handle_event(Rest, handle_event(Event, Handler, Opts), Opts);
-handle_event(Event, {Handler, State}, _Opts) -> {Handler, Handler:handle_event(Event, State)}.
+handle_event([], Handler, _Config) -> Handler;
+handle_event([Event|Rest], Handler, Config) -> handle_event(Rest, handle_event(Event, Handler, Config), Config);
+handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event(Event, State)}.
 
 
-value([start_object|Tokens], Handler, Stack, Opts) ->
-    object(Tokens, handle_event(start_object, Handler, Opts), [object|Stack], Opts);
-value([start_array|Tokens], Handler, Stack, Opts) ->
-    array(Tokens, handle_event(start_array, Handler, Opts), [array|Stack], Opts);
-value([{literal, true}|Tokens], Handler, [], Opts) ->
-    done(Tokens, handle_event({literal, true}, Handler, Opts), [], Opts);
-value([{literal, false}|Tokens], Handler, [], Opts) ->
-    done(Tokens, handle_event({literal, false}, Handler, Opts), [], Opts);
-value([{literal, null}|Tokens], Handler, [], Opts) ->
-    done(Tokens, handle_event({literal, null}, Handler, Opts), [], Opts);
-value([{literal, true}|Tokens], Handler, Stack, Opts) ->
-    maybe_done(Tokens, handle_event({literal, true}, Handler, Opts), Stack, Opts);
-value([{literal, false}|Tokens], Handler, Stack, Opts) ->
-    maybe_done(Tokens, handle_event({literal, false}, Handler, Opts), Stack, Opts);
-value([{literal, null}|Tokens], Handler, Stack, Opts) ->
-    maybe_done(Tokens, handle_event({literal, null}, Handler, Opts), Stack, Opts);
-value([Literal|Tokens], Handler, Stack, Opts) when Literal == true; Literal == false; Literal == null ->
-    value([{literal, Literal}] ++ Tokens, Handler, Stack, Opts);
-value([{integer, Number}|Tokens], Handler, [], Opts) when is_integer(Number) ->
-    done(Tokens, handle_event({integer, Number}, Handler, Opts), [], Opts);
-value([{float, Number}|Tokens], Handler, [], Opts) when is_float(Number) ->
-    done(Tokens, handle_event({float, Number}, Handler, Opts), [], Opts);
-value([{integer, Number}|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
-    maybe_done(Tokens, handle_event({integer, Number}, Handler, Opts), Stack, Opts);
-value([{float, Number}|Tokens], Handler, Stack, Opts) when is_float(Number) ->
-    maybe_done(Tokens, handle_event({float, Number}, Handler, Opts), Stack, Opts);
-value([{number, Number}|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
-    value([{integer, Number}] ++ Tokens, Handler, Stack, Opts);
-value([{number, Number}|Tokens], Handler, Stack, Opts) when is_float(Number) ->
-    value([{float, Number}] ++ Tokens, Handler, Stack, Opts);
-value([Number|Tokens], Handler, Stack, Opts) when is_integer(Number) ->
-    value([{integer, Number}] ++ Tokens, Handler, Stack, Opts);
-value([Number|Tokens], Handler, Stack, Opts) when is_float(Number) ->
-    value([{float, Number}] ++ Tokens, Handler, Stack, Opts);
-value([{string, String}|Tokens], Handler, [], Opts) when is_binary(String) ->
-    done(Tokens, handle_event({string, clean_string(String, Opts)}, Handler, Opts), [], Opts);
-value([{string, String}|Tokens], Handler, Stack, Opts) when is_binary(String) ->
-    maybe_done(Tokens, handle_event({string, clean_string(String, Opts)}, Handler, Opts), Stack, Opts);
-value([String|Tokens], Handler, Stack, Opts) when is_binary(String) ->
-    value([{string, String}] ++ Tokens, Handler, Stack, Opts);
-value([], Handler, Stack, Opts) ->
-    ?incomplete(value, Handler, Stack, Opts);
-value(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Opts]);
-value(Token, Handler, Stack, Opts) ->
-    value([Token], Handler, Stack, Opts).
+value([start_object|Tokens], Handler, Stack, Config) ->
+    object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
+value([start_array|Tokens], Handler, Stack, Config) ->
+    array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
+value([{literal, true}|Tokens], Handler, [], Config) ->
+    done(Tokens, handle_event({literal, true}, Handler, Config), [], Config);
+value([{literal, false}|Tokens], Handler, [], Config) ->
+    done(Tokens, handle_event({literal, false}, Handler, Config), [], Config);
+value([{literal, null}|Tokens], Handler, [], Config) ->
+    done(Tokens, handle_event({literal, null}, Handler, Config), [], Config);
+value([{literal, true}|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, true}, Handler, Config), Stack, Config);
+value([{literal, false}|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, false}, Handler, Config), Stack, Config);
+value([{literal, null}|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, null}, Handler, Config), Stack, Config);
+value([Literal|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
+    value([{literal, Literal}] ++ Tokens, Handler, Stack, Config);
+value([{integer, Number}|Tokens], Handler, [], Config) when is_integer(Number) ->
+    done(Tokens, handle_event({integer, Number}, Handler, Config), [], Config);
+value([{float, Number}|Tokens], Handler, [], Config) when is_float(Number) ->
+    done(Tokens, handle_event({float, Number}, Handler, Config), [], Config);
+value([{integer, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
+    maybe_done(Tokens, handle_event({integer, Number}, Handler, Config), Stack, Config);
+value([{float, Number}|Tokens], Handler, Stack, Config) when is_float(Number) ->
+    maybe_done(Tokens, handle_event({float, Number}, Handler, Config), Stack, Config);
+value([{number, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
+    value([{integer, Number}] ++ Tokens, Handler, Stack, Config);
+value([{number, Number}|Tokens], Handler, Stack, Config) when is_float(Number) ->
+    value([{float, Number}] ++ Tokens, Handler, Stack, Config);
+value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
+    value([{integer, Number}] ++ Tokens, Handler, Stack, Config);
+value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
+    value([{float, Number}] ++ Tokens, Handler, Stack, Config);
+value([{string, String}|Tokens], Handler, [], Config) when is_binary(String) ->
+    done(Tokens, handle_event({string, clean_string(String, Config)}, Handler, Config), [], Config);
+value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) ->
+    maybe_done(Tokens, handle_event({string, clean_string(String, Config)}, Handler, Config), Stack, Config);
+value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
+    value([{string, String}] ++ Tokens, Handler, Stack, Config);
+value([], Handler, Stack, Config) ->
+    ?incomplete(value, Handler, Stack, Config);
+value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Config]);
+value(Token, Handler, Stack, Config) ->
+    value([Token], Handler, Stack, Config).
 
-object([end_object|Tokens], Handler, [object|Stack], Opts) ->
-    maybe_done(Tokens, handle_event(end_object, Handler, Opts), Stack, Opts);
-object([{key, Key}|Tokens], Handler, Stack, Opts) when is_atom(Key); is_binary(Key) ->
-    value(Tokens, handle_event({key, clean_string(fix_key(Key), Opts)}, Handler, Opts), Stack, Opts);
-object([Key|Tokens], Handler, Stack, Opts) when is_atom(Key); is_binary(Key) ->
-    value(Tokens, handle_event({key, clean_string(fix_key(Key), Opts)}, Handler, Opts), Stack, Opts);
-object([], Handler, Stack, Opts) ->
-    ?incomplete(object, Handler, Stack, Opts);
-object(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Opts]);
-object(Token, Handler, Stack, Opts) ->
-    object([Token], Handler, Stack, Opts).
+object([end_object|Tokens], Handler, [object|Stack], Config) ->
+    maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
+object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
+    value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
+object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
+    value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
+object([], Handler, Stack, Config) ->
+    ?incomplete(object, Handler, Stack, Config);
+object(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Config]);
+object(Token, Handler, Stack, Config) ->
+    object([Token], Handler, Stack, Config).
 
-array([end_array|Tokens], Handler, [array|Stack], Opts) ->
-    maybe_done(Tokens, handle_event(end_array, Handler, Opts), Stack, Opts);
-array([], Handler, Stack, Opts) ->
-    ?incomplete(array, Handler, Stack, Opts);
-array(Tokens, Handler, Stack, Opts) when is_list(Tokens) ->
-    value(Tokens, Handler, Stack, Opts);
-array(Token, Handler, Stack, Opts) ->
-    array([Token], Handler, Stack, Opts).
+array([end_array|Tokens], Handler, [array|Stack], Config) ->
+    maybe_done(Tokens, handle_event(end_array, Handler, Config), Stack, Config);
+array([], Handler, Stack, Config) ->
+    ?incomplete(array, Handler, Stack, Config);
+array(Tokens, Handler, Stack, Config) when is_list(Tokens) ->
+    value(Tokens, Handler, Stack, Config);
+array(Token, Handler, Stack, Config) ->
+    array([Token], Handler, Stack, Config).
 
-maybe_done([end_json], Handler, [], Opts) ->
-    done([], Handler, [], Opts);
-maybe_done(Tokens, Handler, [object|_] = Stack, Opts) when is_list(Tokens) ->
-    object(Tokens, Handler, Stack, Opts);
-maybe_done(Tokens, Handler, [array|_] = Stack, Opts) when is_list(Tokens) ->
-    array(Tokens, Handler, Stack, Opts);
-maybe_done([], Handler, Stack, Opts) ->
-    ?incomplete(maybe_done, Handler, Stack, Opts);
-maybe_done(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Opts]);
-maybe_done(Token, Handler, Stack, Opts) ->
-    maybe_done([Token], Handler, Stack, Opts).
+maybe_done([end_json], Handler, [], Config) ->
+    done([], Handler, [], Config);
+maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
+    object(Tokens, Handler, Stack, Config);
+maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
+    array(Tokens, Handler, Stack, Config);
+maybe_done([], Handler, Stack, Config) ->
+    ?incomplete(maybe_done, Handler, Stack, Config);
+maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Config]);
+maybe_done(Token, Handler, Stack, Config) ->
+    maybe_done([Token], Handler, Stack, Config).
 
-done(Tokens, Handler, [], Opts) when Tokens == [end_json]; Tokens == [] ->
-    {_, State} = handle_event(end_json, Handler, Opts),
+done(Tokens, Handler, [], Config) when Tokens == [end_json]; Tokens == [] ->
+    {_, State} = handle_event(end_json, Handler, Config),
     State;
-done(BadTokens, Handler, Stack, Opts) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Opts]);
-done(Token, Handler, Stack, Opts) ->
-    done([Token], Handler, Stack, Opts).
+done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
+    ?error([BadTokens, Handler, Stack, Config]);
+done(Token, Handler, Stack, Config) ->
+    done([Token], Handler, Stack, Config).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Opts) -> jsx_utils:clean_string(Bin, Opts).
+clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
 
 
 
@@ -176,7 +176,7 @@ decode_test_() ->
         {
             Title, ?_assertEqual(
                 Events ++ [end_json],
-                value(Events ++ [end_json], {jsx, []}, [], #opts{})
+                value(Events ++ [end_json], {jsx, []}, [], #config{})
             )
         } || {Title, _, _, Events} <- Data
     ].

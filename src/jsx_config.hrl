@@ -1,4 +1,4 @@
--record(opts, {
+-record(config, {
     replaced_bad_utf8 = false,
     escaped_forward_slashes = false,
     single_quoted_strings = false,

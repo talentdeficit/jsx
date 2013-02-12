@@ -22,7 +22,6 @@
 
 
 -module(jsx).
--compile(export_all).
 
 -export([encode/1, encode/2, decode/1, decode/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
@@ -53,24 +52,24 @@
 
 
 -spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
--spec encode(Source::json_term(), Opts::jsx_to_json:opts()) -> json_text() | {incomplete, encoder()}.
+-spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
 
 encode(Source) -> encode(Source, []).
-encode(Source, Opts) -> jsx_to_json:to_json(Source, Opts).
+encode(Source, Config) -> jsx_to_json:to_json(Source, Config).
 
 %% old api, alias for encode/x
 
 to_json(Source) -> encode(Source, []).
-to_json(Source, Opts) -> encode(Source, Opts).
+to_json(Source, Config) -> encode(Source, Config).
 term_to_json(Source) -> encode(Source, []).
-term_to_json(Source, Opts) -> encode(Source, Opts).
+term_to_json(Source, Config) -> encode(Source, Config).
 
 
 -spec format(Source::json_text()) -> json_text() | {incomplete, decoder()}.
--spec format(Source::json_text(), Opts::jsx_to_json:opts()) -> json_text() | {incomplete, decoder()}.
+-spec format(Source::json_text(), Config::jsx_to_json:config()) -> json_text() | {incomplete, decoder()}.
 
 format(Source) -> format(Source, []).
-format(Source, Opts) -> jsx_to_json:format(Source, Opts).
+format(Source, Config) -> jsx_to_json:format(Source, Config).
 
 
 -spec minify(Source::json_text()) -> json_text()  | {incomplete, decoder()}.
@@ -84,45 +83,45 @@ prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
 -spec decode(Source::json_text()) -> json_term() | {incomplete, decoder()}.
--spec decode(Source::json_text(), Opts::jsx_to_term:opts()) -> json_term()  | {incomplete, decoder()}.
+-spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
 
 decode(Source) -> decode(Source, []).
-decode(Source, Opts) -> jsx_to_term:to_term(Source, Opts).
+decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 %% old api, alias for to_term/x
 
 to_term(Source) -> decode(Source, []).
-to_term(Source, Opts) -> decode(Source, Opts).
+to_term(Source, Config) -> decode(Source, Config).
 json_to_term(Source) -> decode(Source, []).
-json_to_term(Source, Opts) -> decode(Source, Opts).
+json_to_term(Source, Config) -> decode(Source, Config).
 
 
 -spec is_json(Source::any()) -> true | false.
--spec is_json(Source::any(), Opts::jsx_verify:opts()) -> true | false.
+-spec is_json(Source::any(), Config::jsx_verify:config()) -> true | false.
 
 is_json(Source) -> is_json(Source, []).
-is_json(Source, Opts) -> jsx_verify:is_json(Source, Opts).
+is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 
 -spec is_term(Source::any()) -> true | false.
--spec is_term(Source::any(), Opts::jsx_verify:opts()) -> true | false.
+-spec is_term(Source::any(), Config::jsx_verify:config()) -> true | false.
 
 is_term(Source) -> is_term(Source, []).
-is_term(Source, Opts) -> jsx_verify:is_term(Source, Opts).
+is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
 
 
 -type decoder() :: fun((json_text() | end_stream) -> any()).
 
--spec decoder(Handler::module(), State::any(), Opts::list()) -> decoder().
+-spec decoder(Handler::module(), State::any(), Config::list()) -> decoder().
 
-decoder(Handler, State, Opts) -> jsx_decoder:decoder(Handler, State, Opts).
+decoder(Handler, State, Config) -> jsx_decoder:decoder(Handler, State, Config).
 
 
 -type encoder() :: fun((json_term() | end_stream) -> any()).
 
--spec encoder(Handler::module(), State::any(), Opts::list()) -> encoder().
+-spec encoder(Handler::module(), State::any(), Config::list()) -> encoder().
 
-encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
+encoder(Handler, State, Config) -> jsx_encoder:encoder(Handler, State, Config).
 
 
 -type token() :: [token()]
@@ -149,6 +148,6 @@ encoder(Handler, State, Opts) -> jsx_encoder:encoder(Handler, State, Opts).
 
 -type parser() :: fun((token() | end_stream) -> any()).
 
--spec parser(Handler::module(), State::any(), Opts::list()) -> parser().
+-spec parser(Handler::module(), State::any(), Config::list()) -> parser().
 
-parser(Handler, State, Opts) -> jsx_parser:parser(Handler, State, Opts).
+parser(Handler, State, Config) -> jsx_parser:parser(Handler, State, Config).

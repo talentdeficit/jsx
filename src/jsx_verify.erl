@@ -27,65 +27,65 @@
 -export([init/1, handle_event/2]).
 
 
--record(opts, {
+-record(config, {
     repeated_keys = true
 }).
 
--type opts() :: [].
+-type config() :: [].
 
 
--spec is_json(Source::binary(), Opts::opts()) -> true | false.
+-spec is_json(Source::binary(), Config::config()) -> true | false.
 
-is_json(Source, Opts) when is_list(Opts) ->
-    try (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
+is_json(Source, Config) when is_list(Config) ->
+    try (jsx:decoder(?MODULE, Config, jsx_utils:extract_config(Config)))(Source)
     catch error:badarg -> false
     end.
 
 
--spec is_term(Source::any(), Opts::opts()) -> true | false.
+-spec is_term(Source::any(), Config::config()) -> true | false.
 
-is_term(Source, Opts) when is_list(Opts) ->
-    try (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts)))(Source)
+is_term(Source, Config) when is_list(Config) ->
+    try (jsx:encoder(?MODULE, Config, jsx_utils:extract_config(Config)))(Source)
     catch error:badarg -> false
     end.
 
 
-parse_opts(Opts) -> parse_opts(Opts, #opts{}).
+parse_config(Config) -> parse_config(Config, #config{}).
 
-parse_opts([{repeated_keys, Val}|Rest], Opts) when Val == true; Val == false ->
-    parse_opts(Rest, Opts#opts{repeated_keys = Val});
-parse_opts([repeated_keys|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{repeated_keys = true});
-parse_opts([{K, _}|Rest] = Options, Opts) ->
+parse_config([{repeated_keys, Val}|Rest], Config) when Val == true; Val == false ->
+    parse_config(Rest, Config#config{repeated_keys = Val});
+parse_config([repeated_keys|Rest], Config) ->
+    parse_config(Rest, Config#config{repeated_keys = true});
+parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_opts(Rest, Opts)
-        ; false -> erlang:error(badarg, [Options, Opts])
+        true -> parse_config(Rest, Config)
+        ; false -> erlang:error(badarg, [Options, Config])
     end;
-parse_opts([K|Rest] = Options, Opts) ->
+parse_config([K|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_opts(Rest, Opts)
-        ; false -> erlang:error(badarg, [Options, Opts])
+        true -> parse_config(Rest, Config)
+        ; false -> erlang:error(badarg, [Options, Config])
     end;
-parse_opts([], Opts) ->
-    Opts.
+parse_config([], Config) ->
+    Config.
 
 
 
-init(Opts) -> {parse_opts(Opts), []}.
+init(Config) -> {parse_config(Config), []}.
 
 
 
 handle_event(end_json, _) -> true;
 
-handle_event(_, {Opts, _} = State) when Opts#opts.repeated_keys == true -> State;
+handle_event(_, {Config, _} = State) when Config#config.repeated_keys == true -> State;
 
-handle_event(start_object, {Opts, Keys}) -> {Opts, [dict:new()] ++ Keys};
-handle_event(end_object, {Opts, [_|Keys]}) -> {Opts, Keys};
+handle_event(start_object, {Config, Keys}) -> {Config, [dict:new()] ++ Keys};
+handle_event(end_object, {Config, [_|Keys]}) -> {Config, Keys};
 
-handle_event({key, Key}, {Opts, [CurrentKeys|Keys]}) ->
+handle_event({key, Key}, {Config, [CurrentKeys|Keys]}) ->
     case dict:is_key(Key, CurrentKeys) of
         true -> erlang:error(badarg)
-        ; false -> {Opts, [dict:store(Key, blah, CurrentKeys)|Keys]}
+        ; false -> {Config, [dict:store(Key, blah, CurrentKeys)|Keys]}
     end;
 
 handle_event(_, State) -> State.
@@ -97,20 +97,20 @@ handle_event(_, State) -> State.
 -include_lib("eunit/include/eunit.hrl").
 
 
-opts_test_() ->
+config_test_() ->
     [
-        {"empty opts", ?_assertEqual(#opts{}, parse_opts([]))},
-        {"bare repeated keys", ?_assertEqual(#opts{}, parse_opts([repeated_keys]))},
+        {"empty config", ?_assertEqual(#config{}, parse_config([]))},
+        {"bare repeated keys", ?_assertEqual(#config{}, parse_config([repeated_keys]))},
         {"repeated keys true", ?_assertEqual(
-            #opts{},
-            parse_opts([{repeated_keys, true}])
+            #config{},
+            parse_config([{repeated_keys, true}])
         )},
         {"repeated keys false", ?_assertEqual(
-            #opts{repeated_keys=false},
-            parse_opts([{repeated_keys, false}])
+            #config{repeated_keys=false},
+            parse_config([{repeated_keys, false}])
         )},
-        {"invalid opt flag", ?_assertError(badarg, parse_opts([error]))},
-        {"invalid opt tuple", ?_assertError(badarg, parse_opts([{error, true}]))}
+        {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
+        {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
     ].
 
 
@@ -121,7 +121,7 @@ handle_event_test_() ->
         {
             Title, ?_assertEqual(
                 true,
-                lists:foldl(fun handle_event/2, {#opts{}, []}, Events ++ [end_json])
+                lists:foldl(fun handle_event/2, {#config{}, []}, Events ++ [end_json])
             )
         } || {Title, _, _, Events} <- Data
     ].

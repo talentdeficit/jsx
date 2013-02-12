@@ -27,49 +27,49 @@
 -export([init/1, handle_event/2]).
 
 
--record(opts, {
+-record(config, {
     space = 0,
     indent = 0,
     depth = 0
 }).
 
--type opts() :: list().
+-type config() :: list().
 
 
--spec to_json(Source::any(), Opts::opts()) -> binary().
+-spec to_json(Source::any(), Config::config()) -> binary().
 
-to_json(Source, Opts) when is_list(Opts) ->
-    (jsx:encoder(?MODULE, Opts, jsx_utils:extract_opts(Opts ++ [escaped_strings])))(Source).
-
-
--spec format(Source::binary(), Opts::opts()) -> binary().
-
-format(Source, Opts) when is_binary(Source) andalso is_list(Opts) ->
-    (jsx:decoder(?MODULE, Opts, jsx_utils:extract_opts(Opts ++ [escaped_strings])))(Source).
+to_json(Source, Config) when is_list(Config) ->
+    (jsx:encoder(?MODULE, Config, jsx_utils:extract_config(Config ++ [escaped_strings])))(Source).
 
 
-parse_opts(Opts) -> parse_opts(Opts, #opts{}).
+-spec format(Source::binary(), Config::config()) -> binary().
 
-parse_opts([{space, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
-    parse_opts(Rest, Opts#opts{space = Val});
-parse_opts([space|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{space = 1});
-parse_opts([{indent, Val}|Rest], Opts) when is_integer(Val), Val > 0 ->
-    parse_opts(Rest, Opts#opts{indent = Val});
-parse_opts([indent|Rest], Opts) ->
-    parse_opts(Rest, Opts#opts{indent = 1});
-parse_opts([{K, _}|Rest] = Options, Opts) ->
+format(Source, Config) when is_binary(Source) andalso is_list(Config) ->
+    (jsx:decoder(?MODULE, Config, jsx_utils:extract_config(Config ++ [escaped_strings])))(Source).
+
+
+parse_config(Config) -> parse_config(Config, #config{}).
+
+parse_config([{space, Val}|Rest], Config) when is_integer(Val), Val > 0 ->
+    parse_config(Rest, Config#config{space = Val});
+parse_config([space|Rest], Config) ->
+    parse_config(Rest, Config#config{space = 1});
+parse_config([{indent, Val}|Rest], Config) when is_integer(Val), Val > 0 ->
+    parse_config(Rest, Config#config{indent = Val});
+parse_config([indent|Rest], Config) ->
+    parse_config(Rest, Config#config{indent = 1});
+parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_opts(Rest, Opts)
-        ; false -> erlang:error(badarg, [Options, Opts])
+        true -> parse_config(Rest, Config)
+        ; false -> erlang:error(badarg, [Options, Config])
     end;
-parse_opts([K|Rest] = Options, Opts) ->
+parse_config([K|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_opts(Rest, Opts)
-        ; false -> erlang:error(badarg, [Options, Opts])
+        true -> parse_config(Rest, Config)
+        ; false -> erlang:error(badarg, [Options, Config])
     end;
-parse_opts([], Opts) ->
-    Opts.
+parse_config([], Config) ->
+    Config.
 
 
 
@@ -85,97 +85,97 @@ parse_opts([], Opts) ->
 
 
 
-init(Opts) -> {start, [], parse_opts(Opts)}.
+init(Config) -> {start, [], parse_config(Config)}.
 
 
 
-handle_event(Event, {start, Acc, Opts}) ->
+handle_event(Event, {start, Acc, Config}) ->
     case Event of
-        {Type, Value} -> {[], [Acc, encode(Type, Value, Opts)], Opts}
-        ; start_object -> {[object_start], [Acc, ?start_object], Opts}
-        ; start_array -> {[array_start], [Acc, ?start_array], Opts}
+        {Type, Value} -> {[], [Acc, encode(Type, Value, Config)], Config}
+        ; start_object -> {[object_start], [Acc, ?start_object], Config}
+        ; start_array -> {[array_start], [Acc, ?start_array], Config}
     end;
-handle_event(Event, {[object_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
-    Opts = OldOpts#opts{depth = Depth + 1},
+handle_event(Event, {[object_start|Stack], Acc, OldConfig = #config{depth = Depth}}) ->
+    Config = OldConfig#config{depth = Depth + 1},
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, indent(Opts), encode(string, Key, Opts), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, indent(Config), encode(string, Key, Config), ?colon, space(Config)], Config}
         ; end_object ->
-            {Stack, [Acc, ?end_object], OldOpts}
+            {Stack, [Acc, ?end_object], OldConfig}
     end;
-handle_event(Event, {[object_value|Stack], Acc, Opts}) ->
+handle_event(Event, {[object_value|Stack], Acc, Config}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[key|Stack], [Acc, encode(Type, Value, Opts)], Opts}
-        ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Opts}
-        ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Opts}
+            {[key|Stack], [Acc, encode(Type, Value, Config)], Config}
+        ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Config}
+        ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Config}
     end;
-handle_event(Event, {[key|Stack], Acc, Opts = #opts{depth = Depth}}) ->
+handle_event(Event, {[key|Stack], Acc, Config = #config{depth = Depth}}) ->
     case Event of
         {key, Key} ->
-            {[object_value|Stack], [Acc, ?comma, indent_or_space(Opts), encode(string, Key, Opts), ?colon, space(Opts)], Opts}
+            {[object_value|Stack], [Acc, ?comma, indent_or_space(Config), encode(string, Key, Config), ?colon, space(Config)], Config}
         ; end_object ->
-            NewOpts = Opts#opts{depth = Depth - 1},
-            {Stack, [Acc, indent(NewOpts), ?end_object], NewOpts}
+            NewConfig = Config#config{depth = Depth - 1},
+            {Stack, [Acc, indent(NewConfig), ?end_object], NewConfig}
     end;
-handle_event(Event, {[array_start|Stack], Acc, OldOpts = #opts{depth = Depth}}) ->
-    Opts = OldOpts#opts{depth = Depth + 1},
+handle_event(Event, {[array_start|Stack], Acc, OldConfig = #config{depth = Depth}}) ->
+    Config = OldConfig#config{depth = Depth + 1},
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, indent(Opts), encode(Type, Value, Opts)], Opts}
-        ; start_object -> {[object_start, array|Stack], [Acc, indent(Opts), ?start_object], Opts}
-        ; start_array -> {[array_start, array|Stack], [Acc, indent(Opts), ?start_array], Opts}
-        ; end_array -> {Stack, [Acc, ?end_array], OldOpts}
+            {[array|Stack], [Acc, indent(Config), encode(Type, Value, Config)], Config}
+        ; start_object -> {[object_start, array|Stack], [Acc, indent(Config), ?start_object], Config}
+        ; start_array -> {[array_start, array|Stack], [Acc, indent(Config), ?start_array], Config}
+        ; end_array -> {Stack, [Acc, ?end_array], OldConfig}
     end;
-handle_event(Event, {[array|Stack], Acc, Opts = #opts{depth = Depth}}) ->
+handle_event(Event, {[array|Stack], Acc, Config = #config{depth = Depth}}) ->
     case Event of
         {Type, Value} when Type == string; Type == literal;
                 Type == integer; Type == float ->
-            {[array|Stack], [Acc, ?comma, indent_or_space(Opts), encode(Type, Value, Opts)], Opts}
+            {[array|Stack], [Acc, ?comma, indent_or_space(Config), encode(Type, Value, Config)], Config}
         ; end_array ->
-            NewOpts = Opts#opts{depth = Depth - 1},
-            {Stack, [Acc, indent(NewOpts), ?end_array], NewOpts}
-        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_object], Opts}
-        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Opts), ?start_array], Opts}
+            NewConfig = Config#config{depth = Depth - 1},
+            {Stack, [Acc, indent(NewConfig), ?end_array], NewConfig}
+        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Config), ?start_object], Config}
+        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Config), ?start_array], Config}
     end;
-handle_event(end_json, {[], Acc, _Opts}) -> unicode:characters_to_binary(Acc, utf8).
+handle_event(end_json, {[], Acc, _Config}) -> unicode:characters_to_binary(Acc, utf8).
 
 
-encode(string, String, _Opts) ->
+encode(string, String, _Config) ->
     [?quote, String, ?quote];
-encode(literal, Literal, _Opts) ->
+encode(literal, Literal, _Config) ->
     erlang:atom_to_list(Literal);
-encode(integer, Integer, _Opts) ->
+encode(integer, Integer, _Config) ->
     erlang:integer_to_list(Integer);
-encode(float, Float, _Opts) ->
+encode(float, Float, _Config) ->
     [Output] = io_lib:format("~p", [Float]), Output.
 
 
-space(Opts) ->
-    case Opts#opts.space of
+space(Config) ->
+    case Config#config.space of
         0 -> []
         ; X when X > 0 -> binary:copy(?space, X)
     end.
 
 
-indent(Opts) ->
-    case Opts#opts.indent of
+indent(Config) ->
+    case Config#config.indent of
         0 -> []
         ; X when X > 0 ->
             Indent = binary:copy(?space, X),
-            indent(Indent, Opts#opts.depth, [?newline])
+            indent(Indent, Config#config.depth, [?newline])
     end.
 
 indent(_Indent, 0, Acc) -> Acc;
 indent(Indent, N, Acc) -> indent(Indent, N - 1, [Acc, Indent]).
 
 
-indent_or_space(Opts) ->
-    case Opts#opts.indent > 0 of
-        true -> indent(Opts)
-        ; false -> space(Opts)
+indent_or_space(Config) ->
+    case Config#config.indent > 0 of
+        true -> indent(Config)
+        ; false -> space(Config)
     end.
 
 
@@ -185,56 +185,56 @@ indent_or_space(Opts) ->
 -include_lib("eunit/include/eunit.hrl").
 
 
-opts_test_() ->
+config_test_() ->
     [
-        {"empty opts", ?_assertEqual(#opts{}, parse_opts([]))},
+        {"empty config", ?_assertEqual(#config{}, parse_config([]))},
         {"unspecified indent/space", ?_assertEqual(
-            #opts{space=1, indent=1},
-            parse_opts([space, indent])
+            #config{space=1, indent=1},
+            parse_config([space, indent])
         )},
         {"specific indent", ?_assertEqual(
-            #opts{indent=4},
-            parse_opts([{indent, 4}])
+            #config{indent=4},
+            parse_config([{indent, 4}])
         )},
         {"specific space", ?_assertEqual(
-            #opts{space=2},
-            parse_opts([{space, 2}])
+            #config{space=2},
+            parse_config([{space, 2}])
         )},
         {"specific space and indent", ?_assertEqual(
-            #opts{space=2, indent=2},
-            parse_opts([{space, 2}, {indent, 2}])
+            #config{space=2, indent=2},
+            parse_config([{space, 2}, {indent, 2}])
         )},
-        {"invalid opt flag", ?_assertError(badarg, parse_opts([error]))},
-        {"invalid opt tuple", ?_assertError(badarg, parse_opts([{error, true}]))}
+        {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
+        {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
     ].
 
 
 space_test_() ->
     [
-        {"no space", ?_assertEqual([], space(#opts{space=0}))},
-        {"one space", ?_assertEqual(<<" ">>, space(#opts{space=1}))},
-        {"four spaces", ?_assertEqual(<<"    ">>, space(#opts{space=4}))}
+        {"no space", ?_assertEqual([], space(#config{space=0}))},
+        {"one space", ?_assertEqual(<<" ">>, space(#config{space=1}))},
+        {"four spaces", ?_assertEqual(<<"    ">>, space(#config{space=4}))}
     ].
 
 
 indent_test_() ->
     [
-        {"no indent", ?_assertEqual([], indent(#opts{indent=0, depth=1}))},
+        {"no indent", ?_assertEqual([], indent(#config{indent=0, depth=1}))},
         {"indent 1 depth 1", ?_assertEqual(
             [[?newline], ?space],
-            indent(#opts{indent=1, depth=1})
+            indent(#config{indent=1, depth=1})
         )},
         {"indent 1 depth 2", ?_assertEqual(
             [[[?newline], ?space], ?space],
-            indent(#opts{indent=1, depth=2})
+            indent(#config{indent=1, depth=2})
         )},
         {"indent 4 depth 1", ?_assertEqual(
             [[?newline], <<"    ">>],
-            indent(#opts{indent=4, depth=1})
+            indent(#config{indent=4, depth=1})
         )},
         {"indent 4 depth 2", ?_assertEqual(
             [[[?newline], <<"    ">>], <<"    ">>],
-            indent(#opts{indent=4, depth=2})
+            indent(#config{indent=4, depth=2})
         )}
     ].
 
@@ -243,48 +243,48 @@ indent_or_space_test_() ->
     [
         {"no indent so space", ?_assertEqual(
             <<" ">>,
-            indent_or_space(#opts{space=1, indent=0, depth=1})
+            indent_or_space(#config{space=1, indent=0, depth=1})
         )},
         {"indent so no space", ?_assertEqual(
             [[?newline], ?space],
-            indent_or_space(#opts{space=1, indent=1, depth=1})
+            indent_or_space(#config{space=1, indent=1, depth=1})
         )}
     ].
 
 
 format_test_() ->
     [
-        {"0.0", ?_assert(encode(float, 0.0, #opts{}) =:= "0.0")},
-        {"1.0", ?_assert(encode(float, 1.0, #opts{}) =:= "1.0")},
-        {"-1.0", ?_assert(encode(float, -1.0, #opts{}) =:= "-1.0")},
+        {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= "0.0")},
+        {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= "1.0")},
+        {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= "-1.0")},
         {"3.1234567890987654321", 
             ?_assert(
-                encode(float, 3.1234567890987654321, #opts{}) =:= "3.1234567890987655")
+                encode(float, 3.1234567890987654321, #config{}) =:= "3.1234567890987655")
         },
-        {"1.0e23", ?_assert(encode(float, 1.0e23, #opts{}) =:= "1.0e23")},
-        {"0.3", ?_assert(encode(float, 3.0/10.0, #opts{}) =:= "0.3")},
-        {"0.0001", ?_assert(encode(float, 0.0001, #opts{}) =:= "0.0001")},
-        {"0.00001", ?_assert(encode(float, 0.00001, #opts{}) =:= "1.0e-5")},
-        {"0.00000001", ?_assert(encode(float, 0.00000001, #opts{}) =:= "1.0e-8")},
-        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #opts{}) =:= "1.0e-323")},
-        {"1.0e308", ?_assert(encode(float, 1.0e308, #opts{}) =:= "1.0e308")},
+        {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= "1.0e23")},
+        {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= "0.3")},
+        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= "0.0001")},
+        {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= "1.0e-5")},
+        {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= "1.0e-8")},
+        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= "1.0e-323")},
+        {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= "1.0e308")},
         {"min normalized float", 
             ?_assert(
-                encode(float, math:pow(2, -1022), #opts{}) =:= "2.2250738585072014e-308"
+                encode(float, math:pow(2, -1022), #config{}) =:= "2.2250738585072014e-308"
             )
         },
         {"max normalized float", 
             ?_assert(
-                encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #opts{}) 
+                encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #config{}) 
                     =:= "1.7976931348623157e308"
             )
         },
         {"min denormalized float", 
-            ?_assert(encode(float, math:pow(2, -1074), #opts{}) =:= "5.0e-324")
+            ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= "5.0e-324")
         },
         {"max denormalized float", 
             ?_assert(
-                encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #opts{}) 
+                encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #config{}) 
                     =:= "2.225073858507201e-308"
             )
         }
@@ -297,7 +297,7 @@ handle_event_test_() ->
         {
             Title, ?_assertEqual(
                 JSON,
-                lists:foldl(fun handle_event/2, {start, [], #opts{}}, Events ++ [end_json])
+                lists:foldl(fun handle_event/2, {start, [], #config{}}, Events ++ [end_json])
             )
         } || {Title, JSON, _, Events} <- Data
     ].
