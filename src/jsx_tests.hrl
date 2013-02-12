@@ -55,8 +55,8 @@ naked_integers() ->
 integers() ->
     [ wrap_with_array(Test) || Test <- naked_integers() ]
     ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
-    ++ [listify(naked_integers())]
-    ++ [objectify(naked_integers())].
+    ++ [listify("naked integers", naked_integers())]
+    ++ [objectify("naked integers", naked_integers())].
 
 
 naked_floats() ->
@@ -82,13 +82,13 @@ naked_floats() ->
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ]
     ].
-        
 
 floats() ->
     [ wrap_with_array(Test) || Test <- naked_floats() ]
     ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
-    ++ [listify(naked_floats())]
-    ++ [objectify(naked_floats())].
+    ++ [listify("naked floats", naked_floats())]
+    ++ [objectify("naked floats", naked_floats())].
+
 
 decodeables() ->
     Tests  =  [
@@ -102,9 +102,9 @@ decodeables() ->
     ],
     [ wrap_with_array(Test) || Test <- Tests ]
     ++ [ wrap_with_object(Test) || Test <- Tests ]
-    ++ [listify(Tests)]
-    ++ [objectify(Tests)].
-    
+    ++ [listify("naked decodeables", Tests)]
+    ++ [objectify("naked decodeables", Tests)].
+
 
 sane_float_to_list(X) ->
     [Output] = io_lib:format("~p", [X]),
@@ -125,8 +125,8 @@ naked_literals() ->
 literals() ->
     [ wrap_with_array(Test) || Test <- naked_literals() ]
     ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
-    ++ [listify(naked_literals())]
-    ++ [objectify(naked_literals())].
+    ++ [listify("naked literals", naked_literals())]
+    ++ [objectify("naked literals", naked_literals())].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
@@ -151,39 +151,39 @@ repeat(_, Test, 0) -> Test;
 repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
 
 
-listify([{_, JSON, Term, Events}|Rest]) -> listify(Rest, {null, JSON, [Term], Events}).
+listify(Title, [{_, JSON, Term, Events}|Rest]) -> do_listify(Rest, {Title, JSON, [Term], Events}).
 
-listify([], {_, JSON, Term, Events}) ->
+do_listify([], {Title, JSON, Term, Events}) ->
     {
-        binary_to_list(<<"["/utf8, JSON/binary, "]"/utf8>>),
+        Title,
         <<"["/utf8, JSON/binary, "]"/utf8>>,
         Term,
         [start_array] ++ Events ++ [end_array]
     };
-listify([Test|Rest], Acc) ->
-    {_, A, M, X} = Acc,
+do_listify([Test|Rest], Acc) ->
+    {Title, A, M, X} = Acc,
     {_, B, N, Y} = Test,
-    listify(Rest, {null, <<A/binary, ","/utf8, B/binary>>, M ++ [N], X ++ Y}).
+    do_listify(Rest, {Title, <<A/binary, ","/utf8, B/binary>>, M ++ [N], X ++ Y}).
 
 
-objectify([{_, JSON, Term, Events}|Rest]) ->
-    objectify(
+objectify(Title, [{_, JSON, Term, Events}|Rest]) ->
+    do_objectify(
         Rest,
-        {null, <<"\"", JSON/binary, "\":", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
+        {Title, <<"\"", JSON/binary, "\":", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
     ).
 
-objectify([], {_, JSON, Term, Events}) ->
+do_objectify([], {Title, JSON, Term, Events}) ->
     {
-        binary_to_list(<<"{"/utf8, JSON/binary, "}"/utf8>>),
+        Title,
         <<"{"/utf8, JSON/binary, "}"/utf8>>,
         Term,
         [start_object] ++ Events ++ [end_object]
     };
-objectify([Test|Rest], Acc) ->
-    {_, A, M, X} = Acc,
+do_objectify([Test|Rest], Acc) ->
+    {Title, A, M, X} = Acc,
     {_, B, N, Y} = Test,
-    objectify(Rest, {
-        null,
+    do_objectify(Rest, {
+        Title,
         <<A/binary, ",\"", B/binary, "\":"/utf8, B/binary>>,
         M ++ [{B, N}],
         X ++ [{key, B}] ++ Y
@@ -193,7 +193,7 @@ objectify([Test|Rest], Acc) ->
 listify_test_() ->
     {"listify test", ?_assertEqual(
                 {
-                    "[true,1,\"hello world\",{}]",
+                    "listify test",
                     <<"[true,1,\"hello world\",{}]">>,
                     [true, 1, <<"hello world">>, [{}]],
                     [
@@ -206,7 +206,7 @@ listify_test_() ->
                         end_array
                     ]
                 },
-                listify([
+                listify("listify test", [
                     {"true", <<"true">>, true, [{literal, true}]},
                     {"1", <<"1">>, 1, [{integer, 1}]},
                     {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
@@ -214,10 +214,11 @@ listify_test_() ->
                 ])
     )}.
 
+
 objectify_test_() ->
     {"objectify test", ?_assertEqual(
                 {
-                    "{\"true\":true,\"1\":1,\"\"hello world\"\":\"hello world\",\"[]\":[]}",
+                    "objectify test",
                     <<"{\"true\":true,\"1\":1,\"\"hello world\"\":\"hello world\",\"[]\":[]}">>,
                     [{<<"true">>, true}, {<<"1">>, 1}, {<<"\"hello world\"">>, <<"hello world">>}, {<<"[]">>, []}],
                     [
@@ -234,7 +235,7 @@ objectify_test_() ->
                         end_object
                     ]
                 },
-                objectify([
+                objectify("objectify test", [
                     {"true", <<"true">>, true, [{literal, true}]},
                     {"1", <<"1">>, 1, [{integer, 1}]},
                     {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
