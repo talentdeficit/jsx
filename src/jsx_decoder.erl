@@ -1423,6 +1423,22 @@ comments_test_() ->
         {"/**/ comment terminating exp", ?_assertEqual(
             decode(<<"[ 1e1/* comment */ ]">>, [comments]),
             [start_array, {float, 1.0e1}, end_array, end_json]
+        )},
+        {"/**/ comment following /**/ comment", ?_assertEqual(
+            decode(<<"[/* comment *//* comment */true]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"/**/ comment following // comment", ?_assertEqual(
+            decode(<<"[// comment", ?newline, "/* comment */true]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"// comment following /**/ comment", ?_assertEqual(
+            decode(<<"[/* comment */// comment", ?newline, "true]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
+        )},
+        {"// comment following // comment", ?_assertEqual(
+            decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [comments]),
+            [start_array, {literal, true}, end_array, end_json]
         )}
     ].
 
