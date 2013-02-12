@@ -1,11 +1,7 @@
 %% data and helper functions for tests
 
 -export([init/1, handle_event/2]).
--export([empty_array/0, deep_array/0, really_deep_array/0]).
--export([empty_object/0]).
--export([literals/0, naked_literals/0]).
--export([integers/0, naked_integers/0]).
--export([floats/0, naked_floats/0]).
+-export([universals/0]).
 -export([decodeables/0]).
 
 
@@ -17,6 +13,17 @@ init([]) -> [].
 
 handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
 handle_event(Event, State) -> [Event] ++ State.
+
+
+universals() ->
+    empty_array()
+    ++ deep_array()
+    ++ really_deep_array()
+    ++ empty_object()
+    ++ literals()
+    ++ integers()
+    ++ floats()
+    ++ strings().
 
 
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
@@ -31,6 +38,36 @@ really_deep_array() ->
 
 
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
+
+
+naked_strings() ->
+    Raw = [
+        "",
+        "hello world"
+    ],
+    [
+        {
+            String,
+            <<"\"", (list_to_binary(String))/binary, "\"">>,
+            list_to_binary(String),
+            [{string, list_to_binary(String)}]
+        }
+        || String <- Raw
+    ].
+
+strings() ->
+    naked_strings()
+    ++ [ wrap_with_array(Test) || Test <- naked_strings() ]
+    ++ [ wrap_with_object(Test) || Test <- naked_strings() ]
+    ++ [listify("naked strings", naked_strings())]
+    ++ [
+        {
+            "naked strings",
+            <<"{\"\":\"\",\"hello world\":\"hello world\"}">>,
+            [{<<>>, <<>>}, {<<"hello world">>, <<"hello world">>}],
+            [start_object, {key, <<>>}, {string, <<>>}, {key, <<"hello world">>}, {string, <<"hello world">>}, end_object]
+        }
+    ].
 
 
 naked_integers() ->
@@ -53,7 +90,8 @@ naked_integers() ->
     ].
 
 integers() ->
-    [ wrap_with_array(Test) || Test <- naked_integers() ]
+    naked_integers()
+    ++ [ wrap_with_array(Test) || Test <- naked_integers() ]
     ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
     ++ [listify("naked integers", naked_integers())]
     ++ [objectify("naked integers", naked_integers())].
@@ -84,11 +122,33 @@ naked_floats() ->
     ].
 
 floats() ->
-    [ wrap_with_array(Test) || Test <- naked_floats() ]
+    naked_floats()
+    ++ [ wrap_with_array(Test) || Test <- naked_floats() ]
     ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
     ++ [listify("naked floats", naked_floats())]
     ++ [objectify("naked floats", naked_floats())].
 
+
+naked_literals() ->
+    [
+        {
+            atom_to_list(Literal),
+            atom_to_binary(Literal, unicode),
+            Literal,
+            [{literal, Literal}]
+        }
+        || Literal <- [true, false, null]
+    ].
+
+literals() ->
+    naked_literals()
+    ++ [ wrap_with_array(Test) || Test <- naked_literals() ]
+    ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
+    ++ [listify("naked literals", naked_literals())]
+    ++ [objectify("naked literals", naked_literals())].
+
+
+%% special tests used only for things that don't round trip when decoded and re-encoded
 
 decodeables() ->
     Tests  =  [
@@ -104,29 +164,6 @@ decodeables() ->
     ++ [ wrap_with_object(Test) || Test <- Tests ]
     ++ [listify("naked decodeables", Tests)]
     ++ [objectify("naked decodeables", Tests)].
-
-
-sane_float_to_list(X) ->
-    [Output] = io_lib:format("~p", [X]),
-    Output.
-
-
-naked_literals() ->
-    [
-        {
-            atom_to_list(Literal),
-            atom_to_binary(Literal, unicode),
-            Literal,
-            [{literal, Literal}]
-        }
-        || Literal <- [true, false, null]
-    ].
-
-literals() ->
-    [ wrap_with_array(Test) || Test <- naked_literals() ]
-    ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
-    ++ [listify("naked literals", naked_literals())]
-    ++ [objectify("naked literals", naked_literals())].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
@@ -149,6 +186,11 @@ wrap_with_object({Title, JSON, Term, Events}) ->
 
 repeat(_, Test, 0) -> Test;
 repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
+
+
+sane_float_to_list(X) ->
+    [Output] = io_lib:format("~p", [X]),
+    Output.
 
 
 listify(Title, [{_, JSON, Term, Events}|Rest]) -> do_listify(Rest, {Title, JSON, [Term], Events}).

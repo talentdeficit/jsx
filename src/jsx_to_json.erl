@@ -292,16 +292,7 @@ format_test_() ->
 
 
 handle_event_test_() ->
-    Data = jsx:empty_array()
-        ++ jsx:deep_array()
-        ++ jsx:really_deep_array()
-        ++ jsx:empty_object()
-        ++ jsx:literals()
-        ++ jsx:naked_literals()
-        ++ jsx:integers()
-        ++ jsx:naked_integers()
-        ++ jsx:floats()
-        ++ jsx:naked_floats(),
+    Data = jsx:universals(),
     [
         {
             Title, ?_assertEqual(

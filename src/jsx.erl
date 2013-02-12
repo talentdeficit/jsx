@@ -22,6 +22,7 @@
 
 
 -module(jsx).
+-compile(export_all).
 
 -export([encode/1, encode/2, decode/1, decode/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
