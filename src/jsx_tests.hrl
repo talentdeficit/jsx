@@ -22,7 +22,8 @@ test_cases() ->
     ++ strings()
     ++ literals()
     ++ integers()
-    ++ floats().
+    ++ floats()
+    ++ compound_object().
 
 
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
@@ -147,6 +148,44 @@ literals() ->
     naked_literals()
     ++ [ wrap_with_array(Test) || Test <- naked_literals() ]
     ++ [ wrap_with_object(Test) || Test <- naked_literals() ].
+
+
+compound_object() ->
+    [{
+        "[{\"alpha\":[1,2,3],\"beta\":{\"alpha\":[1.0,2.0,3.0],\"beta\":[true,false]}},[{}]]",
+        <<"[{\"alpha\":[1,2,3],\"beta\":{\"alpha\":[1.0,2.0,3.0],\"beta\":[true,false]}},[{}]]">>,
+        [[{<<"alpha">>, [1, 2, 3]}, {<<"beta">>, [{<<"alpha">>, [1.0, 2.0, 3.0]}, {<<"beta">>, [true, false]}]}], [[{}]]],
+        [
+            start_array,
+                start_object,
+                    {key, <<"alpha">>},
+                    start_array,
+                        {integer, 1},
+                        {integer, 2},
+                        {integer, 3},
+                    end_array,
+                    {key, <<"beta">>},
+                    start_object,
+                        {key, <<"alpha">>},
+                        start_array,
+                            {float, 1.0},
+                            {float, 2.0},
+                            {float, 3.0},
+                        end_array,
+                        {key, <<"beta">>},
+                        start_array,
+                            {literal, true},
+                            {literal, false},
+                        end_array,
+                    end_object,
+                end_object,
+                start_array,
+                    start_object,
+                    end_object,
+                end_array,
+            end_array
+        ]
+    }].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
