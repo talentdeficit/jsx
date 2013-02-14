@@ -115,8 +115,7 @@ config_test_() ->
 
 
 handle_event_test_() ->
-    Data = jsx:universals()
-        ++ jsx:decodeables(),
+    Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(

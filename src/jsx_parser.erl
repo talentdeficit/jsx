@@ -170,8 +170,7 @@ clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
 
 
 decode_test_() ->
-    Data = jsx:universals()
-        ++ jsx:decodeables(),
+    Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(

@@ -1,8 +1,7 @@
 %% data and helper functions for tests
 
 -export([init/1, handle_event/2]).
--export([universals/0]).
--export([decodeables/0]).
+-export([test_cases/0]).
 
 
 -include_lib("eunit/include/eunit.hrl").
@@ -15,29 +14,46 @@ handle_event(end_json, State) -> lists:reverse([end_json] ++ State);
 handle_event(Event, State) -> [Event] ++ State.
 
 
-universals() ->
+test_cases() ->
     empty_array()
-    ++ deep_array()
-    ++ really_deep_array()
+    ++ nested_array()
     ++ empty_object()
+    ++ nested_object()
+    ++ strings()
     ++ literals()
     ++ integers()
-    ++ floats()
-    ++ strings().
+    ++ floats().
 
 
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
 
-deep_array() ->
-    [Test] = empty_array(),
-    [repeat(fun wrap_with_array/1, Test, 10)].
-
-really_deep_array() ->
-    [Test] = empty_array(),
-    [repeat(fun wrap_with_array/1, Test, 1000)].
+nested_array() ->
+    [{
+        "[[[]]]",
+        <<"[[[]]]">>,
+        [[[]]],
+        [start_array, start_array, start_array, end_array, end_array, end_array]
+    }].
 
 
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
+
+nested_object() ->
+    [{
+        "{\"key\":{\"key\":{}}}",
+        <<"{\"key\":{\"key\":{}}}">>,
+        [{<<"key">>, [{<<"key">>, [{}]}]}],
+        [
+            start_object,
+                {key, <<"key">>},
+                start_object,
+                    {key, <<"key">>},
+                    start_object,
+                    end_object,
+                end_object,
+            end_object
+        ]
+    }].
 
 
 naked_strings() ->
@@ -58,16 +74,7 @@ naked_strings() ->
 strings() ->
     naked_strings()
     ++ [ wrap_with_array(Test) || Test <- naked_strings() ]
-    ++ [ wrap_with_object(Test) || Test <- naked_strings() ]
-    ++ [listify("naked strings", naked_strings())]
-    ++ [
-        {
-            "naked strings",
-            <<"{\"\":\"\",\"hello world\":\"hello world\"}">>,
-            [{<<>>, <<>>}, {<<"hello world">>, <<"hello world">>}],
-            [start_object, {key, <<>>}, {string, <<>>}, {key, <<"hello world">>}, {string, <<"hello world">>}, end_object]
-        }
-    ].
+    ++ [ wrap_with_object(Test) || Test <- naked_strings() ].
 
 
 naked_integers() ->
@@ -92,9 +99,7 @@ naked_integers() ->
 integers() ->
     naked_integers()
     ++ [ wrap_with_array(Test) || Test <- naked_integers() ]
-    ++ [ wrap_with_object(Test) || Test <- naked_integers() ]
-    ++ [listify("naked integers", naked_integers())]
-    ++ [objectify("naked integers", naked_integers())].
+    ++ [ wrap_with_object(Test) || Test <- naked_integers() ].
 
 
 naked_floats() ->
@@ -124,9 +129,7 @@ naked_floats() ->
 floats() ->
     naked_floats()
     ++ [ wrap_with_array(Test) || Test <- naked_floats() ]
-    ++ [ wrap_with_object(Test) || Test <- naked_floats() ]
-    ++ [listify("naked floats", naked_floats())]
-    ++ [objectify("naked floats", naked_floats())].
+    ++ [ wrap_with_object(Test) || Test <- naked_floats() ].
 
 
 naked_literals() ->
@@ -143,27 +146,7 @@ naked_literals() ->
 literals() ->
     naked_literals()
     ++ [ wrap_with_array(Test) || Test <- naked_literals() ]
-    ++ [ wrap_with_object(Test) || Test <- naked_literals() ]
-    ++ [listify("naked literals", naked_literals())]
-    ++ [objectify("naked literals", naked_literals())].
-
-
-%% special tests used only for things that don't round trip when decoded and re-encoded
-
-decodeables() ->
-    Tests  =  [
-        {"-0.0", <<"-0.0">>, 0.0, [{float, 0.0}]},
-        {"1e0", <<"1e0">>, 1.0, [{float, 1.0}]},
-        {"0e0", <<"0e0">>, 0.0, [{float, 0.0}]},
-        {"1e4", <<"1e4">>, 1.0e4, [{float, 1.0e4}]},
-        {"0e4", <<"0e4">>, 0.0, [{float, 0.0}]},
-        {"-1e0", <<"-1e0">>, -1.0, [{float, -1.0}]},
-        {"-0", <<"-0">>, 0, [{integer, 0}]}
-    ],
-    [ wrap_with_array(Test) || Test <- Tests ]
-    ++ [ wrap_with_object(Test) || Test <- Tests ]
-    ++ [listify("naked decodeables", Tests)]
-    ++ [objectify("naked decodeables", Tests)].
+    ++ [ wrap_with_object(Test) || Test <- naked_literals() ].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->
@@ -184,103 +167,6 @@ wrap_with_object({Title, JSON, Term, Events}) ->
     }.
 
 
-repeat(_, Test, 0) -> Test;
-repeat(Fun, Test, Times) -> repeat(Fun, Fun(Test), Times - 1).
-
-
 sane_float_to_list(X) ->
     [Output] = io_lib:format("~p", [X]),
     Output.
-
-
-listify(Title, [{_, JSON, Term, Events}|Rest]) -> do_listify(Rest, {Title, JSON, [Term], Events}).
-
-do_listify([], {Title, JSON, Term, Events}) ->
-    {
-        Title,
-        <<"["/utf8, JSON/binary, "]"/utf8>>,
-        Term,
-        [start_array] ++ Events ++ [end_array]
-    };
-do_listify([Test|Rest], Acc) ->
-    {Title, A, M, X} = Acc,
-    {_, B, N, Y} = Test,
-    do_listify(Rest, {Title, <<A/binary, ","/utf8, B/binary>>, M ++ [N], X ++ Y}).
-
-
-objectify(Title, [{_, JSON, Term, Events}|Rest]) ->
-    do_objectify(
-        Rest,
-        {Title, <<"\"", JSON/binary, "\":", JSON/binary>>, [{JSON, Term}], [{key, JSON}] ++ Events}
-    ).
-
-do_objectify([], {Title, JSON, Term, Events}) ->
-    {
-        Title,
-        <<"{"/utf8, JSON/binary, "}"/utf8>>,
-        Term,
-        [start_object] ++ Events ++ [end_object]
-    };
-do_objectify([Test|Rest], Acc) ->
-    {Title, A, M, X} = Acc,
-    {_, B, N, Y} = Test,
-    do_objectify(Rest, {
-        Title,
-        <<A/binary, ",\"", B/binary, "\":"/utf8, B/binary>>,
-        M ++ [{B, N}],
-        X ++ [{key, B}] ++ Y
-    }).
-
-
-listify_test_() ->
-    {"listify test", ?_assertEqual(
-                {
-                    "listify test",
-                    <<"[true,1,\"hello world\",{}]">>,
-                    [true, 1, <<"hello world">>, [{}]],
-                    [
-                        start_array,
-                        {literal, true},
-                        {integer, 1},
-                        {string, <<"hello world">>},
-                        start_object,
-                        end_object,
-                        end_array
-                    ]
-                },
-                listify("listify test", [
-                    {"true", <<"true">>, true, [{literal, true}]},
-                    {"1", <<"1">>, 1, [{integer, 1}]},
-                    {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
-                    {"{}", <<"{}">>, [{}], [start_object, end_object]}
-                ])
-    )}.
-
-
-objectify_test_() ->
-    {"objectify test", ?_assertEqual(
-                {
-                    "objectify test",
-                    <<"{\"true\":true,\"1\":1,\"\"hello world\"\":\"hello world\",\"[]\":[]}">>,
-                    [{<<"true">>, true}, {<<"1">>, 1}, {<<"\"hello world\"">>, <<"hello world">>}, {<<"[]">>, []}],
-                    [
-                        start_object,
-                        {key, <<"true">>},
-                        {literal, true},
-                        {key, <<"1">>},
-                        {integer, 1},
-                        {key, <<"\"hello world\"">>},
-                        {string, <<"hello world">>},
-                        {key, <<"[]">>},
-                        start_array,
-                        end_array,
-                        end_object
-                    ]
-                },
-                objectify("objectify test", [
-                    {"true", <<"true">>, true, [{literal, true}]},
-                    {"1", <<"1">>, 1, [{integer, 1}]},
-                    {"hello world", <<"\"hello world\"">>, <<"hello world">>, [{string, <<"hello world">>}]},
-                    {"[]", <<"[]">>, [], [start_array, end_array]}
-                ])
-    )}.

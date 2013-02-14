@@ -292,7 +292,7 @@ format_test_() ->
 
 
 handle_event_test_() ->
-    Data = jsx:universals(),
+    Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(

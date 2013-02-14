@@ -137,7 +137,7 @@ clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
 
 
 encode_test_() ->
-    Data = jsx:universals(),
+    Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(

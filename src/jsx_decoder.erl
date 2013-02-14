@@ -1629,8 +1629,7 @@ to_fake_utf(N, utf8) ->
 
 
 decode_test_() ->
-    Data = jsx:universals()
-        ++ jsx:decodeables(),
+    Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(
