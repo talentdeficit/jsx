@@ -1024,6 +1024,41 @@ done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
 -include_lib("eunit/include/eunit.hrl").
 
 
+%% all these numbers have different representation in erlang than in javascript and
+%%  do not roundtrip like most integers/floats
+special_number_test_() ->
+    [
+        {"-0", ?_assertEqual(
+            [{integer, 0}, end_json],
+            start(<<"-0">>, {jsx, []}, [], #config{})
+        )},
+        {"-0.0", ?_assertEqual(
+            [{float, 0.0}, end_json],
+            start(<<"-0.0">>, {jsx, []}, [], #config{})
+        )},
+        {"0e0", ?_assertEqual(
+            [{float, 0.0}, end_json],
+            start(<<"0e0">>, {jsx, []}, [], #config{})
+        )},
+        {"0e4", ?_assertEqual(
+            [{float, 0.0}, end_json],
+            start(<<"0e4">>, {jsx, []}, [], #config{})
+        )},
+        {"1e0", ?_assertEqual(
+            [{float, 1.0}, end_json],
+            start(<<"1e0">>, {jsx, []}, [], #config{})
+        )},
+        {"-1e0", ?_assertEqual(
+            [{float, -1.0}, end_json],
+            start(<<"-1e0">>, {jsx, []}, [], #config{})
+        )},
+        {"1e4", ?_assertEqual(
+            [{float, 1.0e4}, end_json],
+            start(<<"1e4">>, {jsx, []}, [], #config{})
+        )}
+    ].
+
+
 xcode(Bin) -> xcode(Bin, []).
 
 xcode(Bin, Config) ->
