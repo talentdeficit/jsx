@@ -505,9 +505,9 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
-maybe_escape(String, #config{dirty_strings=true}) -> String;
-maybe_escape(String, #config{escaped_strings=true} = Config) -> escape(String, Config);
-maybe_escape(String, _Config) -> String.
+maybe_escape(Escaped, #config{dirty_strings=true}) -> <<Escaped/utf8>>;
+maybe_escape(Escaped, #config{escaped_strings=true} = Config) -> escape(Escaped, Config);
+maybe_escape(Escaped, _Config) -> <<Escaped/utf8>>.
 
 escape($\b, _) -> <<"\\b">>;
 escape($\t, _) -> <<"\\t">>;
@@ -774,6 +774,10 @@ escape_test_() ->
             <<"\\b">>,
             maybe_escape(16#0008, #config{escaped_strings=true})
         )},
+        {"don't escape backspace", ?_assertEqual(
+            <<"\b">>,
+            maybe_escape(16#0008, #config{})
+        )},
         {"maybe_escape tab", ?_assertEqual(
             <<"\\t">>,
             maybe_escape(16#0009, #config{escaped_strings=true})
@@ -932,7 +936,7 @@ escape_test_() ->
         )},
         {"dirty strings", ?_assertEqual(
             <<0>>,
-            maybe_escape(<<0>>, #config{escaped_strings=true, dirty_strings=true})
+            maybe_escape(16#0000, #config{escaped_strings=true, dirty_strings=true})
         )}
     ].
 
