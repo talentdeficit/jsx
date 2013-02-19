@@ -1059,6 +1059,57 @@ special_number_test_() ->
     ].
 
 
+unescape_test_() ->
+    [
+        {"unescape backspace", ?_assertEqual(
+            [{string, <<"\b">>}, end_json],
+            start(<<"\"\\b\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape tab", ?_assertEqual(
+            [{string, <<"\t">>}, end_json],
+            start(<<"\"\\t\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape newline", ?_assertEqual(
+            [{string, <<"\n">>}, end_json],
+            start(<<"\"\\n\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape formfeed", ?_assertEqual(
+            [{string, <<"\f">>}, end_json],
+            start(<<"\"\\f\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape carriage return", ?_assertEqual(
+            [{string, <<"\r">>}, end_json],
+            start(<<"\"\\r\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape quote", ?_assertEqual(
+            [{string, <<"\"">>}, end_json],
+            start(<<"\"\\\"\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape forward slash", ?_assertEqual(
+            [{string, <<"/">>}, end_json],
+            start(<<"\"\\/\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape back slash", ?_assertEqual(
+            [{string, <<"\\">>}, end_json],
+            start(<<"\"\\\\\"">>, {jsx, []}, [], #config{})
+        )},
+        {"unescape control code", ?_assertEqual(
+            [{string, <<0>>}, end_json],
+            start(<<"\"\\u0000\"">>, {jsx, []}, [], #config{})
+        )}
+    ].
+
+
+ignored_bad_escapes_test_() ->
+    [
+        {"ignore unrecognized escape sequence", ?_assertEqual(
+            [{string, <<"\\x25">>}, end_json],
+            start(<<"\"\\x25\"">>, {jsx, []}, [], #config{ignored_bad_escapes=true})
+        )}
+    ].
+
+
+
 xcode(Bin) -> xcode(Bin, []).
 
 xcode(Bin, Config) ->
@@ -1268,15 +1319,6 @@ decode(JSON, Config) ->
     end.
 
 
-ignored_bad_escapes_test_() ->
-    [
-        {"ignore unrecognized escape sequence", ?_assertEqual(
-            decode(<<"[\"\\x25\"]">>, [ignored_bad_escapes]),
-            [start_array, {string, <<"\\x25">>}, end_array, end_json]
-        )}
-    ].
-
-
 comments_test_() ->
     [
         {"preceeding // comment", ?_assertEqual(
@@ -1478,13 +1520,7 @@ comments_test_() ->
     ].
 
 
-escaped_forward_slashes_test_() ->
-    [
-        {"escape forward slash test", ?_assertEqual(
-            decode(<<"[ \" \/ \" ]">>, [escaped_forward_slashes]),
-            [start_array, {string, <<" / ">>}, end_array, end_json]
-        )}
-    ].
+
 
 
 escapes_test_() ->
