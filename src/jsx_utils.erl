@@ -505,6 +505,28 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
+maybe_escape(String, #config{dirty_strings=true}) -> String;
+maybe_escape(String, #config{escaped_strings=true} = Config) -> escape(String, Config);
+maybe_escape(String, _Config) -> String.
+
+escape($\b, _) -> <<"\\b">>;
+escape($\t, _) -> <<"\\t">>;
+escape($\n, _) -> <<"\\n">>;
+escape($\f, _) -> <<"\\f">>;
+escape($\r, _) -> <<"\\r">>;
+escape($\", _) -> <<"\\\"">>;
+escape($\\, _) -> <<"\\\\">>;
+escape($/, #config{escaped_forward_slashes=true}) -> <<"\\/">>;
+escape($/, _) -> <<"/">>;
+escape(16#2028, #config{unescaped_jsonp=true}) -> <<16#2028/utf8>>;
+escape(16#2028, _) -> <<"\\u2028">>;
+escape(16#2029, #config{unescaped_jsonp=true}) -> <<16#2029/utf8>>;
+escape(16#2029, _) -> <<"\\u2029">>;
+escape(X, _) when X < 32 ->
+    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
+    <<"\\u", (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>.
+
+
 maybe_replace($\b, #config{escaped_strings=true}) -> [$b, $\\];
 maybe_replace($\t, #config{escaped_strings=true}) -> [$t, $\\];
 maybe_replace($\n, #config{escaped_strings=true}) -> [$n, $\\];
@@ -748,169 +770,169 @@ clean_test_() ->
 
 escape_test_() ->
     [
-        {"escape backspace", ?_assertEqual(
+        {"maybe_escape backspace", ?_assertEqual(
             <<"\\b">>,
-            clean_string(to_fake_utf8(16#0008), #config{escaped_strings=true})
+            maybe_escape(16#0008, #config{escaped_strings=true})
         )},
-        {"escape tab", ?_assertEqual(
+        {"maybe_escape tab", ?_assertEqual(
             <<"\\t">>,
-            clean_string(to_fake_utf8(16#0009), #config{escaped_strings=true})
+            maybe_escape(16#0009, #config{escaped_strings=true})
         )},
-        {"escape newline", ?_assertEqual(
+        {"maybe_escape newline", ?_assertEqual(
             <<"\\n">>,
-            clean_string(to_fake_utf8(16#000a), #config{escaped_strings=true})
+            maybe_escape(16#000a, #config{escaped_strings=true})
         )},
-        {"escape formfeed", ?_assertEqual(
+        {"maybe_escape formfeed", ?_assertEqual(
             <<"\\f">>,
-            clean_string(to_fake_utf8(16#000c), #config{escaped_strings=true})
+            maybe_escape(16#000c, #config{escaped_strings=true})
         )},
-        {"escape carriage return", ?_assertEqual(
+        {"maybe_escape carriage return", ?_assertEqual(
             <<"\\r">>,
-            clean_string(to_fake_utf8(16#000d), #config{escaped_strings=true})
+            maybe_escape(16#000d, #config{escaped_strings=true})
         )},
-        {"escape quote", ?_assertEqual(
+        {"maybe_escape quote", ?_assertEqual(
             <<"\\\"">>,
-            clean_string(to_fake_utf8(16#0022), #config{escaped_strings=true})
+            maybe_escape(16#0022, #config{escaped_strings=true})
         )},
-        {"escape forward slash", ?_assertEqual(
+        {"maybe_escape forward slash", ?_assertEqual(
             <<"\\/">>,
-            clean_string(to_fake_utf8(16#002f), #config{escaped_strings=true, escaped_forward_slashes=true})
+            maybe_escape(16#002f, #config{escaped_strings=true, escaped_forward_slashes=true})
         )},
-        {"do not escape forward slash", ?_assertEqual(
+        {"do not maybe_escape forward slash", ?_assertEqual(
             <<"/">>,
-            clean_string(to_fake_utf8(16#002f), #config{escaped_strings=true})
+            maybe_escape(16#002f, #config{escaped_strings=true})
         )},
-        {"escape backslash", ?_assertEqual(
+        {"maybe_escape backslash", ?_assertEqual(
             <<"\\\\">>,
-            clean_string(to_fake_utf8(16#005c), #config{escaped_strings=true})
+            maybe_escape(16#005c, #config{escaped_strings=true})
         )},
-        {"escape jsonp (u2028)", ?_assertEqual(
+        {"maybe_escape jsonp (u2028)", ?_assertEqual(
             <<"\\u2028">>,
-            clean_string(to_fake_utf8(16#2028), #config{escaped_strings=true})
+            maybe_escape(16#2028, #config{escaped_strings=true})
         )},
-        {"do not escape jsonp (u2028)", ?_assertEqual(
+        {"do not maybe_escape jsonp (u2028)", ?_assertEqual(
             <<16#2028/utf8>>,
-            clean_string(to_fake_utf8(16#2028), #config{escaped_strings=true, unescaped_jsonp=true})
+            maybe_escape(16#2028, #config{escaped_strings=true, unescaped_jsonp=true})
         )},
-        {"escape jsonp (u2029)", ?_assertEqual(
+        {"maybe_escape jsonp (u2029)", ?_assertEqual(
             <<"\\u2029">>,
-            clean_string(to_fake_utf8(16#2029), #config{escaped_strings=true})
+            maybe_escape(16#2029, #config{escaped_strings=true})
         )},
-        {"do not escape jsonp (u2029)", ?_assertEqual(
+        {"do not maybe_escape jsonp (u2029)", ?_assertEqual(
             <<16#2029/utf8>>,
-            clean_string(to_fake_utf8(16#2029), #config{escaped_strings=true, unescaped_jsonp=true})
+            maybe_escape(16#2029, #config{escaped_strings=true, unescaped_jsonp=true})
         )},
-        {"dirty string", ?_assertEqual(
-            <<"\n">>,
-            clean_string(to_fake_utf8(16#000a), #config{escaped_strings=true, dirty_strings=true})
-        )},
-        {"escape u0000", ?_assertEqual(
+        {"maybe_escape u0000", ?_assertEqual(
             <<"\\u0000">>,
-            clean_string(to_fake_utf8(16#0000), #config{escaped_strings=true})
+            maybe_escape(16#0000, #config{escaped_strings=true})
         )},
-        {"escape u0001", ?_assertEqual(
+        {"maybe_escape u0001", ?_assertEqual(
             <<"\\u0001">>,
-            clean_string(to_fake_utf8(16#0001), #config{escaped_strings=true})
+            maybe_escape(16#0001, #config{escaped_strings=true})
         )},
-        {"escape u0002", ?_assertEqual(
+        {"maybe_escape u0002", ?_assertEqual(
             <<"\\u0002">>,
-            clean_string(to_fake_utf8(16#0002), #config{escaped_strings=true})
+            maybe_escape(16#0002, #config{escaped_strings=true})
         )},
-        {"escape u0003", ?_assertEqual(
+        {"maybe_escape u0003", ?_assertEqual(
             <<"\\u0003">>,
-            clean_string(to_fake_utf8(16#0003), #config{escaped_strings=true})
+            maybe_escape(16#0003, #config{escaped_strings=true})
         )},
-        {"escape u0004", ?_assertEqual(
+        {"maybe_escape u0004", ?_assertEqual(
             <<"\\u0004">>,
-            clean_string(to_fake_utf8(16#0004), #config{escaped_strings=true})
+            maybe_escape(16#0004, #config{escaped_strings=true})
         )},
-        {"escape u0005", ?_assertEqual(
+        {"maybe_escape u0005", ?_assertEqual(
             <<"\\u0005">>,
-            clean_string(to_fake_utf8(16#0005), #config{escaped_strings=true})
+            maybe_escape(16#0005, #config{escaped_strings=true})
         )},
-        {"escape u0006", ?_assertEqual(
+        {"maybe_escape u0006", ?_assertEqual(
             <<"\\u0006">>,
-            clean_string(to_fake_utf8(16#0006), #config{escaped_strings=true})
+            maybe_escape(16#0006, #config{escaped_strings=true})
         )},
-        {"escape u0007", ?_assertEqual(
+        {"maybe_escape u0007", ?_assertEqual(
             <<"\\u0007">>,
-            clean_string(to_fake_utf8(16#0007), #config{escaped_strings=true})
+            maybe_escape(16#0007, #config{escaped_strings=true})
         )},
-        {"escape u000b", ?_assertEqual(
+        {"maybe_escape u000b", ?_assertEqual(
             <<"\\u000b">>,
-            clean_string(to_fake_utf8(16#000b), #config{escaped_strings=true})
+            maybe_escape(16#000b, #config{escaped_strings=true})
         )},
-        {"escape u000e", ?_assertEqual(
+        {"maybe_escape u000e", ?_assertEqual(
             <<"\\u000e">>,
-            clean_string(to_fake_utf8(16#000e), #config{escaped_strings=true})
+            maybe_escape(16#000e, #config{escaped_strings=true})
         )},
-        {"escape u000f", ?_assertEqual(
+        {"maybe_escape u000f", ?_assertEqual(
             <<"\\u000f">>,
-            clean_string(to_fake_utf8(16#000f), #config{escaped_strings=true})
+            maybe_escape(16#000f, #config{escaped_strings=true})
         )},
-        {"escape u0010", ?_assertEqual(
+        {"maybe_escape u0010", ?_assertEqual(
             <<"\\u0010">>,
-            clean_string(to_fake_utf8(16#0010), #config{escaped_strings=true})
+            maybe_escape(16#0010, #config{escaped_strings=true})
         )},
-        {"escape u0011", ?_assertEqual(
+        {"maybe_escape u0011", ?_assertEqual(
             <<"\\u0011">>,
-            clean_string(to_fake_utf8(16#0011), #config{escaped_strings=true})
+            maybe_escape(16#0011, #config{escaped_strings=true})
         )},
-        {"escape u0012", ?_assertEqual(
+        {"maybe_escape u0012", ?_assertEqual(
             <<"\\u0012">>,
-            clean_string(to_fake_utf8(16#0012), #config{escaped_strings=true})
+            maybe_escape(16#0012, #config{escaped_strings=true})
         )},
-        {"escape u0013", ?_assertEqual(
+        {"maybe_escape u0013", ?_assertEqual(
             <<"\\u0013">>,
-            clean_string(to_fake_utf8(16#0013), #config{escaped_strings=true})
+            maybe_escape(16#0013, #config{escaped_strings=true})
         )},
-        {"escape u0014", ?_assertEqual(
+        {"maybe_escape u0014", ?_assertEqual(
             <<"\\u0014">>,
-            clean_string(to_fake_utf8(16#0014), #config{escaped_strings=true})
+            maybe_escape(16#0014, #config{escaped_strings=true})
         )},
-        {"escape u0015", ?_assertEqual(
+        {"maybe_escape u0015", ?_assertEqual(
             <<"\\u0015">>,
-            clean_string(to_fake_utf8(16#0015), #config{escaped_strings=true})
+            maybe_escape(16#0015, #config{escaped_strings=true})
         )},
-        {"escape u0016", ?_assertEqual(
+        {"maybe_escape u0016", ?_assertEqual(
             <<"\\u0016">>,
-            clean_string(to_fake_utf8(16#0016), #config{escaped_strings=true})
+            maybe_escape(16#0016, #config{escaped_strings=true})
         )},
-        {"escape u0017", ?_assertEqual(
+        {"maybe_escape u0017", ?_assertEqual(
             <<"\\u0017">>,
-            clean_string(to_fake_utf8(16#0017), #config{escaped_strings=true})
+            maybe_escape(16#0017, #config{escaped_strings=true})
         )},
-        {"escape u0018", ?_assertEqual(
+        {"maybe_escape u0018", ?_assertEqual(
             <<"\\u0018">>,
-            clean_string(to_fake_utf8(16#0018), #config{escaped_strings=true})
+            maybe_escape(16#0018, #config{escaped_strings=true})
         )},
-        {"escape u0019", ?_assertEqual(
+        {"maybe_escape u0019", ?_assertEqual(
             <<"\\u0019">>,
-            clean_string(to_fake_utf8(16#0019), #config{escaped_strings=true})
+            maybe_escape(16#0019, #config{escaped_strings=true})
         )},
-        {"escape u001a", ?_assertEqual(
+        {"maybe_escape u001a", ?_assertEqual(
             <<"\\u001a">>,
-            clean_string(to_fake_utf8(16#001a), #config{escaped_strings=true})
+            maybe_escape(16#001a, #config{escaped_strings=true})
         )},
-        {"escape u001b", ?_assertEqual(
+        {"maybe_escape u001b", ?_assertEqual(
             <<"\\u001b">>,
-            clean_string(to_fake_utf8(16#001b), #config{escaped_strings=true})
+            maybe_escape(16#001b, #config{escaped_strings=true})
         )},
-        {"escape u001c", ?_assertEqual(
+        {"maybe_escape u001c", ?_assertEqual(
             <<"\\u001c">>,
-            clean_string(to_fake_utf8(16#001c), #config{escaped_strings=true})
+            maybe_escape(16#001c, #config{escaped_strings=true})
         )},
-        {"escape u001d", ?_assertEqual(
+        {"maybe_escape u001d", ?_assertEqual(
             <<"\\u001d">>,
-            clean_string(to_fake_utf8(16#001d), #config{escaped_strings=true})
+            maybe_escape(16#001d, #config{escaped_strings=true})
         )},
-        {"escape u001e", ?_assertEqual(
+        {"maybe_escape u001e", ?_assertEqual(
             <<"\\u001e">>,
-            clean_string(to_fake_utf8(16#001e), #config{escaped_strings=true})
+            maybe_escape(16#001e, #config{escaped_strings=true})
         )},
-        {"escape u001f", ?_assertEqual(
+        {"maybe_escape u001f", ?_assertEqual(
             <<"\\u001f">>,
-            clean_string(to_fake_utf8(16#001f), #config{escaped_strings=true})
+            maybe_escape(16#001f, #config{escaped_strings=true})
+        )},
+        {"dirty strings", ?_assertEqual(
+            <<0>>,
+            maybe_escape(<<0>>, #config{escaped_strings=true, dirty_strings=true})
         )}
     ].
 
