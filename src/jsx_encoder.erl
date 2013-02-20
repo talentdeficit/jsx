@@ -53,7 +53,12 @@ start(Term, {Handler, State}, Config) ->
 
 
 value(String, {Handler, State}, Config) when is_binary(String) ->
-    Handler:handle_event({string, clean_string(String, Config)}, State);
+    case clean_string(String, Config) of
+        {error, badarg} ->
+            ?error([String, {Handler, State}, Config]);
+        CleanString ->
+            Handler:handle_event({string, CleanString}, State)
+    end;
 value(Float, {Handler, State}, _Config) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
 value(Int, {Handler, State}, _Config) when is_integer(Int) ->
