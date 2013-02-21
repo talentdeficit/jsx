@@ -147,32 +147,113 @@ to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 clean_string(Bin, #config{dirty_strings=true}) -> Bin;
 clean_string(Bin, Config) -> clean_string(Bin, <<>>, Config).
 
-
 clean_string(Bin, Acc, Config) ->
-    case cut(Bin, 0) of
-        {_, finished} -> <<Acc/binary, Bin/binary>>;
-        {X, escape} ->
-            <<String:X/binary, Codepoint/utf8, Rest/binary>> = Bin,
-            Escaped = maybe_escape(Codepoint, Config),
-            clean_string(Rest, <<Acc/binary, String/binary, Escaped/binary>>, Config);
-        {X, replace, Y} ->
-            <<String:X/binary, Bad:Y/binary, Rest/binary>> = Bin,
-            case maybe_replace(Bad, Config) of
-                {error, badarg} -> {error, badarg};
-                Replaced -> clean_string(Rest, <<Acc/binary, String/binary, Replaced/binary>>, Config)
-            end
+    Length = cut(Bin),
+    <<String:Length/binary, Rest/binary>> = Bin,
+    case Rest of
+        <<>> -> <<Acc/binary, String/binary>>;
+        _ -> maybe_escape(Rest, <<Acc/binary, String/binary>>, Config)
     end.
 
 
-cut(<<>>, N) -> {N, finished};
-cut(<<X/utf8, _/binary>>, N) when X < 32 -> {N, escape};
-cut(<<$\"/utf8, _/binary>>, N) -> {N, escape};
-cut(<<$//utf8, _/binary>>, N) -> {N, escape};
-cut(<<$\\/utf8, _/binary>>, N) -> {N, escape};
-cut(<<X/utf8, Rest/binary>>, N) when X < 128 -> cut(Rest, N + 1);
-cut(<<X/utf8, Rest/binary>>, N) when X < 16#0800 -> cut(Rest, N + 2);
-cut(<<X/utf8, _/binary>>, N) when X == 16#2028; X == 16#2029 -> {N, escape};
-cut(<<X/utf8, Rest/binary>>, N) when X < 16#d800 -> cut(Rest, N + 3);
+cut(Bin) -> cut(Bin, 0).
+
+cut(<<32, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<33, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<35, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<36, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<37, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<38, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<39, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<40, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<41, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<42, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<43, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<44, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<45, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<46, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<48, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<49, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<50, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<51, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<52, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<53, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<54, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<55, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<56, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<57, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<58, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<59, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<60, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<61, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<62, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<63, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<64, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<65, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<66, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<67, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<68, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<69, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<70, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<71, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<72, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<73, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<74, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<75, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<76, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<77, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<78, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<79, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<80, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<81, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<82, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<83, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<84, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<85, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<86, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<87, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<88, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<89, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<90, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<91, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<93, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<94, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<95, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<96, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<97, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<98, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<99, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<100, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<101, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<102, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<103, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<104, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<105, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<106, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<107, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<108, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<109, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<110, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<111, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<112, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<113, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<114, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<115, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<116, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<117, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<118, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<119, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<120, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<121, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<122, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<123, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<124, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<125, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<126, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<127, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 128, X < 16#0800 -> cut(Rest, N + 2);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#0800, X < 16#2028 -> cut(Rest, N + 3);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#202a, X < 16#d800 -> cut(Rest, N + 3);
 cut(<<X/utf8, Rest/binary>>, N) when X > 16#dfff, X < 16#fdd0 -> cut(Rest, N + 3);
 cut(<<X/utf8, Rest/binary>>, N) when X > 16#fdef, X < 16#fffe -> cut(Rest, N + 3);
 cut(<<X/utf8, Rest/binary>>, N) when X >= 16#10000, X < 16#1fffe -> cut(Rest, N + 4);
@@ -191,36 +272,28 @@ cut(<<X/utf8, Rest/binary>>, N) when X >= 16#d0000, X < 16#dfffe -> cut(Rest, N 
 cut(<<X/utf8, Rest/binary>>, N) when X >= 16#e0000, X < 16#efffe -> cut(Rest, N + 4);
 cut(<<X/utf8, Rest/binary>>, N) when X >= 16#f0000, X < 16#ffffe -> cut(Rest, N + 4);
 cut(<<X/utf8, Rest/binary>>, N) when X >= 16#100000, X < 16#10fffe -> cut(Rest, N + 4);
-%% noncharacters and reserved space
-cut(<<X/utf8, _/binary>>, N) ->
-    {N, replace, case X of Y when Y < 16#10000 -> 3; _ -> 4 end};
-%% surrogates
-cut(<<237, X, _, _/binary>>, N) when X >= 160 -> {N, replace, 3};
-%% u+fffe and u+ffff for R14BXX
-cut(<<239, 191, X, _/binary>>, N) when X == 190; X == 191 -> {N, replace, 3};
-%% overlong encodings and missing continuations of a 2 byte sequence
-cut(<<X, Rest/binary>>, N) when X >= 192, X =< 223 ->
-    {N, replace, 1 + count_continuations(Rest, 1)};
-%% overlong encodings and missing continuations of a 3 byte sequence
-cut(<<X, Rest/binary>>, N) when X >= 224, X =< 239 ->
-    {N, replace, 1 + count_continuations(Rest, 2)};
-%% overlong encodings and missing continuations of a 4 byte sequence
-cut(<<X, Rest/binary>>, N) when X >= 240, X =< 247 ->
-    {N, replace, 1 + count_continuations(Rest, 3)};
-cut(<<_, _/binary>>, N) -> {N, replace, 1}.
+cut(_, N) -> N.
 
 
-count_continuations(Bin, N) -> count_continuations(Bin, N, 0).
-
-count_continuations(_Bin, 0, Acc) -> Acc;
-count_continuations(<<X, Rest/binary>>, N, Acc) when X >= 128, X =< 191 ->
-    count_continuations(Rest, N - 1, Acc + 1);
+strip_continuations(Bin, 0) -> Bin;
+strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
+    strip_continuations(Rest, N - 1);
 %% not a continuation byte
-count_continuations(_Bin, _, Acc) -> Acc.
+strip_continuations(Bin, _) -> Bin.
 
 
-maybe_escape(Escaped, #config{escaped_strings=true} = Config) -> escape(Escaped, Config);
-maybe_escape(Escaped, _Config) -> <<Escaped/utf8>>.
+maybe_escape(<<Codepoint/utf8, Rest/binary>>, Acc, #config{escaped_strings=true} = Config) ->
+    case escape(Codepoint, Config) of
+        inescapable -> noncharacter(<<Codepoint/utf8, Rest/binary>>, Acc, Config);
+        Escaped -> clean_string(Rest, <<Acc/binary, Escaped/binary>>, Config)
+    end;
+maybe_escape(<<Codepoint/utf8, Rest/binary>>, Acc, Config) ->
+    case escape(Codepoint, Config) of
+        inescapable -> noncharacter(<<Codepoint/utf8, Rest/binary>>, Acc, Config);
+        _ -> clean_string(Rest, <<Acc/binary, Codepoint/utf8>>, Config)
+    end;
+maybe_escape(Bin, Acc, Config) -> noncharacter(Bin, Acc, Config).
+
 
 escape($\b, _) -> <<"\\b">>;
 escape($\t, _) -> <<"\\t">>;
@@ -237,12 +310,35 @@ escape(16#2029, #config{unescaped_jsonp=true}) -> <<16#2029/utf8>>;
 escape(16#2029, _) -> <<"\\u2029">>;
 escape(X, _) when X < 32 ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    <<"\\u", (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>.
+    <<"\\u", (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>;
+escape(_, _) -> inescapable.
 
 
-maybe_replace(_, #config{replaced_bad_utf8=true}) -> <<16#fffd/utf8>>;
-maybe_replace(_, _Config) -> {error, badarg}.
+%% noncharacters and reserved space
+noncharacter(<<_/utf8, Rest/binary>>, Acc, Config) ->
+    maybe_replace(Rest, Acc, Config);
+%% surrogates
+noncharacter(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
+    maybe_replace(Rest, Acc, Config);
+%% u+fffe and u+ffff for R14BXX
+noncharacter(<<239, 191, X, Rest/binary>>, Acc, Config) when X == 190; X == 191 ->
+    maybe_replace(Rest, Acc, Config);
+%% overlong encodings and missing continuations of a 2 byte sequence
+noncharacter(<<X, Rest/binary>>, Acc, Config) when X >= 192, X =< 223 ->
+    maybe_replace(strip_continuations(Rest, 1), Acc, Config);
+%% overlong encodings and missing continuations of a 3 byte sequence
+noncharacter(<<X, Rest/binary>>, Acc, Config) when X >= 224, X =< 239 ->
+    maybe_replace(strip_continuations(Rest, 2), Acc, Config);
+%% overlong encodings and missing continuations of a 4 byte sequence
+noncharacter(<<X, Rest/binary>>, Acc, Config) when X >= 240, X =< 247 ->
+    maybe_replace(strip_continuations(Rest, 3), Acc, Config);
+noncharacter(<<_, Rest/binary>>, Acc, Config) ->
+    maybe_replace(Rest, Acc, Config).
 
+
+maybe_replace(Bin, Acc, #config{replaced_bad_utf8=true} = Config) ->
+    clean_string(Bin, <<Acc/binary, 16#fffd/utf8>>, Config);
+maybe_replace(_, _, _) -> {error, badarg}.
 
 
 
@@ -347,7 +443,8 @@ to_fake_utf8(N) ->
 codepoints() ->
     unicode:characters_to_binary(
         [32, 33]
-        ++ lists:seq(35, 91)
+        ++ lists:seq(35, 46)
+        ++ lists:seq(48, 91)
         ++ lists:seq(93, 16#2027)
         ++ lists:seq(16#202a, 16#d7ff)
         ++ lists:seq(16#e000, 16#fdcf)
@@ -458,171 +555,173 @@ clean_string_test_() ->
     ].
 
 
+maybe_escape(Bin, Config) -> clean_string(Bin, Config).
+
 escape_test_() ->
     [
         {"maybe_escape backspace", ?_assertEqual(
             <<"\\b">>,
-            maybe_escape(16#0008, #config{escaped_strings=true})
+            maybe_escape(<<16#0008/utf8>>, #config{escaped_strings=true})
         )},
         {"don't escape backspace", ?_assertEqual(
             <<"\b">>,
-            maybe_escape(16#0008, #config{})
+            maybe_escape(<<16#0008/utf8>>, #config{})
         )},
         {"maybe_escape tab", ?_assertEqual(
             <<"\\t">>,
-            maybe_escape(16#0009, #config{escaped_strings=true})
+            maybe_escape(<<16#0009/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape newline", ?_assertEqual(
             <<"\\n">>,
-            maybe_escape(16#000a, #config{escaped_strings=true})
+            maybe_escape(<<16#000a/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape formfeed", ?_assertEqual(
             <<"\\f">>,
-            maybe_escape(16#000c, #config{escaped_strings=true})
+            maybe_escape(<<16#000c/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape carriage return", ?_assertEqual(
             <<"\\r">>,
-            maybe_escape(16#000d, #config{escaped_strings=true})
+            maybe_escape(<<16#000d/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape quote", ?_assertEqual(
             <<"\\\"">>,
-            maybe_escape(16#0022, #config{escaped_strings=true})
+            maybe_escape(<<16#0022/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape forward slash", ?_assertEqual(
             <<"\\/">>,
-            maybe_escape(16#002f, #config{escaped_strings=true, escaped_forward_slashes=true})
+            maybe_escape(<<16#002f/utf8>>, #config{escaped_strings=true, escaped_forward_slashes=true})
         )},
         {"do not maybe_escape forward slash", ?_assertEqual(
             <<"/">>,
-            maybe_escape(16#002f, #config{escaped_strings=true})
+            maybe_escape(<<16#002f/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape backslash", ?_assertEqual(
             <<"\\\\">>,
-            maybe_escape(16#005c, #config{escaped_strings=true})
+            maybe_escape(<<16#005c/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape jsonp (u2028)", ?_assertEqual(
             <<"\\u2028">>,
-            maybe_escape(16#2028, #config{escaped_strings=true})
+            maybe_escape(<<16#2028/utf8>>, #config{escaped_strings=true})
         )},
         {"do not maybe_escape jsonp (u2028)", ?_assertEqual(
             <<16#2028/utf8>>,
-            maybe_escape(16#2028, #config{escaped_strings=true, unescaped_jsonp=true})
+            maybe_escape(<<16#2028/utf8>>, #config{escaped_strings=true, unescaped_jsonp=true})
         )},
         {"maybe_escape jsonp (u2029)", ?_assertEqual(
             <<"\\u2029">>,
-            maybe_escape(16#2029, #config{escaped_strings=true})
+            maybe_escape(<<16#2029/utf8>>, #config{escaped_strings=true})
         )},
         {"do not maybe_escape jsonp (u2029)", ?_assertEqual(
             <<16#2029/utf8>>,
-            maybe_escape(16#2029, #config{escaped_strings=true, unescaped_jsonp=true})
+            maybe_escape(<<16#2029/utf8>>, #config{escaped_strings=true, unescaped_jsonp=true})
         )},
         {"maybe_escape u0000", ?_assertEqual(
             <<"\\u0000">>,
-            maybe_escape(16#0000, #config{escaped_strings=true})
+            maybe_escape(<<16#0000/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0001", ?_assertEqual(
             <<"\\u0001">>,
-            maybe_escape(16#0001, #config{escaped_strings=true})
+            maybe_escape(<<16#0001/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0002", ?_assertEqual(
             <<"\\u0002">>,
-            maybe_escape(16#0002, #config{escaped_strings=true})
+            maybe_escape(<<16#0002/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0003", ?_assertEqual(
             <<"\\u0003">>,
-            maybe_escape(16#0003, #config{escaped_strings=true})
+            maybe_escape(<<16#0003/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0004", ?_assertEqual(
             <<"\\u0004">>,
-            maybe_escape(16#0004, #config{escaped_strings=true})
+            maybe_escape(<<16#0004/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0005", ?_assertEqual(
             <<"\\u0005">>,
-            maybe_escape(16#0005, #config{escaped_strings=true})
+            maybe_escape(<<16#0005/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0006", ?_assertEqual(
             <<"\\u0006">>,
-            maybe_escape(16#0006, #config{escaped_strings=true})
+            maybe_escape(<<16#0006/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0007", ?_assertEqual(
             <<"\\u0007">>,
-            maybe_escape(16#0007, #config{escaped_strings=true})
+            maybe_escape(<<16#0007/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u000b", ?_assertEqual(
             <<"\\u000b">>,
-            maybe_escape(16#000b, #config{escaped_strings=true})
+            maybe_escape(<<16#000b/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u000e", ?_assertEqual(
             <<"\\u000e">>,
-            maybe_escape(16#000e, #config{escaped_strings=true})
+            maybe_escape(<<16#000e/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u000f", ?_assertEqual(
             <<"\\u000f">>,
-            maybe_escape(16#000f, #config{escaped_strings=true})
+            maybe_escape(<<16#000f/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0010", ?_assertEqual(
             <<"\\u0010">>,
-            maybe_escape(16#0010, #config{escaped_strings=true})
+            maybe_escape(<<16#0010/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0011", ?_assertEqual(
             <<"\\u0011">>,
-            maybe_escape(16#0011, #config{escaped_strings=true})
+            maybe_escape(<<16#0011/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0012", ?_assertEqual(
             <<"\\u0012">>,
-            maybe_escape(16#0012, #config{escaped_strings=true})
+            maybe_escape(<<16#0012/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0013", ?_assertEqual(
             <<"\\u0013">>,
-            maybe_escape(16#0013, #config{escaped_strings=true})
+            maybe_escape(<<16#0013/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0014", ?_assertEqual(
             <<"\\u0014">>,
-            maybe_escape(16#0014, #config{escaped_strings=true})
+            maybe_escape(<<16#0014/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0015", ?_assertEqual(
             <<"\\u0015">>,
-            maybe_escape(16#0015, #config{escaped_strings=true})
+            maybe_escape(<<16#0015/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0016", ?_assertEqual(
             <<"\\u0016">>,
-            maybe_escape(16#0016, #config{escaped_strings=true})
+            maybe_escape(<<16#0016/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0017", ?_assertEqual(
             <<"\\u0017">>,
-            maybe_escape(16#0017, #config{escaped_strings=true})
+            maybe_escape(<<16#0017/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0018", ?_assertEqual(
             <<"\\u0018">>,
-            maybe_escape(16#0018, #config{escaped_strings=true})
+            maybe_escape(<<16#0018/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u0019", ?_assertEqual(
             <<"\\u0019">>,
-            maybe_escape(16#0019, #config{escaped_strings=true})
+            maybe_escape(<<16#0019/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001a", ?_assertEqual(
             <<"\\u001a">>,
-            maybe_escape(16#001a, #config{escaped_strings=true})
+            maybe_escape(<<16#001a/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001b", ?_assertEqual(
             <<"\\u001b">>,
-            maybe_escape(16#001b, #config{escaped_strings=true})
+            maybe_escape(<<16#001b/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001c", ?_assertEqual(
             <<"\\u001c">>,
-            maybe_escape(16#001c, #config{escaped_strings=true})
+            maybe_escape(<<16#001c/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001d", ?_assertEqual(
             <<"\\u001d">>,
-            maybe_escape(16#001d, #config{escaped_strings=true})
+            maybe_escape(<<16#001d/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001e", ?_assertEqual(
             <<"\\u001e">>,
-            maybe_escape(16#001e, #config{escaped_strings=true})
+            maybe_escape(<<16#001e/utf8>>, #config{escaped_strings=true})
         )},
         {"maybe_escape u001f", ?_assertEqual(
             <<"\\u001f">>,
-            maybe_escape(16#001f, #config{escaped_strings=true})
+            maybe_escape(<<16#001f/utf8>>, #config{escaped_strings=true})
         )}
     ].
 
