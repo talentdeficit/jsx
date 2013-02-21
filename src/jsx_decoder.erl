@@ -959,26 +959,6 @@ comments_test_() ->
     ].
 
 
-noncharacters() -> lists:seq(16#fffe, 16#ffff).
-
-extended_noncharacters() ->
-    [
-        16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff,
-        16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff,
-        16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff,
-        16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff,
-        16#9fffe, 16#9ffff, 16#afffe, 16#affff,
-        16#bfffe, 16#bffff, 16#cfffe, 16#cffff,
-        16#dfffe, 16#dffff, 16#efffe, 16#effff,
-        16#ffffe, 16#fffff, 16#10fffe, 16#10ffff
-    ].
-
-surrogates() -> lists:seq(16#d800, 16#dfff).
-
-control_characters() -> lists:seq(1, 31).
-
-reserved_space() -> lists:seq(16#fdd0, 16#fdef).
-
 codepoints() ->
     unicode:characters_to_binary(
         [32, 33]
@@ -1000,16 +980,32 @@ extended_codepoints() ->
         ]
     ).
 
+reserved_space() -> [ to_fake_utf8(N) || N <- lists:seq(16#fdd0, 16#fdef) ].
+
+surrogates() -> [ to_fake_utf8(N) || N <- lists:seq(16#d800, 16#dfff) ].
+
+noncharacters() -> [ to_fake_utf8(N) || N <- lists:seq(16#fffe, 16#ffff) ].
+
+extended_noncharacters() ->
+    [ to_fake_utf8(N) || N <- [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
+        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
+        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
+        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
+        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
+        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
+        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
+        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff]
+    ].
 
 %% erlang refuses to decode certain codepoints, so fake them all
-to_fake_utf(N, utf8) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
-to_fake_utf(N, utf8) when N < 16#0800 ->
+to_fake_utf8(N) when N < 16#0080 -> <<34/utf8, N:8, 34/utf8>>;
+to_fake_utf8(N) when N < 16#0800 ->
     <<0:5, Y:5, X:6>> = <<N:16>>,
     <<34/utf8, 2#110:3, Y:5, 2#10:2, X:6, 34/utf8>>;
-to_fake_utf(N, utf8) when N < 16#10000 ->
+to_fake_utf8(N) when N < 16#10000 ->
     <<Z:4, Y:6, X:6>> = <<N:16>>,
     <<34/utf8, 2#1110:4, Z:4, 2#10:2, Y:6, 2#10:2, X:6, 34/utf8>>;
-to_fake_utf(N, utf8) ->
+to_fake_utf8(N) ->
     <<0:3, W:3, Z:6, Y:6, X:6>> = <<N:24>>,
     <<34/utf8, 2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6, 34/utf8>>.
 
@@ -1023,6 +1019,23 @@ clean_string_test_() ->
         {"clean extended codepoints test", ?_assertEqual(
             [{string, extended_codepoints()}, end_json],
             decode(<<34, (extended_codepoints())/binary, 34>>, [])
+        )}
+    ].
+
+
+single_quoted_string_test_() ->
+    [
+        {"single quoted string", ?_assertEqual(
+            [{string, <<"hello world">>}, end_json],
+            decode(<<39, "hello world", 39>>, [single_quoted_strings])
+        )},
+        {"single quoted string with embedded double quotes", ?_assertEqual(
+            [{string, <<"quoth the raven, \"nevermore\"">>}, end_json],
+            decode(<<39, "quoth the raven, \"nevermore\"", 39>>, [single_quoted_strings])
+        )},
+        {"string with embedded single quotes", ?_assertEqual(
+            [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
+            decode(<<34, "quoth the raven, 'nevermore'", 34>>, [])
         )}
     ].
 
