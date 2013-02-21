@@ -761,91 +761,90 @@ decode(JSON, Config) ->
 comments_test_() ->
     [
         {"preceeding // comment", ?_assertEqual(
-            decode(<<"// comment ", ?newline, "[]">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"// comment ", ?newline, "[]">>, [comments])
         )},
         {"preceeding /**/ comment", ?_assertEqual(
-            decode(<<"/* comment */[]">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"/* comment */[]">>, [comments])
         )},
         {"trailing // comment", ?_assertEqual(
-            decode(<<"[]// comment", ?newline>>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"[]// comment", ?newline>>, [comments])
         )},
         {"trailing // comment (no newline)", ?_assertEqual(
-            decode(<<"[]// comment">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"[]// comment">>, [comments])
         )},
         {"trailing /**/ comment", ?_assertEqual(
-            decode(<<"[] /* comment */">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"[] /* comment */">>, [comments])
         )},
         {"// comment inside array", ?_assertEqual(
-            decode(<<"[ // comment", ?newline, "]">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"[ // comment", ?newline, "]">>, [comments])
         )},
         {"/**/ comment inside array", ?_assertEqual(
-            decode(<<"[ /* comment */ ]">>, [comments]),
-            [start_array, end_array, end_json]
+            [start_array, end_array, end_json],
+            decode(<<"[ /* comment */ ]">>, [comments])
         )},
         {"// comment at beginning of array", ?_assertEqual(
-            decode(<<"[ // comment", ?newline, "true", ?newline, "]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ // comment", ?newline, "true", ?newline, "]">>, [comments])
         )},
         {"/**/ comment at beginning of array", ?_assertEqual(
-            decode(<<"[ /* comment */ true ]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* comment */ true ]">>, [comments])
         )},
         {"// comment at end of array", ?_assertEqual(
-            decode(<<"[ true // comment", ?newline, "]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ true // comment", ?newline, "]">>, [comments])
         )},
         {"/**/ comment at end of array", ?_assertEqual(
-            decode(<<"[ true /* comment */ ]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ true /* comment */ ]">>, [comments])
         )},
         {"// comment midarray (post comma)", ?_assertEqual(
-            decode(<<"[ true, // comment", ?newline, "false ]">>, [comments]),
-            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+            [start_array, {literal, true}, {literal, false}, end_array, end_json],
+            decode(<<"[ true, // comment", ?newline, "false ]">>, [comments])
         )},
         {"/**/ comment midarray (post comma)", ?_assertEqual(
-            decode(<<"[ true, /* comment */ false ]">>, [comments]),
-            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+            [start_array, {literal, true}, {literal, false}, end_array, end_json],
+            decode(<<"[ true, /* comment */ false ]">>, [comments])
         )},
         {"// comment midarray (pre comma)", ?_assertEqual(
-            decode(<<"[ true// comment", ?newline, ", false ]">>, [comments]),
-            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+            [start_array, {literal, true}, {literal, false}, end_array, end_json],
+            decode(<<"[ true// comment", ?newline, ", false ]">>, [comments])
         )},
         {"/**/ comment midarray (pre comma)", ?_assertEqual(
-            decode(<<"[ true/* comment */, false ]">>, [comments]),
-            [start_array, {literal, true}, {literal, false}, end_array, end_json]
+            [start_array, {literal, true}, {literal, false}, end_array, end_json],
+            decode(<<"[ true/* comment */, false ]">>, [comments])
         )},
         {"// comment inside object", ?_assertEqual(
-            decode(<<"{ // comment", ?newline, "}">>, [comments]),
-            [start_object, end_object, end_json]
+            [start_object, end_object, end_json],
+            decode(<<"{ // comment", ?newline, "}">>, [comments])
         )},
         {"/**/ comment inside object", ?_assertEqual(
-            decode(<<"{ /* comment */ }">>, [comments]),
-            [start_object, end_object, end_json]
+            [start_object, end_object, end_json],
+            decode(<<"{ /* comment */ }">>, [comments])
         )},
         {"// comment at beginning of object", ?_assertEqual(
-            decode(<<"{ // comment", ?newline, " \"key\": true", ?newline, "}">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ // comment", ?newline, " \"key\": true", ?newline, "}">>, [comments])
         )},
         {"/**/ comment at beginning of object", ?_assertEqual(
-            decode(<<"{ /* comment */ \"key\": true }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ /* comment */ \"key\": true }">>, [comments])
         )},
         {"// comment at end of object", ?_assertEqual(
-            decode(<<"{ \"key\": true // comment", ?newline, "}">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\": true // comment", ?newline, "}">>, [comments])
         )},
         {"/**/ comment at end of object", ?_assertEqual(
-            decode(<<"{ \"key\": true /* comment */ }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\": true /* comment */ }">>, [comments])
         )},
         {"// comment midobject (post comma)", ?_assertEqual(
-            decode(<<"{ \"x\": true, // comment", ?newline, "\"y\": false }">>, [comments]),
             [
                 start_object,
                 {key, <<"x">>},
@@ -854,10 +853,10 @@ comments_test_() ->
                 {literal, false},
                 end_object,
                 end_json
-            ]
+            ],
+            decode(<<"{ \"x\": true, // comment", ?newline, "\"y\": false }">>, [comments])
         )},
         {"/**/ comment midobject (post comma)", ?_assertEqual(
-            decode(<<"{ \"x\": true, /* comment */", ?newline, "\"y\": false }">>, [comments]),
             [
                 start_object,
                 {key, <<"x">>},
@@ -866,10 +865,10 @@ comments_test_() ->
                 {literal, false},
                 end_object,
                 end_json
-            ]
+            ],
+            decode(<<"{ \"x\": true, /* comment */", ?newline, "\"y\": false }">>, [comments])
         )},
         {"// comment midobject (pre comma)", ?_assertEqual(
-            decode(<<"{ \"x\": true// comment", ?newline, ", \"y\": false }">>, [comments]),
             [
                 start_object,
                 {key, <<"x">>},
@@ -878,10 +877,10 @@ comments_test_() ->
                 {literal, false},
                 end_object,
                 end_json
-            ]
+            ],
+            decode(<<"{ \"x\": true// comment", ?newline, ", \"y\": false }">>, [comments])
         )},
         {"/**/ comment midobject (pre comma)", ?_assertEqual(
-            decode(<<"{ \"x\": true/* comment */", ?newline, ", \"y\": false }">>, [comments]),
             [
                 start_object,
                 {key, <<"x">>},
@@ -890,71 +889,72 @@ comments_test_() ->
                 {literal, false},
                 end_object,
                 end_json
-            ]
+            ],
+            decode(<<"{ \"x\": true/* comment */", ?newline, ", \"y\": false }">>, [comments])
         )},
         {"// comment precolon", ?_assertEqual(
-            decode(<<"{ \"key\" // comment", ?newline, ": true }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\" // comment", ?newline, ": true }">>, [comments])
         )},
         {"/**/ comment precolon", ?_assertEqual(
-            decode(<<"{ \"key\"/* comment */: true }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\"/* comment */: true }">>, [comments])
         )},
         {"// comment postcolon", ?_assertEqual(
-            decode(<<"{ \"key\": // comment", ?newline, " true }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\": // comment", ?newline, " true }">>, [comments])
         )},
         {"/**/ comment postcolon", ?_assertEqual(
-            decode(<<"{ \"key\":/* comment */ true }">>, [comments]),
-            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json]
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{ \"key\":/* comment */ true }">>, [comments])
         )},
         {"// comment terminating zero", ?_assertEqual(
-            decode(<<"[ 0// comment", ?newline, "]">>, [comments]),
-            [start_array, {integer, 0}, end_array, end_json]
+            [start_array, {integer, 0}, end_array, end_json],
+            decode(<<"[ 0// comment", ?newline, "]">>, [comments])
         )},
         {"// comment terminating integer", ?_assertEqual(
-            decode(<<"[ 1// comment", ?newline, "]">>, [comments]),
-            [start_array, {integer, 1}, end_array, end_json]
+            [start_array, {integer, 1}, end_array, end_json],
+            decode(<<"[ 1// comment", ?newline, "]">>, [comments])
         )},
         {"// comment terminating float", ?_assertEqual(
-            decode(<<"[ 1.0// comment", ?newline, "]">>, [comments]),
-            [start_array, {float, 1.0}, end_array, end_json]
+            [start_array, {float, 1.0}, end_array, end_json],
+            decode(<<"[ 1.0// comment", ?newline, "]">>, [comments])
         )},
         {"// comment terminating exp", ?_assertEqual(
-            decode(<<"[ 1e1// comment", ?newline, "]">>, [comments]),
-            [start_array, {float, 1.0e1}, end_array, end_json]
+            [start_array, {float, 1.0e1}, end_array, end_json],
+            decode(<<"[ 1e1// comment", ?newline, "]">>, [comments])
         )},
         {"/**/ comment terminating zero", ?_assertEqual(
-            decode(<<"[ 0/* comment */ ]">>, [comments]),
-            [start_array, {integer, 0}, end_array, end_json]
+            [start_array, {integer, 0}, end_array, end_json],
+            decode(<<"[ 0/* comment */ ]">>, [comments])
         )},
         {"/**/ comment terminating integer", ?_assertEqual(
-            decode(<<"[ 1/* comment */ ]">>, [comments]),
-            [start_array, {integer, 1}, end_array, end_json]
+            [start_array, {integer, 1}, end_array, end_json],
+            decode(<<"[ 1/* comment */ ]">>, [comments])
         )},
         {"/**/ comment terminating float", ?_assertEqual(
-            decode(<<"[ 1.0/* comment */ ]">>, [comments]),
-            [start_array, {float, 1.0}, end_array, end_json]
+            [start_array, {float, 1.0}, end_array, end_json],
+            decode(<<"[ 1.0/* comment */ ]">>, [comments])
         )},
         {"/**/ comment terminating exp", ?_assertEqual(
-            decode(<<"[ 1e1/* comment */ ]">>, [comments]),
-            [start_array, {float, 1.0e1}, end_array, end_json]
+            [start_array, {float, 1.0e1}, end_array, end_json],
+            decode(<<"[ 1e1/* comment */ ]">>, [comments])
         )},
         {"/**/ comment following /**/ comment", ?_assertEqual(
-            decode(<<"[/* comment *//* comment */true]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[/* comment *//* comment */true]">>, [comments])
         )},
         {"/**/ comment following // comment", ?_assertEqual(
-            decode(<<"[// comment", ?newline, "/* comment */true]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[// comment", ?newline, "/* comment */true]">>, [comments])
         )},
         {"// comment following /**/ comment", ?_assertEqual(
-            decode(<<"[/* comment */// comment", ?newline, "true]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[/* comment */// comment", ?newline, "true]">>, [comments])
         )},
         {"// comment following // comment", ?_assertEqual(
-            decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [comments]),
-            [start_array, {literal, true}, end_array, end_json]
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [comments])
         )}
     ].
 
