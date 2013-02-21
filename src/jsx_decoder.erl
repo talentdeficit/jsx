@@ -158,9 +158,9 @@ definitely_bom(Bin, Handler, Stack, Config) ->
 
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
-    string(Rest, Handler, [?new_seq()|Stack], Config);
+    string(Rest, Handler, [string|Stack], Config);
 value(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
-    string(Rest, Handler, [?new_seq(), single_quote|Stack], Config);
+    string(Rest, Handler, [single_quoted_string|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     tr(Rest, Handler, Stack, Config);
 value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
@@ -188,9 +188,9 @@ value(Bin, Handler, Stack, Config) ->
 
 
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
-    string(Rest, Handler, [?new_seq()|Stack], Config);
+    string(Rest, Handler, [string|Stack], Config);
 object(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
-    string(Rest, Handler, [?new_seq(), single_quote|Stack], Config);
+    string(Rest, Handler, [single_quoted_string|Stack], Config);
 object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
 object(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
@@ -228,9 +228,9 @@ colon(Bin, Handler, Stack, Config) ->
 
 
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
-    string(Rest, Handler, [?new_seq()|Stack], Config);
+    string(Rest, Handler, [string|Stack], Config);
 key(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
-    string(Rest, Handler, [?new_seq(), single_quote|Stack], Config);
+    string(Rest, Handler, [single_quoted_string|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
 key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
@@ -241,466 +241,145 @@ key(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
-%% string appends it's output to the term at the top of the stack. for
-%%   efficiency the strings are build in reverse order and reversed before
-%%   being added to the output stream
-%% when parsing strings, the naive detection of partial codepoints is
-%%   insufficient. this incredibly anal function should detect all badly formed
-%%   utf sequences
-partial_utf(<<>>) -> true;
-partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
-partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
-partial_utf(<<X, Y, Z>>)
-        when X >= 16#f0, X =< 16#f4,
-            Y >= 16#80, Y =< 16#bf,
-            Z >= 16#80, Z =< 16#bf ->
-    true;
-partial_utf(_) -> false.
+string(Bin, Handler, Stack, Config) -> string(Bin, Handler, Stack, Config, <<>>).
 
-
-%% explicitly whitelist ascii set for better efficiency (seriously, it's worth
-%%  almost a 20% increase)
-string(<<32, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 32)|Stack], Config);
-string(<<33, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 33)|Stack], Config);
-string(<<?doublequote, Rest/binary>>, Handler, S, Config) ->
-    case S of
-        [Acc, key|Stack] ->
-            colon(Rest, handle_event({key, ?end_seq(Acc)}, Handler, Config), [key|Stack], Config);
-        [_Acc, single_quote|_Stack] ->
-            ?error([<<?doublequote, Rest/binary>>, Handler, S, Config]);
-        [Acc|Stack] ->
-            maybe_done(Rest, handle_event({string, ?end_seq(Acc)}, Handler, Config), Stack, Config)
-    end;
-string(<<35, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 35)|Stack], Config);
-string(<<36, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 36)|Stack], Config);
-string(<<37, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 37)|Stack], Config);
-string(<<38, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 38)|Stack], Config);
-string(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    case Config#config.single_quoted_strings of
-        true ->
-            case Stack of
-                [single_quote, key|S] ->
-                    colon(Rest, handle_event({key, ?end_seq(Acc)}, Handler, Config), [key|S], Config)
-                ; [single_quote|S] ->
-                    maybe_done(Rest, handle_event({string, ?end_seq(Acc)}, Handler, Config), S, Config)
-                ; _ ->
-                    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(?singlequote, Config))|Stack], Config)
-            end
-        ; false ->
-            string(Rest, Handler, [?acc_seq(Acc, ?singlequote)|Stack], Config)
-    end;
-string(<<40, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 40)|Stack], Config);
-string(<<41, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 41)|Stack], Config);
-string(<<42, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 42)|Stack], Config);
-string(<<43, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 43)|Stack], Config);
-string(<<44, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 44)|Stack], Config);
-string(<<45, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 45)|Stack], Config);
-string(<<46, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 46)|Stack], Config);
-string(<<$/, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($/, Config))|Stack], Config);
-string(<<48, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 48)|Stack], Config);
-string(<<49, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 49)|Stack], Config);
-string(<<50, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 50)|Stack], Config);
-string(<<51, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 51)|Stack], Config);
-string(<<52, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 52)|Stack], Config);
-string(<<53, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 53)|Stack], Config);
-string(<<54, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 54)|Stack], Config);
-string(<<55, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 55)|Stack], Config);
-string(<<56, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 56)|Stack], Config);
-string(<<57, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 57)|Stack], Config);
-string(<<58, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 58)|Stack], Config);
-string(<<59, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 59)|Stack], Config);
-string(<<60, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 60)|Stack], Config);
-string(<<61, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 61)|Stack], Config);
-string(<<62, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 62)|Stack], Config);
-string(<<63, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 63)|Stack], Config);
-string(<<64, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 64)|Stack], Config);
-string(<<65, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 65)|Stack], Config);
-string(<<66, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 66)|Stack], Config);
-string(<<67, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 67)|Stack], Config);
-string(<<68, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 68)|Stack], Config);
-string(<<69, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 69)|Stack], Config);
-string(<<70, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 70)|Stack], Config);
-string(<<71, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 71)|Stack], Config);
-string(<<72, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 72)|Stack], Config);
-string(<<73, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 73)|Stack], Config);
-string(<<74, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 74)|Stack], Config);
-string(<<75, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 75)|Stack], Config);
-string(<<76, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 76)|Stack], Config);
-string(<<77, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 77)|Stack], Config);
-string(<<78, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 78)|Stack], Config);
-string(<<79, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 79)|Stack], Config);
-string(<<80, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 80)|Stack], Config);
-string(<<81, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 81)|Stack], Config);
-string(<<82, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 82)|Stack], Config);
-string(<<83, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 83)|Stack], Config);
-string(<<84, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 84)|Stack], Config);
-string(<<85, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 85)|Stack], Config);
-string(<<86, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 86)|Stack], Config);
-string(<<87, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 87)|Stack], Config);
-string(<<88, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 88)|Stack], Config);
-string(<<89, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 89)|Stack], Config);
-string(<<90, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 90)|Stack], Config);
-string(<<91, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 91)|Stack], Config);
-string(<<?rsolidus/utf8, Rest/binary>>, Handler, Stack, Config) ->
-    escape(Rest, Handler, Stack, Config);
-string(<<93, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 93)|Stack], Config);
-string(<<94, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 94)|Stack], Config);
-string(<<95, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 95)|Stack], Config);
-string(<<96, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 96)|Stack], Config);
-string(<<97, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 97)|Stack], Config);
-string(<<98, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 98)|Stack], Config);
-string(<<99, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 99)|Stack], Config);
-string(<<100, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 100)|Stack], Config);
-string(<<101, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 101)|Stack], Config);
-string(<<102, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 102)|Stack], Config);
-string(<<103, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 103)|Stack], Config);
-string(<<104, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 104)|Stack], Config);
-string(<<105, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 105)|Stack], Config);
-string(<<106, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 106)|Stack], Config);
-string(<<107, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 107)|Stack], Config);
-string(<<108, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 108)|Stack], Config);
-string(<<109, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 109)|Stack], Config);
-string(<<110, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 110)|Stack], Config);
-string(<<111, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 111)|Stack], Config);
-string(<<112, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 112)|Stack], Config);
-string(<<113, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 113)|Stack], Config);
-string(<<114, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 114)|Stack], Config);
-string(<<115, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 115)|Stack], Config);
-string(<<116, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 116)|Stack], Config);
-string(<<117, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 117)|Stack], Config);
-string(<<118, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 118)|Stack], Config);
-string(<<119, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 119)|Stack], Config);
-string(<<120, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 120)|Stack], Config);
-string(<<121, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 121)|Stack], Config);
-string(<<122, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 122)|Stack], Config);
-string(<<123, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 123)|Stack], Config);
-string(<<124, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 124)|Stack], Config);
-string(<<125, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 125)|Stack], Config);
-string(<<126, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 126)|Stack], Config);
-string(<<127, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 127)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#20, X < 16#2028 ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X == 16#2028; X == 16#2029 ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Config))|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X > 16#2029, X < 16#d800 ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X > 16#dfff, X < 16#fdd0 ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X > 16#fdef, X < 16#fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#10000, X < 16#1fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#20000, X < 16#2fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#30000, X < 16#3fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#40000, X < 16#4fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#50000, X < 16#5fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#60000, X < 16#6fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#70000, X < 16#7fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#80000, X < 16#8fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#90000, X < 16#9fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#a0000, X < 16#afffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#b0000, X < 16#bfffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#c0000, X < 16#cfffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#d0000, X < 16#dfffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#e0000, X < 16#efffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#f0000, X < 16#ffffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 16#100000, X < 16#10fffe ->
-    string(Rest, Handler, [?acc_seq(Acc, X)|Stack], Config);
-string(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    case Config#config.replaced_bad_utf8 of
-        true -> noncharacter(<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config)
-        ; false -> ?error([<<X/utf8, Rest/binary>>, Handler, [Acc|Stack], Config])
-    end;
-string(Bin, Handler, Stack, Config) ->
-    case partial_utf(Bin) of
-        true -> ?incomplete(string, Bin, Handler, Stack, Config)
-        ; false ->
-            case Config#config.replaced_bad_utf8 of
-                true -> noncharacter(Bin, Handler, Stack, Config)
-                ; false -> ?error([Bin, Handler, Stack, Config])
-            end
+string(Bin, Handler, [StringType|Stack], Config, Acc) ->
+    Length = cut(Bin),
+    <<String:Length/binary, Rest/binary>> = Bin,
+    case Rest of
+        <<?doublequote, Rem/binary>> when StringType == string ->
+            finish_string(Rem, Handler, Stack, Config, <<Acc/binary, String/binary>>);
+        <<?singlequote, Rem/binary>> when StringType == single_quoted_string ->
+            finish_string(Rem, Handler, Stack, Config, <<Acc/binary, String/binary>>);
+        <<Codepoint/utf8, Rem/binary>> when Codepoint == ?doublequote; Codepoint == ?singlequote ->
+            string(Rem, Handler, [StringType|Stack], Config, <<Acc/binary, String/binary, Codepoint/utf8>>)
     end.
 
 
-%% we don't need to guard against partial utf here, because it's already taken
-%%   care of in string
-%% surrogates
-noncharacter(<<237, X, _, Rest/binary>>, Handler, [Acc|Stack], Config) when X >= 160 ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config);
-%% u+fffe and u+ffff for R14BXX
-noncharacter(<<239, 191, X, Rest/binary>>, Handler, [Acc|Stack], Config) when X == 190; X == 191 ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config);
-%% u+xfffe, u+xffff and other noncharacters
-noncharacter(<<_/utf8, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config);
-%% overlong encodings and missing continuations of a 2 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, Stack, Config) when X >= 192, X =< 223 ->
-    strip_continuations(Rest, Handler, [1|Stack], Config);
-%% overlong encodings and missing continuations of a 3 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, Stack, Config) when X >= 224, X =< 239 ->
-    strip_continuations(Rest, Handler, [2|Stack], Config);
-%% overlong encodings and missing continuations of a 4 byte sequence
-noncharacter(<<X, Rest/binary>>, Handler, Stack, Config) when X >= 240, X =< 247 ->
-    strip_continuations(Rest, Handler, [3|Stack], Config);
-%% unexpected bytes, including orphan continuations
-noncharacter(<<_, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config);
-noncharacter(<<>>, Handler, Stack, Config) ->
-    ?incomplete(noncharacter, <<>>, Handler, Stack, Config).
+finish_string(Rest, Handler, [key|_] = Stack, Config, Acc) ->
+    State = handle_event({key, Acc}, Handler, Config),
+    colon(Rest, State, Stack, Config);
+finish_string(Rest, Handler, Stack, Config, Acc) ->
+    State = handle_event({string, Acc}, Handler, Config),
+    maybe_done(Rest, State, Stack, Config).
 
 
-%% strips continuation bytes after bad utf bytes, guards against both too short
-%%  and overlong sequences. N is the maximum number of bytes to strip
-strip_continuations(Rest, Handler, [0, Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config);
-strip_continuations(<<X, Rest/binary>>, Handler,  [N|Stack], Config) when X >= 128, X =< 191 ->
-    strip_continuations(Rest, Handler, [N - 1|Stack], Config);
-%% incomplete
-strip_continuations(<<>>, Handler, Stack, Config) ->
-    ?incomplete(strip_continuations, <<>>, Handler, Stack, Config);
-%% not a continuation byte, dispatch back to string
-strip_continuations(Rest, Handler, [_, Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config).
+cut(Bin) -> cut(Bin, 0).
 
-
-escape(<<$b, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\b, Config))|Stack], Config);
-escape(<<$f, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\f, Config))|Stack], Config);
-escape(<<$n, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\n, Config))|Stack], Config);
-escape(<<$r, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\r, Config))|Stack], Config);
-escape(<<$t, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\t, Config))|Stack], Config);
-escape(<<?rsolidus, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\\, Config))|Stack], Config);
-escape(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($/, Config))|Stack], Config);
-escape(<<?doublequote, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace($\", Config))|Stack], Config);
-escape(<<?singlequote, Rest/binary>>, Handler, [Acc|Stack], Config = #config{single_quoted_strings=true}) ->
-    string(Rest, Handler, [?acc_seq(Acc, maybe_replace(?singlequote, Config))|Stack], Config);
-escape(<<$u, Rest/binary>>, Handler, Stack, Config) ->
-    escaped_unicode(Rest, Handler, Stack, Config);
-escape(<<>>, Handler, Stack, Config) ->
-    ?incomplete(escape, <<>>, Handler, Stack, Config);
-escape(Bin, Handler, [Acc|Stack], Config=#config{ignored_bad_escapes=true}) ->
-    string(Bin, Handler, [?acc_seq(Acc, ?rsolidus)|Stack], Config);
-escape(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-%% this code is ugly and unfortunate, but so is json's handling of escaped
-%%   unicode codepoint sequences.
-escaped_unicode(<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Config)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-    case erlang:list_to_integer([A, B, C, D], 16) of
-        %% high surrogate, dispatch to low surrogate
-        X when X >= 16#d800, X =< 16#dbff ->
-            low_surrogate(Rest, Handler, [X, Acc|Stack], Config)
-        %% low surrogate, illegal in this position
-        ; X when X >= 16#dc00, X =< 16#dfff ->
-            case Config#config.replaced_bad_utf8 of
-                true -> string(Rest, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config)
-                ; false -> ?error([<<A, B, C, D, Rest/binary>>, Handler, [Acc|Stack], Config])
-            end
-        %% anything else
-        ; X -> string(Rest, Handler, [?acc_seq(Acc, maybe_replace(X, Config))|Stack], Config)
-    end;
-escaped_unicode(Bin, Handler, Stack, Config) ->
-    case is_partial_escape(Bin) of
-        true -> ?incomplete(escaped_unicode, Bin, Handler, Stack, Config)
-        ; false -> ?error([Bin, Handler, Stack, Config])
-    end.
-
-
-is_partial_escape(<<A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
-is_partial_escape(<<A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
-is_partial_escape(<<A>>) when ?is_hex(A) -> true;
-is_partial_escape(<<>>) -> true;
-is_partial_escape(_) -> false.
-
-
-low_surrogate(<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Config)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-    case erlang:list_to_integer([A, B, C, D], 16) of
-        X when X >= 16#dc00, X =< 16#dfff ->
-            Y = surrogate_to_codepoint(High, X),
-            case (Y =< 16#d800 orelse Y >= 16#e000) of
-                true -> string(Rest, Handler, [?acc_seq(Acc, Y)|Stack], Config)
-                ; false ->
-                    case Config#config.replaced_bad_utf8 of
-                        true ->
-                            string(Rest, Handler, [?acc_seq(Acc, 16#fffd, 16#fffd)|Stack], Config)
-                        ; false ->
-                            ?error([<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Config])
-                    end
-            end
-        ; _ ->
-            case Config#config.replaced_bad_utf8 of
-                true -> string(Rest, Handler, [?acc_seq(Acc, 16#fffd, 16#fffd)|Stack], Config)
-                ; false -> ?error([<<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, [High, Acc|Stack], Config])
-            end
-    end;
-low_surrogate(Bin, Handler, [High, Acc|Stack], Config) ->
-    case is_partial_low(Bin) of
-        true -> ?incomplete(low_surrogate, Bin, Handler, [High, Acc|Stack], Config)
-        ; false ->
-            case Config#config.replaced_bad_utf8 of
-                true -> string(Bin, Handler, [?acc_seq(Acc, 16#fffd)|Stack], Config)
-                ; false -> ?error([Bin, Handler, [High, Acc|Stack], Config])
-            end
-    end.
-
-
-is_partial_low(<<?rsolidus, $u, A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
-is_partial_low(<<?rsolidus, $u, A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
-is_partial_low(<<?rsolidus, $u, A>>) when ?is_hex(A) -> true;
-is_partial_low(<<?rsolidus, $u>>) -> true;
-is_partial_low(<<?rsolidus>>) -> true;
-is_partial_low(<<>>) -> true;
-is_partial_low(_) -> false.
-
-
-%% stole this from the unicode spec
-surrogate_to_codepoint(High, Low) ->
-    (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000.
-
-
-maybe_replace(X, #config{dirty_strings=true}) when is_integer(X) -> [X];
-maybe_replace($\b, #config{escaped_strings=true}) -> [$\\, $b];
-maybe_replace($\t, #config{escaped_strings=true}) -> [$\\, $t];
-maybe_replace($\n, #config{escaped_strings=true}) -> [$\\, $n];
-maybe_replace($\f, #config{escaped_strings=true}) -> [$\\, $f];
-maybe_replace($\r, #config{escaped_strings=true}) -> [$\\, $r];
-maybe_replace($\", #config{escaped_strings=true}) -> [$\\, $\"];
-maybe_replace($', Config=#config{escaped_strings=true}) ->
-    case Config#config.single_quoted_strings of
-        true -> [$\\, $']
-        ; false -> [$']
-    end;
-maybe_replace($/, Config=#config{escaped_strings=true}) ->
-    case Config#config.escaped_forward_slashes of
-        true -> [$\\, $/]
-        ; false -> [$/]
-    end;
-maybe_replace($\\, #config{escaped_strings=true}) -> [$\\, $\\];
-maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
-    case Config#config.unescaped_jsonp of
-        true -> [X]
-        ; false -> jsx_utils:json_escape_sequence(X)
-    end;
-maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    jsx_utils:json_escape_sequence(X);
-maybe_replace(X, _Config) -> [X].
+cut(<<32, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<33, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<35, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<36, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<37, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<38, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<40, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<41, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<42, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<43, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<44, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<45, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<46, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<48, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<49, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<50, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<51, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<52, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<53, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<54, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<55, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<56, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<57, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<58, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<59, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<60, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<61, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<62, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<63, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<64, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<65, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<66, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<67, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<68, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<69, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<70, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<71, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<72, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<73, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<74, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<75, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<76, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<77, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<78, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<79, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<80, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<81, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<82, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<83, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<84, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<85, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<86, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<87, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<88, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<89, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<90, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<91, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<93, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<94, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<95, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<96, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<97, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<98, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<99, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<100, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<101, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<102, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<103, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<104, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<105, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<106, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<107, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<108, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<109, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<110, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<111, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<112, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<113, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<114, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<115, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<116, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<117, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<118, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<119, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<120, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<121, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<122, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<123, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<124, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<125, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<126, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<127, Rest/binary>>, N) -> cut(Rest, N + 1);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 128, X < 16#0800 -> cut(Rest, N + 2);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#0800, X < 16#2028 -> cut(Rest, N + 3);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#202a, X < 16#d800 -> cut(Rest, N + 3);
+cut(<<X/utf8, Rest/binary>>, N) when X > 16#dfff, X < 16#fdd0 -> cut(Rest, N + 3);
+cut(<<X/utf8, Rest/binary>>, N) when X > 16#fdef, X < 16#fffe -> cut(Rest, N + 3);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#10000, X < 16#1fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#20000, X < 16#2fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#30000, X < 16#3fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#40000, X < 16#4fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#50000, X < 16#5fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#60000, X < 16#6fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#70000, X < 16#7fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#80000, X < 16#8fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#90000, X < 16#9fffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#a0000, X < 16#afffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#b0000, X < 16#bfffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#c0000, X < 16#cfffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#d0000, X < 16#dfffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#e0000, X < 16#efffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#f0000, X < 16#ffffe -> cut(Rest, N + 4);
+cut(<<X/utf8, Rest/binary>>, N) when X >= 16#100000, X < 16#10fffe -> cut(Rest, N + 4);
+cut(_, N) -> N.
 
 
 
@@ -1024,6 +703,18 @@ done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
 -include_lib("eunit/include/eunit.hrl").
 
 
+decode_test_() ->
+    Data = jsx:test_cases(),
+    [
+        {
+            Title, ?_assertEqual(
+                Events ++ [end_json],
+                start(JSON, {jsx, []}, [], #config{})
+            )
+        } || {Title, JSON, _, Events} <- Data
+    ].
+
+
 %% all these numbers have different representation in erlang than in javascript and
 %%  do not roundtrip like most integers/floats
 special_number_test_() ->
@@ -1056,258 +747,6 @@ special_number_test_() ->
             [{float, 1.0e4}, end_json],
             start(<<"1e4">>, {jsx, []}, [], #config{})
         )}
-    ].
-
-
-unescape_test_() ->
-    [
-        {"unescape backspace", ?_assertEqual(
-            [{string, <<"\b">>}, end_json],
-            start(<<"\"\\b\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape tab", ?_assertEqual(
-            [{string, <<"\t">>}, end_json],
-            start(<<"\"\\t\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape newline", ?_assertEqual(
-            [{string, <<"\n">>}, end_json],
-            start(<<"\"\\n\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape formfeed", ?_assertEqual(
-            [{string, <<"\f">>}, end_json],
-            start(<<"\"\\f\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape carriage return", ?_assertEqual(
-            [{string, <<"\r">>}, end_json],
-            start(<<"\"\\r\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape quote", ?_assertEqual(
-            [{string, <<"\"">>}, end_json],
-            start(<<"\"\\\"\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape forward slash", ?_assertEqual(
-            [{string, <<"/">>}, end_json],
-            start(<<"\"\\/\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape back slash", ?_assertEqual(
-            [{string, <<"\\">>}, end_json],
-            start(<<"\"\\\\\"">>, {jsx, []}, [], #config{})
-        )},
-        {"unescape control code", ?_assertEqual(
-            [{string, <<0>>}, end_json],
-            start(<<"\"\\u0000\"">>, {jsx, []}, [], #config{})
-        )}
-    ].
-
-
-ignored_bad_escapes_test_() ->
-    [
-        {"ignore unrecognized escape sequence", ?_assertEqual(
-            [{string, <<"\\x25">>}, end_json],
-            start(<<"\"\\x25\"">>, {jsx, []}, [], #config{ignored_bad_escapes=true})
-        )}
-    ].
-
-
-
-xcode(Bin) -> xcode(Bin, []).
-
-xcode(Bin, Config) ->
-    Size = size(Bin),
-    try jsx:to_term(<<34, Bin:Size/binary, 34>>, Config)
-    catch error:badarg -> {error, badarg}
-    end.
-
-
-is_bad({error, badarg}) -> true;
-is_bad(_) -> false.
-
-
-bad_utf8_test_() ->
-    [
-        {"orphan continuation byte u+0080",
-            ?_assert(is_bad(xcode(<<16#0080>>)))
-        },
-        {"orphan continuation byte u+0080 replaced",
-            ?_assertEqual(xcode(<<16#0080>>, [replaced_bad_utf8]), <<16#fffd/utf8>>)
-        },
-        {"orphan continuation byte u+00bf",
-            ?_assert(is_bad(xcode(<<16#00bf>>)))
-        },
-        {"orphan continuation byte u+00bf replaced",
-            ?_assertEqual(xcode(<<16#00bf>>, [replaced_bad_utf8]), <<16#fffd/utf8>>)
-        },
-        {"2 continuation bytes",
-            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>)))
-        },
-        {"2 continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(binary:copy(<<16#0080>>, 2))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, 2)
-            )
-        },
-        {"3 continuation bytes",
-            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>)))
-        },
-        {"3 continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(binary:copy(<<16#0080>>, 3))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, 3)
-            )
-        },
-        {"4 continuation bytes",
-            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>)))
-        },
-        {"4 continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(binary:copy(<<16#0080>>, 4))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, 4)
-            )
-        },
-        {"5 continuation bytes",
-            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>)))
-        },
-        {"5 continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(binary:copy(<<16#0080>>, 5))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, 5)
-            )
-        },
-        {"6 continuation bytes",
-            ?_assert(is_bad(xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>)))
-        },
-        {"6 continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(binary:copy(<<16#0080>>, 6))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, 6)
-            )
-        },
-        {"all continuation bytes",
-            ?_assert(is_bad(xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>)))
-        },
-        {"all continuation bytes replaced",
-            ?_assertEqual(
-                xcode(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [replaced_bad_utf8]),
-                binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf)))
-            )
-        },
-        {"lonely start byte",
-            ?_assert(is_bad(xcode(<<16#00c0>>)))
-        },
-        {"lonely start byte replaced",
-            ?_assertEqual(
-                xcode(<<16#00c0>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8>>
-            )
-        },
-        {"lonely start bytes (2 byte)",
-            ?_assert(is_bad(xcode(<<16#00c0, 32, 16#00df>>)))
-        },
-        {"lonely start bytes (2 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#00c0, 32, 16#00df>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32, 16#fffd/utf8>>
-            )
-        },
-        {"lonely start bytes (3 byte)",
-            ?_assert(is_bad(xcode(<<16#00e0, 32, 16#00ef>>)))
-        },
-        {"lonely start bytes (3 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#00e0, 32, 16#00ef>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32, 16#fffd/utf8>>
-            )
-        },
-        {"lonely start bytes (4 byte)",
-            ?_assert(is_bad(xcode(<<16#00f0, 32, 16#00f7>>)))
-        },
-        {"lonely start bytes (4 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#00f0, 32, 16#00f7>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32, 16#fffd/utf8>>
-            )
-        },
-        {"missing continuation byte (3 byte)",
-            ?_assert(is_bad(xcode(<<224, 160, 32>>)))
-        },
-        {"missing continuation byte (3 byte) replaced",
-            ?_assertEqual(
-                xcode(<<224, 160, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"missing continuation byte (4 byte missing one)",
-            ?_assert(is_bad(xcode(<<240, 144, 128, 32>>)))
-        },
-        {"missing continuation byte2 (4 byte missing one) replaced",
-            ?_assertEqual(
-                xcode(<<240, 144, 128, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"missing continuation byte (4 byte missing two)",
-            ?_assert(is_bad(xcode(<<240, 144, 32>>)))
-        },
-        {"missing continuation byte2 (4 byte missing two) replaced",
-            ?_assertEqual(
-                xcode(<<240, 144, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"overlong encoding of u+002f (2 byte)",
-            ?_assert(is_bad(xcode(<<16#c0, 16#af, 32>>)))
-        },
-        {"overlong encoding of u+002f (2 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#c0, 16#af, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"overlong encoding of u+002f (3 byte)",
-            ?_assert(is_bad(xcode(<<16#e0, 16#80, 16#af, 32>>)))
-        },
-        {"overlong encoding of u+002f (3 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#e0, 16#80, 16#af, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"overlong encoding of u+002f (4 byte)",
-            ?_assert(is_bad(xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>)))
-        },
-        {"overlong encoding of u+002f (4 byte) replaced",
-            ?_assertEqual(
-                xcode(<<16#f0, 16#80, 16#80, 16#af, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"highest overlong 2 byte sequence",
-            ?_assert(is_bad(xcode(<<16#c1, 16#bf, 32>>)))
-        },
-        {"highest overlong 2 byte sequence replaced",
-            ?_assertEqual(
-                xcode(<<16#c1, 16#bf, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"highest overlong 3 byte sequence",
-            ?_assert(is_bad(xcode(<<16#e0, 16#9f, 16#bf, 32>>)))
-        },
-        {"highest overlong 3 byte sequence replaced",
-            ?_assertEqual(
-                xcode(<<16#e0, 16#9f, 16#bf, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        },
-        {"highest overlong 4 byte sequence",
-            ?_assert(is_bad(xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>)))
-        },
-        {"highest overlong 4 byte sequence replaced",
-            ?_assertEqual(
-                xcode(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [replaced_bad_utf8]),
-                <<16#fffd/utf8, 32>>
-            )
-        }
     ].
 
 
@@ -1520,136 +959,6 @@ comments_test_() ->
     ].
 
 
-
-
-
-escapes_test_() ->
-    [
-        {"backspace escape", ?_assertEqual(decode(<<"\"\\b\"">>, [escaped_strings]), [{string, <<"\\b">>}, end_json])},
-        {"formfeed escape", ?_assertEqual(decode(<<"\"\\f\"">>, [escaped_strings]), [{string, <<"\\f">>}, end_json])},
-        {"newline escape", ?_assertEqual(decode(<<"\"\\n\"">>, [escaped_strings]), [{string, <<"\\n">>}, end_json])},
-        {"carriage return escape", ?_assertEqual(decode(<<"\"\\r\"">>, [escaped_strings]), [{string, <<"\\r">>}, end_json])},
-        {"tab escape", ?_assertEqual(decode(<<"\"\\t\"">>, [escaped_strings]), [{string, <<"\\t">>}, end_json])},
-        {"quote escape", ?_assertEqual(decode(<<"\"\\\"\"">>, [escaped_strings]), [{string, <<"\\\"">>}, end_json])},
-        {"single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [escaped_strings, single_quoted_strings]), [{string, <<"\\'">>}, end_json])},
-        {"naked single quote escape", ?_assertEqual(decode(<<"'\\''">>, [escaped_strings, single_quoted_strings]), [{string, <<"\\'">>}, end_json])},
-        {"no single quote escape", ?_assertEqual(decode(<<"\"'\"">>, [escaped_strings]), [{string, <<"'">>}, end_json])},
-        {"forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [escaped_strings, escaped_forward_slashes]), [{string, <<"\\/">>}, end_json])},
-        {"no forward slash escape", ?_assertEqual(decode(<<"\"/\"">>, [escaped_strings]), [{string, <<"/">>}, end_json])},
-        {"back slash escape", ?_assertEqual(decode(<<"\"\\\\\"">>, [escaped_strings]), [{string, <<"\\\\">>}, end_json])},
-        {"jsonp escape", ?_assertEqual(
-            decode(<<$\", 16#2028/utf8, 16#2029/utf8, $\">>, [escaped_strings]),
-            [{string, <<"\\u2028\\u2029">>}, end_json]
-        )},
-        {"no jsonp escape", ?_assertEqual(
-            decode(<<$\", 16#2028/utf8, 16#2029/utf8, $\">>, [escaped_strings, unescaped_jsonp]),
-            [{string, <<16#2028/utf8, 16#2029/utf8>>}, end_json]
-        )},
-        {"control escape", ?_assertEqual(decode(<<$\", "\\u0000"/utf8, $\">>, [escaped_strings]), [{string, <<"\\u0000">>}, end_json])},
-        {"dirty strings", ?_assertEqual(decode(<<"\"\\n\"">>, [escaped_strings, dirty_strings]), [{string, <<"\n">>}, end_json])},
-        {"ignore bad escapes", ?_assertEqual(decode(<<"\"\\x25\"">>, [escaped_strings, ignored_bad_escapes]), [{string, <<"\\x25">>}, end_json])}
-    ].
-
-
-noncharacters_test_() ->
-    [
-        {"noncharacters - badarg",
-            ?_assert(check_bad(noncharacters()))
-        },
-        {"noncharacters - replaced",
-            ?_assert(check_replaced(noncharacters()))
-        }
-    ].
-
-
-extended_noncharacters_test_() ->
-    [
-        {"extended noncharacters - badarg",
-            ?_assert(check_bad(extended_noncharacters()))
-        },
-        {"extended noncharacters - replaced",
-            ?_assert(check_replaced(extended_noncharacters()))
-        }
-    ].
-
-
-surrogates_test_() ->
-    [
-        {"surrogates - badarg",
-            ?_assert(check_bad(surrogates()))
-        },
-        {"surrogates - replaced",
-            ?_assert(check_replaced(surrogates()))
-        }
-    ].
-
-
-control_test_() ->
-    [
-        {"control characters - badarg",
-            ?_assert(check_bad(control_characters()))
-        }
-    ].
-
-
-reserved_test_() ->
-    [
-        {"reserved noncharacters - badarg",
-            ?_assert(check_bad(reserved_space()))
-        },
-        {"reserved noncharacters - replaced",
-            ?_assert(check_replaced(reserved_space()))
-        }
-    ].
-
-
-good_characters_test_() ->
-    [
-        {"acceptable codepoints",
-            ?_assert(check_good(good()))
-        },
-        {"acceptable codepoints - escaped_strings",
-            ?_assert(check_good(good(), [escaped_strings]))
-        },
-        {"acceptable codepoints - replaced_bad_utf8",
-            ?_assert(check_good(good(), [replaced_bad_utf8]))
-        },
-        {"acceptable codepoints - escaped_strings + replaced_bad_utf8",
-            ?_assert(check_good(good(), [escaped_strings, replaced_bad_utf8]))
-        },
-        {"acceptable extended",
-            ?_assert(check_good(good_extended()))
-        }
-    ].
-
-
-check_bad(List) ->
-    [] == lists:dropwhile(fun({_, {error, badarg}}) -> true ; (_) -> false end,
-        check(List, [], [])
-    ).
-
-
-check_replaced(List) ->
-    [] == lists:dropwhile(fun({_, [{string, <<16#fffd/utf8>>}|_]}) -> true ; (_) -> false
-        end,
-        check(List, [replaced_bad_utf8], [])
-    ).
-
-
-check_good(List) -> check_good(List, []).
-
-check_good(List, Config) ->
-    [] == lists:dropwhile(fun({_, [{string, _}|_]}) -> true ; (_) -> false end,
-        check(List, Config, [])
-    ).
-
-
-check([], _Config, Acc) -> Acc;
-check([H|T], Config, Acc) ->
-    R = decode(to_fake_utf(H, utf8), Config),
-    check(T, Config, [{H, R}] ++ Acc).
-
-
 noncharacters() -> lists:seq(16#fffe, 16#ffff).
 
 extended_noncharacters() ->
@@ -1670,20 +979,26 @@ control_characters() -> lists:seq(1, 31).
 
 reserved_space() -> lists:seq(16#fdd0, 16#fdef).
 
-good() ->
-    [32, 33]
-        ++ lists:seq(16#23, 16#5b)
-        ++ lists:seq(16#5d, 16#d7ff)
+codepoints() ->
+    unicode:characters_to_binary(
+        [32, 33]
+        ++ lists:seq(35, 38)
+        ++ lists:seq(40, 46)
+        ++ lists:seq(48, 91)
+        ++ lists:seq(93, 16#2027)
+        ++ lists:seq(16#202a, 16#d7ff)
         ++ lists:seq(16#e000, 16#fdcf)
-        ++ lists:seq(16#fdf0, 16#fffd).
+        ++ lists:seq(16#fdf0, 16#fffd)
+    ).
 
-good_extended() ->
-    lists:seq(16#10000, 16#1fffd) ++
-    [
-        16#10000, 16#20000, 16#30000, 16#40000, 16#50000,
-        16#60000, 16#70000, 16#80000, 16#90000, 16#a0000,
-        16#b0000, 16#c0000, 16#d0000, 16#e0000, 16#f0000
-    ] ++ lists:seq(16#100000, 16#10fffd).
+extended_codepoints() ->
+    unicode:characters_to_binary(
+        lists:seq(16#10000, 16#1fffd) ++ [
+            16#20000, 16#30000, 16#40000, 16#50000, 16#60000,
+            16#70000, 16#80000, 16#90000, 16#a0000, 16#b0000,
+            16#c0000, 16#d0000, 16#e0000, 16#f0000, 16#100000
+        ]
+    ).
 
 
 %% erlang refuses to decode certain codepoints, so fake them all
@@ -1699,15 +1014,17 @@ to_fake_utf(N, utf8) ->
     <<34/utf8, 2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6, 34/utf8>>.
 
 
-decode_test_() ->
-    Data = jsx:test_cases(),
+clean_string_test_() ->
     [
-        {
-            Title, ?_assertEqual(
-                Events ++ [end_json],
-                start(JSON, {jsx, []}, [], #config{})
-            )
-        } || {Title, JSON, _, Events} <- Data
+        {"clean codepoints test", ?_assertEqual(
+            [{string, codepoints()}, end_json],
+            decode(<<34, (codepoints())/binary, 34>>, [])
+        )},
+        {"clean extended codepoints test", ?_assertEqual(
+            [{string, extended_codepoints()}, end_json],
+            decode(<<34, (extended_codepoints())/binary, 34>>, [])
+        )}
     ].
+
 
 -endif.
