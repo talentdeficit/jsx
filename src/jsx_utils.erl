@@ -768,30 +768,34 @@ bad_utf8_test_() ->
             binary:copy(<<16#fffd/utf8>>, 2),
             clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{replaced_bad_utf8=true})
         )},
-        {"3 continuation bytes",
-            ?_assertEqual({error, badarg}, clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{}))
-        },
+        {"3 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
+        )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
             clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{replaced_bad_utf8=true})
         )},
-        {"4 continuation bytes",
-            ?_assertEqual({error, badarg}, clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{}))
-        },
+        {"4 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
+        )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
             clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{replaced_bad_utf8=true})
         )},
-        {"5 continuation bytes",
-            ?_assertEqual({error, badarg}, clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{}))
-        },
+        {"5 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
+        )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
             clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{replaced_bad_utf8=true})
         )},
-        {"6 continuation bytes",
-            ?_assertEqual({error, badarg}, clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{}))
-        },
+        {"6 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
+        )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
             clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{replaced_bad_utf8=true})
@@ -807,7 +811,10 @@ bad_utf8_test_() ->
                 #config{replaced_bad_utf8=true}
             )
         )},
-        {"lonely start byte", ?_assertEqual({error, badarg}, clean_string(<<16#00c0>>, #config{}))},
+        {"lonely start byte", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00c0>>, #config{})
+        )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(<<16#00c0>>, #config{replaced_bad_utf8=true})
