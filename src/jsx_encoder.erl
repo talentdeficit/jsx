@@ -23,7 +23,7 @@
 
 -module(jsx_encoder).
 
--export([encoder/3, pre_encode/2]).
+-export([encoder/3]).
 
 -spec encoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:encoder().
 
@@ -115,12 +115,11 @@ object(Term, Handler, Config) -> ?error([Term, Handler, Config]).
 list([Value, Next|Rest], {Handler, State}, Config) ->
     list([pre_encode(Next, Config)|Rest], {Handler, value(Value, {Handler, State}, Config)}, Config);
 list([Value], {Handler, State}, Config) ->
-	list([], {Handler, value(Value, {Handler, State}, Config)}, Config);
+    list([], {Handler, value(Value, {Handler, State}, Config)}, Config);
 list([], {Handler, State}, _Config) -> Handler:handle_event(end_array, State);
 list(Term, Handler, Config) -> ?error([Term, Handler, Config]).
 
-
-pre_encode(Value, #config{pre_encode=false}) -> io:format("~p~n", [Value]), Value;
+pre_encode(Value, #config{pre_encode=false}) -> Value;
 pre_encode(Value, Config) -> (Config#config.pre_encode)(Value).
 
 
