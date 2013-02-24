@@ -1566,6 +1566,59 @@ bad_utf8_test_() ->
     ].
 
 
+unescape(Bin, Config) ->
+    [{string, String}, end_json] = decode(<<34, Bin/binary, 34>>, Config),
+    String.
+
+unescape_test_() ->
+    [
+        {"unescape backspace", ?_assertEqual(
+            <<"\b">>,
+            unescape(<<"\\b"/utf8>>, [])
+        )},
+        {"unescape tab", ?_assertEqual(
+            <<"\t">>,
+            unescape(<<"\\t"/utf8>>, [])
+        )},
+        {"unescape newline", ?_assertEqual(
+            <<"\n">>,
+            unescape(<<"\\n"/utf8>>, [])
+        )},
+        {"unescape formfeed", ?_assertEqual(
+            <<"\f">>,
+            unescape(<<"\\f"/utf8>>, [])
+        )},
+        {"unescape carriage return", ?_assertEqual(
+            <<"\r">>,
+            unescape(<<"\\r"/utf8>>, [])
+        )},
+        {"unescape quote", ?_assertEqual(
+            <<"\"">>,
+            unescape(<<"\\\""/utf8>>, [])
+        )},
+        {"unescape single quote", ?_assertEqual(
+            <<"'">>,
+            unescape(<<"\\'"/utf8>>, [single_quoted_strings])
+        )},
+        {"unescape solidus", ?_assertEqual(
+            <<"/">>,
+            unescape(<<"\\/"/utf8>>, [])
+        )},
+        {"unescape reverse solidus", ?_assertEqual(
+            <<"\\">>,
+            unescape(<<"\\\\"/utf8>>, [])
+        )},
+        {"unescape control", ?_assertEqual(
+            <<0>>,
+            unescape(<<"\\u0000"/utf8>>, [])
+        )},
+        {"unescape surrogate pair", ?_assertEqual(
+            <<16#10000/utf8>>,
+            unescape(<<"\\ud800\\udc00"/utf8>>, [])
+        )}
+    ].
+
+
 maybe_escape(Bin, Config) ->
     [{string, String}, end_json] = decode(Bin, Config),
     String.
