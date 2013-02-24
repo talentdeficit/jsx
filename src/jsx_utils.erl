@@ -670,80 +670,56 @@ extended_noncharacters() ->
     ].
 
 
+decode(String, Config) ->
+    try
+        [{string, clean_string(String, jsx_utils:parse_config(Config))}, end_json]
+    catch
+        error:badarg -> {error, badarg}
+    end.
+
+
 clean_string_test_() ->
     [
-        {"clean codepoints test", ?_assertEqual(
-            codepoints(),
-            clean_string(codepoints(), #config{})
+        {"clean codepoints", ?_assertEqual(
+            [{string, codepoints()}, end_json],
+            decode(codepoints(), [])
         )},
-        {"clean extended codepoints test", ?_assertEqual(
-            extended_codepoints(),
-            clean_string(extended_codepoints(), #config{})
+        {"clean extended codepoints", ?_assertEqual(
+            [{string, extended_codepoints()}, end_json],
+            decode(extended_codepoints(), [])
+        )},
+        {"error reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, reserved_space())
+        )},
+        {"error surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, surrogates())
+        )},
+        {"error noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, noncharacters())
+        )},
+        {"error extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, extended_noncharacters())
+        )},
+        {"clean reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, reserved_space())
+        )},
+        {"clean surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, surrogates())
+        )},
+        {"clean noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, noncharacters())
+        )},
+        {"clean extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
         )}
-    ] ++ [
-        {
-            "reserved character: " ++ lists:flatten(io_lib:format("~p", [Codepoint])),
-                ?_assertError(
-                    badarg,
-                    clean_string(Codepoint, #config{})
-                )
-        } || Codepoint <- reserved_space()
-    ] ++ [
-        {
-            "reserved character: " ++ lists:flatten(io_lib:format("~p", [Codepoint])) ++ " (replaced)",
-                ?_assertEqual(
-                    <<16#fffd/utf8>>,
-                    clean_string(Codepoint, #config{replaced_bad_utf8=true})
-                )
-        } || Codepoint <- reserved_space()
-    ] ++ [
-        {
-            "surrogate: " ++ lists:flatten(io_lib:format("~p", [Codepoint])),
-                ?_assertError(
-                    badarg,
-                    clean_string(Codepoint, #config{})
-                )
-        } || Codepoint <- surrogates()
-    ] ++ [
-        {
-            "surrogate: " ++ lists:flatten(io_lib:format("~p", [Codepoint])) ++ " (replaced)",
-                ?_assertEqual(
-                    <<16#fffd/utf8>>,
-                    clean_string(Codepoint, #config{replaced_bad_utf8=true})
-                )
-        } || Codepoint <- surrogates()
-    ] ++ [
-        {
-            "noncharacter: " ++ lists:flatten(io_lib:format("~p", [Codepoint])),
-                ?_assertError(
-                    badarg,
-                    clean_string(Codepoint, #config{})
-                )
-        } || Codepoint <- noncharacters()
-    ] ++ [
-        {
-            "noncharacter: " ++ lists:flatten(io_lib:format("~p", [Codepoint])) ++ " (replaced)",
-                ?_assertEqual(
-                    <<16#fffd/utf8>>,
-                    clean_string(Codepoint, #config{replaced_bad_utf8=true})
-                )
-        } || Codepoint <- noncharacters()
-    ] ++ [
-        {
-            "extended noncharacter: " ++ lists:flatten(io_lib:format("~p", [Codepoint])),
-                ?_assertError(
-                    badarg,
-                    clean_string(Codepoint, #config{})
-                )
-        } || Codepoint <- extended_noncharacters()
-    ] ++ [
-        {
-            "extended noncharacter: " ++ lists:flatten(io_lib:format("~p", [Codepoint])) ++ " (replaced)",
-                ?_assertEqual(
-                    <<16#fffd/utf8>>,
-                    clean_string(Codepoint, #config{replaced_bad_utf8=true})
-                )
-        } || Codepoint <- extended_noncharacters()
     ].
 
 

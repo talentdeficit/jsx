@@ -1023,7 +1023,12 @@ done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
 -include_lib("eunit/include/eunit.hrl").
 
 
-decode(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)).
+decode(JSON, Config) ->
+    try
+        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
+    catch
+        error:badarg -> {error, badarg}
+    end.
 
 
 decode_test_() ->
@@ -1330,9 +1335,37 @@ clean_string_test_() ->
             [{string, extended_codepoints()}, end_json],
             decode(<<34, (extended_codepoints())/binary, 34>>, [])
         )},
+        {"error reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, reserved_space())
+        )},
+        {"error surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, surrogates())
+        )},
+        {"error noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, noncharacters())
+        )},
+        {"error extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, extended_noncharacters())
+        )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
             lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, reserved_space())
+        )},
+        {"clean surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, surrogates())
+        )},
+        {"clean noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, noncharacters())
+        )},
+        {"clean extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
         )}
     ].
 
