@@ -703,15 +703,13 @@ done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
 -include_lib("eunit/include/eunit.hrl").
 
 
+decode(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)).
+
+
 decode_test_() ->
     Data = jsx:test_cases(),
-    [
-        {
-            Title, ?_assertEqual(
-                Events ++ [end_json],
-                start(JSON, {jsx, []}, [], #config{})
-            )
-        } || {Title, JSON, _, Events} <- Data
+    [{Title, ?_assertEqual(Events ++ [end_json], decode(JSON, []))}
+        || {Title, JSON, _, Events} <- Data
     ].
 
 
@@ -721,41 +719,33 @@ special_number_test_() ->
     [
         {"-0", ?_assertEqual(
             [{integer, 0}, end_json],
-            start(<<"-0">>, {jsx, []}, [], #config{})
+            decode(<<"-0">>, [])
         )},
         {"-0.0", ?_assertEqual(
             [{float, 0.0}, end_json],
-            start(<<"-0.0">>, {jsx, []}, [], #config{})
+            decode(<<"-0.0">>, [])
         )},
         {"0e0", ?_assertEqual(
             [{float, 0.0}, end_json],
-            start(<<"0e0">>, {jsx, []}, [], #config{})
+            decode(<<"0e0">>, [])
         )},
         {"0e4", ?_assertEqual(
             [{float, 0.0}, end_json],
-            start(<<"0e4">>, {jsx, []}, [], #config{})
+            decode(<<"0e4">>, [])
         )},
         {"1e0", ?_assertEqual(
             [{float, 1.0}, end_json],
-            start(<<"1e0">>, {jsx, []}, [], #config{})
+            decode(<<"1e0">>, [])
         )},
         {"-1e0", ?_assertEqual(
             [{float, -1.0}, end_json],
-            start(<<"-1e0">>, {jsx, []}, [], #config{})
+            decode(<<"-1e0">>, [])
         )},
         {"1e4", ?_assertEqual(
             [{float, 1.0e4}, end_json],
-            start(<<"1e4">>, {jsx, []}, [], #config{})
+            decode(<<"1e4">>, [])
         )}
     ].
-
-
-decode(JSON, Config) ->
-    try
-        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
-    catch
-        error:badarg -> {error, badarg}
-    end.
 
 
 comments_test_() ->
@@ -1012,13 +1002,17 @@ to_fake_utf8(N) ->
 
 clean_string_test_() ->
     [
-        {"clean codepoints test", ?_assertEqual(
+        {"clean codepoints", ?_assertEqual(
             [{string, codepoints()}, end_json],
             decode(<<34, (codepoints())/binary, 34>>, [])
         )},
-        {"clean extended codepoints test", ?_assertEqual(
+        {"clean extended codepoints", ?_assertEqual(
             [{string, extended_codepoints()}, end_json],
             decode(<<34, (extended_codepoints())/binary, 34>>, [])
+        )},
+        {"clean reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
+            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, reserved_space())
         )}
     ].
 
