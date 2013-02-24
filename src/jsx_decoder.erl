@@ -1560,4 +1560,14 @@ single_quoted_string_test_() ->
     ].
 
 
+ignored_bad_escapes_test_() ->
+    [
+        {"ignore unrecognized escape sequence", ?_assertEqual(
+            [{string, <<"\\x25">>}, end_json],
+            decode(<<"\"\\x25\"">>, [ignored_bad_escapes])
+        )}
+    ].
+
+
+
 -endif.
