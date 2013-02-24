@@ -118,7 +118,7 @@ object([end_object|Tokens], Handler, [object|Stack], Config) ->
 object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
     value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
 object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
-    object([{key, Key}] ++ Tokens, Handler, Stack, Config);
+    value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
 object([], Handler, Stack, Config) ->
     ?incomplete(object, Handler, Stack, Config);
 object(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
