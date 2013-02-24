@@ -1,3 +1,0 @@
-{name, "byte order mark"}.
-{jsx, [start_array, end_array, end_json]}.
-{json, "bom.json"}.

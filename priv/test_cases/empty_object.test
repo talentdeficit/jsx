@@ -1,3 +1,0 @@
-{name, "empty_object"}.
-{jsx, [start_object,end_object,end_json]}.
-{json, "empty_object.json"}.

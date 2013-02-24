@@ -1,4 +1,0 @@
-{name, "unpaired surrogate replaced"}.
-{jsx, [start_array,{string,<<65533/utf8,$b,$l,$a,$h>>},end_array,end_json]}.
-{json, "unpaired_surrogate_replaced.json"}.
-{jsx_flags, [replaced_bad_utf8]}.

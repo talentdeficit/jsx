@@ -1,3 +1,0 @@
-{name, "encoded_surrogates"}.
-{jsx, [start_array,{string,<<66560/utf8>>},end_array,end_json]}.
-{json, "encoded_surrogates.json"}.
