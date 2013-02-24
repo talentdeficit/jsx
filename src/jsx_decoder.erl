@@ -1370,6 +1370,179 @@ clean_string_test_() ->
     ].
 
 
+maybe_escape(Bin, Config) ->
+    [{string, String}, end_json] = decode(Bin, Config),
+    String.
+
+escape_test_() ->
+    [
+        {"maybe_escape backspace", ?_assertEqual(
+            <<"\\b">>,
+            maybe_escape(<<34, "\\b"/utf8, 34>>, [escaped_strings])
+        )},
+        {"don't escape backspace", ?_assertEqual(
+            <<"\b">>,
+            maybe_escape(<<34, "\\b"/utf8, 34>>, [])
+        )},
+        {"maybe_escape tab", ?_assertEqual(
+            <<"\\t">>,
+            maybe_escape(<<34, "\\t"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape newline", ?_assertEqual(
+            <<"\\n">>,
+            maybe_escape(<<34, "\\n"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape formfeed", ?_assertEqual(
+            <<"\\f">>,
+            maybe_escape(<<34, "\\f"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape carriage return", ?_assertEqual(
+            <<"\\r">>,
+            maybe_escape(<<34, "\\r"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape quote", ?_assertEqual(
+            <<"\\\"">>,
+            maybe_escape(<<34, "\\\""/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape forward slash", ?_assertEqual(
+            <<"\\/">>,
+            maybe_escape(<<34, "/"/utf8, 34>>, [escaped_strings, escaped_forward_slashes])
+        )},
+        {"do not maybe_escape forward slash", ?_assertEqual(
+            <<"/">>,
+            maybe_escape(<<34, "/"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape backslash", ?_assertEqual(
+            <<"\\\\">>,
+            maybe_escape(<<34, "\\\\"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape jsonp (u2028)", ?_assertEqual(
+            <<"\\u2028">>,
+            maybe_escape(<<34, 16#2028/utf8, 34>>, [escaped_strings])
+        )},
+        {"do not maybe_escape jsonp (u2028)", ?_assertEqual(
+            <<16#2028/utf8>>,
+            maybe_escape(<<34, 16#2028/utf8, 34>>, [escaped_strings, unescaped_jsonp])
+        )},
+        {"maybe_escape jsonp (u2029)", ?_assertEqual(
+            <<"\\u2029">>,
+            maybe_escape(<<34, 16#2029/utf8, 34>>, [escaped_strings])
+        )},
+        {"do not maybe_escape jsonp (u2029)", ?_assertEqual(
+            <<16#2029/utf8>>,
+            maybe_escape(<<34, 16#2029/utf8, 34>>, [escaped_strings, unescaped_jsonp])
+        )},
+        {"maybe_escape u0000", ?_assertEqual(
+            <<"\\u0000">>,
+            maybe_escape(<<34, "\\u0000"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0001", ?_assertEqual(
+            <<"\\u0001">>,
+            maybe_escape(<<34, "\\u0001"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0002", ?_assertEqual(
+            <<"\\u0002">>,
+            maybe_escape(<<34, "\\u0002"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0003", ?_assertEqual(
+            <<"\\u0003">>,
+            maybe_escape(<<34, "\\u0003"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0004", ?_assertEqual(
+            <<"\\u0004">>,
+            maybe_escape(<<34, "\\u0004"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0005", ?_assertEqual(
+            <<"\\u0005">>,
+            maybe_escape(<<34, "\\u0005"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0006", ?_assertEqual(
+            <<"\\u0006">>,
+            maybe_escape(<<34, "\\u0006"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0007", ?_assertEqual(
+            <<"\\u0007">>,
+            maybe_escape(<<34, "\\u0007"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u000b", ?_assertEqual(
+            <<"\\u000b">>,
+            maybe_escape(<<34, "\\u000b"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u000e", ?_assertEqual(
+            <<"\\u000e">>,
+            maybe_escape(<<34, "\\u000e"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u000f", ?_assertEqual(
+            <<"\\u000f">>,
+            maybe_escape(<<34, "\\u000f"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0010", ?_assertEqual(
+            <<"\\u0010">>,
+            maybe_escape(<<34, "\\u0010"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0011", ?_assertEqual(
+            <<"\\u0011">>,
+            maybe_escape(<<34, "\\u0011"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0012", ?_assertEqual(
+            <<"\\u0012">>,
+            maybe_escape(<<34, "\\u0012"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0013", ?_assertEqual(
+            <<"\\u0013">>,
+            maybe_escape(<<34, "\\u0013"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0014", ?_assertEqual(
+            <<"\\u0014">>,
+            maybe_escape(<<34, "\\u0014"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0015", ?_assertEqual(
+            <<"\\u0015">>,
+            maybe_escape(<<34, "\\u0015"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0016", ?_assertEqual(
+            <<"\\u0016">>,
+            maybe_escape(<<34, "\\u0016"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0017", ?_assertEqual(
+            <<"\\u0017">>,
+            maybe_escape(<<34, "\\u0017"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0018", ?_assertEqual(
+            <<"\\u0018">>,
+            maybe_escape(<<34, "\\u0018"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u0019", ?_assertEqual(
+            <<"\\u0019">>,
+            maybe_escape(<<34, "\\u0019"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001a", ?_assertEqual(
+            <<"\\u001a">>,
+            maybe_escape(<<34, "\\u001a"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001b", ?_assertEqual(
+            <<"\\u001b">>,
+            maybe_escape(<<34, "\\u001b"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001c", ?_assertEqual(
+            <<"\\u001c">>,
+            maybe_escape(<<34, "\\u001c"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001d", ?_assertEqual(
+            <<"\\u001d">>,
+            maybe_escape(<<34, "\\u001d"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001e", ?_assertEqual(
+            <<"\\u001e">>,
+            maybe_escape(<<34, "\\u001e"/utf8, 34>>, [escaped_strings])
+        )},
+        {"maybe_escape u001f", ?_assertEqual(
+            <<"\\u001f">>,
+            maybe_escape(<<34, "\\u001f"/utf8, 34>>, [escaped_strings])
+        )}
+    ].
+
+
 single_quoted_string_test_() ->
     [
         {"single quoted string", ?_assertEqual(
