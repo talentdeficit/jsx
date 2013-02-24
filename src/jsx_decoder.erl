@@ -752,7 +752,7 @@ special_number_test_() ->
 
 decode(JSON, Config) ->
     try
-        (decoder(jsx, [], Config))(JSON)
+        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
     catch
         error:badarg -> {error, badarg}
     end.
