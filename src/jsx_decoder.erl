@@ -1818,5 +1818,14 @@ ignored_bad_escapes_test_() ->
     ].
 
 
+bom_test_() ->
+    [
+        {"bom", ?_assertEqual(
+            [start_array, end_array, end_json],
+            decode(<<16#ef, 16#bb, 16#bf, "[]"/utf8>>, [])
+        )}
+    ].
+
+
 
 -endif.
