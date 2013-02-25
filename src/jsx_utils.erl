@@ -672,7 +672,7 @@ extended_noncharacters() ->
 
 decode(String, Config) ->
     try
-        [{string, clean_string(String, jsx_utils:parse_config(Config))}, end_json]
+        [{string, clean_string(String, Config)}, end_json]
     catch
         error:badarg -> {error, badarg}
     end.
@@ -682,43 +682,51 @@ clean_string_test_() ->
     [
         {"clean codepoints", ?_assertEqual(
             [{string, codepoints()}, end_json],
-            decode(codepoints(), [])
+            decode(codepoints(), #config{})
         )},
         {"clean extended codepoints", ?_assertEqual(
             [{string, extended_codepoints()}, end_json],
-            decode(extended_codepoints(), [])
+            decode(extended_codepoints(), #config{})
+        )},
+        {"escape path codepoints", ?_assertEqual(
+            [{string, codepoints()}, end_json],
+            decode(codepoints(), #config{escaped_strings=true})
+        )},
+        {"escape path extended codepoints", ?_assertEqual(
+            [{string, extended_codepoints()}, end_json],
+            decode(extended_codepoints(), #config{escaped_strings=true})
         )},
         {"error reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, reserved_space())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{}) end, reserved_space())
         )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, surrogates())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{}) end, surrogates())
         )},
         {"error noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{}) end, noncharacters())
         )},
         {"error extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{}) end, extended_noncharacters())
         )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, reserved_space())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{replaced_bad_utf8=true}) end, reserved_space())
         )},
         {"clean surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, surrogates())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{replaced_bad_utf8=true}) end, surrogates())
         )},
         {"clean noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{replaced_bad_utf8=true}) end, noncharacters())
         )},
         {"clean extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, #config{replaced_bad_utf8=true}) end, extended_noncharacters())
         )}
     ].
 
