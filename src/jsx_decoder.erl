@@ -857,38 +857,25 @@ format_number({Int, Frac, Exp}) ->
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
-true(<<$r, $u>>, Handler, Stack, Config) ->
-    ?incomplete(true, <<$r, $u>>, Handler, Stack, Config);
-true(<<$r>>, Handler, Stack, Config) ->
-    ?incomplete(true, <<$r>>, Handler, Stack, Config);
-true(<<>>, Handler, Stack, Config) ->
-    ?incomplete(true, <<>>, Handler, Stack, Config);
+true(Bin, Handler, Stack, Config) when Bin == <<$r, $u>>; Bin == <<$r>>; Bin == <<>> ->
+    ?incomplete(true, Bin, Handler, Stack, Config);
 true(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
 false(<<$a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, false}, Handler, Config), Stack, Config);
-false(<<$a, $l, $s>>, Handler, Stack, Config) ->
-    ?incomplete(false, <<$a, $l, $s>>, Handler, Stack, Config);
-false(<<$a, $l>>, Handler, Stack, Config) ->
-    ?incomplete(false, <<$a, $l>>, Handler, Stack, Config);
-false(<<$a>>, Handler, Stack, Config) ->
-    ?incomplete(false, <<$a>>, Handler, Stack, Config);
-false(<<>>, Handler, Stack, Config) ->
-    ?incomplete(false, <<>>, Handler, Stack, Config);
+false(Bin, Handler, Stack, Config)
+        when Bin == <<$a, $l, $s>>; Bin == <<$a, $l>>; Bin == <<$a>>; Bin == <<>> ->
+    ?incomplete(false, Bin, Handler, Stack, Config);
 false(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
 null(<<$u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, null}, Handler, Config), Stack, Config);
-null(<<$u, $l>>, Handler, Stack, Config) ->
-    ?incomplete(null, <<$u, $l>>, Handler, Stack, Config);
-null(<<$u>>, Handler, Stack, Config) ->
-    ?incomplete(null, <<$u>>, Handler, Stack, Config);
-null(<<>>, Handler, Stack, Config) ->
-    ?incomplete(null, <<>>, Handler, Stack, Config);
+null(Bin, Handler, Stack, Config) when Bin == <<$u, $l>>; Bin == <<$u>>; Bin == <<>> ->
+    ?incomplete(null, Bin, Handler, Stack, Config);
 null(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
