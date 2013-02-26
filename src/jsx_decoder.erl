@@ -515,7 +515,7 @@ string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf
 string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
         when X == 190; X == 191 ->
     string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
-%% u+xfffe, u+xffff and other noncharacters
+%% u+xfffe, u+xffff, control codes and other noncharacters
 string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
     string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
