@@ -178,11 +178,11 @@ value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
 value(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
     string(Rest, Handler, ?new_seq(), [single_quote|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
-    tr(Rest, Handler, Stack, Config);
+    true(Rest, Handler, Stack, Config);
 value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
-    fa(Rest, Handler, Stack, Config);
+    false(Rest, Handler, Stack, Config);
 value(<<$n, Rest/binary>>, Handler, Stack, Config) ->
-    nu(Rest, Handler, Stack, Config);
+    null(Rest, Handler, Stack, Config);
 value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
     negative(Rest, Handler, [[$-]|Stack], Config);
 value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
@@ -852,80 +852,38 @@ format_number({Int, Frac, Exp}) ->
     {float, list_to_float(lists:reverse(Exp ++ "e" ++ Frac ++ "." ++ Int))}.
 
 
-tr(<<$r, Rest/binary>>, Handler, Stack, Config) ->
-    tru(Rest, Handler, Stack, Config);
-tr(<<>>, Handler, Stack, Config) ->
-    ?incomplete(tr, <<>>, Handler, Stack, Config);
-tr(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-tru(<<$u, Rest/binary>>, Handler, Stack, Config) ->
-    true(Rest, Handler, Stack, Config);
-tru(<<>>, Handler, Stack, Config) ->
-    ?incomplete(tru, <<>>, Handler, Stack, Config);
-tru(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-true(<<$e, Rest/binary>>, Handler, Stack, Config) ->
+true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
+true(<<$r, $u>>, Handler, Stack, Config) ->
+    ?incomplete(true, <<$r, $u>>, Handler, Stack, Config);
+true(<<$r>>, Handler, Stack, Config) ->
+    ?incomplete(true, <<$r>>, Handler, Stack, Config);
 true(<<>>, Handler, Stack, Config) ->
     ?incomplete(true, <<>>, Handler, Stack, Config);
 true(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
-fa(<<$a, Rest/binary>>, Handler, Stack, Config) ->
-    fal(Rest, Handler, Stack, Config);
-fa(<<>>, Handler, Stack, Config) ->
-    ?incomplete(fa, <<>>, Handler, Stack, Config);
-fa(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-fal(<<$l, Rest/binary>>, Handler, Stack, Config) ->
-    fals(Rest, Handler, Stack, Config);
-fal(<<>>, Handler, Stack, Config) ->
-    ?incomplete(fal, <<>>, Handler, Stack, Config);
-fal(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-fals(<<$s, Rest/binary>>, Handler, Stack, Config) ->
-    false(Rest, Handler, Stack, Config);
-fals(<<>>, Handler, Stack, Config) ->
-    ?incomplete(fals, <<>>, Handler, Stack, Config);
-fals(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-false(<<$e, Rest/binary>>, Handler, Stack, Config) ->
+false(<<$a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, false}, Handler, Config), Stack, Config);
+false(<<$a, $l, $s>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a, $l, $s>>, Handler, Stack, Config);
+false(<<$a, $l>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a, $l>>, Handler, Stack, Config);
+false(<<$a>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a>>, Handler, Stack, Config);
 false(<<>>, Handler, Stack, Config) ->
     ?incomplete(false, <<>>, Handler, Stack, Config);
 false(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
-nu(<<$u, Rest/binary>>, Handler, Stack, Config) ->
-    nul(Rest, Handler, Stack, Config);
-nu(<<>>, Handler, Stack, Config) ->
-    ?incomplete(nu, <<>>, Handler, Stack, Config);
-nu(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-nul(<<$l, Rest/binary>>, Handler, Stack, Config) ->
-    null(Rest, Handler, Stack, Config);
-nul(<<>>, Handler, Stack, Config) ->
-    ?incomplete(nul, <<>>, Handler, Stack, Config);
-nul(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-null(<<$l, Rest/binary>>, Handler, Stack, Config) ->
+null(<<$u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, null}, Handler, Config), Stack, Config);
+null(<<$u, $l>>, Handler, Stack, Config) ->
+    ?incomplete(null, <<$u, $l>>, Handler, Stack, Config);
+null(<<$u>>, Handler, Stack, Config) ->
+    ?incomplete(null, <<$u>>, Handler, Stack, Config);
 null(<<>>, Handler, Stack, Config) ->
     ?incomplete(null, <<>>, Handler, Stack, Config);
 null(Bin, Handler, Stack, Config) ->
