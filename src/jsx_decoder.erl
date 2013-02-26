@@ -562,6 +562,9 @@ partial_utf(_) -> false.
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
 %%  and overlong sequences. N is the maximum number of bytes to strip
+%% if end of input is reached before stripping the max number of continuations
+%%  possible magic numbers are reinserted into the stream that get us back to
+%%  the same state without complicated machinery
 strip_continuations(Rest, Handler, Acc, Stack, Config, 0) ->
     string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
 strip_continuations(<<X, Rest/binary>>, Handler, Acc, Stack, Config, N) when X >= 128, X =< 191 ->
