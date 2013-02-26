@@ -616,9 +616,9 @@ escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc,
 escape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        Codepoint when Codepoint >= 16#dc00, Codepoint =< 16#dfff ->
+        Codepoint when Codepoint >= 16#d800, Codepoint =< 16#dfff ->
             ?incomplete(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config);
-        Codepoint when Codepoint =< 16#d800; Codepoint >= 16#e000 ->
+        Codepoint when Codepoint =< 16#d7ff; Codepoint >= 16#e000 ->
             string(Rest, Handler, ?acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
         _ when Config#config.replaced_bad_utf8 == true ->
             string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
@@ -1020,9 +1020,25 @@ done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
 -include_lib("eunit/include/eunit.hrl").
 
 
+json_to_bytes(JSON) -> json_to_bytes(JSON, []).
+
+json_to_bytes(<<>>, Acc) -> lists:reverse(Acc);
+json_to_bytes(<<X, Rest/binary>>, Acc) -> json_to_bytes(Rest, [<<X>>] ++ Acc).
+
+
 decode(JSON, Config) ->
     try
-        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
+        Chunk = start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)),
+        Final = lists:foldl(
+            fun(Byte, Decoder) -> {incomplete, F} = Decoder(Byte), F end,
+            decoder(jsx, [], [explicit_end] ++ Config),
+            json_to_bytes(JSON)
+        ),
+        Incremental = Final(end_stream),
+        case Chunk == Incremental of
+            true -> Chunk;
+            _ -> erlang:error(badarg)
+        end
     catch
         error:badarg -> {error, badarg}
     end.
