@@ -613,11 +613,16 @@ escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc,
         _ ->
             ?error([<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Stack, Config])
     end;
-escape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
+escape(<<$u, A, B, C, D, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         Codepoint when Codepoint >= 16#d800, Codepoint =< 16#dfff ->
-            ?incomplete(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config);
+            case is_partial_escape(Bin) of
+                true ->
+                    ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
+                false ->
+                    ?error([Bin, Handler, Acc, Stack, Config])
+            end;
         Codepoint when Codepoint =< 16#d7ff; Codepoint >= 16#e000 ->
             string(Rest, Handler, ?acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
         _ when Config#config.replaced_bad_utf8 == true ->
