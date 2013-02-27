@@ -888,6 +888,11 @@ comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
     single_comment(Rest, Handler, Stack, Config);
 comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
+%% nested /**/ comments
+comment(<<_/utf8, Rest/binary>>, Handler, [comment|Stack], Config) ->
+    multi_comment(Rest, Handler, Stack, Config);
+comment(<<_, Rest/binary>>, Handler, [comment|Stack], Config=#config{replaced_bad_utf8=true}) ->
+    multi_comment(Rest, Handler, Stack, Config);
 comment(<<>>, Handler, [Resume|Stack], Config) ->
     ?incomplete(comment, <<>>, Handler, Resume, Stack, Config);
 comment(Bin, Handler, Stack, Config) ->
@@ -910,6 +915,8 @@ single_comment(Bin, Handler, Stack, Config) ->
 
 multi_comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
     end_multi_comment(Rest, Handler, Stack, Config);
+multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
+    comment(Rest, Handler, [comment|Stack], Config);
 multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
 multi_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_utf8=true}) ->
@@ -939,6 +946,7 @@ end_comment(Rest, Handler, [Resume|Stack], Config) ->
         ; key -> key(Rest, Handler, Stack, Config)
         ; maybe_done -> maybe_done(Rest, Handler, Stack, Config)
         ; done -> done(Rest, Handler, Stack, Config)
+        ; comment -> multi_comment(Rest, Handler, Stack, Config)
     end.
 
 
@@ -1244,6 +1252,10 @@ comments_test_() ->
         {"// comment following // comment", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [comments])
+        )},
+        {"/**/ comment inside /**/ comment", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* /* comment */ */ true ]">>, [comments])
         )},
         {"// comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
