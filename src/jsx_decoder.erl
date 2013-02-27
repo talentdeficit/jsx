@@ -996,20 +996,24 @@ json_to_bytes(<<X, Rest/binary>>, Acc) -> json_to_bytes(Rest, [<<X>>] ++ Acc).
 
 
 decode(JSON, Config) ->
-    try
-        Chunk = start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)),
+    Chunk = try
+        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
+    catch
+        error:badarg -> {error, badarg}
+    end,
+    Incremental = try
         Final = lists:foldl(
             fun(Byte, Decoder) -> {incomplete, F} = Decoder(Byte), F end,
             decoder(jsx, [], [explicit_end] ++ Config),
             json_to_bytes(JSON)
         ),
-        Incremental = Final(end_stream),
-        case Chunk == Incremental of
-            true -> Chunk;
-            _ -> erlang:error(badarg)
-        end
+        Final(end_stream)
     catch
         error:badarg -> {error, badarg}
+    end,
+    case Chunk == Incremental of
+        true -> Chunk;
+        _ -> erlang:error(badarg)
     end.
 
 
@@ -1364,198 +1368,200 @@ clean_string_test_() ->
     ].
 
 
-clean_string(String, Config) ->
-    [{string, S}, end_json] = start(<<34, String/binary, 34>>, {jsx, []}, [], Config),
-    S.
+decode_bad_utf(String, Config) ->
+    case decode(<<34, String/binary, 34>>, Config) of
+        {error, badarg} -> erlang:error(badarg);
+        [{string, S}, end_json] -> S
+    end.
 
 bad_utf8_test_() ->
     [
         {"noncharacter u+fffe", ?_assertError(
             badarg,
-            clean_string(<<239, 191, 190>>, #config{})
+            decode_bad_utf(<<239, 191, 190>>, [])
         )},
         {"noncharacter u+fffe replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<239, 191, 190>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<239, 191, 190>>, [replaced_bad_utf8])
         )},
         {"noncharacter u+ffff", ?_assertError(
             badarg,
-            clean_string(<<239, 191, 191>>, #config{})
+            decode_bad_utf(<<239, 191, 191>>, [])
         )},
         {"noncharacter u+ffff replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<239, 191, 191>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<239, 191, 191>>, [replaced_bad_utf8])
         )},
         {"orphan continuation byte u+0080", ?_assertError(
             badarg,
-            clean_string(<<16#0080>>, #config{})
+            decode_bad_utf(<<16#0080>>, [])
         )},
         {"orphan continuation byte u+0080 replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#0080>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#0080>>, [replaced_bad_utf8])
         )},
         {"orphan continuation byte u+00bf", ?_assertError(
             badarg,
-            clean_string(<<16#00bf>>, #config{})
+            decode_bad_utf(<<16#00bf>>, [])
         )},
         {"orphan continuation byte u+00bf replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#00bf>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#00bf>>, [replaced_bad_utf8])
         )},
         {"2 continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [])
         )},
         {"2 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 2),
-            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [replaced_bad_utf8])
         )},
         {"3 continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [])
         )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
-            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [replaced_bad_utf8])
         )},
         {"4 continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [])
         )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
-            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [replaced_bad_utf8])
         )},
         {"5 continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [])
         )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
-            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [replaced_bad_utf8])
         )},
         {"6 continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [])
         )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
-            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [replaced_bad_utf8])
         )},
         {"all continuation bytes", ?_assertError(
             badarg,
-            clean_string(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, #config{})
+            decode_bad_utf(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [])
         )},
         {"all continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf))),
-            clean_string(
+            decode_bad_utf(
                 <<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>,
-                #config{replaced_bad_utf8=true}
+                [replaced_bad_utf8]
             )
         )},
         {"lonely start byte", ?_assertError(
             badarg,
-            clean_string(<<16#00c0>>, #config{})
+            decode_bad_utf(<<16#00c0>>, [])
         )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#00c0>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#00c0>>, [replaced_bad_utf8])
         )},
         {"lonely start bytes (2 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#00c0, 32, 16#00df>>, #config{})
+            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [])
         )},
         {"lonely start bytes (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00c0, 32, 16#00df>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [replaced_bad_utf8])
         )},
         {"lonely start bytes (3 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#00e0, 32, 16#00ef>>, #config{})
+            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [])
         )},
         {"lonely start bytes (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00e0, 32, 16#00ef>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [replaced_bad_utf8])
         )},
         {"lonely start bytes (4 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#00f0, 32, 16#00f7>>, #config{})
+            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [])
         )},
         {"lonely start bytes (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00f0, 32, 16#00f7>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [replaced_bad_utf8])
         )},
         {"missing continuation byte (3 byte)", ?_assertError(
             badarg,
-            clean_string(<<224, 160, 32>>, #config{})
+            decode_bad_utf(<<224, 160, 32>>, [])
         )},
         {"missing continuation byte (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<224, 160, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<224, 160, 32>>, [replaced_bad_utf8])
         )},
         {"missing continuation byte (4 byte missing one)", ?_assertError(
             badarg,
-            clean_string(<<240, 144, 128, 32>>, #config{})
+            decode_bad_utf(<<240, 144, 128, 32>>, [])
         )},
         {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<240, 144, 128, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<240, 144, 128, 32>>, [replaced_bad_utf8])
         )},
         {"missing continuation byte (4 byte missing two)", ?_assertError(
             badarg,
-            clean_string(<<240, 144, 32>>, #config{})
+            decode_bad_utf(<<240, 144, 32>>, [])
         )},
         {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<240, 144, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<240, 144, 32>>, [replaced_bad_utf8])
         )},
         {"overlong encoding of u+002f (2 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#c0, 16#af, 32>>, #config{})
+            decode_bad_utf(<<16#c0, 16#af, 32>>, [])
         )},
         {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#c0, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#c0, 16#af, 32>>, [replaced_bad_utf8])
         )},
         {"overlong encoding of u+002f (3 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{})
+            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [])
         )},
         {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [replaced_bad_utf8])
         )},
         {"overlong encoding of u+002f (4 byte)", ?_assertError(
             badarg,
-            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{})
+            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [])
         )},
         {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [replaced_bad_utf8])
         )},
         {"highest overlong 2 byte sequence", ?_assertError(
             badarg,
-            clean_string(<<16#c1, 16#bf, 32>>, #config{})
+            decode_bad_utf(<<16#c1, 16#bf, 32>>, [])
         )},
         {"highest overlong 2 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#c1, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#c1, 16#bf, 32>>, [replaced_bad_utf8])
         )},
         {"highest overlong 3 byte sequence", ?_assertError(
             badarg,
-            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{})
+            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [])
         )},
         {"highest overlong 3 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [replaced_bad_utf8])
         )},
         {"highest overlong 4 byte sequence", ?_assertError(
             badarg,
-            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{})
+            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [])
         )},
         {"highest overlong 4 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [replaced_bad_utf8])
         )}
     ].
 
