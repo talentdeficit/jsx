@@ -880,12 +880,16 @@ null(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
+%% this just exists to bridge to when i can properly clean up comments
+comment(Bin, Handler, Resume, Stack, Config) ->
+    comment(Bin, Handler, [Resume|Stack], Config).
+
 comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
     single_comment(Rest, Handler, Stack, Config);
 comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
-comment(<<>>, Handler, Stack, Config) ->
-    ?incomplete(comment, <<>>, Handler, Stack, Config);
+comment(<<>>, Handler, [Resume|Stack], Config) ->
+    ?incomplete(comment, <<>>, Handler, Resume, Stack, Config);
 comment(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
@@ -894,10 +898,12 @@ single_comment(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
     end_comment(Rest, Handler, Stack, Config);
 single_comment(<<_/utf8, Rest/binary>>, Handler, Stack, Config) ->
     single_comment(Rest, Handler, Stack, Config);
+single_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_utf8=true}) ->
+    single_comment(Rest, Handler, Stack, Config);
 single_comment(<<>>, Handler, [done], Config=#config{explicit_end=false}) ->
     end_comment(<<>>, Handler, [done], Config);
-single_comment(<<>>, Handler, Stack, Config) ->
-    ?incomplete(single_comment, <<>>, Handler, Stack, Config);
+single_comment(<<>>, Handler, [Resume|Stack], Config) ->
+    ?incomplete(comment, <<?solidus>>, Handler, Resume, Stack, Config);
 single_comment(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
@@ -906,8 +912,10 @@ multi_comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
     end_multi_comment(Rest, Handler, Stack, Config);
 multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
-multi_comment(<<>>, Handler, Stack, Config) ->
-    ?incomplete(multi_comment, <<>>, Handler, Stack, Config);
+multi_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_utf8=true}) ->
+    multi_comment(Rest, Handler, Stack, Config);
+multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
+    ?incomplete(comment, <<?star>>, Handler, Resume, Stack, Config);
 multi_comment(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
@@ -916,8 +924,8 @@ end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
     end_comment(Rest, Handler, Stack, Config);
 end_multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
-end_multi_comment(<<>>, Handler, Stack, Config) ->
-    ?incomplete(end_multi_comment, <<>>, Handler, Stack, Config);
+end_multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
+    ?incomplete(comment, <<?star, ?space, ?star>>, Handler, Resume, Stack, Config);
 end_multi_comment(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
@@ -1236,6 +1244,14 @@ comments_test_() ->
         {"// comment following // comment", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [comments])
+        )},
+        {"// comment with badutf", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [comments, replaced_bad_utf8])
+        )},
+        {"/**/ comment with badutf", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
         )}
     ].
 
