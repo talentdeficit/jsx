@@ -600,9 +600,7 @@ escape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
 escape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config = #config{single_quoted_strings=true}) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace(?singlequote, Config)), Stack, Config);
 escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D),
-             ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
-        ->
+        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z) ->
     case {erlang:list_to_integer([A, B, C, D], 16), erlang:list_to_integer([W, X, Y, Z], 16)} of
         {High, Low} when High >= 16#d800, High =< 16#dbff, Low >= 16#dc00, Low =< 16#dfff ->
             case (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000 of
@@ -642,39 +640,24 @@ escape(Bin, Handler, Acc, Stack, Config) ->
     end.
 
 
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D),
-             ?is_hex(W), ?is_hex(X), ?is_hex(Y)
-        ->
-    true;
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D),
-             ?is_hex(W), ?is_hex(X)
-        ->
-    true;
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D),
-             ?is_hex(W)
-        ->
-    true;
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-    true;
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-    true;
-is_partial_escape(<<$u, A, B, C, D>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
-    true;
-is_partial_escape(<<$u, A, B, C>>)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C) ->
-    true;
-is_partial_escape(<<$u, A, B>>)
-        when ?is_hex(A), ?is_hex(B) ->
-    true;
-is_partial_escape(<<$u, A>>)
-        when ?is_hex(A) ->
-    true;
+is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W, X, Y]);
+is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W, X]);
+is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W]);
+is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
+is_partial_escape(<<$u, A, B, C, D, ?rsolidus>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
+is_partial_escape(<<$u, A, B, C, D>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
+is_partial_escape(<<$u, A, B, C>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C]);
+is_partial_escape(<<$u, A, B>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B]);
+is_partial_escape(<<$u, A>>) ->
+    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A]);
 is_partial_escape(<<$u>>) -> true;
 is_partial_escape(<<>>) -> true;
 is_partial_escape(_) -> false.
