@@ -1788,6 +1788,21 @@ single_quoted_string_test_() ->
         {"string with embedded single quotes", ?_assertEqual(
             [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
             decode(<<34, "quoth the raven, 'nevermore'", 34>>, [])
+        )},
+        {"escaped single quote", ?_assertEqual(
+            [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
+            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [single_quoted_strings])
+        )},
+        {"escape single quote", ?_assertEqual(
+            [{string, <<"quoth the raven, \\'nevermore\\'">>}, end_json],
+            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [single_quoted_strings, escaped_strings])
+        )},
+        {"single quoted key", ?_assertEqual(
+            [start_object,
+                {key, <<"key">>}, {string, <<"value">>},
+                {key, <<"another key">>}, {string, <<"another value">>},
+            end_object, end_json],
+            decode(<<"{'key':'value','another key':'another value'}">>, [single_quoted_strings])
         )}
     ].
 
