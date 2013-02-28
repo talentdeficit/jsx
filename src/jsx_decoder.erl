@@ -74,8 +74,8 @@ decoder(Handler, State, Config) ->
 
 %% some useful guards
 -define(is_hex(Symbol),
-    (Symbol >= $a andalso Symbol =< $z);
-    (Symbol >= $A andalso Symbol =< $Z);
+    (Symbol >= $a andalso Symbol =< $f) orelse
+    (Symbol >= $A andalso Symbol =< $F) orelse
     (Symbol >= $0 andalso Symbol =< $9)
 ).
 
@@ -394,7 +394,7 @@ string(<<90, Rest/binary>>, Handler, Acc, Stack, Config) ->
 string(<<91, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, 91), Stack, Config);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    escape(Rest, Handler, Acc, Stack, Config);
+    unescape(Rest, Handler, Acc, Stack, Config);
 string(<<93, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, 93), Stack, Config);
 string(<<94, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -581,83 +581,74 @@ strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
     string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config).
 
 
-escape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\b, Config)), Stack, Config);
-escape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\f, Config)), Stack, Config);
-escape(<<$n, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<$n, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\n, Config)), Stack, Config);
-escape(<<$r, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<$r, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\r, Config)), Stack, Config);
-escape(<<$t, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<$t, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\t, Config)), Stack, Config);
-escape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\\, Config)), Stack, Config);
-escape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($/, Config)), Stack, Config);
-escape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace($\", Config)), Stack, Config);
-escape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config = #config{single_quoted_strings=true}) ->
+unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{single_quoted_strings=true}) ->
     string(Rest, Handler, ?acc_seq(Acc, maybe_replace(?singlequote, Config)), Stack, Config);
-escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
-        when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z) ->
-    case {erlang:list_to_integer([A, B, C, D], 16), erlang:list_to_integer([W, X, Y, Z], 16)} of
-        {High, Low} when High >= 16#d800, High =< 16#dbff, Low >= 16#dc00, Low =< 16#dfff ->
-            case (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000 of
-                Codepoint when Codepoint =< 16#d800; Codepoint >= 16#e000 ->
-                    string(Rest, Handler, ?acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
-                _ when Config#config.replaced_bad_utf8 == true ->
-                    string(Rest, Handler, ?acc_seq(Acc, 16#fffd, 16#fffd), Stack, Config);
-                _ ->
-                    ?error([<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Stack, Config])
-            end;
-        _ ->
-            ?error([<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Stack, Config])
+unescape(<<$u, $d, A, B, C, ?rsolidus, $u, $d, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
+             (X == $c orelse X == $d orelse X == $e orelse X == $f),
+             ?is_hex(B), ?is_hex(C), ?is_hex(Y), ?is_hex(Z)
+        ->
+    High = erlang:list_to_integer([$d, A, B, C], 16),
+    Low = erlang:list_to_integer([$d, X, Y, Z], 16),
+    Codepoint = (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000,
+    string(Rest, Handler, ?acc_seq(Acc, Codepoint), Stack, Config);
+unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
+             ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
+        ->
+    string(Rest, Handler, ?acc_seq(Acc, 16#fffd, 16#fffd), Stack, Config);
+unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
+             ?is_hex(B), ?is_hex(C)
+        ->
+    case is_partial_escape(Rest) of
+        true -> ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
+        false when Config#config.replaced_bad_utf8 ->
+            string(<<?rsolidus, Rest/binary>>, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
+        false -> ?error([Bin, Handler, Acc, Stack, Config])
     end;
-escape(<<$u, A, B, C, D, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
+unescape(<<$u, $d, A, B, C>> = Bin, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
+             ?is_hex(B), ?is_hex(C)
+        ->
+    ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
+unescape(<<$u, A, B, C, D, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
-        Codepoint when Codepoint >= 16#d800, Codepoint =< 16#dfff ->
-            case is_partial_escape(Bin) of
-                true ->
-                    ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
-                false ->
-                    ?error([Bin, Handler, Acc, Stack, Config])
-            end;
-        Codepoint when Codepoint =< 16#d7ff; Codepoint >= 16#e000 ->
+        Codepoint when Codepoint < 16#d800; Codepoint > 16#dfff ->
             string(Rest, Handler, ?acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
-        _ when Config#config.replaced_bad_utf8 == true ->
+        _ when Config#config.replaced_bad_utf8 ->
             string(Rest, Handler, ?acc_seq(Acc, 16#fffd), Stack, Config);
-        _ ->
-            ?error([<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config])
+        _ -> ?error([Bin, Handler, Acc, Stack, Config])
     end;
-escape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
+unescape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
     string(Bin, Handler, ?acc_seq(Acc, ?rsolidus), Stack, Config);
-escape(Bin, Handler, Acc, Stack, Config) ->
+unescape(Bin, Handler, Acc, Stack, Config) ->
     case is_partial_escape(Bin) of
         true -> ?incomplete(string, <<?rsolidus/utf8, Bin/binary>>, Handler, Acc, Stack, Config);
         false -> ?error([Bin, Handler, Acc, Stack, Config])
     end.
 
 
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X, Y>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W, X, Y]);
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W, X>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W, X]);
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u, W>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D, W]);
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus, $u>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
-is_partial_escape(<<$u, A, B, C, D, ?rsolidus>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
-is_partial_escape(<<$u, A, B, C, D>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C, D]);
-is_partial_escape(<<$u, A, B, C>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B, C]);
-is_partial_escape(<<$u, A, B>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A, B]);
-is_partial_escape(<<$u, A>>) ->
-    lists:all(fun(N) when ?is_hex(N) -> true; (_) -> false end, [A]);
+is_partial_escape(<<$u, A, B, C>>) when ?is_hex(A), ?is_hex(B), ?is_hex(C) -> true;
+is_partial_escape(<<$u, A, B>>) when ?is_hex(A), ?is_hex(B) -> true;
+is_partial_escape(<<$u, A>>) when ?is_hex(A) -> true;
 is_partial_escape(<<$u>>) -> true;
 is_partial_escape(<<>>) -> true;
 is_partial_escape(_) -> false.
@@ -1598,6 +1589,22 @@ unescape_test_() ->
         {"unescape surrogate pair", ?_assertEqual(
             <<16#10000/utf8>>,
             unescape(<<"\\ud800\\udc00"/utf8>>, [])
+        )},
+        {"unescape bad high surrogate", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            unescape(<<"\\udc00"/utf8>>, [replaced_bad_utf8])
+        )},
+        {"unescape naked high surrogate", ?_assertEqual(
+            <<16#fffd/utf8, "hello world">>,
+            unescape(<<"\\ud800hello world"/utf8>>, [replaced_bad_utf8])
+        )},
+        {"unescape naked low surrogate", ?_assertEqual(
+            <<16#fffd/utf8, "hello world">>,
+            unescape(<<"\\udc00hello world"/utf8>>, [replaced_bad_utf8])
+        )},
+        {"unescape bad surrogate pair", ?_assertEqual(
+            <<16#fffd/utf8, 16#fffd/utf8>>,
+            unescape(<<"\\ud800\\u0000">>, [replaced_bad_utf8])
         )}
     ].
 
