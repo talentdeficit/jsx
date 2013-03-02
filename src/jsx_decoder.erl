@@ -184,11 +184,11 @@ value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
 value(<<$n, Rest/binary>>, Handler, Stack, Config) ->
     null(Rest, Handler, Stack, Config);
 value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
-    negative(Rest, Handler, [$-], Stack, Config);
+    negative(Rest, Handler, new_seq($-), Stack, Config);
 value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
-    zero(Rest, Handler, [$0], Stack, Config);
+    zero(Rest, Handler, new_seq($0), Stack, Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [S], Stack, Config);
+    integer(Rest, Handler, new_seq(S), Stack, Config);
 value(<<?start_object, Rest/binary>>, Handler, Stack, Config) ->
     object(Rest, handle_event(start_object, Handler, Config), [key|Stack], Config);
 value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
@@ -685,9 +685,9 @@ maybe_replace(X, _Config) -> [X].
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler
 negative(<<$0, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    zero(Rest, Handler, "0" ++ Acc, Stack, Config);
+    zero(Rest, Handler, acc_seq(Acc, $0), Stack, Config);
 negative(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [S] ++ Acc, Stack, Config);
+    integer(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 negative(<<>>, Handler, "-", Stack, Config) ->
     ?incomplete(value, <<"-">>, Handler, Stack, Config);
 negative(Bin, Handler, Acc, Stack, Config) ->
@@ -695,21 +695,21 @@ negative(Bin, Handler, Acc, Stack, Config) ->
 
 
 zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    decimal(Rest, Handler, "." ++ Acc, Stack, Config);
+    decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, "e0." ++ Acc, Stack, Config);
 zero(<<>>, Handler, Acc, [], Config=#config{explicit_end=false}) ->
     finish_number(<<>>, Handler, {zero, Acc}, [], Config);
 zero(<<>>, Handler, Acc, Stack, Config) ->
-    ?incomplete(value, (unicode:characters_to_binary(lists:reverse(Acc))), Handler, Stack, Config);
+    ?incomplete(value, (end_seq(Acc)), Handler, Stack, Config);
 zero(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {zero, Acc}, Stack, Config).
 
 
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    integer(Rest, Handler, [S] ++ Acc, Stack, Config);
+    integer(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    decimal(Rest, Handler, "." ++ Acc, Stack, Config);
+    decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, "e0." ++ Acc, Stack, Config);
 integer(Bin, Handler, Acc, Stack, Config) ->
@@ -717,20 +717,20 @@ integer(Bin, Handler, Acc, Stack, Config) ->
 
 
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Handler, [S] ++ Acc, Stack, Config);
+    decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 decimal(<<S, Rest/binary>> = Bin, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     case Acc of
-        [$.|_] -> ?error([Bin, Handler, Acc, Stack, Config]);
-        _ -> e(Rest, Handler, "e" ++ Acc, Stack, Config)
+        [?decimalpoint|_] -> ?error([Bin, Handler, Acc, Stack, Config]);
+        _ -> e(Rest, Handler, acc_seq(Acc, $e), Stack, Config)
     end;
 decimal(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {decimal, Acc}, Stack, Config).
 
 
 e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+    exp(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?positive; S =:= ?negative ->
-    ex(Rest, Handler, [S] ++ Acc, Stack, Config);
+    ex(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 e(<<>>, Handler, [$e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e>>, Handler, Acc, Stack, Config);
 e(Bin, Handler, Acc, Stack, Config) ->
@@ -738,7 +738,7 @@ e(Bin, Handler, Acc, Stack, Config) ->
 
 
 ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+    exp(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 ex(<<>>, Handler, [S, $e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e, S/utf8>>, Handler, Acc, Stack, Config);
 ex(Bin, Handler, Acc, Stack, Config) ->
@@ -746,7 +746,7 @@ ex(Bin, Handler, Acc, Stack, Config) ->
 
 
 exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+    exp(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 exp(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {exp, Acc}, Stack, Config).
 
