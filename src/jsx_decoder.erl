@@ -184,11 +184,11 @@ value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
 value(<<$n, Rest/binary>>, Handler, Stack, Config) ->
     null(Rest, Handler, Stack, Config);
 value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
-    negative(Rest, Handler, [[$-]|Stack], Config);
+    negative(Rest, Handler, [$-], Stack, Config);
 value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
-    zero(Rest, Handler, [[$0]|Stack], Config);
+    zero(Rest, Handler, [$0], Stack, Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [[S]|Stack], Config);
+    integer(Rest, Handler, [S], Stack, Config);
 value(<<?start_object, Rest/binary>>, Handler, Stack, Config) ->
     object(Rest, handle_event(start_object, Handler, Config), [key|Stack], Config);
 value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
@@ -684,149 +684,102 @@ maybe_replace(X, _Config) -> [X].
 
 %% like strings, numbers are collected in an intermediate accumulator before
 %%   being emitted to the callback handler
-negative(<<$0, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    zero(Rest, Handler, ["0" ++ Acc|Stack], Config);
-negative(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [[S] ++ Acc|Stack], Config);
-negative(<<>>, Handler, Stack, Config) ->
-    ?incomplete(negative, <<>>, Handler, Stack, Config);
-negative(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+negative(<<$0, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    zero(Rest, Handler, "0" ++ Acc, Stack, Config);
+negative(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_nonzero(S) ->
+    integer(Rest, Handler, [S] ++ Acc, Stack, Config);
+negative(<<>>, Handler, "-", Stack, Config) ->
+    ?incomplete(value, <<"-">>, Handler, Stack, Config);
+negative(Bin, Handler, Acc, Stack, Config) ->
+    ?error([Bin, Handler, Acc, Stack, Config]).
 
 
-zero(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
+zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    decimal(Rest, Handler, "." ++ Acc, Stack, Config);
+zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
+    e(Rest, Handler, "e0." ++ Acc, Stack, Config);
+zero(<<>>, Handler, Acc, [], Config=#config{explicit_end=false}) ->
+    finish_number(<<>>, Handler, {zero, Acc}, [], Config);
+zero(<<>>, Handler, Acc, Stack, Config) ->
+    ?incomplete(value, (unicode:characters_to_binary(lists:reverse(Acc))), Handler, Stack, Config);
+zero(Bin, Handler, Acc, Stack, Config) ->
+    finish_number(Bin, Handler, {zero, Acc}, Stack, Config).
+
+
+integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
+    integer(Rest, Handler, [S] ++ Acc, Stack, Config);
+integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    decimal(Rest, Handler, "." ++ Acc, Stack, Config);
+integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
+    e(Rest, Handler, "e0." ++ Acc, Stack, Config);
+integer(Bin, Handler, Acc, Stack, Config) ->
+    finish_number(Bin, Handler, {integer, Acc}, Stack, Config).
+
+
+decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_nonzero(S) ->
+    decimal(Rest, Handler, [S] ++ Acc, Stack, Config);
+decimal(<<S, Rest/binary>> = Bin, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
+    case Acc of
+        [$.|_] -> ?error([Bin, Handler, Acc, Stack, Config]);
+        _ -> e(Rest, Handler, "e" ++ Acc, Stack, Config)
+    end;
+decimal(Bin, Handler, Acc, Stack, Config) ->
+    finish_number(Bin, Handler, {decimal, Acc}, Stack, Config).
+
+
+e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?positive; S =:= ?negative ->
+    ex(Rest, Handler, [S] ++ Acc, Stack, Config);
+e(<<>>, Handler, [$e|Acc], Stack, Config) ->
+    ?incomplete(decimal, <<$e>>, Handler, Acc, Stack, Config);
+e(Bin, Handler, Acc, Stack, Config) ->
+    ?error([Bin, Handler, Acc, Stack, Config]).
+
+
+ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+ex(<<>>, Handler, [S, $e|Acc], Stack, Config) ->
+    ?incomplete(decimal, <<$e, S/utf8>>, Handler, Acc, Stack, Config);
+ex(Bin, Handler, Acc, Stack, Config) ->
+    ?error([Bin, Handler, Acc, Stack, Config]).
+
+
+exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
+    exp(Rest, Handler, [S] ++ Acc, Stack, Config);
+exp(Bin, Handler, Acc, Stack, Config) ->
+    finish_number(Bin, Handler, {exp, Acc}, Stack, Config).
+
+
+finish_number(Rest, Handler, Acc, [], Config=#config{explicit_end=false}) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), [], Config);
+finish_number(<<?end_object, Rest/binary>>, Handler, Acc, [object|Stack], Config) ->
     maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
-zero(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    maybe_done(Rest, handle_event(end_array, handle_event(format_number(Acc), Handler, Config), Config), Stack, Config);
-zero(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    key(Rest, handle_event(format_number(Acc), Handler, Config), [key|Stack], Config);
-zero(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
-zero(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    initial_decimal(Rest, Handler, [{Acc, []}|Stack], Config);
-zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [{Acc, [], []}|Stack], Config);
-zero(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_whitespace(S) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-zero(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Config=#config{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
-zero(<<>>, Handler, [Acc|[]], Config = #config{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Config), [], Config);
-zero(<<>>, Handler, Stack, Config) ->
-    ?incomplete(zero, <<>>, Handler, Stack, Config);
-zero(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [[S] ++ Acc|Stack], Config);
-integer(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
-integer(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
+finish_number(<<?end_array, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
     maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Config), Stack, Config);
-integer(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
+finish_number(<<?comma, Rest/binary>>, Handler, Acc, [object|Stack], Config) ->
     key(Rest, handle_event(format_number(Acc), Handler, Config), [key|Stack], Config);
-integer(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
+finish_number(<<?comma, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
     value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
-integer(<<?decimalpoint, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    initial_decimal(Rest, Handler, [{Acc, []}|Stack], Config);
-integer(<<?zero, Rest/binary>>, Handler, [Acc|Stack], Config) ->
-    integer(Rest, Handler, [[?zero] ++ Acc|Stack], Config);
-integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [{Acc, [], []}|Stack], Config);
-integer(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_whitespace(S) ->
+finish_number(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-integer(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Config=#config{comments=true}) ->
+finish_number(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{comments=true}) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
-integer(<<>>, Handler, [Acc|[]], Config = #config{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Config), [], Config);
-integer(<<>>, Handler, Stack, Config) ->
-    ?incomplete(integer, <<>>, Handler, Stack, Config);
-integer(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
+    case NumType of
+        zero -> ?incomplete(zero, <<>>, Handler, Acc, Stack, Config);
+        integer -> ?incomplete(integer, <<>>, Handler, Acc, Stack, Config);
+        decimal -> ?incomplete(decimal, <<>>, Handler, Acc, Stack, Config);
+        exp -> ?incomplete(exp, <<>>, Handler, Acc, Stack, Config)
+    end;
+finish_number(Bin, Handler, Acc, Stack, Config) ->
+    ?error([Bin, Handler, Acc, Stack, Config]).
 
 
-initial_decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Config) when S =:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Config);
-initial_decimal(<<>>, Handler, Stack, Config) ->
-    ?incomplete(initial_decimal, <<>>, Handler, Stack, Config);
-initial_decimal(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Config)
-        when S=:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Handler, [{Int, [S] ++ Frac}|Stack], Config);
-decimal(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
-decimal(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Config), Stack, Config);
-decimal(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    key(Rest, handle_event(format_number(Acc), Handler, Config), [key|Stack], Config);
-decimal(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
-decimal(<<S, Rest/binary>>, Handler, [{Int, Frac}|Stack], Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [{Int, Frac, []}|Stack], Config);
-decimal(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_whitespace(S) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-decimal(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Config=#config{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
-decimal(<<>>, Handler, [Acc|[]], Config = #config{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Config), [], Config);
-decimal(<<>>, Handler, Stack, Config) ->
-    ?incomplete(decimal, <<>>, Handler, Stack, Config);
-decimal(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Config);
-e(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Config) when S =:= ?positive; S =:= ?negative ->
-    ex(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Config);
-e(<<>>, Handler, Stack, Config) ->
-    ?incomplete(e, <<>>, Handler, Stack, Config);
-e(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-ex(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Config);
-ex(<<>>, Handler, Stack, Config) ->
-    ?incomplete(ex, <<>>, Handler, Stack, Config);
-ex(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-exp(<<S, Rest/binary>>, Handler, [{Int, Frac, Exp}|Stack], Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [{Int, Frac, [S] ++ Exp}|Stack], Config);
-exp(<<?end_object, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
-exp(<<?end_array, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Config), Stack, Config);
-exp(<<?comma, Rest/binary>>, Handler, [Acc, object|Stack], Config) ->
-    key(Rest, handle_event(format_number(Acc), Handler, Config), [key|Stack], Config);
-exp(<<?comma, Rest/binary>>, Handler, [Acc, array|Stack], Config) ->
-    value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
-exp(<<S, Rest/binary>>, Handler, [Acc|Stack], Config) when ?is_whitespace(S) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-exp(<<?solidus, Rest/binary>>, Handler, [Acc|Stack], Config=#config{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
-exp(<<>>, Handler, [Acc|[]], Config = #config{explicit_end=false}) ->
-    maybe_done(<<>>, handle_event(format_number(Acc), Handler, Config), [], Config);
-exp(<<>>, Handler, Stack, Config) ->
-    ?incomplete(exp, <<>>, Handler, Stack, Config);
-exp(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
-
-
-format_number(Int) when is_list(Int) ->
-    {integer, list_to_integer(lists:reverse(Int))};
-format_number({Int, Frac}) ->
-    {float, list_to_float(lists:reverse(Frac ++ "." ++ Int))};
-format_number({Int, [], Exp}) ->
-    {float, list_to_float(lists:reverse(Exp ++ "e0." ++ Int))};
-format_number({Int, Frac, Exp}) ->
-    {float, list_to_float(lists:reverse(Exp ++ "e" ++ Frac ++ "." ++ Int))}.
+format_number({zero, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
+format_number({integer, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
+format_number({decimal, Acc}) -> {float, list_to_float(lists:reverse(Acc))};
+format_number({exp, Acc}) -> {float, list_to_float(lists:reverse(Acc))}.
 
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
