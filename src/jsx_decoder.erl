@@ -23,6 +23,11 @@
 
 -module(jsx_decoder).
 
+%% inline sequence accumulation, handle_event and format_number
+-compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1]}).
+-compile({inline, [handle_event/3]}).
+-compile({inline, [format_number/1]}).
+
 -export([decoder/3]).
 
 
@@ -136,8 +141,8 @@ decoder(Handler, State, Config) ->
 new_seq() -> [].
 new_seq(C) -> [C].
 
+acc_seq(Seq, C) when is_list(C) -> lists:reverse(C) ++ Seq;
 acc_seq(Seq, C) -> [C] ++ Seq.
-acc_seq(Seq, C, D) -> [C, D] ++ Seq.
 
 end_seq(Seq) -> unicode:characters_to_binary(lists:reverse(Seq)).
 
@@ -612,7 +617,7 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, A
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
-    string(Rest, Handler, acc_seq(Acc, 16#fffd, 16#fffd), Stack, Config);
+    string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config);
 unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
@@ -697,7 +702,7 @@ negative(Bin, Handler, Acc, Stack, Config) ->
 zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
     decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, "e0." ++ Acc, Stack, Config);
+    e(Rest, Handler, acc_seq(Acc, ".0e"), Stack, Config);
 zero(<<>>, Handler, Acc, [], Config=#config{explicit_end=false}) ->
     finish_number(<<>>, Handler, {zero, Acc}, [], Config);
 zero(<<>>, Handler, Acc, Stack, Config) ->
@@ -711,7 +716,7 @@ integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_n
 integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
     decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, "e0." ++ Acc, Stack, Config);
+    e(Rest, Handler, acc_seq(Acc, ".0e"), Stack, Config);
 integer(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {integer, Acc}, Stack, Config).
 
