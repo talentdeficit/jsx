@@ -27,6 +27,7 @@
 -compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1]}).
 -compile({inline, [handle_event/3]}).
 -compile({inline, [format_number/1]}).
+-compile(bin_opt_info).
 
 -export([decoder/3]).
 
@@ -536,9 +537,9 @@ string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} 
         when X >= 240, X =< 247 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 3);
 %% incompletes and unexpected bytes, including orphan continuations
-string(<<_, Rest/binary>> = Bin, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
-    case partial_utf(Bin) of
-        true -> ?incomplete(string, Bin, Handler, Acc, Stack, Config);
+string(<<C, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
+    case partial_utf(<<C, Rest/binary>>) of
+        true -> ?incomplete(string, <<C, Rest/binary>>, Handler, Acc, Stack, Config);
         false -> string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config)
     end;
 string(Bin, Handler, Acc, Stack, Config) ->
@@ -618,29 +619,29 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, A
              ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
     string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config);
-unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
+unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
         ->
     case is_partial_escape(Rest) of
-        true -> ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
+        true -> ?incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
         false when Config#config.replaced_bad_utf8 ->
             string(<<?rsolidus, Rest/binary>>, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        false -> ?error([Bin, Handler, Acc, Stack, Config])
+        false -> ?error([<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config])
     end;
-unescape(<<$u, $d, A, B, C>> = Bin, Handler, Acc, Stack, Config)
+unescape(<<$u, $d, A, B, C>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
         ->
-    ?incomplete(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
-unescape(<<$u, A, B, C, D, Rest/binary>> = Bin, Handler, Acc, Stack, Config)
+    ?incomplete(string, <<?rsolidus, $u, $d, A, B, C>>, Handler, Acc, Stack, Config);
+unescape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
         when ?is_hex(A), ?is_hex(B), ?is_hex(C), ?is_hex(D) ->
     case erlang:list_to_integer([A, B, C, D], 16) of
         Codepoint when Codepoint < 16#d800; Codepoint > 16#dfff ->
             string(Rest, Handler, acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
         _ when Config#config.replaced_bad_utf8 ->
             string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        _ -> ?error([Bin, Handler, Acc, Stack, Config])
+        _ -> ?error([<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config])
     end;
 unescape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
     string(Bin, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
@@ -723,9 +724,9 @@ integer(Bin, Handler, Acc, Stack, Config) ->
 
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
-decimal(<<S, Rest/binary>> = Bin, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
+decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     case Acc of
-        [?decimalpoint|_] -> ?error([Bin, Handler, Acc, Stack, Config]);
+        [?decimalpoint|_] -> ?error([<<S, Rest/binary>>, Handler, Acc, Stack, Config]);
         _ -> e(Rest, Handler, acc_seq(Acc, $e), Stack, Config)
     end;
 decimal(Bin, Handler, Acc, Stack, Config) ->
@@ -789,25 +790,38 @@ format_number({exp, Acc}) -> {float, list_to_float(lists:reverse(Acc))}.
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
-true(Bin, Handler, Stack, Config) when Bin == <<$r, $u>>; Bin == <<$r>>; Bin == <<>> ->
-    ?incomplete(true, Bin, Handler, Stack, Config);
+true(<<$r, $u>>, Handler, Stack, Config) ->
+    ?incomplete(true, <<$r, $u>>, Handler, Stack, Config);
+true(<<$r>>, Handler, Stack, Config) ->
+    ?incomplete(true, <<$r>>, Handler, Stack, Config);
+true(<<>>, Handler, Stack, Config) ->
+    ?incomplete(true, <<>>, Handler, Stack, Config);
 true(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
 false(<<$a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, false}, Handler, Config), Stack, Config);
-false(Bin, Handler, Stack, Config)
-        when Bin == <<$a, $l, $s>>; Bin == <<$a, $l>>; Bin == <<$a>>; Bin == <<>> ->
-    ?incomplete(false, Bin, Handler, Stack, Config);
+false(<<$a, $l, $s>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a, $l, $s>>, Handler, Stack, Config);
+false(<<$a, $l>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a, $l>>, Handler, Stack, Config);
+false(<<$a>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<$a>>, Handler, Stack, Config);
+false(<<>>, Handler, Stack, Config) ->
+    ?incomplete(false, <<>>, Handler, Stack, Config);
 false(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
 
 null(<<$u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, null}, Handler, Config), Stack, Config);
-null(Bin, Handler, Stack, Config) when Bin == <<$u, $l>>; Bin == <<$u>>; Bin == <<>> ->
-    ?incomplete(null, Bin, Handler, Stack, Config);
+null(<<$u, $l>>, Handler, Stack, Config) ->
+    ?incomplete(null, <<$u, $l>>, Handler, Stack, Config);
+null(<<$u>>, Handler, Stack, Config) ->
+    ?incomplete(null, <<$u>>, Handler, Stack, Config);
+null(<<>>, Handler, Stack, Config) ->
+    ?incomplete(null, <<>>, Handler, Stack, Config);
 null(Bin, Handler, Stack, Config) ->
     ?error([Bin, Handler, Stack, Config]).
 
