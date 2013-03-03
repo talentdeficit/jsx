@@ -537,10 +537,7 @@ string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} 
     strip_continuations(Rest, Handler, Acc, Stack, Config, 3);
 %% incompletes and unexpected bytes, including orphan continuations
 string(<<C, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
-    case partial_utf(<<C, Rest/binary>>) of
-        true -> ?incomplete(string, <<C, Rest/binary>>, Handler, Acc, Stack, Config);
-        false -> string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config)
-    end;
+    string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 string(Bin, Handler, Acc, Stack, Config) ->
     case partial_utf(Bin) of
         true -> ?incomplete(string, Bin, Handler, Acc, Stack, Config);
