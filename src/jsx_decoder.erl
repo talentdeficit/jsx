@@ -1201,6 +1201,14 @@ comments_test_() ->
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ /* /* comment */ */ true ]">>, [comments])
         )},
+        {"/**/ comment with /", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* / */ true ]">>, [comments])
+        )},
+        {"/**/ comment with *", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* * */ true ]">>, [comments])
+        )},
         {"// comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [comments, replaced_bad_utf8])
@@ -1208,6 +1216,10 @@ comments_test_() ->
         {"/**/ comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
+        )},
+        {"/**/ comment with badutf preceeded by /", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
         )}
     ].
 
