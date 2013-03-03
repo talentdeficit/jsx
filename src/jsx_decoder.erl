@@ -99,8 +99,11 @@ decoder(Handler, State, Config) ->
 
 %% error, incomplete and event macros
 -ifndef(error).
--define(error(Args),
-    erlang:error(badarg, Args)
+-define(error(_State, _Bin, _Handler, _Stack, _Config),
+    erlang:error(badarg)
+).
+-define(error(_State, _Bin, _Handler, _Acc, _Stack, _Config),
+    erlang:error(badarg)
 ).
 -endif.
 
@@ -114,7 +117,7 @@ decoder(Handler, State, Config) ->
                         Handler,
                         Stack,
                         Config#config{explicit_end=false}) of
-                    {incomplete, _} -> ?error([Rest, Handler, Stack, Config])
+                    {incomplete, _} -> ?error(State, Rest, Handler, Stack, Config)
                     ; Events -> Events
                 end
         end
@@ -129,7 +132,7 @@ decoder(Handler, State, Config) ->
                         Acc,
                         Stack,
                         Config#config{explicit_end=false}) of
-                    {incomplete, _} -> ?error([Rest, Handler, Acc, Stack, Config])
+                    {incomplete, _} -> ?error(State, Rest, Handler, Acc, Stack, Config)
                     ; Events -> Events
                 end
         end
@@ -165,17 +168,17 @@ start(Bin, Handler, Stack, Config) ->
 maybe_bom(<<16#bb, Rest/binary>>, Handler, Stack, Config) ->
     definitely_bom(Rest, Handler, Stack, Config);
 maybe_bom(<<>>, Handler, Stack, Config) ->
-    ?incomplete(maybe_bom, <<>>, Handler, Stack, Config);
+    ?incomplete(start, <<16#ef>>, Handler, Stack, Config);
 maybe_bom(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(start, <<16#ef>>, Handler, Stack, Config).
 
 
 definitely_bom(<<16#bf, Rest/binary>>, Handler, Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 definitely_bom(<<>>, Handler, Stack, Config) ->
-    ?incomplete(definitely_bom, <<>>, Handler, Stack, Config);
+    ?incomplete(start, <<16#ef, 16#bb>>, Handler, Stack, Config);
 definitely_bom(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(start, <<16#ef, 16#bb>>, Handler, Stack, Config).
 
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
@@ -205,7 +208,7 @@ value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) 
 value(<<>>, Handler, Stack, Config) ->
     ?incomplete(value, <<>>, Handler, Stack, Config);
 value(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(value, Bin, Handler, Stack, Config).
 
 
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
@@ -221,7 +224,7 @@ object(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true})
 object(<<>>, Handler, Stack, Config) ->
     ?incomplete(object, <<>>, Handler, Stack, Config);
 object(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(object, Bin, Handler, Stack, Config).
 
 
 array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Config) ->
@@ -245,7 +248,7 @@ colon(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) 
 colon(<<>>, Handler, Stack, Config) ->
     ?incomplete(colon, <<>>, Handler, Stack, Config);
 colon(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(colon, Bin, Handler, Stack, Config).
 
 
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
@@ -259,7 +262,7 @@ key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
 key(<<>>, Handler, Stack, Config) ->
     ?incomplete(key, <<>>, Handler, Stack, Config);
 key(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(key, Bin, Handler, Stack, Config).
 
 
 %% explicitly whitelist ascii set for better efficiency (seriously, it's worth
@@ -541,7 +544,7 @@ string(<<C, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} 
 string(Bin, Handler, Acc, Stack, Config) ->
     case partial_utf(Bin) of
         true -> ?incomplete(string, Bin, Handler, Acc, Stack, Config);
-        false -> ?error([Bin, Handler, Acc, Stack, Config])
+        false -> ?error(string, Bin, Handler, Acc, Stack, Config)
     end.
 
 
@@ -619,12 +622,7 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Confi
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
         ->
-    case is_partial_escape(Rest) of
-        true -> ?incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
-        false when Config#config.replaced_bad_utf8 ->
-            string(<<?rsolidus, Rest/binary>>, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        false -> ?error([<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config])
-    end;
+    ?incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
 unescape(<<$u, $d, A, B, C>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
@@ -637,14 +635,14 @@ unescape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
             string(Rest, Handler, acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
         _ when Config#config.replaced_bad_utf8 ->
             string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        _ -> ?error([<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config])
+        _ -> ?error(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
     end;
 unescape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
     string(Bin, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
 unescape(Bin, Handler, Acc, Stack, Config) ->
     case is_partial_escape(Bin) of
         true -> ?incomplete(string, <<?rsolidus/utf8, Bin/binary>>, Handler, Acc, Stack, Config);
-        false -> ?error([Bin, Handler, Acc, Stack, Config])
+        false -> ?error(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config)
     end.
 
 
@@ -690,10 +688,10 @@ negative(<<$0, Rest/binary>>, Handler, Acc, Stack, Config) ->
     zero(Rest, Handler, acc_seq(Acc, $0), Stack, Config);
 negative(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_nonzero(S) ->
     integer(Rest, Handler, acc_seq(Acc, S), Stack, Config);
-negative(<<>>, Handler, "-", Stack, Config) ->
-    ?incomplete(value, <<"-">>, Handler, Stack, Config);
+negative(<<>>, Handler, [?negative], Stack, Config) ->
+    ?incomplete(value, <<?negative>>, Handler, Stack, Config);
 negative(Bin, Handler, Acc, Stack, Config) ->
-    ?error([Bin, Handler, Acc, Stack, Config]).
+    ?error(value, <<?negative, Bin/binary>>, Handler, Acc, Stack, Config).
 
 
 zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -722,7 +720,7 @@ decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_no
     decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     case Acc of
-        [?decimalpoint|_] -> ?error([<<S, Rest/binary>>, Handler, Acc, Stack, Config]);
+        [?decimalpoint|_] -> ?error(decimal, <<S, Rest/binary>>, Handler, Acc, Stack, Config);
         _ -> e(Rest, Handler, acc_seq(Acc, $e), Stack, Config)
     end;
 decimal(Bin, Handler, Acc, Stack, Config) ->
@@ -736,7 +734,7 @@ e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?positive; S =:= ?
 e(<<>>, Handler, [$e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e>>, Handler, Acc, Stack, Config);
 e(Bin, Handler, Acc, Stack, Config) ->
-    ?error([Bin, Handler, Acc, Stack, Config]).
+    ?error(decimal, <<$e, Bin/binary>>, Handler, Acc, Stack, Config).
 
 
 ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -744,7 +742,7 @@ ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzer
 ex(<<>>, Handler, [S, $e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e, S/utf8>>, Handler, Acc, Stack, Config);
 ex(Bin, Handler, Acc, Stack, Config) ->
-    ?error([Bin, Handler, Acc, Stack, Config]).
+    ?error(decimal, <<$e, Bin/binary>>, Handler, Acc, Stack, Config).
 
 
 exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -774,8 +772,13 @@ finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
         decimal -> ?incomplete(decimal, <<>>, Handler, Acc, Stack, Config);
         exp -> ?incomplete(exp, <<>>, Handler, Acc, Stack, Config)
     end;
-finish_number(Bin, Handler, Acc, Stack, Config) ->
-    ?error([Bin, Handler, Acc, Stack, Config]).
+finish_number(Bin, Handler, {NumType, Acc}, Stack, Config) ->
+    case NumType of
+        zero -> ?error(zero, <<>>, Handler, Acc, Stack, Config);
+        integer -> ?error(integer, <<>>, Handler, Acc, Stack, Config);
+        decimal -> ?error(decimal, <<>>, Handler, Acc, Stack, Config);
+        exp -> ?error(exp, <<>>, Handler, Acc, Stack, Config)
+    end.
 
 
 format_number({zero, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
@@ -793,7 +796,7 @@ true(<<$r>>, Handler, Stack, Config) ->
 true(<<>>, Handler, Stack, Config) ->
     ?incomplete(true, <<>>, Handler, Stack, Config);
 true(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(true, Bin, Handler, Stack, Config).
 
 
 false(<<$a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
@@ -807,7 +810,7 @@ false(<<$a>>, Handler, Stack, Config) ->
 false(<<>>, Handler, Stack, Config) ->
     ?incomplete(false, <<>>, Handler, Stack, Config);
 false(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(false, Bin, Handler, Stack, Config).
 
 
 null(<<$u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
@@ -819,7 +822,7 @@ null(<<$u>>, Handler, Stack, Config) ->
 null(<<>>, Handler, Stack, Config) ->
     ?incomplete(null, <<>>, Handler, Stack, Config);
 null(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(null, Bin, Handler, Stack, Config).
 
 
 %% this just exists to bridge to when i can properly clean up comments
@@ -838,7 +841,7 @@ comment(<<_, Rest/binary>>, Handler, [comment|Stack], Config=#config{replaced_ba
 comment(<<>>, Handler, [Resume|Stack], Config) ->
     ?incomplete(comment, <<>>, Handler, Resume, Stack, Config);
 comment(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(comment, Bin, Handler, Stack, Config).
 
 
 single_comment(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
@@ -852,7 +855,7 @@ single_comment(<<>>, Handler, [done], Config=#config{explicit_end=false}) ->
 single_comment(<<>>, Handler, [Resume|Stack], Config) ->
     ?incomplete(comment, <<?solidus>>, Handler, Resume, Stack, Config);
 single_comment(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(comment, <<?solidus, Bin/binary>>, Handler, Stack, Config).
 
 
 multi_comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
@@ -866,7 +869,7 @@ multi_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_ut
 multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
     ?incomplete(comment, <<?star>>, Handler, Resume, Stack, Config);
 multi_comment(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(comment, <<?star, Bin/binary>>, Handler, Stack, Config).
 
 
 end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
@@ -874,9 +877,9 @@ end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
 end_multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
     multi_comment(Rest, Handler, Stack, Config);
 end_multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
-    ?incomplete(comment, <<?star, ?space, ?star>>, Handler, Resume, Stack, Config);
+    ?incomplete(comment, <<?star, ?star>>, Handler, Resume, Stack, Config);
 end_multi_comment(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(comment, <<?star, ?star, Bin/binary>>, Handler, Stack, Config).
 
 
 end_comment(Rest, Handler, [Resume|Stack], Config) ->
@@ -909,7 +912,7 @@ maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=tr
 maybe_done(<<>>, Handler, Stack, Config) when length(Stack) > 0 ->
     ?incomplete(maybe_done, <<>>, Handler, Stack, Config);
 maybe_done(Bin, Handler, Stack, Config) ->
-    ?error([Bin, Handler, Stack, Config]).
+    ?error(maybe_done, Bin, Handler, Stack, Config).
 
 
 done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
@@ -923,7 +926,7 @@ done(<<>>, {Handler, State}, [], Config = #config{explicit_end=true}) ->
         end
     };
 done(<<>>, {_Handler, State}, [], _Config) -> State;
-done(Bin, Handler, Stack, Config) -> ?error([Bin, Handler, Stack, Config]).
+done(Bin, Handler, Stack, Config) -> ?error(done, Bin, Handler, Stack, Config).
 
 
 
