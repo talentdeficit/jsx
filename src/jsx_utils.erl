@@ -345,7 +345,7 @@ clean(<<35, Rest/binary>>, Acc, Config) -> clean(Rest, [35] ++ Acc, Config);
 clean(<<36, Rest/binary>>, Acc, Config) -> clean(Rest, [36] ++ Acc, Config);
 clean(<<37, Rest/binary>>, Acc, Config) -> clean(Rest, [37] ++ Acc, Config);
 clean(<<38, Rest/binary>>, Acc, Config) -> clean(Rest, [38] ++ Acc, Config);
-clean(<<39, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(39, Config) ++ Acc, Config);
+clean(<<39, Rest/binary>>, Acc, Config) -> clean(Rest, [39] ++ Acc, Config);
 clean(<<40, Rest/binary>>, Acc, Config) -> clean(Rest, [40] ++ Acc, Config);
 clean(<<41, Rest/binary>>, Acc, Config) -> clean(Rest, [41] ++ Acc, Config);
 clean(<<42, Rest/binary>>, Acc, Config) -> clean(Rest, [42] ++ Acc, Config);
@@ -509,11 +509,6 @@ maybe_replace($\n, #config{escaped_strings=true}) -> [$n, $\\];
 maybe_replace($\f, #config{escaped_strings=true}) -> [$f, $\\];
 maybe_replace($\r, #config{escaped_strings=true}) -> [$r, $\\];
 maybe_replace($\", #config{escaped_strings=true}) -> [$\", $\\];
-maybe_replace($', Config=#config{escaped_strings=true}) ->
-    case Config#config.single_quoted_strings of
-        true -> [$', $\\]
-        ; false -> [$']
-    end;
 maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
         true -> [$/, $\\]
