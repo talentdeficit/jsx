@@ -1608,6 +1608,10 @@ unescape_test_() ->
         {"do not unescape bad surrogate pair", ?_assertError(
             badarg,
             unescape(<<"\\ud800\\u0000">>, [])
+        )},
+        {"bad pseudo escape sequence", ?_assertError(
+            badarg,
+            unescape(<<"\\uabcg">>, [])
         )}
     ].
 
