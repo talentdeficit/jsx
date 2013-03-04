@@ -295,7 +295,7 @@ string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
         ; [single_quote|S] ->
             maybe_done(Rest, handle_event({string, end_seq(Acc)}, Handler, Config), S, Config)
         ; _ ->
-            string(Rest, Handler, acc_seq(Acc, maybe_replace(?singlequote, Config)), Stack, Config)
+            string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config)
     end;
 string(<<40, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 40), Stack, Config);
@@ -622,12 +622,7 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Confi
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
         ->
-    case is_partial_escape(Rest) of
-        true -> ?incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
-        false when Config#config.replaced_bad_utf8 ->
-            string(<<?rsolidus, Rest/binary>>, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        false -> ?error(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
-    end;
+    ?incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
 unescape(<<$u, $d, A, B, C>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
@@ -666,11 +661,6 @@ maybe_replace($\n, #config{escaped_strings=true}) -> [$\\, $n];
 maybe_replace($\f, #config{escaped_strings=true}) -> [$\\, $f];
 maybe_replace($\r, #config{escaped_strings=true}) -> [$\\, $r];
 maybe_replace($\", #config{escaped_strings=true}) -> [$\\, $\"];
-maybe_replace($', Config=#config{escaped_strings=true}) ->
-    case Config#config.single_quoted_strings of
-        true -> [$\\, $']
-        ; false -> [$']
-    end;
 maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
         true -> [$\\, $/]
@@ -1211,6 +1201,14 @@ comments_test_() ->
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ /* /* comment */ */ true ]">>, [comments])
         )},
+        {"/**/ comment with /", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* / */ true ]">>, [comments])
+        )},
+        {"/**/ comment with *", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* * */ true ]">>, [comments])
+        )},
         {"// comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [comments, replaced_bad_utf8])
@@ -1218,6 +1216,10 @@ comments_test_() ->
         {"/**/ comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
             decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
+        )},
+        {"/**/ comment with badutf preceeded by /", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
         )}
     ].
 
@@ -1775,10 +1777,6 @@ single_quoted_string_test_() ->
         {"escaped single quote", ?_assertEqual(
             [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
             decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [single_quoted_strings])
-        )},
-        {"escape single quote", ?_assertEqual(
-            [{string, <<"quoth the raven, \\'nevermore\\'">>}, end_json],
-            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [single_quoted_strings, escaped_strings])
         )},
         {"single quoted key", ?_assertEqual(
             [start_object,
