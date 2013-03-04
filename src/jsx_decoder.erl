@@ -1000,6 +1000,14 @@ special_number_test_() ->
         {"number terminated by whitespace", ?_assertEqual(
             [start_array, {integer, 1}, end_array, end_json],
             decode(<<"[ 1 ]">>, [])
+        )},
+        {"number terminated by comma", ?_assertEqual(
+            [start_array, {integer, 1}, {integer, 1}, end_array, end_json],
+            decode(<<"[ 1, 1 ]">>, [])
+        )},
+        {"number terminated by comma in object", ?_assertEqual(
+            [start_object, {key, <<"x">>}, {integer, 1}, {key, <<"y">>}, {integer, 1}, end_object, end_json],
+            decode(<<"{\"x\": 1, \"y\": 1}">>, [])
         )}
     ].
 
