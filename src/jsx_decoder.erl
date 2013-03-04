@@ -995,6 +995,10 @@ special_number_test_() ->
         {"1e4", ?_assertEqual(
             [{float, 1.0e4}, end_json],
             decode(<<"1e4">>, [])
+        )},
+        {"number terminated by whitespace", ?_assertEqual(
+            [start_array, {integer, 1}, end_array, end_json],
+            decode(<<"[ 1 ]">>, [])
         )}
     ].
 
