@@ -951,10 +951,8 @@ decode(JSON, Config) ->
     catch
         error:badarg -> {error, badarg}
     end,
-    case Chunk == Incremental of
-        true -> Chunk;
-        _ -> erlang:error(badarg)
-    end.
+    ?assert(Chunk == Incremental),
+    Chunk.
 
 
 decode_test_() ->
@@ -999,6 +997,14 @@ special_number_test_() ->
         {"number terminated by whitespace", ?_assertEqual(
             [start_array, {integer, 1}, end_array, end_json],
             decode(<<"[ 1 ]">>, [])
+        )},
+        {"number terminated by comma", ?_assertEqual(
+            [start_array, {integer, 1}, {integer, 1}, end_array, end_json],
+            decode(<<"[ 1, 1 ]">>, [])
+        )},
+        {"number terminated by comma in object", ?_assertEqual(
+            [start_object, {key, <<"x">>}, {integer, 1}, {key, <<"y">>}, {integer, 1}, end_object, end_json],
+            decode(<<"{\"x\": 1, \"y\": 1}">>, [])
         )}
     ].
 
@@ -1605,6 +1611,10 @@ unescape_test_() ->
         {"do not unescape bad surrogate pair", ?_assertError(
             badarg,
             unescape(<<"\\ud800\\u0000">>, [])
+        )},
+        {"bad pseudo escape sequence", ?_assertError(
+            badarg,
+            unescape(<<"\\uabcg">>, [])
         )}
     ].
 
