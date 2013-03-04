@@ -617,7 +617,10 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, A
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
-    string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config);
+    case Config#config.replaced_bad_utf8 of
+        true -> string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config);
+        false -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+    end;
 unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
              ?is_hex(B), ?is_hex(C)
@@ -928,7 +931,7 @@ done(Bin, Handler, Stack, Config) -> ?error(done, Bin, Handler, Stack, Config).
 
 json_to_bytes(JSON) -> json_to_bytes(JSON, []).
 
-json_to_bytes(<<>>, Acc) -> lists:reverse(Acc);
+json_to_bytes(<<>>, Acc) -> [<<>>] ++ lists:reverse(Acc);
 json_to_bytes(<<X, Rest/binary>>, Acc) -> json_to_bytes(Rest, [<<X>>] ++ Acc).
 
 
@@ -1520,8 +1523,10 @@ bad_utf8_test_() ->
 
 
 unescape(Bin, Config) ->
-    [{string, String}, end_json] = decode(<<34, Bin/binary, 34>>, Config),
-    String.
+    case decode(<<34, Bin/binary, 34>>, Config) of
+        [{string, String}, end_json] -> String;
+        {error, badarg} -> erlang:error(badarg)
+    end.
 
 unescape_test_() ->
     [
@@ -1569,21 +1574,37 @@ unescape_test_() ->
             <<16#10000/utf8>>,
             unescape(<<"\\ud800\\udc00"/utf8>>, [])
         )},
-        {"unescape bad high surrogate", ?_assertEqual(
+        {"replace bad high surrogate", ?_assertEqual(
             <<16#fffd/utf8>>,
             unescape(<<"\\udc00"/utf8>>, [replaced_bad_utf8])
         )},
-        {"unescape naked high surrogate", ?_assertEqual(
+        {"do not unescape bad high surrogate", ?_assertError(
+            badarg,
+            unescape(<<"\\udc00"/utf8>>, [])
+        )},
+        {"replace naked high surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
             unescape(<<"\\ud800hello world"/utf8>>, [replaced_bad_utf8])
         )},
-        {"unescape naked low surrogate", ?_assertEqual(
+        {"do not unescape naked high surrogate", ?_assertError(
+            badarg,
+            unescape(<<"\\ud800hello world"/utf8>>, [])
+        )},
+        {"replace naked low surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
             unescape(<<"\\udc00hello world"/utf8>>, [replaced_bad_utf8])
         )},
-        {"unescape bad surrogate pair", ?_assertEqual(
+        {"do not unescape naked low surrogate", ?_assertError(
+            badarg,
+            unescape(<<"\\udc00hello world"/utf8>>, [])
+        )},
+        {"replace bad surrogate pair", ?_assertEqual(
             <<16#fffd/utf8, 16#fffd/utf8>>,
             unescape(<<"\\ud800\\u0000">>, [replaced_bad_utf8])
+        )},
+        {"do not unescape bad surrogate pair", ?_assertError(
+            badarg,
+            unescape(<<"\\ud800\\u0000">>, [])
         )}
     ].
 
