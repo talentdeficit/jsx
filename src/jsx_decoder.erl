@@ -24,7 +24,7 @@
 -module(jsx_decoder).
 
 %% inline sequence accumulation, handle_event and format_number
--compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1]}).
+-compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1, end_seq/2]}).
 -compile({inline, [handle_event/3]}).
 -compile({inline, [format_number/1]}).
 
@@ -148,6 +148,9 @@ acc_seq(Seq, C) when is_list(C) -> lists:reverse(C) ++ Seq;
 acc_seq(Seq, C) -> [C] ++ Seq.
 
 end_seq(Seq) -> unicode:characters_to_binary(lists:reverse(Seq)).
+
+end_seq(Seq, Config=#config{dirty_strings=true}) -> list_to_binary(lists:reverse(Seq));
+end_seq(Seq, _) -> end_seq(Seq).
 
 
 handle_event([], Handler, _Config) -> Handler;
@@ -274,11 +277,11 @@ string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
 string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     case Stack of
         [key|_] ->
-            colon(Rest, handle_event({key, end_seq(Acc)}, Handler, Config), Stack, Config);
+            colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
         [single_quote|_] ->
             string(Rest, Handler,acc_seq(Acc, maybe_replace(?doublequote, Config)), Stack, Config);
         _ ->
-            maybe_done(Rest, handle_event({string, end_seq(Acc)}, Handler, Config), Stack, Config)
+            maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config)
     end;
 string(<<35, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 35), Stack, Config);
@@ -291,9 +294,9 @@ string(<<38, Rest/binary>>, Handler, Acc, Stack, Config) ->
 string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     case Stack of
         [single_quote, key|S] ->
-            colon(Rest, handle_event({key, end_seq(Acc)}, Handler, Config), [key|S], Config)
+            colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|S], Config)
         ; [single_quote|S] ->
-            maybe_done(Rest, handle_event({string, end_seq(Acc)}, Handler, Config), S, Config)
+            maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), S, Config)
         ; _ ->
             string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config)
     end;
@@ -473,6 +476,8 @@ string(<<126, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 126), Stack, Config);
 string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
+string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
@@ -586,6 +591,8 @@ strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config).
 
 
+unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\b, Config)), Stack, Config);
 unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -1329,6 +1336,28 @@ clean_string_test_() ->
         {"clean extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
             lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
+        )},
+        {"dirty strings", ?_assertEqual(
+            lists:map(
+                fun(Result) -> [{string, Result}, end_json] end,
+                [
+                    <<"\\uwxyz">>,
+                    <<"\\x23">>,
+                    <<0>>,
+                    <<237, 160, 128>>,
+                    <<244, 143, 191, 191>>
+                ]
+            ),
+            lists:map(
+                fun(JSON) ->decode(JSON, [dirty_strings]) end,
+                [
+                    <<34, "\\uwxyz", 34>>,
+                    <<34, "\\x23", 34>>,
+                    <<34, 0, 34>>,
+                    <<34, 237, 160, 128, 34>>,
+                    <<34, 244, 143, 191, 191, 34>>
+                ]
+            )
         )}
     ].
 
