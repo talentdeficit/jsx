@@ -954,10 +954,8 @@ decode(JSON, Config) ->
     catch
         error:badarg -> {error, badarg}
     end,
-    case Chunk == Incremental of
-        true -> Chunk;
-        _ -> erlang:error(badarg)
-    end.
+    Chunk == Incremental,
+    Chunk.
 
 
 decode_test_() ->
