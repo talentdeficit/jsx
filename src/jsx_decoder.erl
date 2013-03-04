@@ -954,7 +954,7 @@ decode(JSON, Config) ->
     catch
         error:badarg -> {error, badarg}
     end,
-    Chunk == Incremental,
+    ?assert(Chunk == Incremental),
     Chunk.
 
 
