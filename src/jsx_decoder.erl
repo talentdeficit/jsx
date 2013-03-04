@@ -762,7 +762,6 @@ finish_number(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{com
     comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
 finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
     case NumType of
-        zero -> ?incomplete(zero, <<>>, Handler, Acc, Stack, Config);
         integer -> ?incomplete(integer, <<>>, Handler, Acc, Stack, Config);
         decimal -> ?incomplete(decimal, <<>>, Handler, Acc, Stack, Config);
         exp -> ?incomplete(exp, <<>>, Handler, Acc, Stack, Config)
@@ -869,12 +868,10 @@ multi_comment(Bin, Handler, Stack, Config) ->
 
 end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
     end_comment(Rest, Handler, Stack, Config);
-end_multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
-    multi_comment(Rest, Handler, Stack, Config);
 end_multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
     ?incomplete(comment, <<?star, ?star>>, Handler, Resume, Stack, Config);
 end_multi_comment(Bin, Handler, Stack, Config) ->
-    ?error(comment, <<?star, ?star, Bin/binary>>, Handler, Stack, Config).
+    multi_comment(Bin, Handler, Stack, Config).
 
 
 end_comment(Rest, Handler, [Resume|Stack], Config) ->
@@ -1802,6 +1799,100 @@ bom_test_() ->
         {"bom", ?_assertEqual(
             [start_array, end_array, end_json],
             decode(<<16#ef, 16#bb, 16#bf, "[]"/utf8>>, [])
+        )}
+    ].
+
+
+error_test_() ->
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    [
+        {"maybe_bom error", ?_assertError(
+            badarg,
+            Decode(<<16#ef, 0>>, [])
+        )},
+        {"definitely_bom error", ?_assertError(
+            badarg,
+            Decode(<<16#ef, 16#bb, 0>>, [])
+        )},
+        {"value error", ?_assertError(
+            badarg,
+            Decode(<<0>>, [])
+        )},
+        {"object error", ?_assertError(
+            badarg,
+            Decode(<<"{"/utf8, 0>>, [])
+        )},
+        {"colon error", ?_assertError(
+            badarg,
+            Decode(<<"{\"\""/utf8, 0>>, [])
+        )},
+        {"key error", ?_assertError(
+            badarg,
+            Decode(<<"{\"\":1,"/utf8, 0>>, [])
+        )},
+        {"negative error", ?_assertError(
+            badarg,
+            Decode(<<"-"/utf8, 0>>, [])
+        )},
+        {"zero error", ?_assertError(
+            badarg,
+            Decode(<<"0"/utf8, 0>>, [explicit_end])
+        )},
+        {"integer error", ?_assertError(
+            badarg,
+            Decode(<<"1"/utf8, 0>>, [explicit_end])
+        )},
+        {"decimal error", ?_assertError(
+            badarg,
+            Decode(<<"1.0"/utf8, 0>>, [explicit_end])
+        )},
+        {"exp error", ?_assertError(
+            badarg,
+            Decode(<<"1.0e1"/utf8, 0>>, [explicit_end])
+        )},
+        {"e error", ?_assertError(
+            badarg,
+            Decode(<<"1e"/utf8, 0>>, [])
+        )},
+        {"ex error", ?_assertError(
+            badarg,
+            Decode(<<"1e+"/utf8, 0>>, [])
+        )},
+        {"exp error", ?_assertError(
+            badarg,
+            Decode(<<"1.e"/utf8>>, [])
+        )},
+        {"true error", ?_assertError(
+            badarg,
+            Decode(<<"tru"/utf8, 0>>, [])
+        )},
+        {"false error", ?_assertError(
+            badarg,
+            Decode(<<"fals"/utf8, 0>>, [])
+        )},
+        {"null error", ?_assertError(
+            badarg,
+            Decode(<<"nul"/utf8, 0>>, [])
+        )},
+        {"maybe_done error", ?_assertError(
+            badarg,
+            Decode(<<"[[]"/utf8, 0>>, [])
+        )},
+        {"done error", ?_assertError(
+            badarg,
+            Decode(<<"[]"/utf8, 0>>, [])
+        )},
+        {"comment error", ?_assertError(
+            badarg,
+            Decode(<<"[ / ]">>, [comments])
+        )},
+        {"single_comment error", ?_assertError(
+            badarg,
+            Decode(<<"[ //"/utf8, 192>>, [comments])
+        )},
+        {"multi_comment error", ?_assertError(
+            badarg,
+            Decode(<<"[ /*"/utf8, 192>>, [comments])
         )}
     ].
 
