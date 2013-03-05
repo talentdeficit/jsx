@@ -29,7 +29,7 @@
 -export([clean_string/2]).
 
 -ifdef(TEST).
--export([fake_error_handler/6]).
+-export([fake_error_handler/3]).
 -endif.
 
 -include("jsx_config.hrl").
@@ -71,7 +71,7 @@ parse_config([{pre_encode, Encoder}|Rest] = Options, Config) when is_function(En
         false -> parse_config(Rest, Config#config{pre_encode=Encoder})
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
-parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 6) ->
+parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 3) ->
     case Config#config.error_handler of
         false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
         ; _ -> erlang:error(badarg, [Options, Config])
@@ -621,8 +621,8 @@ config_test_() ->
             ])
         )},
         {"error_handler flag", ?_assertEqual(
-            #config{error_handler=fun ?MODULE:fake_error_handler/6},
-            parse_config([{error_handler, fun ?MODULE:fake_error_handler/6}])
+            #config{error_handler=fun ?MODULE:fake_error_handler/3},
+            parse_config([{error_handler, fun ?MODULE:fake_error_handler/3}])
         )},
         {"two error_handlers defined", ?_assertError(
             badarg,
@@ -635,7 +635,7 @@ config_test_() ->
     ].
     
 
-fake_error_handler(_, _, _, _, _, _) -> ok.
+fake_error_handler(_, _, _) -> ok.
 
 
 %% erlang refuses to encode certain codepoints, so fake them

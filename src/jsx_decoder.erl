@@ -95,7 +95,7 @@ decoder(Handler, State, Config) ->
 -define(error(State, Bin, Handler, Acc, Stack, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> F(State, Bin, Handler, Acc, Stack, Config)
+        F -> F(Bin, {decoder, State, Handler, Acc, Stack}, Config)
     end
 ).
 -define(error(State, Bin, Handler, Stack, Config),
@@ -1948,7 +1948,7 @@ error_test_() ->
 
 custom_error_handler_test_() ->
     Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
-    Error = fun(State, Rest, _Handler, _Acc, _Stack, _Config) -> {State, Rest} end,
+    Error = fun(Rest, {_, State, _, _, _}, _) -> {State, Rest} end,
     [
         {"maybe_bom error", ?_assertEqual(
             {value, <<16#ef, 0>>},
