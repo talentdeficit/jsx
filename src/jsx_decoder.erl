@@ -664,7 +664,6 @@ is_partial_escape(<<>>) -> true;
 is_partial_escape(_) -> false.
 
 
-maybe_replace(X, #config{dirty_strings=true}) when is_integer(X) -> [X];
 maybe_replace($\b, #config{escaped_strings=true}) -> [$\\, $b];
 maybe_replace($\t, #config{escaped_strings=true}) -> [$\\, $t];
 maybe_replace($\n, #config{escaped_strings=true}) -> [$\\, $n];
