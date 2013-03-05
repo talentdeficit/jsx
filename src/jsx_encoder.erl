@@ -42,14 +42,21 @@ encoder(Handler, State, Config) ->
 
 
 -ifndef(error).
--define(error(Args),
-    erlang:error(badarg, Args)
+-define(error(State, Term, Handler, Config),
+    case Config#config.error_handler of
+        false -> erlang:error(badarg);
+        F -> erlang:throw(F(Term, {encoder, State, Handler}, Config))
+    end
 ).
 -endif.
 
 
 start(Term, {Handler, State}, Config) ->
-    Handler:handle_event(end_json, value(pre_encode(Term, Config), {Handler, State}, Config)).
+    try Handler:handle_event(end_json, value(pre_encode(Term, Config), {Handler, State}, Config))
+    catch
+        throw:Error -> Error;
+        Type:Value -> erlang:Type(Value)
+    end.
 
 
 value(String, {Handler, State}, Config) when is_binary(String) ->
@@ -69,12 +76,12 @@ value([Tuple|_] = List, Handler, Config) when is_tuple(Tuple) ->
     list_or_object(List, Handler, Config);
 value(List, Handler, Config) when is_list(List) ->
     list_or_object(List, Handler, Config);
-value(Term, Handler, Config) -> ?error([Term, Handler, Config]).
+value(Term, Handler, Config) -> io:format("hi?~n"), ?error(value, Term, Handler, Config).
 
 
 list_or_object([Term|Rest], {Handler, State}, Config) ->
     case pre_encode(Term, Config) of
-        {K, V} ->
+        {K, V} when is_atom(K); is_binary(K) ->
             object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Config)
         ; T ->
             list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Config)
@@ -108,16 +115,14 @@ object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Ke
         },
         Config
     );
-object([], {Handler, State}, _Config) -> Handler:handle_event(end_object, State);
-object(Term, Handler, Config) -> ?error([Term, Handler, Config]).
+object([], {Handler, State}, _Config) -> Handler:handle_event(end_object, State).
 
 
 list([Value, Next|Rest], {Handler, State}, Config) ->
     list([pre_encode(Next, Config)|Rest], {Handler, value(Value, {Handler, State}, Config)}, Config);
 list([Value], {Handler, State}, Config) ->
     list([], {Handler, value(Value, {Handler, State}, Config)}, Config);
-list([], {Handler, State}, _Config) -> Handler:handle_event(end_array, State);
-list(Term, Handler, Config) -> ?error([Term, Handler, Config]).
+list([], {Handler, State}, _Config) -> Handler:handle_event(end_array, State).
 
 pre_encode(Value, #config{pre_encode=false}) -> Value;
 pre_encode(Value, Config) -> (Config#config.pre_encode)(Value).
@@ -274,5 +279,18 @@ pre_encoders_test_() ->
         )}
     ].
 
+error_test_() ->
+    [
+        {"value error", ?_assertError(badarg, encode(self(), []))}
+    ].
+
+custom_error_handler_test_() ->
+    Error = fun(Term, {_, State, _}, _) -> {State, Term} end, 
+    [
+        {"value error", ?_assertEqual(
+            {value, self()},
+            encode(self(), [{error_handler, Error}])
+        )}
+    ].
 
 -endif.
