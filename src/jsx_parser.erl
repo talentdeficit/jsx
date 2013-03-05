@@ -37,8 +37,12 @@ parser(Handler, State, Config) ->
 
 %% error, incomplete and event macros
 -ifndef(error).
--define(error(Args),
-    erlang:error(badarg, Args)
+-define(error(State, Terms, Handler, Stack, Config),
+    case Config#config.error_handler of
+        false -> erlang:error(badarg);
+        F -> F(Terms, {parser, State, Handler, Stack}, Config)
+    end
+
 ).
 -endif.
 
@@ -50,7 +54,7 @@ parser(Handler, State, Config) ->
                         Handler,
                         Stack,
                         Config) of
-                    {incomplete, _} -> ?error([Handler, Stack, Config])
+                    {incomplete, _} -> ?error(State, [], Handler, Stack, Config)
                     ; Events -> Events
                 end
             ; (Tokens) ->
@@ -101,28 +105,42 @@ value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
 value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
     value([{float, Number}] ++ Tokens, Handler, Stack, Config);
 value([{string, String}|Tokens], Handler, [], Config) when is_binary(String) ->
-    done(Tokens, handle_event({string, clean_string(String, Config)}, Handler, Config), [], Config);
+    case clean_string(String, Tokens, Handler, [], Config) of
+        Clean when is_binary(Clean) ->
+            done(Tokens, handle_event({string, Clean}, Handler, Config), [], Config);
+        Error -> Error
+    end;
 value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) ->
-    maybe_done(Tokens, handle_event({string, clean_string(String, Config)}, Handler, Config), Stack, Config);
+    case clean_string(String, Tokens, Handler, Stack, Config) of
+        Clean when is_binary(Clean) ->
+            maybe_done(Tokens, handle_event({string, Clean}, Handler, Config), Stack, Config);
+        Error -> Error
+    end;
 value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     value([{string, String}] ++ Tokens, Handler, Stack, Config);
 value([], Handler, Stack, Config) ->
     ?incomplete(value, Handler, Stack, Config);
 value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Config]);
+    ?error(value, BadTokens, Handler, Stack, Config);
 value(Token, Handler, Stack, Config) ->
     value([Token], Handler, Stack, Config).
 
 object([end_object|Tokens], Handler, [object|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
 object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
-    value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
+    case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
+        Clean when is_binary(Clean) ->
+            value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
+        Error -> Error
+    end;
 object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
-    value(Tokens, handle_event({key, clean_string(fix_key(Key), Config)}, Handler, Config), Stack, Config);
+    case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
+        Clean when is_binary(Clean) ->
+            value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
+        Error -> Error
+    end;
 object([], Handler, Stack, Config) ->
     ?incomplete(object, Handler, Stack, Config);
-object(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Config]);
 object(Token, Handler, Stack, Config) ->
     object([Token], Handler, Stack, Config).
 
@@ -144,7 +162,7 @@ maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
 maybe_done([], Handler, Stack, Config) ->
     ?incomplete(maybe_done, Handler, Stack, Config);
 maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Config]);
+    ?error(maybe_done, BadTokens, Handler, Stack, Config);
 maybe_done(Token, Handler, Stack, Config) ->
     maybe_done([Token], Handler, Stack, Config).
 
@@ -152,7 +170,7 @@ done(Tokens, Handler, [], Config) when Tokens == [end_json]; Tokens == [] ->
     {_, State} = handle_event(end_json, Handler, Config),
     State;
 done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
-    ?error([BadTokens, Handler, Stack, Config]);
+    ?error(done, BadTokens, Handler, Stack, Config);
 done(Token, Handler, Stack, Config) ->
     done([Token], Handler, Stack, Config).
 
@@ -161,7 +179,10 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
+clean_string(Bin, Tokens, Handler, Stack, Config) ->
+    try jsx_utils:clean_string(Bin, Config)
+    catch error:badarg -> ?error(string, [{string, Bin}|Tokens], Handler, Stack, Config)
+    end.
 
 
 
@@ -178,6 +199,40 @@ decode_test_() ->
                 value(Events ++ [end_json], {jsx, []}, [], #config{})
             )
         } || {Title, _, _, Events} <- Data
+    ].
+
+
+parse(Terms, Config) -> value(Terms, {jsx, []}, [], jsx_utils:parse_config(Config)).
+
+
+error_test_() ->
+    [
+        {"value error", ?_assertError(badarg, parse([self()], []))},
+        {"maybe_done error", ?_assertError(badarg, parse([start_array, end_array, start_array, end_json], []))},
+        {"done error", ?_assertError(badarg, parse([{string, <<"">>}, {literal, true}, end_json], []))},
+        {"string error", ?_assertError(badarg, parse([{string, <<16#ffff/utf8>>}, end_json], []))}
+    ].
+
+
+custom_error_handler_test_() ->
+    Error = fun(Rest, {_, State, _, _}, _) -> {State, Rest} end,
+    [
+        {"value error", ?_assertEqual(
+            {value, [self()]},
+            parse([self()], [{error_handler, Error}])
+        )},
+        {"maybe_done error", ?_assertEqual(
+            {maybe_done, [start_array, end_json]},
+            parse([start_array, end_array, start_array, end_json], [{error_handler, Error}])
+        )},
+        {"done error", ?_assertEqual(
+            {done, [{literal, true}, end_json]},
+            parse([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
+        )},
+        {"string error", ?_assertEqual(
+            {string, [{string, <<16#ffff/utf8>>}, end_json]},
+            parse([{string, <<16#ffff/utf8>>}, end_json], [{error_handler, Error}])
+        )}
     ].
 
 
