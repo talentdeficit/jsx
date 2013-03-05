@@ -52,27 +52,28 @@ is_term(Source, Config) when is_list(Config) ->
 
 parse_config(Config) -> parse_config(Config, #config{}).
 
+parse_config([no_repeated_keys|Rest], Config) ->
+    parse_config(Rest, Config#config{repeated_keys=false});
+%% deprecated, use `no_repeated_keys`
 parse_config([{repeated_keys, Val}|Rest], Config) when Val == true; Val == false ->
-    parse_config(Rest, Config#config{repeated_keys = Val});
+    parse_config(Rest, Config#config{repeated_keys=Val});
 parse_config([repeated_keys|Rest], Config) ->
-    parse_config(Rest, Config#config{repeated_keys = true});
+    parse_config(Rest, Config#config{repeated_keys=true});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_config(Rest, Config)
-        ; false -> erlang:error(badarg, [Options, Config])
+        true -> parse_config(Rest, Config);
+        false -> erlang:error(badarg, [Options, Config])
     end;
 parse_config([K|Rest] = Options, Config) ->
     case lists:member(K, jsx_utils:valid_flags()) of
-        true -> parse_config(Rest, Config)
-        ; false -> erlang:error(badarg, [Options, Config])
+        true -> parse_config(Rest, Config);
+        false -> erlang:error(badarg, [Options, Config])
     end;
 parse_config([], Config) ->
     Config.
 
 
-
 init(Config) -> {parse_config(Config), []}.
-
 
 
 handle_event(end_json, _) -> true;
@@ -84,8 +85,8 @@ handle_event(end_object, {Config, [_|Keys]}) -> {Config, Keys};
 
 handle_event({key, Key}, {Config, [CurrentKeys|Keys]}) ->
     case dict:is_key(Key, CurrentKeys) of
-        true -> erlang:error(badarg)
-        ; false -> {Config, [dict:store(Key, blah, CurrentKeys)|Keys]}
+        true -> erlang:error(badarg);
+        false -> {Config, [dict:store(Key, blah, CurrentKeys)|Keys]}
     end;
 
 handle_event(_, State) -> State.
@@ -100,6 +101,7 @@ handle_event(_, State) -> State.
 config_test_() ->
     [
         {"empty config", ?_assertEqual(#config{}, parse_config([]))},
+        {"no repeat keys", ?_assertEqual(#config{repeated_keys=false}, parse_config([no_repeated_keys]))},
         {"bare repeated keys", ?_assertEqual(#config{}, parse_config([repeated_keys]))},
         {"repeated keys true", ?_assertEqual(
             #config{},
@@ -111,6 +113,43 @@ config_test_() ->
         )},
         {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
         {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
+    ].
+
+
+repeated_keys_test_() ->
+    RepeatedKey = [
+        start_object,
+            {key, <<"alpha">>},
+            {literal, true},
+            {key, <<"alpha">>},
+            {literal, false},
+        end_object,
+        end_json
+    ],
+    NestedKey = [
+        start_object,
+            {key, <<"alpha">>},
+            start_object,
+                {key, <<"alpha">>},
+                start_object,
+                    {key, <<"alpha">>},
+                    {literal, true},
+                end_object,
+            end_object,
+        end_object,
+        end_json
+    ],
+    [
+        {"repeated key", ?_assert(
+            lists:foldl(fun handle_event/2, {#config{}, []}, RepeatedKey)
+        )},
+        {"no repeated key", ?_assertError(
+            badarg,
+            lists:foldl(fun handle_event/2, {#config{repeated_keys=false}, []}, RepeatedKey)
+        )},
+        {"nested key", ?_assert(
+            lists:foldl(fun handle_event/2, {#config{repeated_keys=false}, []}, NestedKey)
+        )}
     ].
 
 
