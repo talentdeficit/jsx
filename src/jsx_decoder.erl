@@ -163,28 +163,16 @@ handle_event(Event, {Handler, State}, _Config) ->
     {Handler, Handler:handle_event(Event, State)}.
 
 
-start(<<16#ef, Rest/binary>>, Handler, Stack, Config) ->
-    maybe_bom(Rest, Handler, Stack, Config);
+start(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
+start(<<16#ef, 16#bb>>, Handler, Stack, Config) ->
+    ?incomplete(start, <<16#ef, 16#bb>>, Handler, Stack, Config);
+start(<<16#ef>>, Handler, Stack, Config) ->
+    ?incomplete(start, <<16#ef>>, Handler, Stack, Config);
 start(<<>>, Handler, Stack, Config) ->
     ?incomplete(start, <<>>, Handler, Stack, Config);
 start(Bin, Handler, Stack, Config) ->
     value(Bin, Handler, Stack, Config).
-
-
-maybe_bom(<<16#bb, Rest/binary>>, Handler, Stack, Config) ->
-    definitely_bom(Rest, Handler, Stack, Config);
-maybe_bom(<<>>, Handler, Stack, Config) ->
-    ?incomplete(start, <<16#ef>>, Handler, Stack, Config);
-maybe_bom(Bin, Handler, Stack, Config) ->
-    ?error(start, <<16#ef, Bin/binary>>, Handler, Stack, Config).
-
-
-definitely_bom(<<16#bf, Rest/binary>>, Handler, Stack, Config) ->
-    value(Rest, Handler, Stack, Config);
-definitely_bom(<<>>, Handler, Stack, Config) ->
-    ?incomplete(start, <<16#ef, 16#bb>>, Handler, Stack, Config);
-definitely_bom(Bin, Handler, Stack, Config) ->
-    ?error(start, <<16#ef, 16#bb, Bin/binary>>, Handler, Stack, Config).
 
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
@@ -1970,11 +1958,11 @@ custom_error_handler_test_() ->
     Error = fun(State, Rest, _Handler, _Acc, _Stack, _Config) -> {State, Rest} end,
     [
         {"maybe_bom error", ?_assertEqual(
-            {start, <<16#ef, 0>>},
+            {value, <<16#ef, 0>>},
             Decode(<<16#ef, 0>>, [{error_handler, Error}])
         )},
         {"definitely_bom error", ?_assertEqual(
-            {start, <<16#ef, 16#bb, 0>>},
+            {value, <<16#ef, 16#bb, 0>>},
             Decode(<<16#ef, 16#bb, 0>>, [{error_handler, Error}])
         )},
         {"value error", ?_assertEqual(
