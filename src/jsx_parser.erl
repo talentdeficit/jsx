@@ -40,7 +40,7 @@ parser(Handler, State, Config) ->
 -define(error(State, Terms, Handler, Stack, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> F(Terms, {parser, State, Handler, Stack}, Config)
+        F -> F(Terms, {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config))
     end
 
 ).
@@ -63,7 +63,7 @@ parser(Handler, State, Config) ->
                         State(Tokens, Handler, Stack, Config)
                 end
             };
-        F -> F([], {parser, State, Handler, Stack}, Config)
+        F -> F([], {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config))
     end
 ).
 -endif.

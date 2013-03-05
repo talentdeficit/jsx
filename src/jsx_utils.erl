@@ -24,6 +24,7 @@
 -module(jsx_utils).
 
 -export([parse_config/1]).
+-export([config_to_list/1]).
 -export([extract_config/1, valid_flags/0]).
 -export([json_escape_sequence/1]).
 -export([clean_string/2]).
@@ -103,6 +104,20 @@ parse_config(Options, Config) ->
     erlang:error(badarg, [Options, Config]).
 
 
+config_to_list(Config) ->
+    lists:map(
+        fun ({pre_encode, F}) -> {pre_encode, F};
+            ({error_handler, F}) -> {error_handler, F};
+            ({incomplete_handler, F}) -> {incomplete_handler, F};
+            ({Key, true}) -> Key
+        end,
+        lists:filter(
+            fun({_, false}) -> false; (_) -> true end,
+            lists:zip(record_info(fields, config), tl(tuple_to_list(Config)))
+        )
+    ).
+
+
 valid_flags() ->
     [
         replaced_bad_utf8,
@@ -117,6 +132,7 @@ valid_flags() ->
         relax,
         pre_encode,
         error_handler,
+        incomplete_handler,
         %% deprecated flags
         pre_encoder,            %% pre_encode
         loose_unicode,          %% replaced_bad_utf8
@@ -649,7 +665,52 @@ config_test_() ->
         )},
         {"bad option flag", ?_assertError(badarg, parse_config([error]))}
     ].
-    
+
+
+config_to_list_test_() ->
+    [
+        {"empty config", ?_assertEqual(
+            [],
+            config_to_list(#config{})
+        )},
+        {"all flags", ?_assertEqual(
+            [
+                replaced_bad_utf8,
+                escaped_forward_slashes,
+                single_quoted_strings,
+                unescaped_jsonp,
+                comments,
+                dirty_strings,
+                ignored_bad_escapes,
+                explicit_end
+            ],
+            config_to_list(
+                #config{
+                    replaced_bad_utf8=true,
+                    escaped_forward_slashes=true,
+                    explicit_end=true,
+                    single_quoted_strings=true,
+                    unescaped_jsonp=true,
+                    comments=true,
+                    dirty_strings=true,
+                    ignored_bad_escapes=true
+                }
+            )
+        )},
+        {"pre_encode", ?_assertEqual(
+            [{pre_encode, fun lists:length/1}],
+            config_to_list(#config{pre_encode=fun lists:length/1})
+        )},
+        {"error handler", ?_assertEqual(
+            [{error_handler, fun ?MODULE:fake_error_handler/3}],
+            config_to_list(#config{error_handler=fun ?MODULE:fake_error_handler/3})
+        )},
+        {"incomplete handler", ?_assertEqual(
+            [{incomplete_handler, fun ?MODULE:fake_error_handler/3}],
+            config_to_list(#config{incomplete_handler=fun ?MODULE:fake_error_handler/3})
+        )}
+    ].
+
 
 fake_error_handler(_, _, _) -> ok.
 

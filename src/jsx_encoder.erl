@@ -45,7 +45,7 @@ encoder(Handler, State, Config) ->
 -define(error(State, Term, Handler, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> erlang:throw(F(Term, {encoder, State, Handler}, Config))
+        F -> erlang:throw(F(Term, {encoder, State, Handler}, jsx_utils:config_to_list(Config)))
     end
 ).
 -endif.

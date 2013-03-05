@@ -95,7 +95,7 @@ decoder(Handler, State, Config) ->
 -define(error(State, Bin, Handler, Acc, Stack, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> F(Bin, {decoder, State, Handler, Acc, Stack}, Config)
+        F -> F(Bin, {decoder, State, Handler, Acc, Stack}, jsx_utils:config_to_list(Config))
     end
 ).
 -define(error(State, Bin, Handler, Stack, Config),
@@ -121,7 +121,7 @@ decoder(Handler, State, Config) ->
                         end
                 end
             };
-        F -> F(Rest, {decoder, State, Handler, Acc, Stack}, Config)
+        F -> F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_utils:config_to_list(Config))
     end
 ).
 -define(incomplete(State, Rest, Handler, Stack, Config),
@@ -139,7 +139,7 @@ decoder(Handler, State, Config) ->
                         end
                 end
             };
-        F -> F(Rest, {decoder, State, Handler, null, Stack}, Config)
+        F -> F(Rest, {decoder, State, Handler, null, Stack}, jsx_utils:config_to_list(Config))
     end
 ).
 -endif.
