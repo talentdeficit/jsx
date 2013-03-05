@@ -312,8 +312,12 @@ jsx functions all take a common set of options. not all flags have meaning in al
       Config = tuple()
     ```
     `Remaining` is the binary fragment or term that caused the error
+    
     `InternalState` is an opaque structure containing the internal state of the parser/decoder/encoder
-    `Config` is a list of options/flags in use by the parser/decoder/encoder 
+    
+    `Config` is a list of options/flags in use by the parser/decoder/encoder
+    
+    these functions should be considered experimental for now
 
 
 ## exports ##
