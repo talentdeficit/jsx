@@ -263,7 +263,7 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
 - `escaped_forward_slashes`
 
-    json strings are escaped according to the json spec. this means forward slashes (solidus) are only escaped when this flag is present. otherwise they are left unescaped. this option is only relevant for encoding; you may want to use this if you are embedding json directly into a html or xml document
+    json strings are escaped according to the json spec. this means forward slashes (solidus) are only escaped when this flag is present. otherwise they are left unescaped. you may want to use this if you are embedding json directly into a html or xml document
 
 - `single_quoted_strings`
 
@@ -285,13 +285,13 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
     by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint while encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
 
-- `dirty_strings`
-
-    json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping
-
 - `ignored_bad_escapes`
 
     during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that combining this option with `escaped_strings` will result in the escape character itself being escaped
+
+- `dirty_strings`
+
+    json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping. this can also be used to read in *really* invalid json strings. everything but escaped quotes are passed as is to result string term. note that this overrides `ignored_bad_escapes`, `unescaped_jsonp` and `escaped_strings`
 
 - `explicit_end`
 
