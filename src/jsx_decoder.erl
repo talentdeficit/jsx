@@ -170,7 +170,7 @@ start(Bin, Handler, Stack, Config) ->
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-value(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
+value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
     string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     true(Rest, Handler, Stack, Config);
@@ -200,7 +200,7 @@ value(Bin, Handler, Stack, Config) ->
 
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-object(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
+object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
     string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
 object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
@@ -240,7 +240,7 @@ colon(Bin, Handler, Stack, Config) ->
 
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-key(<<?singlequote, Rest/binary>>, Handler, Stack, Config = #config{single_quoted_strings=true}) ->
+key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
     string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
@@ -505,30 +505,30 @@ string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#f0000,
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000, X < 16#10fffe ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 %% surrogates
-string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
+string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 160 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% u+fffe and u+ffff for R14BXX
-string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
+string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X == 190; X == 191 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% u+xfffe, u+xffff, control codes and other noncharacters
-string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
+string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 192, X =< 223 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 1);
 %% overlong encodings and missing continuations of a 3 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 224, X =< 239 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 2);
 %% overlong encodings and missing continuations of a 4 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config)
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 240, X =< 247 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 3);
 %% incompletes and unexpected bytes, including orphan continuations
-string(<<_, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
+string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 string(Bin, Handler, Acc, Stack, Config) ->
     case partial_utf(Bin) of
@@ -906,7 +906,7 @@ done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
     done(Rest, Handler, [], Config);
 done(<<?solidus, Rest/binary>>, Handler, [], Config=#config{comments=true}) ->
     comment(Rest, Handler, [done], Config);
-done(<<>>, {Handler, State}, [], Config = #config{explicit_end=true}) ->
+done(<<>>, {Handler, State}, [], Config=#config{explicit_end=true}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 done(<<Stream/binary>>, {Handler, State}, [], Config)
             ; (end_stream) -> State
