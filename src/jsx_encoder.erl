@@ -60,7 +60,7 @@ start(Term, {Handler, State}, Config) ->
 
 
 value(String, {Handler, State}, Config) when is_binary(String) ->
-    Handler:handle_event({string, clean_string(String, Config)}, State);
+    Handler:handle_event({string, clean_string(String, {Handler, State}, Config)}, State);
 value(Float, {Handler, State}, _Config) when is_float(Float) ->
     Handler:handle_event({float, Float}, State);
 value(Int, {Handler, State}, _Config) when is_integer(Int) ->
@@ -76,7 +76,7 @@ value([Tuple|_] = List, Handler, Config) when is_tuple(Tuple) ->
     list_or_object(List, Handler, Config);
 value(List, Handler, Config) when is_list(List) ->
     list_or_object(List, Handler, Config);
-value(Term, Handler, Config) -> io:format("hi?~n"), ?error(value, Term, Handler, Config).
+value(Term, Handler, Config) -> ?error(value, Term, Handler, Config).
 
 
 list_or_object([Term|Rest], {Handler, State}, Config) ->
@@ -96,7 +96,7 @@ object([{Key, Value}, Next|Rest], {Handler, State}, Config) when is_atom(Key); i
             Handler,
             value(
                 V,
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Config)}, State)},
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), {Handler, State}, Config)}, State)},
                 Config
             )
         },
@@ -109,7 +109,7 @@ object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Ke
             Handler,
             value(
                 pre_encode(Value, Config),
-                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), Config)}, State)},
+                {Handler, Handler:handle_event({key, clean_string(fix_key(Key), {Handler, State}, Config)}, State)},
                 Config
             )
         },
@@ -132,7 +132,11 @@ fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Config) -> jsx_utils:clean_string(Bin, Config).
+clean_string(Bin, Handler, Config) ->
+    try jsx_utils:clean_string(Bin, Config)
+    catch error:badarg -> ?error(string, Bin, Handler, Config)
+    end.
+
 
 
 
@@ -281,7 +285,8 @@ pre_encoders_test_() ->
 
 error_test_() ->
     [
-        {"value error", ?_assertError(badarg, encode(self(), []))}
+        {"value error", ?_assertError(badarg, encode(self(), []))},
+        {"string error", ?_assertError(badarg, encode(<<16#ffff/utf8>>, []))}
     ].
 
 custom_error_handler_test_() ->
@@ -290,6 +295,10 @@ custom_error_handler_test_() ->
         {"value error", ?_assertEqual(
             {value, self()},
             encode(self(), [{error_handler, Error}])
+        )},
+        {"string error", ?_assertEqual(
+            {string, <<16#ffff/utf8>>},
+            encode(<<16#ffff/utf8>>, [{error_handler, Error}])
         )}
     ].
 
