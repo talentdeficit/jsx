@@ -61,11 +61,8 @@ decoder(Handler, State, Config) ->
 -define(colon, 16#3A).
 
 %% string escape sequences
--define(escape, 16#5C).
 -define(rsolidus, 16#5C).
 -define(solidus, 16#2F).
--define(formfeed, 16#0C).
--define(backspace, 16#08).
 
 %% math
 -define(zero, 16#30).
@@ -86,10 +83,6 @@ decoder(Handler, State, Config) ->
 
 -define(is_nonzero(Symbol),
     Symbol >= $1 andalso Symbol =< $9
-).
-
--define(is_noncontrol(Symbol),
-    (Symbol >= ?space)
 ).
 
 -define(is_whitespace(Symbol),
