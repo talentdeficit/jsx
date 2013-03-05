@@ -49,18 +49,22 @@ parser(Handler, State, Config) ->
 
 -ifndef(incomplete).
 -define(incomplete(State, Handler, Stack, Config),
-    {incomplete, fun(end_stream) ->
-                case State([end_json],
-                        Handler,
-                        Stack,
-                        Config) of
-                    {incomplete, _} -> ?error(State, [], Handler, Stack, Config)
-                    ; Events -> Events
+    case Config#config.incomplete_handler of
+        false ->
+            {incomplete, fun(end_stream) ->
+                        case State([end_json],
+                                Handler,
+                                Stack,
+                                Config) of
+                            {incomplete, _} -> ?error(State, [], Handler, Stack, Config)
+                            ; Events -> Events
+                        end
+                    ; (Tokens) ->
+                        State(Tokens, Handler, Stack, Config)
                 end
-            ; (Tokens) ->
-                State(Tokens, Handler, Stack, Config)
-        end
-    }
+            };
+        F -> F([], {parser, State, Handler, Stack}, Config)
+    end
 ).
 -endif.
 
@@ -232,6 +236,15 @@ custom_error_handler_test_() ->
         {"string error", ?_assertEqual(
             {string, [{string, <<16#ffff/utf8>>}, end_json]},
             parse([{string, <<16#ffff/utf8>>}, end_json], [{error_handler, Error}])
+        )}
+    ].
+
+
+custom_incomplete_handler_test_() ->
+    [
+        {"custom incomplete handler", ?_assertError(
+            badarg,
+            parse([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
         )}
     ].
 

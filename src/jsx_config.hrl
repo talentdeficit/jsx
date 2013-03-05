@@ -9,5 +9,6 @@
     ignored_bad_escapes = false,
     explicit_end = false,
     pre_encode = false,
-    error_handler = false
+    error_handler = false,
+    incomplete_handler = false
 }).

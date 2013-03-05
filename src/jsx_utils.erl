@@ -76,6 +76,11 @@ parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_fun
         false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
+parse_config([{incomplete_handler, IncompleteHandler}|Rest] = Options, Config) when is_function(IncompleteHandler, 3) ->
+    case Config#config.incomplete_handler of
+        false -> parse_config(Rest, Config#config{incomplete_handler=IncompleteHandler})
+        ; _ -> erlang:error(badarg, [Options, Config])
+    end;
 %% deprecated flags
 parse_config([{pre_encoder, Encoder}|Rest] = Options, Config) when is_function(Encoder, 1) ->
     case Config#config.pre_encode of
@@ -629,6 +634,17 @@ config_test_() ->
             parse_config([
                 {error_handler, fun(_) -> true end},
                 {error_handler, fun(_) -> false end}
+            ])
+        )},
+        {"incomplete_handler flag", ?_assertEqual(
+            #config{incomplete_handler=fun ?MODULE:fake_error_handler/3},
+            parse_config([{incomplete_handler, fun ?MODULE:fake_error_handler/3}])
+        )},
+        {"two incomplete_handlers defined", ?_assertError(
+            badarg,
+            parse_config([
+                {incomplete_handler, fun(_) -> true end},
+                {incomplete_handler, fun(_) -> false end}
             ])
         )},
         {"bad option flag", ?_assertError(badarg, parse_config([error]))}

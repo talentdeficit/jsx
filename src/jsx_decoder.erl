@@ -105,34 +105,42 @@ decoder(Handler, State, Config) ->
 
 
 -ifndef(incomplete).
--define(incomplete(State, Rest, Handler, Stack, Config),
-    {incomplete, fun(Stream) when is_binary(Stream) ->
-                State(<<Rest/binary, Stream/binary>>, Handler, Stack, Config)
-            ; (end_stream) ->
-                case State(<<Rest/binary, <<" ">>/binary>>,
-                        Handler,
-                        Stack,
-                        Config#config{explicit_end=false}) of
-                    {incomplete, _} -> ?error(State, Rest, Handler, Stack, Config)
-                    ; Events -> Events
-                end
-        end
-    }
-).
 -define(incomplete(State, Rest, Handler, Acc, Stack, Config),
-    {incomplete, fun(Stream) when is_binary(Stream) ->
-                State(<<Rest/binary, Stream/binary>>, Handler, Acc, Stack, Config)
-            ; (end_stream) ->
-                case State(<<Rest/binary, <<" ">>/binary>>,
-                        Handler,
-                        Acc,
-                        Stack,
-                        Config#config{explicit_end=false}) of
-                    {incomplete, _} -> ?error(State, Rest, Handler, Acc, Stack, Config)
-                    ; Events -> Events
+    case Config#config.incomplete_handler of
+        false ->
+            {incomplete, fun(Stream) when is_binary(Stream) ->
+                        State(<<Rest/binary, Stream/binary>>, Handler, Acc, Stack, Config)
+                    ; (end_stream) ->
+                        case State(<<Rest/binary, <<" ">>/binary>>,
+                                Handler,
+                                Acc,
+                                Stack,
+                                Config#config{explicit_end=false}) of
+                            {incomplete, _} -> ?error(State, Rest, Handler, Acc, Stack, Config)
+                            ; Events -> Events
+                        end
                 end
-        end
-    }
+            };
+        F -> F(Rest, {decoder, State, Handler, Acc, Stack}, Config)
+    end
+).
+-define(incomplete(State, Rest, Handler, Stack, Config),
+    case Config#config.incomplete_handler of
+        false ->
+            {incomplete, fun(Stream) when is_binary(Stream) ->
+                        State(<<Rest/binary, Stream/binary>>, Handler, Stack, Config)
+                    ; (end_stream) ->
+                        case State(<<Rest/binary, <<" ">>/binary>>,
+                                Handler,
+                                Stack,
+                                Config#config{explicit_end=false}) of
+                            {incomplete, _} -> ?error(State, Rest, Handler, Stack, Config)
+                            ; Events -> Events
+                        end
+                end
+            };
+        F -> F(Rest, {decoder, State, Handler, null, Stack}, Config)
+    end
 ).
 -endif.
 
@@ -2037,6 +2045,16 @@ custom_error_handler_test_() ->
         {"multi_comment error", ?_assertEqual(
             {comment, <<"*"/utf8, 192>>},
             Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, comments])
+        )}
+    ].
+
+
+custom_incomplete_handler_test_() ->
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    [
+        {"custom incomplete handler", ?_assertError(
+            badarg,
+            Decode(<<>>, [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
         )}
     ].
 
