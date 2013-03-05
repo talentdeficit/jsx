@@ -301,6 +301,20 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
     relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
 
+- `incomplete_handler` & `error_handler`
+
+    the default incomplete and error handlers can be replaced with user defined handlers. if options include `{error_handler, F}` and/or `{incomplete_handler, F}` where `F` is a function of arity 3 they will be called instead of the default handler. the spec for `F` is as follows
+    ```erlang
+    F(Remaining, InternalState, Config) -> any()
+    
+      Remaining = binary() | term()
+      InternalState = any()
+      Config = tuple()
+    ```
+    `Remaining` is the binary fragment or term that caused the error
+    `InternalState` is an opaque structure containing the internal state of the parser/decoder/encoder
+    `Config` is a list of options/flags in use by the parser/decoder/encoder 
+
 
 ## exports ##
 

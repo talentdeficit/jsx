@@ -2,6 +2,7 @@ v1.4
 
 * radically refactored decoder
 * `dirty_strings` now behaves intuitively in decoding. bad codepoints, bad utf8, illegal characters and escapes (except `"` and `'` if `single_quoted_strings` is enabled) are ignored completely
+* `incomplete_handler` & `error_handler` are now available for use, see documentation in README
 
 v1.3.3
 
