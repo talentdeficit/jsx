@@ -28,6 +28,10 @@
 -export([json_escape_sequence/1]).
 -export([clean_string/2]).
 
+-ifdef(TEST).
+-export([fake_error_handler/6]).
+-endif.
+
 -include("jsx_config.hrl").
 
 
@@ -67,6 +71,11 @@ parse_config([{pre_encode, Encoder}|Rest] = Options, Config) when is_function(En
         false -> parse_config(Rest, Config#config{pre_encode=Encoder})
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
+parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 6) ->
+    case Config#config.error_handler of
+        false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
+        ; _ -> erlang:error(badarg, [Options, Config])
+    end;
 %% deprecated flags
 parse_config([{pre_encoder, Encoder}|Rest] = Options, Config) when is_function(Encoder, 1) ->
     case Config#config.pre_encode of
@@ -102,6 +111,7 @@ valid_flags() ->
         explicit_end,
         relax,
         pre_encode,
+        error_handler,
         %% deprecated flags
         pre_encoder,            %% pre_encode
         loose_unicode,          %% replaced_bad_utf8
@@ -610,8 +620,22 @@ config_test_() ->
                 {pre_encode, fun(_) -> false end}
             ])
         )},
+        {"error_handler flag", ?_assertEqual(
+            #config{error_handler=fun ?MODULE:fake_error_handler/6},
+            parse_config([{error_handler, fun ?MODULE:fake_error_handler/6}])
+        )},
+        {"two error_handlers defined", ?_assertError(
+            badarg,
+            parse_config([
+                {error_handler, fun(_) -> true end},
+                {error_handler, fun(_) -> false end}
+            ])
+        )},
         {"bad option flag", ?_assertError(badarg, parse_config([error]))}
     ].
+    
+
+fake_error_handler(_, _, _, _, _, _) -> ok.
 
 
 %% erlang refuses to encode certain codepoints, so fake them

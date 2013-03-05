@@ -99,11 +99,14 @@ decoder(Handler, State, Config) ->
 
 %% error, incomplete and event macros
 -ifndef(error).
--define(error(_State, _Bin, _Handler, _Stack, _Config),
-    erlang:error(badarg)
+-define(error(State, Bin, Handler, Acc, Stack, Config),
+    case Config#config.error_handler of
+        false -> erlang:error(badarg);
+        F -> F(State, Bin, Handler, Acc, Stack, Config)
+    end
 ).
--define(error(_State, _Bin, _Handler, _Acc, _Stack, _Config),
-    erlang:error(badarg)
+-define(error(State, Bin, Handler, Stack, Config),
+    ?error(State, Bin, Handler, null, Stack, Config)
 ).
 -endif.
 
@@ -149,7 +152,7 @@ acc_seq(Seq, C) -> [C] ++ Seq.
 
 end_seq(Seq) -> unicode:characters_to_binary(lists:reverse(Seq)).
 
-end_seq(Seq, Config=#config{dirty_strings=true}) -> list_to_binary(lists:reverse(Seq));
+end_seq(Seq, #config{dirty_strings=true}) -> list_to_binary(lists:reverse(Seq));
 end_seq(Seq, _) -> end_seq(Seq).
 
 
@@ -173,7 +176,7 @@ maybe_bom(<<16#bb, Rest/binary>>, Handler, Stack, Config) ->
 maybe_bom(<<>>, Handler, Stack, Config) ->
     ?incomplete(start, <<16#ef>>, Handler, Stack, Config);
 maybe_bom(Bin, Handler, Stack, Config) ->
-    ?error(start, <<16#ef>>, Handler, Stack, Config).
+    ?error(start, <<16#ef, Bin/binary>>, Handler, Stack, Config).
 
 
 definitely_bom(<<16#bf, Rest/binary>>, Handler, Stack, Config) ->
@@ -181,7 +184,7 @@ definitely_bom(<<16#bf, Rest/binary>>, Handler, Stack, Config) ->
 definitely_bom(<<>>, Handler, Stack, Config) ->
     ?incomplete(start, <<16#ef, 16#bb>>, Handler, Stack, Config);
 definitely_bom(Bin, Handler, Stack, Config) ->
-    ?error(start, <<16#ef, 16#bb>>, Handler, Stack, Config).
+    ?error(start, <<16#ef, 16#bb, Bin/binary>>, Handler, Stack, Config).
 
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
@@ -544,7 +547,7 @@ string(<<X, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} 
         when X >= 240, X =< 247 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 3);
 %% incompletes and unexpected bytes, including orphan continuations
-string(<<C, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
+string(<<_, Rest/binary>>, Handler, Acc, Stack, #config{replaced_bad_utf8=true} = Config) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 string(Bin, Handler, Acc, Stack, Config) ->
     case partial_utf(Bin) of
@@ -733,8 +736,8 @@ decimal(Bin, Handler, Acc, Stack, Config) ->
 
 e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, acc_seq(Acc, S), Stack, Config);
-e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?positive; S =:= ?negative ->
-    ex(Rest, Handler, acc_seq(Acc, S), Stack, Config);
+e(<<Sign, Rest/binary>>, Handler, Acc, Stack, Config) when Sign =:= ?positive; Sign =:= ?negative ->
+    ex(Rest, Handler, acc_seq(Acc, Sign), Stack, Config);
 e(<<>>, Handler, [$e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e>>, Handler, Acc, Stack, Config);
 e(Bin, Handler, Acc, Stack, Config) ->
@@ -745,8 +748,8 @@ ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzer
     exp(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 ex(<<>>, Handler, [S, $e|Acc], Stack, Config) ->
     ?incomplete(decimal, <<$e, S/utf8>>, Handler, Acc, Stack, Config);
-ex(Bin, Handler, Acc, Stack, Config) ->
-    ?error(decimal, <<$e, Bin/binary>>, Handler, Acc, Stack, Config).
+ex(Bin, Handler, [S, $e|Acc], Stack, Config) ->
+    ?error(decimal, <<$e, S, Bin/binary>>, Handler, Acc, Stack, Config).
 
 
 exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -777,10 +780,12 @@ finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
     end;
 finish_number(Bin, Handler, {NumType, Acc}, Stack, Config) ->
     case NumType of
-        zero -> ?error(zero, <<>>, Handler, Acc, Stack, Config);
-        integer -> ?error(integer, <<>>, Handler, Acc, Stack, Config);
-        decimal -> ?error(decimal, <<>>, Handler, Acc, Stack, Config);
-        exp -> ?error(exp, <<>>, Handler, Acc, Stack, Config)
+        integer -> ?error(integer, Bin, Handler, Acc, Stack, Config);
+        decimal -> ?error(decimal, Bin, Handler, Acc, Stack, Config);
+        exp -> ?error(exp, Bin, Handler, Acc, Stack, Config);
+        zero ->
+            [$0|OldAcc] = Acc,
+            ?error(value, <<$0, Bin/binary>>, Handler, OldAcc, Stack, Config)
     end.
 
 
@@ -1956,6 +1961,101 @@ error_test_() ->
         {"multi_comment error", ?_assertError(
             badarg,
             Decode(<<"[ /*"/utf8, 192>>, [comments])
+        )}
+    ].
+
+
+custom_error_handler_test_() ->
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    Error = fun(State, Rest, _Handler, _Acc, _Stack, _Config) -> {State, Rest} end,
+    [
+        {"maybe_bom error", ?_assertEqual(
+            {start, <<16#ef, 0>>},
+            Decode(<<16#ef, 0>>, [{error_handler, Error}])
+        )},
+        {"definitely_bom error", ?_assertEqual(
+            {start, <<16#ef, 16#bb, 0>>},
+            Decode(<<16#ef, 16#bb, 0>>, [{error_handler, Error}])
+        )},
+        {"value error", ?_assertEqual(
+            {value, <<0>>},
+            Decode(<<0>>, [{error_handler, Error}])
+        )},
+        {"object error", ?_assertEqual(
+            {object, <<0>>},
+            Decode(<<"{"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"colon error", ?_assertEqual(
+            {colon, <<0>>},
+            Decode(<<"{\"\""/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"key error", ?_assertEqual(
+            {key, <<0>>},
+            Decode(<<"{\"\":1,"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"negative error", ?_assertEqual(
+            {value, <<"-"/utf8, 0>>},
+            Decode(<<"-"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"zero error", ?_assertEqual(
+            {value, <<"0"/utf8, 0>>},
+            Decode(<<"0"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+        )},
+        {"integer error", ?_assertEqual(
+            {integer, <<0>>},
+            Decode(<<"1"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+        )},
+        {"decimal error", ?_assertEqual(
+            {decimal, <<0>>},
+            Decode(<<"1.0"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+        )},
+        {"exp error", ?_assertEqual(
+            {exp, <<0>>},
+            Decode(<<"1.0e1"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+        )},
+        {"e error", ?_assertEqual(
+            {decimal, <<$e, 0>>},
+            Decode(<<"1e"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"ex error", ?_assertEqual(
+            {decimal, <<$e, ?positive, 0>>},
+            Decode(<<"1e+"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"exp error", ?_assertEqual(
+            {decimal, <<$e>>},
+            Decode(<<"1.e"/utf8>>, [{error_handler, Error}])
+        )},
+        {"true error", ?_assertEqual(
+            {true, <<"ru"/utf8, 0>>},
+            Decode(<<"tru"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"false error", ?_assertEqual(
+            {false, <<"als"/utf8, 0>>},
+            Decode(<<"fals"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"null error", ?_assertEqual(
+            {null, <<"ul"/utf8, 0>>},
+            Decode(<<"nul"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"maybe_done error", ?_assertEqual(
+            {maybe_done, <<0>>},
+            Decode(<<"[[]"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"done error", ?_assertEqual(
+            {done, <<0>>},
+            Decode(<<"[]"/utf8, 0>>, [{error_handler, Error}])
+        )},
+        {"comment error", ?_assertEqual(
+            {comment, <<" ]"/utf8>>},
+            Decode(<<"[ / ]">>, [{error_handler, Error}, comments])
+        )},
+        {"single_comment error", ?_assertEqual(
+            {comment, <<"/"/utf8, 192>>},
+            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, comments])
+        )},
+        {"multi_comment error", ?_assertEqual(
+            {comment, <<"*"/utf8, 192>>},
+            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, comments])
         )}
     ].
 

@@ -8,5 +8,6 @@
     dirty_strings = false,
     ignored_bad_escapes = false,
     explicit_end = false,
-    pre_encode = false
+    pre_encode = false,
+    error_handler = false
 }).
