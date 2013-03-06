@@ -158,7 +158,7 @@ array(Token, Handler, Stack, Config) ->
     array([Token], Handler, Stack, Config).
 
 maybe_done([end_json], Handler, [], Config) ->
-    done([], Handler, [], Config);
+    done([end_json], Handler, [], Config);
 maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
     object(Tokens, Handler, Stack, Config);
 maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
@@ -170,6 +170,8 @@ maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 maybe_done(Token, Handler, Stack, Config) ->
     maybe_done([Token], Handler, Stack, Config).
 
+done([], Handler, [], Config=#config{explicit_end=true}) ->
+    ?incomplete(done, Handler, [], Config);
 done(Tokens, Handler, [], Config) when Tokens == [end_json]; Tokens == [] ->
     {_, State} = handle_event(end_json, Handler, Config),
     State;
@@ -194,27 +196,48 @@ clean_string(Bin, Tokens, Handler, Stack, Config) ->
 -include_lib("eunit/include/eunit.hrl").
 
 
-decode_test_() ->
+
+parse(Events, Config) ->
+    Chunk = try
+        value(Events ++ [end_json], {jsx, []}, [], jsx_utils:parse_config(Config))
+    catch
+        error:badarg -> {error, badarg}
+    end,
+    Incremental = try
+        Final = lists:foldl(
+            fun(Event, Parser) -> {incomplete, F} = Parser(Event), F end,
+            parser(jsx, [], [explicit_end] ++ Config),
+            lists:map(fun(X) -> [X] end, Events)
+        ),
+        Final(end_stream)
+    catch
+        error:badarg -> {error, badarg}
+    end,
+    ?assert(Chunk == Incremental),
+    Chunk.
+
+
+parse_test_() ->
     Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(
                 Events ++ [end_json],
-                value(Events ++ [end_json], {jsx, []}, [], #config{})
+                parse(Events, [])
             )
         } || {Title, _, _, Events} <- Data
     ].
 
 
-parse(Terms, Config) -> value(Terms, {jsx, []}, [], jsx_utils:parse_config(Config)).
+parse_error(Events, Config) -> value(Events, {jsx, []}, [], jsx_utils:parse_config(Config)).
 
 
 error_test_() ->
     [
-        {"value error", ?_assertError(badarg, parse([self()], []))},
-        {"maybe_done error", ?_assertError(badarg, parse([start_array, end_array, start_array, end_json], []))},
-        {"done error", ?_assertError(badarg, parse([{string, <<"">>}, {literal, true}, end_json], []))},
-        {"string error", ?_assertError(badarg, parse([{string, <<239, 191, 191>>}, end_json], []))}
+        {"value error", ?_assertError(badarg, parse_error([self()], []))},
+        {"maybe_done error", ?_assertError(badarg, parse_error([start_array, end_array, start_array, end_json], []))},
+        {"done error", ?_assertError(badarg, parse_error([{string, <<"">>}, {literal, true}, end_json], []))},
+        {"string error", ?_assertError(badarg, parse_error([{string, <<239, 191, 191>>}, end_json], []))}
     ].
 
 
@@ -223,19 +246,19 @@ custom_error_handler_test_() ->
     [
         {"value error", ?_assertEqual(
             {value, [self()]},
-            parse([self()], [{error_handler, Error}])
+            parse_error([self()], [{error_handler, Error}])
         )},
         {"maybe_done error", ?_assertEqual(
             {maybe_done, [start_array, end_json]},
-            parse([start_array, end_array, start_array, end_json], [{error_handler, Error}])
+            parse_error([start_array, end_array, start_array, end_json], [{error_handler, Error}])
         )},
         {"done error", ?_assertEqual(
             {done, [{literal, true}, end_json]},
-            parse([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
+            parse_error([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
             {string, [{string, <<239, 191, 191>>}, end_json]},
-            parse([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}])
+            parse_error([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}])
         )}
     ].
 
@@ -244,7 +267,7 @@ custom_incomplete_handler_test_() ->
     [
         {"custom incomplete handler", ?_assertError(
             badarg,
-            parse([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
+            parse_error([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
         )}
     ].
 
