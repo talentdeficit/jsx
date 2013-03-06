@@ -27,6 +27,7 @@
 -compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1, end_seq/2]}).
 -compile({inline, [handle_event/3]}).
 -compile({inline, [format_number/1]}).
+-compile({inline, [maybe_replace/2]}).
 
 -export([decoder/3]).
 
