@@ -308,8 +308,8 @@ jsx functions all take a common set of options. not all flags have meaning in al
     F(Remaining, InternalState, Config) -> any()
     
       Remaining = binary() | term()
-      InternalState = any()
-      Config = tuple()
+      InternalState = opaque()
+      Config = list()
     ```
     `Remaining` is the binary fragment or term that caused the error
     
