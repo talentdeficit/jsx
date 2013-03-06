@@ -613,6 +613,10 @@ strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
 
 %% this all gets really gross and should probably eventually be folded into
 %%  but for now it fakes being part of string on incompletes and errors
+unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, ?doublequote), Stack, Config);
+unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true, single_quoted_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
 unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -625,14 +629,14 @@ unescape(<<$r, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\r, Config)), Stack, Config);
 unescape(<<$t, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\t, Config)), Stack, Config);
-unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, maybe_replace($\\, Config)), Stack, Config);
-unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, maybe_replace($/, Config)), Stack, Config);
 unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\", Config)), Stack, Config);
 unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{single_quoted_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace(?singlequote, Config)), Stack, Config);
+unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, maybe_replace($\\, Config)), Stack, Config);
+unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, maybe_replace($/, Config)), Stack, Config);
 unescape(<<$u, $d, A, B, C, ?rsolidus, $u, $d, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              (X == $c orelse X == $d orelse X == $e orelse X == $f),
@@ -1346,16 +1350,18 @@ clean_string_test_() ->
                     <<"\\uwxyz">>,
                     <<"\\x23">>,
                     <<0>>,
+                    <<0, ?doublequote, 0>>,
                     <<237, 160, 128>>,
                     <<244, 143, 191, 191>>
                 ]
             ),
             lists:map(
-                fun(JSON) ->decode(JSON, [dirty_strings]) end,
+                fun(JSON) -> decode(JSON, [dirty_strings]) end,
                 [
                     <<34, "\\uwxyz", 34>>,
                     <<34, "\\x23", 34>>,
                     <<34, 0, 34>>,
+                    <<34, 0, ?rsolidus, ?doublequote, 0, 34>>,
                     <<34, 237, 160, 128, 34>>,
                     <<34, 244, 143, 191, 191, 34>>
                 ]
@@ -2069,7 +2075,6 @@ custom_incomplete_handler_test_() ->
             Decode(<<>>, [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
         )}
     ].
-
 
 
 -endif.
