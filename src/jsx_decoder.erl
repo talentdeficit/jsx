@@ -23,7 +23,7 @@
 
 -module(jsx_decoder).
 
-%% inline sequence accumulation, handle_event and format_number
+%% inline sequence accumulation, handle_event, format_number and maybe_replace
 -compile({inline, [new_seq/0, new_seq/1, acc_seq/2, end_seq/1, end_seq/2]}).
 -compile({inline, [handle_event/3]}).
 -compile({inline, [format_number/1]}).
@@ -36,6 +36,38 @@
 
 decoder(Handler, State, Config) ->
     fun(JSON) -> start(JSON, {Handler, Handler:init(State)}, [], jsx_utils:parse_config(Config)) end.
+
+
+%% resume allows continuation from interrupted decoding without having to explicitly export
+%%  all states
+-spec resume(
+        Rest::binary(),
+        State::atom(),
+        Handler::{atom(), any()},
+        Acc::any(),
+        Stack::list(atom()),
+        Config::jsx:config()
+    ) -> jsx:decoder().
+
+resume(Rest, State, Handler, Acc, Stack, Config) ->
+    case State of
+        start -> start(Rest, Handler, Stack, Config);
+        value -> value(Rest, Handler, Stack, Config);
+        object -> object(Rest, Handler, Stack, Config);
+        array -> array(Rest, Handler, Stack, Config);
+        colon -> colon(Rest, Handler, Stack, Config);
+        key -> key(Rest, Handler, Stack, Config);
+        string -> string(Rest, Handler, Acc, Stack, Config);
+        integer -> integer(Rest, Handler, Acc, Stack, Config);
+        decimal -> decimal(Rest, Handler, Acc, Stack, Config);
+        exp -> exp(Rest, Handler, Acc, Stack, Config);
+        true -> true(Rest, Handler, Stack, Config);
+        false -> false(Rest, Handler, Stack, Config);
+        null -> null(Rest, Handler, Stack, Config);
+        comment -> comment(Rest, Handler, Acc, Stack, Config);
+        maybe_done -> maybe_done(Rest, Handler, Stack, Config);
+        done -> done(Rest, Handler, Stack, Config)
+    end.
 
 
 -include("jsx_config.hrl").
@@ -122,27 +154,7 @@ incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=F
     F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_utils:config_to_list(Config)).
 
 
-resume(Rest, State, Handler, Acc, Stack, Config) ->
-    case State of
-        start -> start(Rest, Handler, Stack, Config);
-        value -> value(Rest, Handler, Stack, Config);
-        object -> object(Rest, Handler, Stack, Config);
-        array -> array(Rest, Handler, Stack, Config);
-        colon -> colon(Rest, Handler, Stack, Config);
-        key -> key(Rest, Handler, Stack, Config);
-        string -> string(Rest, Handler, Acc, Stack, Config);
-        integer -> integer(Rest, Handler, Acc, Stack, Config);
-        decimal -> decimal(Rest, Handler, Acc, Stack, Config);
-        exp -> exp(Rest, Handler, Acc, Stack, Config);
-        true -> true(Rest, Handler, Stack, Config);
-        false -> false(Rest, Handler, Stack, Config);
-        null -> null(Rest, Handler, Stack, Config);
-        comment -> comment(Rest, Handler, Acc, Stack, Config);
-        maybe_done -> maybe_done(Rest, Handler, Stack, Config);
-        done -> done(Rest, Handler, Stack, Config)
-    end.
-
-
+%% lists are benchmarked to be faster (tho higher in memory usage) than binaries
 new_seq() -> [].
 new_seq(C) -> [C].
 
@@ -278,8 +290,10 @@ key(Bin, Handler, Stack, Config) ->
     ?error(key, Bin, Handler, Stack, Config).
 
 
-%% explicitly whitelist ascii set for better efficiency (seriously, it's worth
-%%  almost a 20% increase)
+%% explicitly whitelist ascii set for faster parsing. really? really. someone should
+%%  submit a patch that unrolls simple guards
+%% note that if you encounter an error from string and you can't find the clause that
+%%  caused it here, it might be in unescape below
 string(<<32, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 32), Stack, Config);
 string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -534,12 +548,13 @@ string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000
 string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 160 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-%% u+fffe and u+ffff for R14BXX
-string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
-        when X == 190; X == 191 ->
-    string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% u+xfffe, u+xffff, control codes and other noncharacters
 string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
+    string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
+%% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match the
+%%  preceeding clause
+string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+        when X == 190; X == 191 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
 string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
@@ -562,10 +577,6 @@ string(Bin, Handler, Acc, Stack, Config) ->
         false -> ?error(string, Bin, Handler, Acc, Stack, Config)
     end.
 
-
-%% string appends it's output to the term at the top of the stack. for
-%%   efficiency the strings are build in reverse order and reversed before
-%%   being added to the output stream
 %% when parsing strings, the naive detection of partial codepoints is
 %%   insufficient. this incredibly anal function should detect all badly formed
 %%   utf sequences
@@ -579,28 +590,29 @@ is_partial_utf(<<X, Y, Z>>)
     true;
 is_partial_utf(_) -> false.
 
-
 %% strips continuation bytes after bad utf bytes, guards against both too short
 %%  and overlong sequences. N is the maximum number of bytes to strip
-%% if end of input is reached before stripping the max number of continuations
-%%  possible magic numbers are reinserted into the stream that get us back to
-%%  the same state without complicated machinery
 strip_continuations(Rest, Handler, Acc, Stack, Config, 0) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 strip_continuations(<<X, Rest/binary>>, Handler, Acc, Stack, Config, N) when X >= 128, X =< 191 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, N - 1);
-%% incomplete
+%% if end of input is reached before stripping the max number of continuations
+%%  possible magic numbers are reinserted into the stream that get us back to
+%%  the same state without complicated machinery
 strip_continuations(<<>>, Handler, Acc, Stack, Config, N) ->
     case N of
         1 -> incomplete(string, <<192>>, Handler, Acc, Stack, Config);
         2 -> incomplete(string, <<224>>, Handler, Acc, Stack, Config);
         3 -> incomplete(string, <<240>>, Handler, Acc, Stack, Config)
     end;
-%% not a continuation byte, dispatch back to string
+%% not a continuation byte, insert a replacement character for sequence thus
+%%  far and dispatch back to string
 strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config).
 
 
+%% this all gets really gross and should probably eventually be folded into
+%%  but for now it fakes being part of string on incompletes and errors
 unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -696,8 +708,9 @@ maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
 maybe_replace(X, _Config) -> [X].
 
 
-%% like strings, numbers are collected in an intermediate accumulator before
-%%   being emitted to the callback handler
+%% like in strings, there's some pseudo states in here that will never
+%%  show up in errors or incompletes. some show up in value, some show
+%%  up in integer, decimal or exp
 negative(<<$0, Rest/binary>>, Handler, Acc, Stack, Config) ->
     zero(Rest, Handler, acc_seq(Acc, $0), Stack, Config);
 negative(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_nonzero(S) ->
@@ -732,6 +745,7 @@ integer(Bin, Handler, Acc, Stack, Config) ->
 
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
+%% guard against the insidious `1.e1` error
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     case Acc of
         [?decimalpoint|_] -> ?error(decimal, <<S, Rest/binary>>, Handler, Acc, Stack, Config);
@@ -798,7 +812,6 @@ finish_number(Bin, Handler, {NumType, Acc}, Stack, Config) ->
             [$0|OldAcc] = Acc,
             ?error(value, <<$0, Bin/binary>>, Handler, OldAcc, Stack, Config)
     end.
-
 
 format_number({zero, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
 format_number({integer, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
