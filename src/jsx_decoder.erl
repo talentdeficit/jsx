@@ -539,7 +539,7 @@ string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8
 string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 string(Bin, Handler, Acc, Stack, Config) ->
-    case partial_utf(Bin) of
+    case is_partial_utf(Bin) of
         true -> ?incomplete(string, Bin, Handler, Acc, Stack, Config);
         false -> ?error(string, Bin, Handler, Acc, Stack, Config)
     end.
@@ -551,15 +551,15 @@ string(Bin, Handler, Acc, Stack, Config) ->
 %% when parsing strings, the naive detection of partial codepoints is
 %%   insufficient. this incredibly anal function should detect all badly formed
 %%   utf sequences
-partial_utf(<<>>) -> true;
-partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
-partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
-partial_utf(<<X, Y, Z>>)
+is_partial_utf(<<>>) -> true;
+is_partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
+is_partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
+is_partial_utf(<<X, Y, Z>>)
         when X >= 16#f0, X =< 16#f4,
             Y >= 16#80, Y =< 16#bf,
             Z >= 16#80, Z =< 16#bf ->
     true;
-partial_utf(_) -> false.
+is_partial_utf(_) -> false.
 
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
