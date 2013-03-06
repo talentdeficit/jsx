@@ -198,15 +198,17 @@ fix_key(Key) when is_binary(Key) -> Key.
 
 
 clean_string(Bin, Tokens, Handler, Stack, Config) ->
-    try jsx_utils:clean_string(Bin, Config)
-    catch error:badarg -> ?error(string, [{string, Bin}|Tokens], Handler, Stack, Config)
+    case clean_string(Bin, Config) of
+        {error, badarg} -> ?error(string, [{string, Bin}|Tokens], Handler, Stack, Config);
+        String -> String
     end.
 
+
+-include("jsx_strings.hrl").
 
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-
 
 
 parse(Events, Config) ->

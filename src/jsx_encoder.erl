@@ -133,11 +133,14 @@ fix_key(Key) when is_binary(Key) -> Key.
 
 
 clean_string(Bin, Handler, Config) ->
-    try jsx_utils:clean_string(Bin, Config)
-    catch error:badarg -> ?error(string, Bin, Handler, Config)
+    case clean_string(Bin, Config) of
+        {error, badarg} -> ?error(string, Bin, Handler, Config);
+        String -> String
     end.
 
 
+
+-include("jsx_strings.hrl").
 
 
 -ifdef(TEST).
