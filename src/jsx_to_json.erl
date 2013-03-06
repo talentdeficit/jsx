@@ -39,13 +39,13 @@
 -spec to_json(Source::any(), Config::config()) -> binary().
 
 to_json(Source, Config) when is_list(Config) ->
-    (jsx:encoder(?MODULE, Config, jsx_utils:extract_config(Config ++ [escaped_strings])))(Source).
+    (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source).
 
 
 -spec format(Source::binary(), Config::config()) -> binary().
 
 format(Source, Config) when is_binary(Source) andalso is_list(Config) ->
-    (jsx:decoder(?MODULE, Config, jsx_utils:extract_config(Config ++ [escaped_strings])))(Source).
+    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source).
 
 
 parse_config(Config) -> parse_config(Config, #config{}).
@@ -59,12 +59,12 @@ parse_config([{indent, Val}|Rest], Config) when is_integer(Val), Val > 0 ->
 parse_config([indent|Rest], Config) ->
     parse_config(Rest, Config#config{indent = 1});
 parse_config([{K, _}|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
         ; false -> erlang:error(badarg, [Options, Config])
     end;
 parse_config([K|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
         ; false -> erlang:error(badarg, [Options, Config])
     end;

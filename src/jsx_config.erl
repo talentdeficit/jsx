@@ -21,12 +21,11 @@
 %% THE SOFTWARE.
 
 
--module(jsx_utils).
+-module(jsx_config).
 
 -export([parse_config/1]).
 -export([config_to_list/1]).
 -export([extract_config/1, valid_flags/0]).
--export([json_escape_sequence/1]).
 
 -ifdef(TEST).
 -export([fake_error_handler/3]).
@@ -159,33 +158,9 @@ extract_parser_config([K|Rest], Acc) ->
     end.
 
 
-%% convert a codepoint to it's \uXXXX equiv.
-json_escape_sequence(X) ->
-    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
-
-
-to_hex(10) -> $a;
-to_hex(11) -> $b;
-to_hex(12) -> $c;
-to_hex(13) -> $d;
-to_hex(14) -> $e;
-to_hex(15) -> $f;
-to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
-
-
-
 %% eunit tests
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-
-
-json_escape_sequence_test_() ->
-    [
-        {"json escape sequence test - 16#0000", ?_assertEqual(json_escape_sequence(16#0000), "\\u0000")},
-        {"json escape sequence test - 16#abc", ?_assertEqual(json_escape_sequence(16#abc), "\\u0abc")},
-        {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
-    ].
 
 
 config_test_() ->

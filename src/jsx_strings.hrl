@@ -381,7 +381,7 @@ maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 
         false -> lists:reverse(json_escape_sequence(X))
     end;
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    lists:reverse(jsx_utils:json_escape_sequence(X));
+    lists:reverse(json_escape_sequence(X));
 maybe_replace(noncharacter, #config{replaced_bad_utf8=true}) -> [16#fffd];
 maybe_replace(surrogate, #config{replaced_bad_utf8=true}) -> [16#fffd];
 maybe_replace(badutf, #config{replaced_bad_utf8=true}) -> [16#fffd];

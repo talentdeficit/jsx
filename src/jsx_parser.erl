@@ -29,7 +29,7 @@
 -spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
 
 parser(Handler, State, Config) ->
-    fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_utils:parse_config(Config)) end.
+    fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.
 
 
 %% resume allows continuation from interrupted decoding without having to explicitly export
@@ -60,7 +60,7 @@ resume(Rest, State, Handler, Stack, Config) ->
 -define(error(State, Terms, Handler, Stack, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> F(Terms, {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config))
+        F -> F(Terms, {parser, State, Handler, Stack}, jsx_config:config_to_list(Config))
     end
 
 ).
@@ -78,7 +78,7 @@ incomplete(State, Handler, Stack, Config=#config{incomplete_handler=false}) ->
             end
     };
 incomplete(State, Handler, Stack, Config=#config{incomplete_handler=F}) ->
-    F([], {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config)).
+    F([], {parser, State, Handler, Stack}, jsx_config:config_to_list(Config)).
 
 
 handle_event([], Handler, _Config) -> Handler;
@@ -213,7 +213,7 @@ clean_string(Bin, Tokens, Handler, Stack, Config) ->
 
 parse(Events, Config) ->
     Chunk = try
-        value(Events ++ [end_json], {jsx, []}, [], jsx_utils:parse_config(Config))
+        value(Events ++ [end_json], {jsx, []}, [], jsx_config:parse_config(Config))
     catch
         error:badarg -> {error, badarg}
     end,
@@ -243,7 +243,7 @@ parse_test_() ->
     ].
 
 
-parse_error(Events, Config) -> value(Events, {jsx, []}, [], jsx_utils:parse_config(Config)).
+parse_error(Events, Config) -> value(Events, {jsx, []}, [], jsx_config:parse_config(Config)).
 
 
 error_test_() ->

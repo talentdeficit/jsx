@@ -9,7 +9,7 @@
         jsx_parser,
         jsx_to_json,
         jsx_to_term,
-        jsx_utils,
+        jsx_config,
         jsx_verify
     ]},
     {registered, []},

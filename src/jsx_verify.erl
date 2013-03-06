@@ -37,7 +37,7 @@
 -spec is_json(Source::binary(), Config::config()) -> true | false.
 
 is_json(Source, Config) when is_list(Config) ->
-    try (jsx:decoder(?MODULE, Config, jsx_utils:extract_config(Config)))(Source)
+    try (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)
     catch error:badarg -> false
     end.
 
@@ -45,7 +45,7 @@ is_json(Source, Config) when is_list(Config) ->
 -spec is_term(Source::any(), Config::config()) -> true | false.
 
 is_term(Source, Config) when is_list(Config) ->
-    try (jsx:encoder(?MODULE, Config, jsx_utils:extract_config(Config)))(Source)
+    try (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)
     catch error:badarg -> false
     end.
 
@@ -60,12 +60,12 @@ parse_config([{repeated_keys, Val}|Rest], Config) when Val == true; Val == false
 parse_config([repeated_keys|Rest], Config) ->
     parse_config(Rest, Config#config{repeated_keys=true});
 parse_config([{K, _}|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config);
         false -> erlang:error(badarg, [Options, Config])
     end;
 parse_config([K|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config);
         false -> erlang:error(badarg, [Options, Config])
     end;

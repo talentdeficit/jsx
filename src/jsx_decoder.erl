@@ -35,7 +35,7 @@
 -spec decoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:decoder().
 
 decoder(Handler, State, Config) ->
-    fun(JSON) -> start(JSON, {Handler, Handler:init(State)}, [], jsx_utils:parse_config(Config)) end.
+    fun(JSON) -> start(JSON, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.
 
 
 %% resume allows continuation from interrupted decoding without having to explicitly export
@@ -128,7 +128,7 @@ resume(Rest, State, Handler, Acc, Stack, Config) ->
 -define(error(State, Bin, Handler, Acc, Stack, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> F(Bin, {decoder, State, Handler, Acc, Stack}, jsx_utils:config_to_list(Config))
+        F -> F(Bin, {decoder, State, Handler, Acc, Stack}, jsx_config:config_to_list(Config))
     end
 ).
 -define(error(State, Bin, Handler, Stack, Config),
@@ -151,7 +151,7 @@ incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=f
         end
     };
 incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=F}) ->
-    F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_utils:config_to_list(Config)).
+    F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_config:config_to_list(Config)).
 
 
 %% lists are benchmarked to be faster (tho higher in memory usage) than binaries
@@ -701,11 +701,26 @@ maybe_replace($\\, #config{escaped_strings=true}) -> [$\\, $\\];
 maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
         true -> [X]
-        ; false -> jsx_utils:json_escape_sequence(X)
+        ; false -> json_escape_sequence(X)
     end;
-maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    jsx_utils:json_escape_sequence(X);
+maybe_replace(X, #config{escaped_strings=true}) when X < 32 -> json_escape_sequence(X);
 maybe_replace(X, _Config) -> [X].
+
+
+%% convert a codepoint to it's \uXXXX equiv.
+json_escape_sequence(X) ->
+    <<A:4, B:4, C:4, D:4>> = <<X:16>>,
+    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
+
+
+%% ascii "1" is [49], "2" is [50], etc...
+to_hex(10) -> $a;
+to_hex(11) -> $b;
+to_hex(12) -> $c;
+to_hex(13) -> $d;
+to_hex(14) -> $e;
+to_hex(15) -> $f;
+to_hex(X) -> X + 48.
 
 
 %% like in strings, there's some pseudo states in here that will never
@@ -934,7 +949,7 @@ json_to_bytes(<<X, Rest/binary>>, Acc) -> json_to_bytes(Rest, [<<X>>] ++ Acc).
 
 decode(JSON, Config) ->
     Chunk = try
-        start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config))
+        start(JSON, {jsx, []}, [], jsx_config:parse_config(Config))
     catch
         error:badarg -> {error, badarg}
     end,
@@ -1858,7 +1873,7 @@ bom_test_() ->
 
 
 error_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
     [
         {"maybe_bom error", ?_assertError(
             badarg,
@@ -1952,7 +1967,7 @@ error_test_() ->
 
 
 custom_error_handler_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
     Error = fun(Rest, {_, State, _, _, _}, _) -> {State, Rest} end,
     [
         {"maybe_bom error", ?_assertEqual(
@@ -2047,7 +2062,7 @@ custom_error_handler_test_() ->
 
 
 custom_incomplete_handler_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_utils:parse_config(Config)) end,
+    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
     [
         {"custom incomplete handler", ?_assertError(
             badarg,

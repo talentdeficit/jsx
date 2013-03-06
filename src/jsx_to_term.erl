@@ -47,7 +47,7 @@
 -spec to_term(Source::binary(), Config::config()) -> json_value().
 
 to_term(Source, Config) when is_list(Config) ->
-    (jsx:decoder(?MODULE, Config, jsx_utils:extract_config(Config)))(Source).
+    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source).
 
 
 parse_config(Config) -> parse_config(Config, #config{}).
@@ -60,12 +60,12 @@ parse_config([labels|Rest], Config) ->
 parse_config([{post_decode, F}|Rest], Config=#config{post_decode=false}) when is_function(F, 1) ->
     parse_config(Rest, Config#config{post_decode=F});
 parse_config([{K, _}|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
         ; false -> erlang:error(badarg, [Options, Config])
     end;
 parse_config([K|Rest] = Options, Config) ->
-    case lists:member(K, jsx_utils:valid_flags()) of
+    case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
         ; false -> erlang:error(badarg, [Options, Config])
     end;

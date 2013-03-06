@@ -160,6 +160,6 @@ parser(Handler, State, Config) -> jsx_parser:parser(Handler, State, Config).
 -spec resume(Term::json_text() | token(), InternalState::internal_state(), Config::list()) -> any().
 
 resume(Term, {decoder, State, Handler, Acc, Stack}, Config) ->
-    jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_utils:parse_config(Config));
+    jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_config:parse_config(Config));
 resume(Term, {parser, State, Handler, Stack}, Config) ->
-    jsx_parser:resume(Term, State, Handler, Stack, jsx_utils:parse_config(Config)).
+    jsx_parser:resume(Term, State, Handler, Stack, jsx_config:parse_config(Config)).

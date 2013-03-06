@@ -32,7 +32,7 @@ encoder(Handler, State, Config) ->
         start(
             JSON,
             {Handler, Handler:init(State)},
-            jsx_utils:parse_config(Config)
+            jsx_config:parse_config(Config)
         )
     end.
 
@@ -45,7 +45,7 @@ encoder(Handler, State, Config) ->
 -define(error(State, Term, Handler, Config),
     case Config#config.error_handler of
         false -> erlang:error(badarg);
-        F -> erlang:throw(F(Term, {encoder, State, Handler}, jsx_utils:config_to_list(Config)))
+        F -> erlang:throw(F(Term, {encoder, State, Handler}, jsx_config:config_to_list(Config)))
     end
 ).
 -endif.
@@ -159,7 +159,7 @@ encode_test_() ->
     ].
 
 
-encode(Term, Config) -> start(Term, {jsx, []}, jsx_utils:parse_config(Config)).
+encode(Term, Config) -> start(Term, {jsx, []}, jsx_config:parse_config(Config)).
 
 pre_encoders_test_() ->
     Term = [
