@@ -913,11 +913,7 @@ done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
 done(<<?solidus, Rest/binary>>, Handler, [], Config=#config{comments=true}) ->
     comment(Rest, Handler, [done], Config);
 done(<<>>, {Handler, State}, [], Config=#config{explicit_end=true}) ->
-    {incomplete, fun(Stream) when is_binary(Stream) ->
-                done(<<Stream/binary>>, {Handler, State}, [], Config)
-            ; (end_stream) -> State
-        end
-    };
+    incomplete(done, <<>>, {Handler, State}, [], Config);
 done(<<>>, {_Handler, State}, [], _Config) -> State;
 done(Bin, Handler, Stack, Config) -> ?error(done, Bin, Handler, Stack, Config).
 
