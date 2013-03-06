@@ -31,8 +31,11 @@
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
+-export([resume/3]).
 
--export_type([json_term/0, json_text/0]).
+-export_type([json_term/0, json_text/0, token/0]).
+-export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
+
 
 -ifdef(TEST).
 -include("jsx_tests.hrl").
@@ -151,3 +154,10 @@ encoder(Handler, State, Config) -> jsx_encoder:encoder(Handler, State, Config).
 -spec parser(Handler::module(), State::any(), Config::list()) -> parser().
 
 parser(Handler, State, Config) -> jsx_parser:parser(Handler, State, Config).
+
+-opaque internal_state() :: tuple().
+
+-spec resume(Term::json_text(), InternalState::internal_state(), Config::list()) -> any().
+
+resume(Term, {decoder, State, Handler, Acc, Stack}, Config) ->
+    jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_utils:parse_config(Config)).
