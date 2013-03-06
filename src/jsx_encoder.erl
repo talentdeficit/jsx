@@ -286,7 +286,7 @@ pre_encoders_test_() ->
 error_test_() ->
     [
         {"value error", ?_assertError(badarg, encode(self(), []))},
-        {"string error", ?_assertError(badarg, encode(<<16#ffff/utf8>>, []))}
+        {"string error", ?_assertError(badarg, encode(<<239, 191, 191>>, []))}
     ].
 
 custom_error_handler_test_() ->
@@ -297,8 +297,8 @@ custom_error_handler_test_() ->
             encode(self(), [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
-            {string, <<16#ffff/utf8>>},
-            encode(<<16#ffff/utf8>>, [{error_handler, Error}])
+            {string, <<239, 191, 191>>},
+            encode(<<239, 191, 191>>, [{error_handler, Error}])
         )}
     ].
 
