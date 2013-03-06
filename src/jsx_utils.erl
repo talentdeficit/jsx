@@ -313,7 +313,7 @@ ensure_clean(<<124, Rest/binary>>) -> ensure_clean(Rest);
 ensure_clean(<<125, Rest/binary>>) -> ensure_clean(Rest);
 ensure_clean(<<126, Rest/binary>>) -> ensure_clean(Rest);
 ensure_clean(<<127, Rest/binary>>) -> ensure_clean(Rest);
-ensure_clean(<<X/utf8, Rest/binary>>) when X < 16#dcff -> ensure_clean(Rest);
+ensure_clean(<<X/utf8, Rest/binary>>) when X < 16#d800 -> ensure_clean(Rest);
 ensure_clean(<<X/utf8, Rest/binary>>) when X > 16#dfff, X < 16#fdd0 -> ensure_clean(Rest);
 ensure_clean(<<X/utf8, Rest/binary>>) when X > 16#fdef, X < 16#fffe -> ensure_clean(Rest);
 ensure_clean(<<X/utf8, Rest/binary>>) when X >= 16#10000, X < 16#1fffe -> ensure_clean(Rest);
@@ -467,7 +467,7 @@ clean(<<126, Rest/binary>>, Acc, Config) -> clean(Rest, [126] ++ Acc, Config);
 clean(<<127, Rest/binary>>, Acc, Config) -> clean(Rest, [127] ++ Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
     clean(Rest, maybe_replace(X, Config) ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#dcff ->
+clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#d800 ->
     clean(Rest, [X] ++ Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X > 16#dfff, X < 16#fdd0 ->
     clean(Rest, [X] ++ Acc, Config);
