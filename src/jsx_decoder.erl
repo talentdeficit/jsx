@@ -29,7 +29,7 @@
 -compile({inline, [format_number/1]}).
 -compile({inline, [maybe_replace/2]}).
 
--export([decoder/3]).
+-export([decoder/3, resume/6]).
 
 
 -spec decoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:decoder().
@@ -110,9 +110,10 @@ decoder(Handler, State, Config) ->
     case Config#config.incomplete_handler of
         false ->
             {incomplete, fun(Stream) when is_binary(Stream) ->
-                        State(<<Rest/binary, Stream/binary>>, Handler, Acc, Stack, Config)
+                        resume(<<Rest/binary, Stream/binary>>, State, Handler, Acc, Stack, Config)
                     ; (end_stream) ->
-                        case State(<<Rest/binary, <<" ">>/binary>>,
+                        case resume(<<Rest/binary, <<" ">>/binary>>,
+                                State,
                                 Handler,
                                 Acc,
                                 Stack,
@@ -129,10 +130,12 @@ decoder(Handler, State, Config) ->
     case Config#config.incomplete_handler of
         false ->
             {incomplete, fun(Stream) when is_binary(Stream) ->
-                        State(<<Rest/binary, Stream/binary>>, Handler, Stack, Config)
+                        resume(<<Rest/binary, Stream/binary>>, State, Handler, unused, Stack, Config)
                     ; (end_stream) ->
-                        case State(<<Rest/binary, <<" ">>/binary>>,
+                        case resume(<<Rest/binary, <<" ">>/binary>>,
+                                State,
                                 Handler,
+                                unused,
                                 Stack,
                                 Config#config{explicit_end=false}) of
                             {incomplete, _} -> ?error(State, Rest, Handler, Stack, Config)
@@ -140,10 +143,31 @@ decoder(Handler, State, Config) ->
                         end
                 end
             };
-        F -> F(Rest, {decoder, State, Handler, null, Stack}, jsx_utils:config_to_list(Config))
+        F -> F(Rest, {decoder, State, Handler, unused, Stack}, jsx_utils:config_to_list(Config))
     end
 ).
 -endif.
+
+
+resume(Rest, State, Handler, Acc, Stack, Config) ->
+    case State of
+        start -> start(Rest, Handler, Stack, Config);
+        value -> value(Rest, Handler, Stack, Config);
+        object -> object(Rest, Handler, Stack, Config);
+        array -> array(Rest, Handler, Stack, Config);
+        colon -> colon(Rest, Handler, Stack, Config);
+        key -> key(Rest, Handler, Stack, Config);
+        string -> string(Rest, Handler, Acc, Stack, Config);
+        integer -> integer(Rest, Handler, Acc, Stack, Config);
+        decimal -> decimal(Rest, Handler, Acc, Stack, Config);
+        exp -> exp(Rest, Handler, Acc, Stack, Config);
+        true -> true(Rest, Handler, Stack, Config);
+        false -> false(Rest, Handler, Stack, Config);
+        null -> null(Rest, Handler, Stack, Config);
+        comment -> comment(Rest, Handler, Acc, Stack, Config);
+        maybe_done -> maybe_done(Rest, Handler, Stack, Config);
+        done -> done(Rest, Handler, Stack, Config)
+    end.
 
 
 new_seq() -> [].
