@@ -27,11 +27,11 @@
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
 -export([format/1, format/2, minify/1, prettify/1]).
 -export([encoder/3, decoder/3, parser/3]).
+-export([resume/3]).
 %% old api
 -export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
 -export([to_json/1, to_json/2]).
 -export([to_term/1, to_term/2]).
--export([resume/3]).
 
 -export_type([json_term/0, json_text/0, token/0]).
 -export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
@@ -157,7 +157,9 @@ parser(Handler, State, Config) -> jsx_parser:parser(Handler, State, Config).
 
 -opaque internal_state() :: tuple().
 
--spec resume(Term::json_text(), InternalState::internal_state(), Config::list()) -> any().
+-spec resume(Term::json_text() | token(), InternalState::internal_state(), Config::list()) -> any().
 
 resume(Term, {decoder, State, Handler, Acc, Stack}, Config) ->
-    jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_utils:parse_config(Config)).
+    jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_utils:parse_config(Config));
+resume(Term, {parser, State, Handler, Stack}, Config) ->
+    jsx_parser:resume(Term, State, Handler, Stack, jsx_utils:parse_config(Config)).

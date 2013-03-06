@@ -23,13 +23,33 @@
 
 -module(jsx_parser).
 
--export([parser/3]).
+-export([parser/3, resume/5]).
 
 
 -spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
 
 parser(Handler, State, Config) ->
     fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_utils:parse_config(Config)) end.
+
+
+%% resume allows continuation from interrupted decoding without having to explicitly export
+%%  all states
+-spec resume(
+        Rest::binary(),
+        State::atom(),
+        Handler::{atom(), any()},
+        Stack::list(atom()),
+        Config::jsx:config()
+    ) -> jsx:parser().
+
+resume(Rest, State, Handler, Stack, Config) ->
+    case State of
+        value -> value(Rest, Handler, Stack, Config);
+        object -> object(Rest, Handler, Stack, Config);
+        array -> array(Rest, Handler, Stack, Config);
+        maybe_done -> maybe_done(Rest, Handler, Stack, Config);
+        done -> done(Rest, Handler, Stack, Config)
+    end.
 
 
 -include("jsx_config.hrl").
@@ -47,26 +67,18 @@ parser(Handler, State, Config) ->
 -endif.
 
 
--ifndef(incomplete).
--define(incomplete(State, Handler, Stack, Config),
-    case Config#config.incomplete_handler of
-        false ->
-            {incomplete, fun(end_stream) ->
-                        case State([end_json],
-                                Handler,
-                                Stack,
-                                Config) of
-                            {incomplete, _} -> ?error(State, [], Handler, Stack, Config)
-                            ; Events -> Events
-                        end
-                    ; (Tokens) ->
-                        State(Tokens, Handler, Stack, Config)
-                end
-            };
-        F -> F([], {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config))
-    end
-).
--endif.
+incomplete(State, Handler, Stack, Config=#config{incomplete_handler=false}) ->
+    {incomplete, fun(end_stream) ->
+                case resume([end_json], State, Handler, Stack, Config) of
+                    {incomplete, _} -> ?error(State, [], Handler, Stack, Config);
+                    Else -> Else
+                end;
+            (Tokens) ->
+                resume(Tokens, State, Handler, Stack, Config)
+            end
+    };
+incomplete(State, Handler, Stack, Config=#config{incomplete_handler=F}) ->
+    F([], {parser, State, Handler, Stack}, jsx_utils:config_to_list(Config)).
 
 
 handle_event([], Handler, _Config) -> Handler;
@@ -123,7 +135,7 @@ value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) 
 value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     value([{string, String}] ++ Tokens, Handler, Stack, Config);
 value([], Handler, Stack, Config) ->
-    ?incomplete(value, Handler, Stack, Config);
+    incomplete(value, Handler, Stack, Config);
 value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
     ?error(value, BadTokens, Handler, Stack, Config);
 value(Token, Handler, Stack, Config) ->
@@ -144,14 +156,14 @@ object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) -
         Error -> Error
     end;
 object([], Handler, Stack, Config) ->
-    ?incomplete(object, Handler, Stack, Config);
+    incomplete(object, Handler, Stack, Config);
 object(Token, Handler, Stack, Config) ->
     object([Token], Handler, Stack, Config).
 
 array([end_array|Tokens], Handler, [array|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_array, Handler, Config), Stack, Config);
 array([], Handler, Stack, Config) ->
-    ?incomplete(array, Handler, Stack, Config);
+    incomplete(array, Handler, Stack, Config);
 array(Tokens, Handler, Stack, Config) when is_list(Tokens) ->
     value(Tokens, Handler, Stack, Config);
 array(Token, Handler, Stack, Config) ->
@@ -164,14 +176,14 @@ maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
 maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
     array(Tokens, Handler, Stack, Config);
 maybe_done([], Handler, Stack, Config) ->
-    ?incomplete(maybe_done, Handler, Stack, Config);
+    incomplete(maybe_done, Handler, Stack, Config);
 maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
     ?error(maybe_done, BadTokens, Handler, Stack, Config);
 maybe_done(Token, Handler, Stack, Config) ->
     maybe_done([Token], Handler, Stack, Config).
 
 done([], Handler, [], Config=#config{explicit_end=true}) ->
-    ?incomplete(done, Handler, [], Config);
+    incomplete(done, Handler, [], Config);
 done(Tokens, Handler, [], Config) when Tokens == [end_json]; Tokens == [] ->
     {_, State} = handle_event(end_json, Handler, Config),
     State;
