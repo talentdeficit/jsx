@@ -196,8 +196,12 @@ value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
     array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     value(Rest, Handler, Stack, Config);
-value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [value|Stack], Config);
+value(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, value, [comment|Stack], Config);
+value(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, value, [multicomment|Stack], Config);
+value(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(value, <<?solidus>>, Handler, Stack, Config);
 value(<<>>, Handler, Stack, Config) ->
     incomplete(value, <<>>, Handler, Stack, Config);
 value(Bin, Handler, Stack, Config) ->
@@ -212,8 +216,12 @@ object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
 object(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     object(Rest, Handler, Stack, Config);
-object(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [object|Stack], Config);
+object(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, object, [comment|Stack], Config);
+object(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, object, [multicomment|Stack], Config);
+object(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(object, <<?solidus>>, Handler, Stack, Config);
 object(<<>>, Handler, Stack, Config) ->
     incomplete(object, <<>>, Handler, Stack, Config);
 object(Bin, Handler, Stack, Config) ->
@@ -224,8 +232,12 @@ array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Config) ->
     maybe_done(Rest, handle_event(end_array, Handler, Config), Stack, Config);
 array(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     array(Rest, Handler, Stack, Config);
-array(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [array|Stack], Config);
+array(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, array, [comment|Stack], Config);
+array(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, array, [multicomment|Stack], Config);
+array(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(array, <<?solidus>>, Handler, Stack, Config);
 array(<<>>, Handler, Stack, Config) ->
     incomplete(array, <<>>, Handler, Stack, Config);
 array(Bin, Handler, Stack, Config) ->
@@ -236,8 +248,12 @@ colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Config) ->
     value(Rest, Handler, [object|Stack], Config);
 colon(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     colon(Rest, Handler, Stack, Config);
-colon(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [colon|Stack], Config);
+colon(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, colon, [comment|Stack], Config);
+colon(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, colon, [multicomment|Stack], Config);
+colon(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(colon, <<?solidus>>, Handler, Stack, Config);
 colon(<<>>, Handler, Stack, Config) ->
     incomplete(colon, <<>>, Handler, Stack, Config);
 colon(Bin, Handler, Stack, Config) ->
@@ -250,8 +266,12 @@ key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_
     string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
-key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [key|Stack], Config);
+key(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, key, [comment|Stack], Config);
+key(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, key, [multicomment|Stack], Config);
+key(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(key, <<?solidus>>, Handler, Stack, Config);
 key(<<>>, Handler, Stack, Config) ->
     incomplete(key, <<>>, Handler, Stack, Config);
 key(Bin, Handler, Stack, Config) ->
@@ -757,8 +777,12 @@ finish_number(<<?comma, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
     value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
 finish_number(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-finish_number(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{comments=true}) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), [maybe_done|Stack], Config);
+finish_number(<<?solidus, ?solidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Config), maybe_done, [comment|Stack], Config);
+finish_number(<<?solidus, ?star, Rest/binary>>, Handler, Acc, Stack, Config=#config{comments=true}) ->
+    comment(Rest, handle_event(format_number(Acc), Handler, Config), maybe_done, [multicomment|Stack], Config);
+finish_number(<<?solidus>>, Handler, Acc, Stack, Config=#config{comments=true}) ->
+    incomplete(maybe_done, <<?solidus>>, handle_event(format_number(Acc), Handler, Config), Stack, Config);
 finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
     case NumType of
         integer -> incomplete(integer, <<>>, Handler, Acc, Stack, Config);
@@ -820,72 +844,30 @@ null(Bin, Handler, Stack, Config) ->
     ?error(null, Bin, Handler, Stack, Config).
 
 
-%% this just exists to bridge to when i can properly clean up comments
-comment(Bin, Handler, Resume, Stack, Config) ->
-    comment(Bin, Handler, [Resume|Stack], Config).
-
-comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
-    single_comment(Rest, Handler, Stack, Config);
-comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
-    multi_comment(Rest, Handler, Stack, Config);
-%% nested /**/ comments
-comment(<<_/utf8, Rest/binary>>, Handler, [comment|Stack], Config) ->
-    multi_comment(Rest, Handler, Stack, Config);
-comment(<<_, Rest/binary>>, Handler, [comment|Stack], Config=#config{replaced_bad_utf8=true}) ->
-    multi_comment(Rest, Handler, Stack, Config);
-comment(<<>>, Handler, [Resume|Stack], Config) ->
-    incomplete(comment, <<>>, Handler, Resume, Stack, Config);
-comment(Bin, Handler, Stack, Config) ->
-    ?error(comment, Bin, Handler, Stack, Config).
-
-
-single_comment(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
-    end_comment(Rest, Handler, Stack, Config);
-single_comment(<<_/utf8, Rest/binary>>, Handler, Stack, Config) ->
-    single_comment(Rest, Handler, Stack, Config);
-single_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_utf8=true}) ->
-    single_comment(Rest, Handler, Stack, Config);
-single_comment(<<>>, Handler, [done], Config=#config{explicit_end=false}) ->
-    end_comment(<<>>, Handler, [done], Config);
-single_comment(<<>>, Handler, [Resume|Stack], Config) ->
+comment(<<?newline, Rest/binary>>, Handler, Resume, [comment|Stack], Config) ->
+    resume(Rest, Resume, Handler, unused, Stack, Config);
+comment(<<?solidus, ?star, Rest/binary>>, Handler, Resume, Stack, Config) ->
+    comment(Rest, Handler, Resume, [multicomment|Stack], Config);
+comment(<<?solidus>>, Handler, Resume, [multicomment|_] = Stack, Config) ->
     incomplete(comment, <<?solidus>>, Handler, Resume, Stack, Config);
-single_comment(Bin, Handler, Stack, Config) ->
-    ?error(comment, <<?solidus, Bin/binary>>, Handler, Stack, Config).
-
-
-multi_comment(<<?star, Rest/binary>>, Handler, Stack, Config) ->
-    end_multi_comment(Rest, Handler, Stack, Config);
-multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
-    comment(Rest, Handler, [comment|Stack], Config);
-multi_comment(<<_S/utf8, Rest/binary>>, Handler, Stack, Config) ->
-    multi_comment(Rest, Handler, Stack, Config);
-multi_comment(<<_, Rest/binary>>, Handler, Stack, Config=#config{replaced_bad_utf8=true}) ->
-    multi_comment(Rest, Handler, Stack, Config);
-multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
+comment(<<?star, ?solidus, Rest/binary>>, Handler, Resume, [multicomment|Stack], Config) ->
+    case Stack of
+        [multicomment|_] -> comment(Rest, Handler, Resume, Stack, Config);
+        _ -> resume(Rest, Resume, Handler, unused, Stack, Config)
+    end;
+comment(<<?star>>, Handler, Resume, [multicomment|_] = Stack, Config) ->
     incomplete(comment, <<?star>>, Handler, Resume, Stack, Config);
-multi_comment(Bin, Handler, Stack, Config) ->
-    ?error(comment, <<?star, Bin/binary>>, Handler, Stack, Config).
-
-
-end_multi_comment(<<?solidus, Rest/binary>>, Handler, Stack, Config) ->
-    end_comment(Rest, Handler, Stack, Config);
-end_multi_comment(<<>>, Handler, [Resume|Stack], Config) ->
-    incomplete(comment, <<?star, ?star>>, Handler, Resume, Stack, Config);
-end_multi_comment(Bin, Handler, Stack, Config) ->
-    multi_comment(Bin, Handler, Stack, Config).
-
-
-end_comment(Rest, Handler, [Resume|Stack], Config) ->
-    case Resume of
-        value -> value(Rest, Handler, Stack, Config)
-        ; object -> object(Rest, Handler, Stack, Config)
-        ; array -> array(Rest, Handler, Stack, Config)
-        ; colon -> colon(Rest, Handler, Stack, Config)
-        ; key -> key(Rest, Handler, Stack, Config)
-        ; maybe_done -> maybe_done(Rest, Handler, Stack, Config)
-        ; done -> done(Rest, Handler, Stack, Config)
-        ; comment -> multi_comment(Rest, Handler, Stack, Config)
-    end.
+comment(<<_/utf8, Rest/binary>>, Handler, Resume, Stack, Config) ->
+    comment(Rest, Handler, Resume, Stack, Config);
+comment(<<_, Rest/binary>>, Handler, Resume, Stack, Config=#config{replaced_bad_utf8=true}) ->
+    comment(Rest, Handler, Resume, Stack, Config);
+comment(<<>>, Handler, done, [Comment], Config=#config{explicit_end=false})
+        when Comment == comment; Comment == multicomment ->
+    resume(<<>>, done, Handler, unused, [], Config);
+comment(<<>>, Handler, Resume, Stack, Config) ->
+    incomplete(comment, <<>>, Handler, Resume, Stack, Config);
+comment(Bin, Handler, Resume, Stack, Config) ->
+    ?error(comment, Bin, Handler, Resume, Stack, Config).
 
 
 maybe_done(Rest, Handler, [], Config) ->
@@ -900,8 +882,12 @@ maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 maybe_done(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     maybe_done(Rest, Handler, Stack, Config);
-maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
-    comment(Rest, Handler, [maybe_done|Stack], Config);
+maybe_done(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, maybe_done, [comment|Stack], Config);
+maybe_done(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, maybe_done, [multicomment|Stack], Config);
+maybe_done(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(maybe_done, <<?solidus>>, Handler, Stack, Config);
 maybe_done(<<>>, Handler, Stack, Config) when length(Stack) > 0 ->
     incomplete(maybe_done, <<>>, Handler, Stack, Config);
 maybe_done(Bin, Handler, Stack, Config) ->
@@ -910,8 +896,12 @@ maybe_done(Bin, Handler, Stack, Config) ->
 
 done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
     done(Rest, Handler, [], Config);
-done(<<?solidus, Rest/binary>>, Handler, [], Config=#config{comments=true}) ->
-    comment(Rest, Handler, [done], Config);
+done(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, done, [comment|Stack], Config);
+done(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
+    comment(Rest, Handler, done, [multicomment|Stack], Config);
+done(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
+    incomplete(done, <<?solidus>>, Handler, Stack, Config);
 done(<<>>, {Handler, State}, [], Config=#config{explicit_end=true}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 done(<<Stream/binary>>, {Handler, State}, [], Config)
@@ -2033,15 +2023,15 @@ custom_error_handler_test_() ->
             Decode(<<"[]"/utf8, 0>>, [{error_handler, Error}])
         )},
         {"comment error", ?_assertEqual(
-            {comment, <<" ]"/utf8>>},
+            {value, <<"/ ]"/utf8>>},
             Decode(<<"[ / ]">>, [{error_handler, Error}, comments])
         )},
         {"single_comment error", ?_assertEqual(
-            {comment, <<"/"/utf8, 192>>},
+            {comment, <<192>>},
             Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, comments])
         )},
         {"multi_comment error", ?_assertEqual(
-            {comment, <<"*"/utf8, 192>>},
+            {comment, <<192>>},
             Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, comments])
         )}
     ].
