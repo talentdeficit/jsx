@@ -428,8 +428,6 @@ string(<<90, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 90), Stack, Config);
 string(<<91, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 91), Stack, Config);
-string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    unescape(Rest, Handler, Acc, Stack, Config);
 string(<<93, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 93), Stack, Config);
 string(<<94, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -500,8 +498,18 @@ string(<<126, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 126), Stack, Config);
 string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
+string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, [?rsolidus, ?doublequote]), Stack, Config);
+string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, ?doublequote), Stack, Config);
+string(<<?rsolidus, ?singlequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
+string(<<?rsolidus>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    incomplete(string, <<?rsolidus>>, Handler, Acc, Stack, Config);
 string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
+string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    unescape(Rest, Handler, Acc, Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
@@ -613,12 +621,6 @@ strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
 
 %% this all gets really gross and should probably eventually be folded into
 %%  but for now it fakes being part of string on incompletes and errors
-unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, ?doublequote), Stack, Config);
-unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true, single_quoted_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
-unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\b, Config)), Stack, Config);
 unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -1343,29 +1345,33 @@ clean_string_test_() ->
             lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
             lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
         )},
-        {"dirty strings", ?_assertEqual(
-            lists:map(
-                fun(Result) -> [{string, Result}, end_json] end,
-                [
-                    <<"\\uwxyz">>,
-                    <<"\\x23">>,
-                    <<0>>,
-                    <<0, ?doublequote, 0>>,
-                    <<237, 160, 128>>,
-                    <<244, 143, 191, 191>>
-                ]
-            ),
-            lists:map(
-                fun(JSON) -> decode(JSON, [dirty_strings]) end,
-                [
-                    <<34, "\\uwxyz", 34>>,
-                    <<34, "\\x23", 34>>,
-                    <<34, 0, 34>>,
-                    <<34, 0, ?rsolidus, ?doublequote, 0, 34>>,
-                    <<34, 237, 160, 128, 34>>,
-                    <<34, 244, 143, 191, 191, 34>>
-                ]
-            )
+        {"dirty \\uwxyz", ?_assertEqual(
+            [{string, <<"\\uwxyz">>}, end_json],
+            decode(<<34, "\\uwxyz", 34>>, [dirty_strings])
+        )},
+        {"dirty \\x23", ?_assertEqual(
+            [{string, <<"\\x23">>}, end_json],
+            decode(<<34, "\\x23", 34>>, [dirty_strings])
+        )},
+        {"dirty 0", ?_assertEqual(
+            [{string, <<0>>}, end_json],
+            decode(<<34, 0, 34>>, [dirty_strings])
+        )},
+        {"dirty 0\"0", ?_assertEqual(
+            [{string, <<0, ?doublequote, 0>>}, end_json],
+            decode(<<34, 0, ?rsolidus, ?doublequote, 0, 34>>, [dirty_strings])
+        )},
+        {"dirty 0\"0", ?_assertEqual(
+            [{string, <<0, ?rsolidus, ?doublequote, 0>>}, end_json],
+            decode(<<34, 0, ?rsolidus, ?rsolidus, ?doublequote, 0, 34>>, [dirty_strings])
+        )},
+        {"dirty 16#d800", ?_assertEqual(
+            [{string, <<237, 160, 128>>}, end_json],
+            decode(<<34, 237, 160, 128, 34>>, [dirty_strings])
+        )},
+        {"dirty 16#10ffff", ?_assertEqual(
+            [{string, <<244, 143, 191, 191>>}, end_json],
+            decode(<<34, 244, 143, 191, 191, 34>>, [dirty_strings])
         )}
     ].
 
