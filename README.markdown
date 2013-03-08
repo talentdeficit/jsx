@@ -328,7 +328,7 @@ all three functions return an anonymous function that takes the appropriate type
 
 `Args` is any term that will be passed to `Module:init/1` prior to syntactic analysis to produce an initial state
 
-`Opts` are detailed [here](#option) 
+`Opts` are detailed [here](#option)
 
 check out [callback module documentation](#callback_exports) for details of the callback module interface
 
@@ -375,7 +375,7 @@ encode(Term, Opts) -> JSON
     N = pos_integer()
 ```
 
-`encode` parses a json text (a `utf8` encoded binary) and produces an erlang term
+`encode` converts an erlang term into json text (a `utf8` encoded binary)
 
 the option `{space, N}` inserts `N` spaces after every comma and colon in your json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 
