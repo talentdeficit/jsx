@@ -28,6 +28,7 @@
 -compile({inline, [handle_event/3]}).
 -compile({inline, [format_number/1]}).
 -compile({inline, [maybe_replace/2]}).
+-compile({inline, [doublequote/5, singlequote/5]}).
 
 -export([decoder/3, resume/6]).
 
@@ -298,8 +299,6 @@ string(<<32, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 32), Stack, Config);
 string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 33), Stack, Config);
-string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    doublequote(Rest, Handler, Acc, Stack, Config);
 string(<<35, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 35), Stack, Config);
 string(<<36, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -308,8 +307,6 @@ string(<<37, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 37), Stack, Config);
 string(<<38, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 38), Stack, Config);
-string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    singlequote(Rest, Handler, Acc, Stack, Config);
 string(<<40, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 40), Stack, Config);
 string(<<41, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -482,6 +479,10 @@ string(<<126, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 126), Stack, Config);
 string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
+string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    doublequote(Rest, Handler, Acc, Stack, Config);
+string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    singlequote(Rest, Handler, Acc, Stack, Config);
 string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, [?rsolidus, ?doublequote]), Stack, Config);
 string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
