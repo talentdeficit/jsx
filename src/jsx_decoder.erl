@@ -488,6 +488,8 @@ string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
 string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace(?solidus, Config)), Stack, Config);
+string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
@@ -530,8 +532,6 @@ string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#f0000,
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000, X < 16#10fffe ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 %% surrogates
 string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 160 ->
@@ -1387,6 +1387,10 @@ clean_string_test_() ->
         {"dirty /", ?_assertEqual(
             [{string, <<$/>>}, end_json],
             decode(<<34, $/, 34>>, [dirty_strings, escaped_forward_slashes])
+        )},
+        {"dirty <<194, 129>>", ?_assertEqual(
+            [{string, <<194, 129>>}, end_json],
+            decode(<<34, 194, 129, 34>>, [dirty_strings])
         )}
     ].
 
