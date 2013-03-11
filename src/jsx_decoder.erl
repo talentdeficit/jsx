@@ -594,7 +594,7 @@ is_partial_utf(_) -> false.
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
 %%  and overlong sequences. N is the maximum number of bytes to strip
-strip_continuations(Rest, Handler, Acc, Stack, Config, 0) ->
+strip_continuations(<<Rest/binary>>, Handler, Acc, Stack, Config, 0) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 strip_continuations(<<X, Rest/binary>>, Handler, Acc, Stack, Config, N) when X >= 128, X =< 191 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, N - 1);
@@ -609,7 +609,7 @@ strip_continuations(<<>>, Handler, Acc, Stack, Config, N) ->
     end;
 %% not a continuation byte, insert a replacement character for sequence thus
 %%  far and dispatch back to string
-strip_continuations(Rest, Handler, Acc, Stack, Config, _) ->
+strip_continuations(<<Rest/binary>>, Handler, Acc, Stack, Config, _) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config).
 
 
@@ -758,7 +758,7 @@ integer(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {integer, Acc}, Stack, Config).
 
 
-decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S=:= ?zero; ?is_nonzero(S) ->
+decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 %% guard against the insidious `1.e1` error
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
@@ -898,7 +898,7 @@ comment(Bin, Handler, Resume, Stack, Config) ->
     ?error(comment, Bin, Handler, Resume, Stack, Config).
 
 
-maybe_done(Rest, Handler, [], Config) ->
+maybe_done(<<Rest/binary>>, Handler, [], Config) ->
     done(Rest, handle_event(end_json, Handler, Config), [], Config);
 maybe_done(<<?end_object, Rest/binary>>, Handler, [object|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
