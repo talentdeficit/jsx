@@ -298,6 +298,8 @@ string(<<32, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 32), Stack, Config);
 string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 33), Stack, Config);
+string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    doublequote(Rest, Handler, Acc, Stack, Config);
 string(<<35, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 35), Stack, Config);
 string(<<36, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -306,6 +308,8 @@ string(<<37, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 37), Stack, Config);
 string(<<38, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 38), Stack, Config);
+string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    singlequote(Rest, Handler, Acc, Stack, Config);
 string(<<40, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 40), Stack, Config);
 string(<<41, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -478,12 +482,6 @@ string(<<126, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 126), Stack, Config);
 string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
-string(<<?doublequote, Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
-    colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
-string(<<?doublequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
-    string(Rest, Handler,acc_seq(Acc, maybe_replace(?doublequote, Config)), Stack, Config);
-string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
 string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, [?rsolidus, ?doublequote]), Stack, Config);
 string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
@@ -498,12 +496,6 @@ string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
 string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace(?solidus, Config)), Stack, Config);
-string(<<?singlequote, Rest/binary>>, Handler, Acc, [single_quote, key|Stack], Config) ->
-    colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|Stack], Config);
-string(<<?singlequote, Rest/binary>>, Handler, Acc, [single_quote|Stack], Config) ->
-    maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
-string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
@@ -578,6 +570,24 @@ string(Bin, Handler, Acc, Stack, Config) ->
         true -> incomplete(string, Bin, Handler, Acc, Stack, Config);
         false -> ?error(string, Bin, Handler, Acc, Stack, Config)
     end.
+
+
+doublequote(<<Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
+    colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
+doublequote(<<Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
+    string(Rest, Handler,acc_seq(Acc, maybe_replace(?doublequote, Config)), Stack, Config);
+doublequote(<<>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
+    incomplete(string, <<?doublequote>>, Handler, Acc, Stack, Config);
+doublequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
+    maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config).
+
+singlequote(<<Rest/binary>>, Handler, Acc, [single_quote, key|Stack], Config) ->
+    colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|Stack], Config);
+singlequote(<<Rest/binary>>, Handler, Acc, [single_quote|Stack], Config) ->
+    maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
+singlequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config).
+
 
 %% when parsing strings, the naive detection of partial codepoints is
 %%   insufficient. this incredibly anal function should detect all badly formed
