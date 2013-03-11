@@ -2,7 +2,7 @@
 
 an erlang application for consuming, producing and manipulating [json][json]. inspired by [yajl][yajl]
 
-copyright 2011-2013 alisdair sullivan
+copyright 2010-2013 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
