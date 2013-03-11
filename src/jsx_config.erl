@@ -65,11 +65,6 @@ parse_config([relax|Rest], Config) ->
         comments = true,
         ignored_bad_escapes = true
     });
-parse_config([{pre_encode, Encoder}|Rest] = Options, Config) when is_function(Encoder, 1) ->
-    case Config#config.pre_encode of
-        false -> parse_config(Rest, Config#config{pre_encode=Encoder})
-        ; _ -> erlang:error(badarg, [Options, Config])
-    end;
 parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 3) ->
     case Config#config.error_handler of
         false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
@@ -81,11 +76,6 @@ parse_config([{incomplete_handler, IncompleteHandler}|Rest] = Options, Config) w
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
 %% deprecated flags
-parse_config([{pre_encoder, Encoder}|Rest] = Options, Config) when is_function(Encoder, 1) ->
-    case Config#config.pre_encode of
-        false -> parse_config(Rest, Config#config{pre_encode=Encoder})
-        ; _ -> erlang:error(badarg, [Options, Config])
-    end;
 parse_config([loose_unicode|Rest], Config) ->
     parse_config(Rest, Config#config{replaced_bad_utf8=true});
 parse_config([escape_forward_slash|Rest], Config) ->
@@ -104,8 +94,7 @@ parse_config(Options, Config) ->
 
 config_to_list(Config) ->
     lists:map(
-        fun ({pre_encode, F}) -> {pre_encode, F};
-            ({error_handler, F}) -> {error_handler, F};
+        fun ({error_handler, F}) -> {error_handler, F};
             ({incomplete_handler, F}) -> {incomplete_handler, F};
             ({Key, true}) -> Key
         end,
@@ -128,11 +117,9 @@ valid_flags() ->
         ignored_bad_escapes,
         explicit_end,
         relax,
-        pre_encode,
         error_handler,
         incomplete_handler,
         %% deprecated flags
-        pre_encoder,            %% pre_encode
         loose_unicode,          %% replaced_bad_utf8
         escape_forward_slash,   %% escaped_forward_slashes
         single_quotes,          %% single_quoted_strings
@@ -202,7 +189,6 @@ config_test_() ->
         },
         {"deprecated flags", ?_assertEqual(
             #config{
-                pre_encode=fun lists:length/1,
                 replaced_bad_utf8=true,
                 escaped_forward_slashes=true,
                 single_quoted_strings=true,
@@ -211,24 +197,12 @@ config_test_() ->
                 ignored_bad_escapes=true
             },
             parse_config([
-                {pre_encoder, fun lists:length/1},
                 loose_unicode,
                 escape_forward_slash,
                 single_quotes,
                 no_jsonp_escapes,
                 json_escape,
                 ignore_bad_escapes
-            ])
-        )},
-        {"pre_encode flag", ?_assertEqual(
-            #config{pre_encode=fun lists:length/1},
-            parse_config([{pre_encode, fun lists:length/1}])
-        )},
-        {"two pre_encoders defined", ?_assertError(
-            badarg,
-            parse_config([
-                {pre_encode, fun(_) -> true end},
-                {pre_encode, fun(_) -> false end}
             ])
         )},
         {"error_handler flag", ?_assertEqual(
@@ -286,10 +260,6 @@ config_to_list_test_() ->
                     ignored_bad_escapes=true
                 }
             )
-        )},
-        {"pre_encode", ?_assertEqual(
-            [{pre_encode, fun lists:length/1}],
-            config_to_list(#config{pre_encode=fun lists:length/1})
         )},
         {"error handler", ?_assertEqual(
             [{error_handler, fun ?MODULE:fake_error_handler/3}],
