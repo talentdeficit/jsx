@@ -28,8 +28,7 @@
 
 
 -record(config, {
-    labels = binary,
-    post_decode = false
+    labels = binary
 }).
 
 -type config() :: list().
@@ -57,8 +56,6 @@ parse_config([{labels, Val}|Rest], Config)
     parse_config(Rest, Config#config{labels = Val});
 parse_config([labels|Rest], Config) ->
     parse_config(Rest, Config#config{labels = binary});
-parse_config([{post_decode, F}|Rest], Config=#config{post_decode=false}) when is_function(F, 1) ->
-    parse_config(Rest, Config#config{post_decode=F});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
@@ -80,26 +77,26 @@ handle_event(end_json, {[[Terms]], _Config}) -> Terms;
 
 handle_event(start_object, {Terms, Config}) -> {[[]|Terms], Config};
 handle_event(end_object, {[[], {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode([{}], Config)}] ++ Last] ++ Terms, Config};
+    {[[{Key, [{}]}] ++ Last] ++ Terms, Config};
 handle_event(end_object, {[Object, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(lists:reverse(Object), Config)}] ++ Last] ++ Terms, Config};
+    {[[{Key, lists:reverse(Object)}] ++ Last] ++ Terms, Config};
 handle_event(end_object, {[[], Last|Terms], Config}) ->
-    {[[post_decode([{}], Config)] ++ Last] ++ Terms, Config};
+    {[[[{}]] ++ Last] ++ Terms, Config};
 handle_event(end_object, {[Object, Last|Terms], Config}) ->
-    {[[post_decode(lists:reverse(Object), Config)] ++ Last] ++ Terms, Config};
+    {[[lists:reverse(Object)] ++ Last] ++ Terms, Config};
 
 handle_event(start_array, {Terms, Config}) -> {[[]|Terms], Config};
 handle_event(end_array, {[List, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(lists:reverse(List), Config)}] ++ Last] ++ Terms, Config};
+    {[[{Key, lists:reverse(List)}] ++ Last] ++ Terms, Config};
 handle_event(end_array, {[List, Last|Terms], Config}) ->
-    {[[post_decode(lists:reverse(List), Config)] ++ Last] ++ Terms, Config};
+    {[[lists:reverse(List)] ++ Last] ++ Terms, Config};
 
 handle_event({key, Key}, {Terms, Config}) -> {[{key, format_key(Key, Config)}] ++ Terms, Config};
 
 handle_event({_, Event}, {[{key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(Event, Config)}] ++ Last] ++ Terms, Config};
+    {[[{Key, Event}] ++ Last] ++ Terms, Config};
 handle_event({_, Event}, {[Last|Terms], Config}) ->
-    {[[post_decode(Event, Config)] ++ Last] ++ Terms, Config}.
+    {[[Event] ++ Last] ++ Terms, Config}.
 
 
 format_key(Key, Config) ->
@@ -116,9 +113,6 @@ format_key(Key, Config) ->
     end.
 
 
-post_decode(Value, #config{post_decode=false}) -> Value;
-post_decode(Value, Config) -> (Config#config.post_decode)(Value).
-
 
 %% eunit tests
 
@@ -127,9 +121,6 @@ post_decode(Value, Config) -> (Config#config.post_decode)(Value).
 
 
 config_test_() ->
-    %% for post_decode tests
-    F = fun(X) -> X end,
-    G = fun(X, Y) -> {X, Y} end,
     [
         {"empty config", ?_assertEqual(#config{}, parse_config([]))},
         {"implicit binary labels", ?_assertEqual(#config{}, parse_config([labels]))},
@@ -139,15 +130,6 @@ config_test_() ->
             #config{labels=existing_atom},
             parse_config([{labels, existing_atom}])
         )},
-        {"sloppy existing atom labels", ?_assertEqual(
-            #config{labels=attempt_atom},
-            parse_config([{labels, attempt_atom}])
-        )},
-        {"post decode", ?_assertEqual(
-            #config{post_decode=F},
-            parse_config([{post_decode, F}])
-        )},
-        {"post decode wrong arity", ?_assertError(badarg, parse_config([{post_decode, G}]))},
         {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
         {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
     ].
@@ -172,114 +154,6 @@ format_key_test_() ->
         {"nonexisting atom key", ?_assertEqual(
             <<"nonexistentatom">>,
             format_key(<<"nonexistentatom">>, #config{labels=attempt_atom})
-        )}
-    ].
-
-
-post_decoders_test_() ->
-    Events = [
-        [{}],
-        [{<<"key">>, <<"value">>}],
-        [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-        [],
-        [<<"string">>],
-        [true, false, null],
-        true,
-        false,
-        null,
-        <<"hello">>,
-        <<"world">>,
-        1,
-        1.0
-    ],
-    [
-        {"no post_decode", ?_assertEqual(
-            Events,
-            [ post_decode(Event, #config{}) || Event <- Events ]
-        )},
-        {"replace arrays with empty arrays", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [],
-                [],
-                true,
-                false,
-                null,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun([T|_] = V) when is_tuple(T) -> V; (V) when is_list(V) -> []; (V) -> V end
-                }) || Event <- Events
-            ]
-        )},
-        {"replace objects with empty objects", ?_assertEqual(
-            [
-                [{}],
-                [{}],
-                [{}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                true,
-                false,
-                null,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun([T|_]) when is_tuple(T) -> [{}]; (V) -> V end
-                }) || Event <- Events
-            ]
-        )},
-        {"replace all non-array/non-object values with false", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun(V) when is_list(V) -> V; (_) -> false end
-                }) || Event <- Events
-            ]
-        )},
-        {"atoms_to_strings", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                <<"true">>,
-                <<"false">>,
-                <<"null">>,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end
-                }) || Event <- Events
-            ]
         )}
     ].
 
