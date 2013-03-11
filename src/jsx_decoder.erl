@@ -190,7 +190,7 @@ start(Bin, Handler, Stack, Config) ->
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
 value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
-    string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
+    string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     true(Rest, Handler, Stack, Config);
 value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
@@ -224,7 +224,7 @@ value(Bin, Handler, Stack, Config) ->
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
 object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
-    string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
+    string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
 object(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
@@ -276,7 +276,7 @@ colon(Bin, Handler, Stack, Config) ->
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
 key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
-    string(Rest, Handler, new_seq(), [single_quote|Stack], Config);
+    string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
 key(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config=#config{comments=true}) ->
@@ -568,17 +568,17 @@ string(Bin, Handler, Acc, Stack, Config) ->
 
 doublequote(<<Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
     colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
-doublequote(<<Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
+doublequote(<<Rest/binary>>, Handler, Acc, [singlequote|_] = Stack, Config) ->
     string(Rest, Handler,acc_seq(Acc, maybe_replace(?doublequote, Config)), Stack, Config);
-doublequote(<<>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
+doublequote(<<>>, Handler, Acc, [singlequote|_] = Stack, Config) ->
     incomplete(string, <<?doublequote>>, Handler, Acc, Stack, Config);
 doublequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config).
 
 
-singlequote(<<Rest/binary>>, Handler, Acc, [single_quote, key|Stack], Config) ->
+singlequote(<<Rest/binary>>, Handler, Acc, [singlequote, key|Stack], Config) ->
     colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|Stack], Config);
-singlequote(<<Rest/binary>>, Handler, Acc, [single_quote|Stack], Config) ->
+singlequote(<<Rest/binary>>, Handler, Acc, [singlequote|Stack], Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
 singlequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config).
