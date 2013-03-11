@@ -762,21 +762,25 @@ zero(Bin, Handler, Acc, Stack, Config) ->
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
     integer(Rest, Handler, acc_seq(Acc, S), Stack, Config);
 integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
+    initialdecimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, acc_seq(Acc, ".0e"), Stack, Config);
 integer(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {integer, Acc}, Stack, Config).
 
 
+initialdecimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
+    decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
+initialdecimal(<<>>, Handler, [?decimalpoint|Acc], Stack, Config) ->
+    incomplete(integer, <<?decimalpoint>>, Handler, Acc, Stack, Config);
+initialdecimal(Bin, Handler, Acc, Stack, Config) ->
+    ?error(decimal, Bin, Handler, Acc, Stack, Config).
+
+
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
     decimal(Rest, Handler, acc_seq(Acc, S), Stack, Config);
-%% guard against the insidious `1.e1` error
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    case Acc of
-        [?decimalpoint|_] -> ?error(decimal, <<S, Rest/binary>>, Handler, Acc, Stack, Config);
-        _ -> e(Rest, Handler, acc_seq(Acc, $e), Stack, Config)
-    end;
+    e(Rest, Handler, acc_seq(Acc, $e), Stack, Config);
 decimal(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {decimal, Acc}, Stack, Config).
 
