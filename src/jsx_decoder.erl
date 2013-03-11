@@ -574,6 +574,7 @@ doublequote(<<>>, Handler, Acc, [single_quote|_] = Stack, Config) ->
 doublequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config).
 
+
 singlequote(<<Rest/binary>>, Handler, Acc, [single_quote, key|Stack], Config) ->
     colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|Stack], Config);
 singlequote(<<Rest/binary>>, Handler, Acc, [single_quote|Stack], Config) ->
@@ -594,6 +595,7 @@ is_partial_utf(<<X, Y, Z>>)
             Z >= 16#80, Z =< 16#bf ->
     true;
 is_partial_utf(_) -> false.
+
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
 %%  and overlong sequences. N is the maximum number of bytes to strip
