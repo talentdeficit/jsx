@@ -1381,6 +1381,10 @@ clean_string_test_() ->
         {"dirty 16#10ffff", ?_assertEqual(
             [{string, <<244, 143, 191, 191>>}, end_json],
             decode(<<34, 244, 143, 191, 191, 34>>, [dirty_strings])
+        )},
+        {"dirty /", ?_assertEqual(
+            [{string, <<$/>>}, end_json],
+            decode(<<34, $/, 34>>, [dirty_strings, escaped_forward_slashes])
         )}
     ].
 
