@@ -483,16 +483,6 @@ string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     doublequote(Rest, Handler, Acc, Stack, Config);
 string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     singlequote(Rest, Handler, Acc, Stack, Config);
-string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, [?rsolidus, ?doublequote]), Stack, Config);
-string(<<?rsolidus, ?doublequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, ?doublequote), Stack, Config);
-string(<<?rsolidus, ?singlequote, Rest/binary>>, Handler, Acc, [single_quote|_] = Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
-string(<<?rsolidus>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    incomplete(string, <<?rsolidus>>, Handler, Acc, Stack, Config);
-string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
 string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -539,6 +529,8 @@ string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#f0000,
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000, X < 16#10fffe ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
+string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 %% surrogates
 string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 160 ->
@@ -626,6 +618,12 @@ strip_continuations(<<Rest/binary>>, Handler, Acc, Stack, Config, _) ->
 
 %% this all gets really gross and should probably eventually be folded into
 %%  but for now it fakes being part of string on incompletes and errors
+unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    case C of
+        ?doublequote -> string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
+        ?rsolidus -> string(<<?rsolidus/utf8, Rest/binary>>, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
+        _ -> string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config)
+    end;
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\b, Config)), Stack, Config);
 unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -697,6 +695,7 @@ is_partial_escape(<<>>) -> true;
 is_partial_escape(_) -> false.
 
 
+maybe_replace(C, #config{dirty_strings=true}) -> C;
 maybe_replace($\b, #config{escaped_strings=true}) -> [$\\, $b];
 maybe_replace($\t, #config{escaped_strings=true}) -> [$\\, $t];
 maybe_replace($\n, #config{escaped_strings=true}) -> [$\\, $n];
@@ -706,16 +705,16 @@ maybe_replace($\", #config{escaped_strings=true}) -> [$\\, $\"];
 maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
         true -> [$\\, $/]
-        ; false -> [$/]
+        ; false -> $/
     end;
 maybe_replace($\\, #config{escaped_strings=true}) -> [$\\, $\\];
 maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
-        true -> [X]
+        true -> X
         ; false -> json_escape_sequence(X)
     end;
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 -> json_escape_sequence(X);
-maybe_replace(X, _Config) -> [X].
+maybe_replace(X, _Config) -> X.
 
 
 %% convert a codepoint to it's \uXXXX equiv.
