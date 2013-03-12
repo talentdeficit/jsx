@@ -1,3 +1,8 @@
+v1.4.1
+
+* fixes a bug with interaction between `dirty_strings` and even numbers of escape characters
+* performance enhancements
+
 v1.4
 
 * radically refactored decoder
