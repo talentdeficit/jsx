@@ -19,8 +19,8 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
 * [data types](#data-types)
   - [`json_term()`](#json_term)
   - [`json_text()`](#json_text)
-  - [`token()`](#token)
   - [`event()`](#event)
+  - [`token()`](#token)
   - [`option()`](#option)
 * [exports](#exports)
   - [`encoder/3`, `decoder/3` & `parser/3`](#encoder3-decoder3--parser3)
@@ -116,9 +116,16 @@ jsx is an erlang application for consuming, producing and manipulating [json][js
 
 json has a [spec][rfc4627] but common usage differs subtly. it's common usage jsx attempts to address, with guidance from the spec
 
-all json produced and consumed by jsx should be `utf8` encoded text or a reasonable approximation thereof. ascii works too, but anything beyond that i'm not going to make any promises
+all json produced and consumed by jsx should be `utf8` encoded text or a reasonable approximation thereof. ascii works too, but anything beyond that i'm not going to make any promises. **especially** not latin1
 
-the [spec][rfc4627] thinks json values must be wrapped in a json array or object but everyone else disagrees so jsx allows naked json values by default. if you're a curmudgeon who's offended by this deviation, you can just check that all values returned by jsx functions are lists, alright?
+the [spec][rfc4627] thinks json values must be wrapped in a json array or object but everyone else disagrees so jsx allows naked json values by default. if you're a curmudgeon who's offended by this deviation here is a wrapper for you
+
+```erlang
+%% usage: `real_json(jsx:decode(JSON))`
+real_json(Result) when is_list(Result) -> Result;
+real_json(Result) when is_tuple(Result, 2) -> Result;
+real_json(_) -> erlang:error(badarg).
+```
 
 here is a table of how various json values map to erlang:
 
@@ -146,7 +153,7 @@ here is a table of how various json values map to erlang:
 
     json string escapes of the form `\uXXXX` will be converted to their equivalent codepoints during parsing. this means control characters and other codepoints disallowed by the json spec may be encountered in resulting strings, but codepoints disallowed by the unicode spec will not be. in the interest of pragmatism there is an [option](#option) for looser parsing
 
-    all erlang strings are represented by *valid* `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although, again, see [options](#option))
+    all erlang strings are represented by **valid** `utf8` encoded binaries. the encoder will check strings for conformance. noncharacters (like `u+ffff`) are allowed in erlang utf8 encoded binaries, but not in strings passed to the encoder (although, again, see [options](#option))
 
     this implementation performs no normalization on strings beyond that detailed here. be careful when comparing strings as equivalent strings may have different `utf8` encodings
 
@@ -167,7 +174,7 @@ here is a table of how various json values map to erlang:
 
 jsx handles incomplete json texts. if a partial json text is parsed, rather than returning a term from your callback handler, jsx returns `{incomplete, F}` where `F` is a function with an identical API to the anonymous fun returned from `decoder/3`, `encoder/3` or `parser/3`. it retains the internal state of the parser at the point where input was exhausted. this allows you to parse as you stream json over a socket or file descriptor, or to parse large json texts without needing to keep them entirely in memory
 
-however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. the [option](#options) `explicit_end` can be used to modify this behaviour
+however, it is important to recognize that jsx is greedy by default. jsx will consider the parsing complete if input is exhausted and the json text is not unambiguously incomplete. this is mostly relevant when parsing bare numbers like `<<"1234">>`. this could be a complete json integer or just the beginning of a json integer that is being parsed incrementally. jsx will treat it as a whole integer. calling jsx with the [option](#options) `explicit_end` reverses this behavior and never considers parsing complete until the `incomplete` function is called with the argument `end_stream`
 
 
 ## data types ##
@@ -195,32 +202,6 @@ json_text() = binary()
 
 a utf8 encoded binary containing a json string
 
-#### `token()` ####
-
-```erlang
-token() = start_object
-    | end_object
-    | start_array
-    | end_array
-    | {key, binary()}
-    | {string, binary()}
-    | binary()
-    | {number, integer() | float()}
-    | {integer, integer()}
-    | {float, float()}
-    | integer()
-    | float()
-    | {literal, true}
-    | {literal, false}
-    | {literal, null}
-    | true
-    | false
-    | null
-    | end_json
-```
-
-the internal representation used during syntactic analysis
-
 #### `event()` ####
 
 ```erlang
@@ -238,7 +219,20 @@ event() = start_object
     | end_json
 ```
 
-the internal representation used during semantic analysis
+#### `token()` ####
+
+```erlang
+token() = event()
+    | binary()
+    | {number, integer() | float()}
+    | integer()
+    | float()
+    | true
+    | false
+    | null
+```
+
+the representation used during syntactic analysis. you can generate this yourself and feed it to `jsx:parser/3` if you'd like to define your own representations
 
 #### `option()` ####
 
@@ -269,7 +263,7 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
     some parsers allow double quotes (`u+0022`) to be replaced by single quotes (`u+0027`) to delimit keys and strings. this option allows json containing single quotes as structural characters to be parsed without errors. note that the parser expects strings to be terminated by the same quote type that opened it and that single quotes must, obviously, be escaped within strings delimited by single quotes
 
-    double quotes must ALWAYS be escaped, regardless of what kind of quotes delimit the string they are found in
+    double quotes must **always** be escaped, regardless of what kind of quotes delimit the string they are found in
 
     the parser will never emit json with keys or strings delimited by single quotes
 
@@ -279,27 +273,27 @@ jsx functions all take a common set of options. not all flags have meaning in al
 
 - `comments`
 
-    json has no official comments but some parsers allow c style comments. anywhere whitespace is allowed this flag allows comments (both `// ...` and `/* ... */` style)
+    json has no official comments but some parsers allow c/c++ style comments. anywhere whitespace is allowed this flag allows comments (both `// ...` and `/* ... */`)
 
 - `escaped_strings`
 
-    by default, both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint while encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
+    by default both the encoder and decoder return strings as utf8 binaries appropriate for use in erlang. escape sequences that were present in decoded terms are converted into the appropriate codepoint while encoded terms are unaltered. this flag escapes strings as if for output in json, removing control codes and problematic codepoints and replacing them with the appropriate escapes
 
 - `ignored_bad_escapes`
 
-    during decoding, ignore unrecognized escape sequences and leave them as is in the stream. note that combining this option with `escaped_strings` will result in the escape character itself being escaped
+    during decoding ignore unrecognized escape sequences and leave them as is in the stream. note that combining this option with `escaped_strings` will result in the escape character itself being escaped
 
 - `dirty_strings`
 
-    json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json") use this flag to bypass escaping. this can also be used to read in *really* invalid json strings. everything but escaped quotes are passed as is to result string term. note that this overrides `ignored_bad_escapes`, `unescaped_jsonp` and `escaped_strings`
+    json escaping is lossy; it mutates the json string and repeated application can result in unwanted behaviour. if your strings are already escaped (or you'd like to force invalid strings into "json" you monster) use this flag to bypass escaping. this can also be used to read in **really** invalid json strings. everything but escaped quotes are passed as is to the resulting string term. note that this overrides `ignored_bad_escapes`, `unescaped_jsonp` and `escaped_strings`
 
 - `explicit_end`
 
-    this option treats all exhausted inputs as incomplete. the parser will not attempt to return a final state until the function is called with the value `end_stream`
+    see [incomplete input](#incomplete-input)
 
 - `relax`
 
-    relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how janky and awful your json input is, you just want the parser to do the best it can
+    relax is a synonym for `[replaced_bad_utf8, single_quoted_strings, comments, ignored_bad_escapes]` for when you don't care how absolutely terrible your json input is, you just want the parser to do the best it can
 
 - `incomplete_handler` & `error_handler`
 
@@ -485,7 +479,7 @@ is_term(MaybeJSON, Opts) -> true | false
 
 returns true if input is a valid erlang representation of json, false if not
 
-what exactly constitutes valid json may be [altered](#option)
+what exactly constitutes valid json may be altered via [options](#option)
 
 ## callback exports ##
 
