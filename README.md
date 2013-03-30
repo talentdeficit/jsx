@@ -9,6 +9,8 @@ jsx is released under the terms of the [MIT][MIT] license
 
 jsx is built via [rebar][rebar]
 
+continuous integration testing provided courtesy [travis][travis]
+
 [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
 
@@ -710,3 +712,4 @@ jsx wouldn't be what it is without the contributions of [paul davis](https://git
 [rebar]: https://github.com/rebar/rebar
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
+[travis]: https://travis-ci.org/
