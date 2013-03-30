@@ -7,8 +7,9 @@ copyright 2010-2013 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx is built via [rebar][rebar] 
+jsx is built via [rebar][rebar]
 
+[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
 
 ## index ##
