@@ -3,16 +3,11 @@
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
 
-copyright 2010-2013 alisdair sullivan
+jsx is built via [rebar][rebar] and continuous integration testing provided courtesy [travis][travis][![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx is built via [rebar][rebar]
-
-continuous integration testing provided courtesy [travis][travis]
-
-[![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
-
+copyright 2010-2013 alisdair sullivan
 
 ## index ##
 
