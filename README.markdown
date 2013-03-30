@@ -7,7 +7,7 @@ copyright 2010-2013 alisdair sullivan
 
 jsx is released under the terms of the [MIT][MIT] license
 
-jsx may be built using either [sinan][sinan] or [rebar][rebar]
+jsx is built via [rebar][rebar] 
 
 
 
@@ -43,13 +43,13 @@ jsx may be built using either [sinan][sinan] or [rebar][rebar]
 #### to build the library and run tests ####
 
 ```bash
-$ sinan build
-$ sinan -r tests eunit
-```
-or
-```bash
 $ rebar compile
 $ rebar eunit
+```
+or, to build using hipe
+```bash
+$ rebar -C hipe.cfg compile
+$ rebar -C hipe.cfg eunit
 ```
 
 #### to convert a utf8 binary containing a json string into an erlang term ####
@@ -706,7 +706,6 @@ jsx wouldn't be what it is without the contributions of [paul davis](https://git
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
-[rebar]: https://github.com/basho/rebar
-[sinan]: https://github.com/erlware/sinan
+[rebar]: https://github.com/rebar/rebar
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
