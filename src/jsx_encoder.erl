@@ -72,8 +72,6 @@ value([{}], {Handler, State}, _Config) ->
     Handler:handle_event(end_object, Handler:handle_event(start_object, State));
 value([], {Handler, State}, _Config) ->
     Handler:handle_event(end_array, Handler:handle_event(start_array, State));
-value([Tuple|_] = List, Handler, Config) when is_tuple(Tuple) ->
-    list_or_object(List, Handler, Config);
 value(List, Handler, Config) when is_list(List) ->
     list_or_object(List, Handler, Config);
 value(Term, Handler, Config) -> ?error(value, Term, Handler, Config).
