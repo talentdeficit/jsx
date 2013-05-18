@@ -154,8 +154,9 @@ incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=f
 incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=F}) ->
     F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_config:config_to_list(Config)).
 
-
-new_seq() -> <<>>.
+%% prealloc larger binary chunks to hopefully save allocations. worst case memory usage
+%%  should be similar to using list accumulators
+new_seq() -> jsx_alloc:new(16). 
 
 acc_seq(Seq, C) when is_list(C) ->
     Codepoints = unicode:characters_to_binary(C),
