@@ -91,12 +91,6 @@ value([start_object|Tokens], Handler, Stack, Config) ->
     object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
 value([start_array|Tokens], Handler, Stack, Config) ->
     array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
-value([{literal, true}|Tokens], Handler, [], Config) ->
-    done(Tokens, handle_event({literal, true}, Handler, Config), [], Config);
-value([{literal, false}|Tokens], Handler, [], Config) ->
-    done(Tokens, handle_event({literal, false}, Handler, Config), [], Config);
-value([{literal, null}|Tokens], Handler, [], Config) ->
-    done(Tokens, handle_event({literal, null}, Handler, Config), [], Config);
 value([{literal, true}|Tokens], Handler, Stack, Config) ->
     maybe_done(Tokens, handle_event({literal, true}, Handler, Config), Stack, Config);
 value([{literal, false}|Tokens], Handler, Stack, Config) ->
@@ -105,10 +99,6 @@ value([{literal, null}|Tokens], Handler, Stack, Config) ->
     maybe_done(Tokens, handle_event({literal, null}, Handler, Config), Stack, Config);
 value([Literal|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
     value([{literal, Literal}] ++ Tokens, Handler, Stack, Config);
-value([{integer, Number}|Tokens], Handler, [], Config) when is_integer(Number) ->
-    done(Tokens, handle_event({integer, Number}, Handler, Config), [], Config);
-value([{float, Number}|Tokens], Handler, [], Config) when is_float(Number) ->
-    done(Tokens, handle_event({float, Number}, Handler, Config), [], Config);
 value([{integer, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
     maybe_done(Tokens, handle_event({integer, Number}, Handler, Config), Stack, Config);
 value([{float, Number}|Tokens], Handler, Stack, Config) when is_float(Number) ->
@@ -121,12 +111,6 @@ value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
     value([{integer, Number}] ++ Tokens, Handler, Stack, Config);
 value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
     value([{float, Number}] ++ Tokens, Handler, Stack, Config);
-value([{string, String}|Tokens], Handler, [], Config) when is_binary(String) ->
-    case clean_string(String, Tokens, Handler, [], Config) of
-        Clean when is_binary(Clean) ->
-            done(Tokens, handle_event({string, Clean}, Handler, Config), [], Config);
-        Error -> Error
-    end;
 value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) ->
     case clean_string(String, Tokens, Handler, Stack, Config) of
         Clean when is_binary(Clean) ->
@@ -277,7 +261,7 @@ custom_error_handler_test_() ->
             parse_error([start_array, end_array, start_array, end_json], [{error_handler, Error}])
         )},
         {"done error", ?_assertEqual(
-            {done, [{literal, true}, end_json]},
+            {maybe_done, [{literal, true}, end_json]},
             parse_error([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
