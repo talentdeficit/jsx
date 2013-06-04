@@ -1,4 +1,4 @@
-# jsx (v1.4.1) #
+# jsx (v1.4.2) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
