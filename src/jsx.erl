@@ -28,10 +28,6 @@
 -export([format/1, format/2, minify/1, prettify/1]).
 -export([encoder/3, decoder/3, parser/3]).
 -export([resume/3]).
-%% old api
--export([term_to_json/1, term_to_json/2, json_to_term/1, json_to_term/2]).
--export([to_json/1, to_json/2]).
--export([to_term/1, to_term/2]).
 
 -export_type([json_term/0, json_text/0, token/0]).
 -export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
@@ -60,12 +56,12 @@
 encode(Source) -> encode(Source, []).
 encode(Source, Config) -> jsx_to_json:to_json(Source, Config).
 
-%% old api, alias for encode/x
 
-to_json(Source) -> encode(Source, []).
-to_json(Source, Config) -> encode(Source, Config).
-term_to_json(Source) -> encode(Source, []).
-term_to_json(Source, Config) -> encode(Source, Config).
+-spec decode(Source::json_text()) -> json_term() | {incomplete, decoder()}.
+-spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
+
+decode(Source) -> decode(Source, []).
+decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 
 -spec format(Source::json_text()) -> json_text() | {incomplete, decoder()}.
@@ -83,20 +79,6 @@ minify(Source) -> format(Source, []).
 -spec prettify(Source::json_text()) -> json_text() | {incomplete, decoder()}.
 
 prettify(Source) -> format(Source, [space, {indent, 2}]).
-
-
--spec decode(Source::json_text()) -> json_term() | {incomplete, decoder()}.
--spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
-
-decode(Source) -> decode(Source, []).
-decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
-
-%% old api, alias for to_term/x
-
-to_term(Source) -> decode(Source, []).
-to_term(Source, Config) -> decode(Source, Config).
-json_to_term(Source) -> decode(Source, []).
-json_to_term(Source, Config) -> decode(Source, Config).
 
 
 -spec is_json(Source::any()) -> true | false.
