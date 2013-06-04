@@ -79,7 +79,7 @@ true
 false
 3> jsx:is_term([<<"this is a term">>]).
 true
-4> jsx:is_term(["this is not"]).
+4> jsx:is_term([this, is, not]).
 false
 ```
 
