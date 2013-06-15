@@ -45,7 +45,8 @@ to_json(Source, Config) when is_list(Config) ->
 -spec format(Source::binary(), Config::config()) -> binary().
 
 format(Source, Config) when is_binary(Source) andalso is_list(Config) ->
-    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source).
+    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source);
+format(_, _) -> erlang:error(badarg).
 
 
 parse_config(Config) -> parse_config(Config, #config{}).

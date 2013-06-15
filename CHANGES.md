@@ -1,3 +1,9 @@
+v1.4.2
+
+* build apparatus cleaned up and streamlined
+* new `{raw, <<"json goes here">>}` intermediate form to support direct generation of json
+* bugfixes involving inappropriate exceptions from jsx functions
+
 v1.4.1
 
 * fixes a bug with interaction between `dirty_strings` and even numbers of escape characters
