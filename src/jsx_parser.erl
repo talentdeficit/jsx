@@ -24,6 +24,7 @@
 -module(jsx_parser).
 
 -export([parser/3, resume/5]).
+-export([init/1, handle_event/2]).
 
 
 -spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
@@ -118,6 +119,8 @@ value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) 
     end;
 value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     value([{string, String}] ++ Tokens, Handler, Stack, Config);
+value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
+    value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
 value([], Handler, Stack, Config) ->
     incomplete(value, Handler, Stack, Config);
 value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
@@ -186,6 +189,13 @@ clean_string(Bin, Tokens, Handler, Stack, Config) ->
         {error, badarg} -> ?error(string, [{string, Bin}|Tokens], Handler, Stack, Config);
         String -> String
     end.
+
+
+%% for raw input
+init([]) -> [].
+
+handle_event(end_json, State) -> lists:reverse(State);
+handle_event(Event, State) -> [Event] ++ State.
 
 
 -include("jsx_strings.hrl").
@@ -266,6 +276,23 @@ custom_incomplete_handler_test_() ->
         {"custom incomplete handler", ?_assertError(
             badarg,
             parse_error([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
+        )}
+    ].
+
+
+raw_test_() ->
+    [
+        {"raw empty list", ?_assertEqual(
+            [start_array, end_array, end_json],
+            parse([{raw, <<"[]">>}], [])
+        )},
+        {"raw empty object", ?_assertEqual(
+            [start_object, end_object, end_json],
+            parse([{raw, <<"{}">>}], [])
+        )},
+        {"raw chunk inside stream", ?_assertEqual(
+            [start_object, {key, <<"key">>}, start_array, {literal, true}, end_array, end_object, end_json],
+            parse([start_object, {key, <<"key">>}, {raw, <<"[true]">>}, end_object], [])
         )}
     ].
 

@@ -1,4 +1,4 @@
-# jsx (v1.4.1) #
+# jsx (v1.4.2) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -79,7 +79,7 @@ true
 false
 3> jsx:is_term([<<"this is a term">>]).
 true
-4> jsx:is_term(["this is not"]).
+4> jsx:is_term([this, is, not]).
 false
 ```
 
