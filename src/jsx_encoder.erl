@@ -113,7 +113,8 @@ object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Ke
         },
         Config
     );
-object([], {Handler, State}, _Config) -> Handler:handle_event(end_object, State).
+object([], {Handler, State}, _Config) -> Handler:handle_event(end_object, State);
+object(Term, Handler, Config) -> ?error(object, Term, Handler, Config).
 
 
 list([Value, Next|Rest], {Handler, State}, Config) ->
