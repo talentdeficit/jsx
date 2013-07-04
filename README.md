@@ -467,18 +467,20 @@ decode(JSON, Opts) -> Term
   JSON = json_text()
   Term = json_term()
   Opts = [option() | labels | {labels, Label} | {post_decode, F}]
-    Label = binary | atom | existing_atom
+    Label = binary | atom | existing_atom | sloppy_existing_atom
     F = fun((any()) -> any())
 ```
 
 `decode` parses a json text (a `utf8` encoded binary) and produces an erlang 
 term
 
-the option `labels` controls how keys are converted from json to erlang terms. 
-`binary` does no conversion beyond normal escaping. `atom` converts keys to 
-erlang atoms and results in a badarg error if the keys fall outside the range of 
-erlang atoms. `existing_atom` is identical to `atom` except it will not add new 
-atoms to the atom table
+the option `labels` controls how keys are converted from json to
+erlang terms.  `binary` (the default behavior) does no conversion
+beyond normal escaping. `atom` converts keys to erlang atoms and
+results in a badarg error if the keys fall outside the range of erlang
+atoms. `existing_atom` is identical to `atom` except it will not add
+new atoms to the atom table. `sloppy_existing_atom` will convert keys
+to atoms when they exist, and leave them as binary otherwise
 
 `{post_decode, F}` is a user defined function of arity 1 that is called on each 
 output value (objects, arrays, strings, numbers and literals). it may return any 
