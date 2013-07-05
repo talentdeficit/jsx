@@ -53,7 +53,7 @@ to_term(Source, Config) when is_list(Config) ->
 parse_config(Config) -> parse_config(Config, #config{}).
 
 parse_config([{labels, Val}|Rest], Config)
-        when Val == binary; Val == atom; Val == existing_atom ->
+        when Val == binary; Val == atom; Val == existing_atom; Val == sloppy_existing_atom ->
     parse_config(Rest, Config#config{labels = Val});
 parse_config([labels|Rest], Config) ->
     parse_config(Rest, Config#config{labels = binary});
@@ -107,6 +107,12 @@ format_key(Key, Config) ->
         binary -> Key
         ; atom -> binary_to_atom(Key, utf8)
         ; existing_atom -> binary_to_existing_atom(Key, utf8)
+        ; sloppy_existing_atom ->
+            try binary_to_existing_atom(Key, utf8) of
+                Result -> Result
+            catch
+                error:badarg -> Key
+            end
     end.
 
 
@@ -133,6 +139,10 @@ config_test_() ->
             #config{labels=existing_atom},
             parse_config([{labels, existing_atom}])
         )},
+        {"sloppy existing atom labels", ?_assertEqual(
+            #config{labels=sloppy_existing_atom},
+            parse_config([{labels, sloppy_existing_atom}])
+        )},
         {"post decode", ?_assertEqual(
             #config{post_decode=F},
             parse_config([{post_decode, F}])
@@ -154,6 +164,14 @@ format_key_test_() ->
         {"nonexisting atom key", ?_assertError(
             badarg,
             format_key(<<"nonexistentatom">>, #config{labels=existing_atom})
+        )},
+        {"sloppy existing atom key", ?_assertEqual(
+            key,
+            format_key(<<"key">>, #config{labels=sloppy_existing_atom})
+        )},
+        {"nonexisting atom key", ?_assertEqual(
+            <<"nonexistentatom">>,
+            format_key(<<"nonexistentatom">>, #config{labels=sloppy_existing_atom})
         )}
     ].
 
