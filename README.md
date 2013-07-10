@@ -135,7 +135,6 @@ real_json(Result) when is_tuple(Result, 2) -> Result;
 real_json(_) -> erlang:error(badarg).
 ```
 
-here is a table of how various json values map to erlang:
 
 ### json &lt;-> erlang mapping ###
 
