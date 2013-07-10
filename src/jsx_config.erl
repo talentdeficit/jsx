@@ -44,8 +44,8 @@ parse_config([replaced_bad_utf8|Rest], Config) ->
     parse_config(Rest, Config#config{replaced_bad_utf8=true});
 parse_config([escaped_forward_slashes|Rest], Config) ->
     parse_config(Rest, Config#config{escaped_forward_slashes=true});
-parse_config([explicit_end|Rest], Config) ->
-    parse_config(Rest, Config#config{explicit_end=true});
+parse_config([stream|Rest], Config) ->
+    parse_config(Rest, Config#config{stream=true});
 parse_config([single_quoted_strings|Rest], Config) ->
     parse_config(Rest, Config#config{single_quoted_strings=true});
 parse_config([unescaped_jsonp|Rest], Config) ->
@@ -115,7 +115,7 @@ valid_flags() ->
         escaped_strings,
         dirty_strings,
         ignored_bad_escapes,
-        explicit_end,
+        stream,
         relax,
         error_handler,
         incomplete_handler,
@@ -157,7 +157,7 @@ config_test_() ->
                 #config{
                     replaced_bad_utf8=true,
                     escaped_forward_slashes=true,
-                    explicit_end=true,
+                    stream=true,
                     single_quoted_strings=true,
                     unescaped_jsonp=true,
                     comments=true,
@@ -167,7 +167,7 @@ config_test_() ->
                 parse_config([
                     replaced_bad_utf8,
                     escaped_forward_slashes,
-                    explicit_end,
+                    stream,
                     single_quoted_strings,
                     unescaped_jsonp,
                     comments,
@@ -246,13 +246,13 @@ config_to_list_test_() ->
                 comments,
                 dirty_strings,
                 ignored_bad_escapes,
-                explicit_end
+                stream
             ],
             config_to_list(
                 #config{
                     replaced_bad_utf8=true,
                     escaped_forward_slashes=true,
-                    explicit_end=true,
+                    stream=true,
                     single_quoted_strings=true,
                     unescaped_jsonp=true,
                     comments=true,

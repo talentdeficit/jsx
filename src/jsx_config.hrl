@@ -7,7 +7,7 @@
     escaped_strings = false,
     dirty_strings = false,
     ignored_bad_escapes = false,
-    explicit_end = false,
+    stream = false,
     error_handler = false,
     incomplete_handler = false
 }).

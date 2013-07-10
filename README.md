@@ -231,7 +231,7 @@ consider the parsing complete if input is exhausted and the json text is not
 unambiguously incomplete. this is mostly relevant when parsing bare numbers like 
 `<<"1234">>`. this could be a complete json integer or just the beginning of a 
 json integer that is being parsed incrementally. jsx will treat it as a whole 
-integer. calling jsx with the [option](#options) `explicit_end` reverses this 
+integer. calling jsx with the [option](#options) `stream` reverses this 
 behavior and never considers parsing complete until the `incomplete` function is 
 called with the argument `end_stream`
 
@@ -308,7 +308,7 @@ option() = replaced_bad_utf8
     | dirty_strings
     | ignored_bad_escapes
     | relax
-    | explicit_end
+    | stream
 ```
 
 jsx functions all take a common set of options. not all flags have meaning 
@@ -384,7 +384,7 @@ additional options beyond these. see
     string term. note that this overrides `ignored_bad_escapes`, 
     `unescaped_jsonp` and `escaped_strings`
 
-- `explicit_end`
+- `stream`
 
     see [incomplete input](#incomplete-input)
 

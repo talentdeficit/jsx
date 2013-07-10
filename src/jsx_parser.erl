@@ -169,7 +169,7 @@ maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 maybe_done(Token, Handler, Stack, Config) ->
     maybe_done([Token], Handler, Stack, Config).
 
-done([], Handler, [], Config=#config{explicit_end=true}) ->
+done([], Handler, [], Config=#config{stream=true}) ->
     incomplete(done, Handler, [], Config);
 done(Tokens, Handler, [], Config) when Tokens == [end_json]; Tokens == [] ->
     {_, State} = handle_event(end_json, Handler, Config),
@@ -617,7 +617,7 @@ parse(Events, Config) ->
     Incremental = try
         Final = lists:foldl(
             fun(Event, Parser) -> {incomplete, F} = Parser(Event), F end,
-            parser(jsx, [], [explicit_end] ++ Config),
+            parser(jsx, [], [stream] ++ Config),
             lists:map(fun(X) -> [X] end, Events)
         ),
         Final(end_stream)

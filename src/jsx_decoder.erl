@@ -145,7 +145,7 @@ incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=f
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 resume(<<Rest/binary, Stream/binary>>, State, Handler, Acc, Stack, Config);
             (end_stream) ->
-                case resume(<<Rest/binary, ?space/utf8>>, State, Handler, Acc, Stack, Config#config{explicit_end=false}) of
+                case resume(<<Rest/binary, ?space/utf8>>, State, Handler, Acc, Stack, Config#config{stream=false}) of
                     {incomplete, _} -> ?error(State, Rest, Handler, Acc, Stack, Config);
                     Else -> Else
                 end
@@ -748,7 +748,7 @@ zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
     decimal(Rest, Handler, acc_seq(Acc, ?decimalpoint), Stack, Config);
 zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, acc_seq(Acc, ".0e"), Stack, Config);
-zero(<<>>, Handler, Acc, [], Config=#config{explicit_end=false}) ->
+zero(<<>>, Handler, Acc, [], Config=#config{stream=false}) ->
     finish_number(<<>>, Handler, {zero, Acc}, [], Config);
 zero(<<>>, Handler, Acc, Stack, Config) ->
     incomplete(value, (end_seq(Acc)), Handler, Stack, Config);
@@ -806,7 +806,7 @@ exp(Bin, Handler, Acc, Stack, Config) ->
     finish_number(Bin, Handler, {exp, Acc}, Stack, Config).
 
 
-finish_number(Rest, Handler, Acc, [], Config=#config{explicit_end=false}) ->
+finish_number(Rest, Handler, Acc, [], Config=#config{stream=false}) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), [], Config);
 finish_number(<<?end_object, Rest/binary>>, Handler, Acc, [object|Stack], Config) ->
     maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
@@ -901,7 +901,7 @@ comment(<<_/utf8, Rest/binary>>, Handler, Resume, Stack, Config) ->
     comment(Rest, Handler, Resume, Stack, Config);
 comment(<<_, Rest/binary>>, Handler, Resume, Stack, Config=#config{replaced_bad_utf8=true}) ->
     comment(Rest, Handler, Resume, Stack, Config);
-comment(<<>>, Handler, done, [Comment], Config=#config{explicit_end=false})
+comment(<<>>, Handler, done, [Comment], Config=#config{stream=false})
         when Comment == comment; Comment == multicomment ->
     resume(<<>>, done, Handler, unused, [], Config);
 comment(<<>>, Handler, Resume, Stack, Config) ->
@@ -942,7 +942,7 @@ done(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config=#config{comments=t
     comment(Rest, Handler, done, [multicomment|Stack], Config);
 done(<<?solidus>>, Handler, Stack, Config=#config{comments=true}) ->
     incomplete(done, <<?solidus>>, Handler, Stack, Config);
-done(<<>>, {Handler, State}, [], Config=#config{explicit_end=true}) ->
+done(<<>>, {Handler, State}, [], Config=#config{stream=true}) ->
     incomplete(done, <<>>, {Handler, State}, [], Config);
 done(<<>>, {_Handler, State}, [], _Config) -> State;
 done(Bin, Handler, Stack, Config) -> ?error(done, Bin, Handler, Stack, Config).
@@ -968,7 +968,7 @@ decode(JSON, Config) ->
     Incremental = try
         Final = lists:foldl(
             fun(Byte, Decoder) -> {incomplete, F} = Decoder(Byte), F end,
-            decoder(jsx, [], [explicit_end] ++ Config),
+            decoder(jsx, [], [stream] ++ Config),
             json_to_bytes(JSON)
         ),
         Final(end_stream)
@@ -1931,19 +1931,19 @@ error_test_() ->
         )},
         {"zero error", ?_assertError(
             badarg,
-            Decode(<<"0"/utf8, 0>>, [explicit_end])
+            Decode(<<"0"/utf8, 0>>, [stream])
         )},
         {"integer error", ?_assertError(
             badarg,
-            Decode(<<"1"/utf8, 0>>, [explicit_end])
+            Decode(<<"1"/utf8, 0>>, [stream])
         )},
         {"decimal error", ?_assertError(
             badarg,
-            Decode(<<"1.0"/utf8, 0>>, [explicit_end])
+            Decode(<<"1.0"/utf8, 0>>, [stream])
         )},
         {"exp error", ?_assertError(
             badarg,
-            Decode(<<"1.0e1"/utf8, 0>>, [explicit_end])
+            Decode(<<"1.0e1"/utf8, 0>>, [stream])
         )},
         {"e error", ?_assertError(
             badarg,
@@ -2026,19 +2026,19 @@ custom_error_handler_test_() ->
         )},
         {"zero error", ?_assertEqual(
             {value, <<"0"/utf8, 0>>},
-            Decode(<<"0"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+            Decode(<<"0"/utf8, 0>>, [stream, {error_handler, Error}])
         )},
         {"integer error", ?_assertEqual(
             {integer, <<0>>},
-            Decode(<<"1"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+            Decode(<<"1"/utf8, 0>>, [stream, {error_handler, Error}])
         )},
         {"decimal error", ?_assertEqual(
             {decimal, <<0>>},
-            Decode(<<"1.0"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+            Decode(<<"1.0"/utf8, 0>>, [stream, {error_handler, Error}])
         )},
         {"exp error", ?_assertEqual(
             {exp, <<0>>},
-            Decode(<<"1.0e1"/utf8, 0>>, [explicit_end, {error_handler, Error}])
+            Decode(<<"1.0e1"/utf8, 0>>, [stream, {error_handler, Error}])
         )},
         {"e error", ?_assertEqual(
             {decimal, <<$e, 0>>},
