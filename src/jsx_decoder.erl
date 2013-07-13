@@ -138,10 +138,15 @@ resume(Rest, State, Handler, Acc, Stack, Config) ->
 -endif.
 
 
+incomplete(State, Rest, Handler, Stack, Config = #config{stream=false}) ->
+    ?error(State, Rest, Handler, Stack, Config);
 incomplete(State, Rest, Handler, Stack, Config) ->
     incomplete(State, Rest, Handler, unused, Stack, Config).
 
-incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=false}) ->
+    
+incomplete(State, Rest, Handler, Acc, Stack, Config = #config{stream=false}) ->
+    ?error(State, Rest, Handler, Acc, Stack, Config);
+incomplete(State, Rest, Handler, Acc, Stack, Config = #config{incomplete_handler=false}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 resume(<<Rest/binary, Stream/binary>>, State, Handler, Acc, Stack, Config);
             (end_stream) ->
@@ -151,7 +156,7 @@ incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=f
                 end
         end
     };
-incomplete(State, Rest, Handler, Acc, Stack, Config=#config{incomplete_handler=F}) ->
+incomplete(State, Rest, Handler, Acc, Stack, Config = #config{incomplete_handler=F}) ->
     F(Rest, {decoder, State, Handler, Acc, Stack}, jsx_config:config_to_list(Config)).
 
 
@@ -1894,6 +1899,27 @@ bom_test_() ->
         {"bom", ?_assertEqual(
             [start_array, end_array, end_json],
             decode(<<16#ef, 16#bb, 16#bf, "[]"/utf8>>, [])
+        )}
+    ].
+
+
+incomplete_test_() ->
+    [
+        {"stream false", ?_assertError(
+            badarg,
+            start(<<"{">>, {jsx, []}, [], jsx_config:parse_config([]))
+        )},
+        {"stream true", ?_assert(
+            case start(<<"{">>, {jsx, []}, [], jsx_config:parse_config([stream])) of
+                {incomplete, _} -> true;
+                _ -> false
+            end
+        )},
+        {"complete input", ?_assert(
+            case start(<<"{}">>, {jsx, []}, [], jsx_config:parse_config([stream])) of
+                {incomplete, _} -> true;
+                _ -> false
+            end
         )}
     ].
 

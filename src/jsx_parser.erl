@@ -72,6 +72,8 @@ resume(Rest, State, Handler, Stack, Config) ->
 -endif.
 
 
+incomplete(State, Handler, Stack, Config=#config{stream=false}) ->
+    ?error(State, [], Handler, Stack, Config);
 incomplete(State, Handler, Stack, Config=#config{incomplete_handler=false}) ->
     {incomplete, fun(end_stream) ->
                 case resume([end_json], State, Handler, Stack, Config) of
