@@ -293,61 +293,40 @@ key(Bin, Handler, Stack, Config) ->
 
 %% explicitly whitelist ascii set for faster parsing. really? really. someone should
 %%  submit a patch that unrolls simple guards
-%% ordering is for efficiency but is nowhere near optimal
 %% note that if you encounter an error from string and you can't find the clause that
 %%  caused it here, it might be in unescape below
-string(<<97, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 97), Stack, Config);
-string(<<98, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 98), Stack, Config);
-string(<<99, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 99), Stack, Config);
-string(<<100, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 100), Stack, Config);
-string(<<101, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 101), Stack, Config);
-string(<<102, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 102), Stack, Config);
-string(<<103, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 103), Stack, Config);
-string(<<104, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 104), Stack, Config);
-string(<<105, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 105), Stack, Config);
-string(<<106, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 106), Stack, Config);
-string(<<107, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 107), Stack, Config);
-string(<<108, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 108), Stack, Config);
-string(<<109, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 109), Stack, Config);
-string(<<110, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 110), Stack, Config);
-string(<<111, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 111), Stack, Config);
-string(<<112, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 112), Stack, Config);
-string(<<113, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 113), Stack, Config);
-string(<<114, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 114), Stack, Config);
-string(<<115, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 115), Stack, Config);
-string(<<116, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 116), Stack, Config);
-string(<<117, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 117), Stack, Config);
-string(<<118, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 118), Stack, Config);
-string(<<119, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 119), Stack, Config);
-string(<<120, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 120), Stack, Config);
-string(<<121, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 121), Stack, Config);
-string(<<122, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 122), Stack, Config);
+string(<<32, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 32), Stack, Config);
+string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 33), Stack, Config);
+string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    doublequote(Rest, Handler, Acc, Stack, Config);
+string(<<35, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 35), Stack, Config);
+string(<<36, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 36), Stack, Config);
+string(<<37, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 37), Stack, Config);
+string(<<38, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 38), Stack, Config);
+string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    singlequote(Rest, Handler, Acc, Stack, Config);
+string(<<40, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 40), Stack, Config);
+string(<<41, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 41), Stack, Config);
+string(<<42, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 42), Stack, Config);
+string(<<43, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 43), Stack, Config);
+string(<<44, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 44), Stack, Config);
+string(<<45, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 45), Stack, Config);
+string(<<46, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 46), Stack, Config);
+string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, maybe_replace(?solidus, Config)), Stack, Config);
 string(<<48, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 48), Stack, Config);
 string(<<49, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -368,6 +347,20 @@ string(<<56, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 56), Stack, Config);
 string(<<57, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 57), Stack, Config);
+string(<<58, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 58), Stack, Config);
+string(<<59, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 59), Stack, Config);
+string(<<60, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 60), Stack, Config);
+string(<<61, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 61), Stack, Config);
+string(<<62, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 62), Stack, Config);
+string(<<63, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 63), Stack, Config);
+string(<<64, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 64), Stack, Config);
 string(<<65, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 65), Stack, Config);
 string(<<66, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -420,52 +413,10 @@ string(<<89, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 89), Stack, Config);
 string(<<90, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 90), Stack, Config);
-string(<<32, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 32), Stack, Config);
-string(<<33, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 33), Stack, Config);
-string(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    doublequote(Rest, Handler, Acc, Stack, Config);
-string(<<35, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 35), Stack, Config);
-string(<<36, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 36), Stack, Config);
-string(<<37, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 37), Stack, Config);
-string(<<38, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 38), Stack, Config);
-string(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    singlequote(Rest, Handler, Acc, Stack, Config);
-string(<<40, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 40), Stack, Config);
-string(<<41, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 41), Stack, Config);
-string(<<42, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 42), Stack, Config);
-string(<<43, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 43), Stack, Config);
-string(<<44, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 44), Stack, Config);
-string(<<45, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 45), Stack, Config);
-string(<<46, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 46), Stack, Config);
-string(<<58, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 58), Stack, Config);
-string(<<59, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 59), Stack, Config);
-string(<<60, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 60), Stack, Config);
-string(<<61, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 61), Stack, Config);
-string(<<62, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 62), Stack, Config);
-string(<<63, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 63), Stack, Config);
-string(<<64, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, 64), Stack, Config);
 string(<<91, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 91), Stack, Config);
+string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    unescape(Rest, Handler, Acc, Stack, Config);
 string(<<93, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 93), Stack, Config);
 string(<<94, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -474,6 +425,58 @@ string(<<95, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 95), Stack, Config);
 string(<<96, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 96), Stack, Config);
+string(<<97, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 97), Stack, Config);
+string(<<98, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 98), Stack, Config);
+string(<<99, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 99), Stack, Config);
+string(<<100, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 100), Stack, Config);
+string(<<101, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 101), Stack, Config);
+string(<<102, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 102), Stack, Config);
+string(<<103, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 103), Stack, Config);
+string(<<104, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 104), Stack, Config);
+string(<<105, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 105), Stack, Config);
+string(<<106, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 106), Stack, Config);
+string(<<107, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 107), Stack, Config);
+string(<<108, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 108), Stack, Config);
+string(<<109, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 109), Stack, Config);
+string(<<110, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 110), Stack, Config);
+string(<<111, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 111), Stack, Config);
+string(<<112, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 112), Stack, Config);
+string(<<113, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 113), Stack, Config);
+string(<<114, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 114), Stack, Config);
+string(<<115, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 115), Stack, Config);
+string(<<116, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 116), Stack, Config);
+string(<<117, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 117), Stack, Config);
+string(<<118, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 118), Stack, Config);
+string(<<119, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 119), Stack, Config);
+string(<<120, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 120), Stack, Config);
+string(<<121, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 121), Stack, Config);
+string(<<122, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 122), Stack, Config);
 string(<<123, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 123), Stack, Config);
 string(<<124, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -484,10 +487,6 @@ string(<<126, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 126), Stack, Config);
 string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
-string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    unescape(Rest, Handler, Acc, Stack, Config);
-string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    string(Rest, Handler, acc_seq(Acc, maybe_replace(?solidus, Config)), Stack, Config);
 string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
