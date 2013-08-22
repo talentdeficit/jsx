@@ -76,18 +76,6 @@ parse_config([{incomplete_handler, IncompleteHandler}|Rest] = Options, Config) w
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
 %% deprecated flags
-parse_config([loose_unicode|Rest], Config) ->
-    parse_config(Rest, Config#config{replaced_bad_utf8=true});
-parse_config([escape_forward_slash|Rest], Config) ->
-    parse_config(Rest, Config#config{escaped_forward_slashes=true});
-parse_config([single_quotes|Rest], Config) ->
-    parse_config(Rest, Config#config{single_quoted_strings=true});
-parse_config([no_jsonp_escapes|Rest], Config) ->
-    parse_config(Rest, Config#config{unescaped_jsonp=true});
-parse_config([json_escape|Rest], Config) ->
-    parse_config(Rest, Config#config{escaped_strings=true});
-parse_config([ignore_bad_escapes|Rest], Config) ->
-    parse_config(Rest, Config#config{ignored_bad_escapes=true});
 parse_config(Options, Config) ->
     erlang:error(badarg, [Options, Config]).
 
@@ -118,14 +106,7 @@ valid_flags() ->
         stream,
         relax,
         error_handler,
-        incomplete_handler,
-        %% deprecated flags
-        loose_unicode,          %% replaced_bad_utf8
-        escape_forward_slash,   %% escaped_forward_slashes
-        single_quotes,          %% single_quoted_strings
-        no_jsonp_escapes,       %% unescaped_jsonp
-        json_escape,            %% escaped_strings
-        ignore_bad_escapes      %% ignored_bad_escapes
+        incomplete_handler
     ].
 
 
@@ -187,24 +168,6 @@ config_test_() ->
                 parse_config([relax])
             )
         },
-        {"deprecated flags", ?_assertEqual(
-            #config{
-                replaced_bad_utf8=true,
-                escaped_forward_slashes=true,
-                single_quoted_strings=true,
-                unescaped_jsonp=true,
-                escaped_strings=true,
-                ignored_bad_escapes=true
-            },
-            parse_config([
-                loose_unicode,
-                escape_forward_slash,
-                single_quotes,
-                no_jsonp_escapes,
-                json_escape,
-                ignore_bad_escapes
-            ])
-        )},
         {"error_handler flag", ?_assertEqual(
             #config{error_handler=fun ?MODULE:fake_error_handler/3},
             parse_config([{error_handler, fun ?MODULE:fake_error_handler/3}])
