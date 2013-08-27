@@ -531,6 +531,19 @@ string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#f0000,
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000, X < 16#10fffe ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
+%% partial utf8 codepoints. check that input could possibly be valid before attempting
+%%  to correct
+string(<<>>, Handler, Acc, Stack, Config) ->
+    incomplete(string, <<>>, Handler, Acc, Stack, Config);
+string(<<X>>, Handler, Acc, Stack, Config) when X >= 16#c2, X =< 16#f4 ->
+    incomplete(string, <<X>>, Handler, Acc, Stack, Config);
+string(<<X, Y>>, Handler, Acc, Stack, Config) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf ->
+    incomplete(string, <<X, Y>>, Handler, Acc, Stack, Config);
+string(<<X, Y, Z>>, Handler, Acc, Stack, Config)
+        when X >= 16#f0, X =< 16#f4,
+            Y >= 16#80, Y =< 16#bf,
+            Z >= 16#80, Z =< 16#bf ->
+    incomplete(string, <<X, Y, Z>>, Handler, Acc, Stack, Config); 
 %% surrogates
 string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
         when X >= 160 ->
@@ -559,10 +572,7 @@ string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8
 string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 string(Bin, Handler, Acc, Stack, Config) ->
-    case is_partial_utf(Bin) of
-        true -> incomplete(string, Bin, Handler, Acc, Stack, Config);
-        false -> ?error(string, Bin, Handler, Acc, Stack, Config)
-    end.
+    ?error(string, Bin, Handler, Acc, Stack, Config).
 
 
 doublequote(<<Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
@@ -581,20 +591,6 @@ singlequote(<<Rest/binary>>, Handler, Acc, [singlequote|Stack], Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
 singlequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config).
-
-
-%% when parsing strings, the naive detection of partial codepoints is
-%%   insufficient. this incredibly anal function should detect all badly formed
-%%   utf sequences
-is_partial_utf(<<>>) -> true;
-is_partial_utf(<<X>>) when X >= 16#c2, X =< 16#f4 -> true;
-is_partial_utf(<<X, Y>>) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf -> true;
-is_partial_utf(<<X, Y, Z>>)
-        when X >= 16#f0, X =< 16#f4,
-            Y >= 16#80, Y =< 16#bf,
-            Z >= 16#80, Z =< 16#bf ->
-    true;
-is_partial_utf(_) -> false.
 
 
 %% strips continuation bytes after bad utf bytes, guards against both too short
