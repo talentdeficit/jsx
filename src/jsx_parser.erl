@@ -91,12 +91,8 @@ value([start_object|Tokens], Handler, Stack, Config) ->
     object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
 value([start_array|Tokens], Handler, Stack, Config) ->
     array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
-value([{literal, true}|Tokens], Handler, Stack, Config) ->
-    maybe_done(Tokens, handle_event({literal, true}, Handler, Config), Stack, Config);
-value([{literal, false}|Tokens], Handler, Stack, Config) ->
-    maybe_done(Tokens, handle_event({literal, false}, Handler, Config), Stack, Config);
-value([{literal, null}|Tokens], Handler, Stack, Config) ->
-    maybe_done(Tokens, handle_event({literal, null}, Handler, Config), Stack, Config);
+value([{literal, Literal}|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
+    maybe_done(Tokens, handle_event({literal, Literal}, Handler, Config), Stack, Config);
 value([Literal|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
     value([{literal, Literal}] ++ Tokens, Handler, Stack, Config);
 value([{integer, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
