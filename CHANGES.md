@@ -1,3 +1,10 @@
+v1.4.3
+
+* add empty rebar.config for mix build tool
+* add `attempt_atom` option for decoding json objects
+* fix a bug related to multibyte codepoints and streaming input
+* add a missing error state in the encoder
+
 v1.4.2
 
 * build apparatus cleaned up and streamlined
