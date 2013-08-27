@@ -1,5 +1,8 @@
-ebin/
-deps/
-*.orig
-/.eunit
-_build/
+.eunit
+deps
+ebin
+*.o
+*.beam
+*.plt
+erl_crash.dump
+.DS_Store
