@@ -211,7 +211,6 @@ sane_float_to_list(X) ->
     Output.
 
 -include("jsx_config.hrl").
--include("jsx_strings.hrl").
 
 
 %% erlang refuses to encode certain codepoints, so fake them
@@ -269,56 +268,56 @@ clean_string_test_() ->
     [
         {"clean codepoints", ?_assertEqual(
             codepoints(),
-            clean_string(codepoints(), #config{})
+            jsx_parser:clean_string(codepoints(), #config{})
         )},
         {"clean extended codepoints", ?_assertEqual(
             extended_codepoints(),
-            clean_string(extended_codepoints(), #config{})
+            jsx_parser:clean_string(extended_codepoints(), #config{})
         )},
         {"escape path codepoints", ?_assertEqual(
             codepoints(),
-            clean_string(codepoints(), #config{escaped_strings=true})
+            jsx_parser:clean_string(codepoints(), #config{escaped_strings=true})
         )},
         {"escape path extended codepoints", ?_assertEqual(
             extended_codepoints(),
-            clean_string(extended_codepoints(), #config{escaped_strings=true})
+            jsx_parser:clean_string(extended_codepoints(), #config{escaped_strings=true})
         )},
         {"error reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, reserved_space())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{}) end, reserved_space())
         )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, surrogates())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{}) end, surrogates())
         )},
         {"error noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, noncharacters())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{}) end, noncharacters())
         )},
         {"error extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{}) end, extended_noncharacters())
         )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, reserved_space())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, reserved_space())
         )},
         {"clean surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, surrogates())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, surrogates())
         )},
         {"clean noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, noncharacters())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, noncharacters())
         )},
         {"clean extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> jsx_parser:clean_string(Codepoint, #config{replaced_bad_utf8=true}) end, extended_noncharacters())
         )}
     ].
 
 
-maybe_escape(Bin, Config) -> clean_string(Bin, Config).
+maybe_escape(Bin, Config) -> jsx_parser:clean_string(Bin, Config).
 
 escape_test_() ->
     [
@@ -493,197 +492,197 @@ bad_utf8_test_() ->
     [
         {"noncharacter u+fffe", ?_assertEqual(
             {error, badarg},
-            clean_string(to_fake_utf8(16#fffe), #config{})
+            jsx_parser:clean_string(to_fake_utf8(16#fffe), #config{})
         )},
         {"noncharacter u+fffe replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(to_fake_utf8(16#fffe), #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(to_fake_utf8(16#fffe), #config{replaced_bad_utf8=true})
         )},
         {"noncharacter u+ffff", ?_assertEqual(
             {error, badarg},
-            clean_string(to_fake_utf8(16#ffff), #config{})
+            jsx_parser:clean_string(to_fake_utf8(16#ffff), #config{})
         )},
         {"noncharacter u+ffff replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(to_fake_utf8(16#ffff), #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(to_fake_utf8(16#ffff), #config{replaced_bad_utf8=true})
         )},
         {"orphan continuation byte u+0080", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#0080>>, #config{})
+            jsx_parser:clean_string(<<16#0080>>, #config{})
         )},
         {"orphan continuation byte u+0080 replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#0080>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#0080>>, #config{replaced_bad_utf8=true})
         )},
         {"orphan continuation byte u+00bf", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#00bf>>, #config{})
+            jsx_parser:clean_string(<<16#00bf>>, #config{})
         )},
         {"orphan continuation byte u+00bf replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#00bf>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#00bf>>, #config{replaced_bad_utf8=true})
         )},
         {"2 continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{})
         )},
         {"2 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 2),
-            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{replaced_bad_utf8=true})
         )},
         {"3 continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
         )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
-            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{replaced_bad_utf8=true})
         )},
         {"4 continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
         )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
-            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{replaced_bad_utf8=true})
         )},
         {"5 continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
         )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
-            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{replaced_bad_utf8=true})
         )},
         {"6 continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
         )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
-            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{replaced_bad_utf8=true})
         )},
         {"all continuation bytes", ?_assertEqual(
             {error, badarg},
-            clean_string(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, #config{})
+            jsx_parser:clean_string(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, #config{})
         )},
         {"all continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf))),
-            clean_string(
+            jsx_parser:clean_string(
                 <<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>,
                 #config{replaced_bad_utf8=true}
             )
         )},
         {"lonely start byte", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#00c0>>, #config{})
+            jsx_parser:clean_string(<<16#00c0>>, #config{})
         )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            clean_string(<<16#00c0>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#00c0>>, #config{replaced_bad_utf8=true})
         )},
         {"lonely start bytes (2 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#00c0, 32, 16#00df>>, #config{})
+            jsx_parser:clean_string(<<16#00c0, 32, 16#00df>>, #config{})
         )},
         {"lonely start bytes (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00c0, 32, 16#00df>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#00c0, 32, 16#00df>>, #config{replaced_bad_utf8=true})
         )},
         {"lonely start bytes (3 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#00e0, 32, 16#00ef>>, #config{})
+            jsx_parser:clean_string(<<16#00e0, 32, 16#00ef>>, #config{})
         )},
         {"lonely start bytes (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00e0, 32, 16#00ef>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#00e0, 32, 16#00ef>>, #config{replaced_bad_utf8=true})
         )},
         {"lonely start bytes (4 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#00f0, 32, 16#00f7>>, #config{})
+            jsx_parser:clean_string(<<16#00f0, 32, 16#00f7>>, #config{})
         )},
         {"lonely start bytes (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            clean_string(<<16#00f0, 32, 16#00f7>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#00f0, 32, 16#00f7>>, #config{replaced_bad_utf8=true})
         )},
         {"missing continuation byte (3 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<224, 160, 32>>, #config{})
+            jsx_parser:clean_string(<<224, 160, 32>>, #config{})
         )},
         {"missing continuation byte (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<224, 160, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<224, 160, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"missing continuation byte (4 byte missing one)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<240, 144, 128, 32>>, #config{})
+            jsx_parser:clean_string(<<240, 144, 128, 32>>, #config{})
         )},
         {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<240, 144, 128, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<240, 144, 128, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"missing continuation byte (4 byte missing two)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<240, 144, 32>>, #config{})
+            jsx_parser:clean_string(<<240, 144, 32>>, #config{})
         )},
         {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<240, 144, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<240, 144, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"overlong encoding of u+002f (2 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#c0, 16#af, 32>>, #config{})
+            jsx_parser:clean_string(<<16#c0, 16#af, 32>>, #config{})
         )},
         {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#c0, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#c0, 16#af, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"overlong encoding of u+002f (3 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{})
+            jsx_parser:clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{})
         )},
         {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"overlong encoding of u+002f (4 byte)", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{})
+            jsx_parser:clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{})
         )},
         {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"highest overlong 2 byte sequence", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#c1, 16#bf, 32>>, #config{})
+            jsx_parser:clean_string(<<16#c1, 16#bf, 32>>, #config{})
         )},
         {"highest overlong 2 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#c1, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#c1, 16#bf, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"highest overlong 3 byte sequence", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{})
+            jsx_parser:clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{})
         )},
         {"highest overlong 3 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{replaced_bad_utf8=true})
         )},
         {"highest overlong 4 byte sequence", ?_assertEqual(
             {error, badarg},
-            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{})
+            jsx_parser:clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{})
         )},
         {"highest overlong 4 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{replaced_bad_utf8=true})
+            jsx_parser:clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{replaced_bad_utf8=true})
         )}
     ].
 
 
 json_escape_sequence_test_() ->
     [
-        {"json escape sequence test - 16#0000", ?_assertEqual(json_escape_sequence(16#0000), "\\u0000")},
-        {"json escape sequence test - 16#abc", ?_assertEqual(json_escape_sequence(16#abc), "\\u0abc")},
-        {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
+        {"json escape sequence test - 16#0000", ?_assertEqual(jsx_parser:json_escape_sequence(16#0000), "\\u0000")},
+        {"json escape sequence test - 16#abc", ?_assertEqual(jsx_parser:json_escape_sequence(16#abc), "\\u0abc")},
+        {"json escape sequence test - 16#def", ?_assertEqual(jsx_parser:json_escape_sequence(16#def), "\\u0def")}
     ].
