@@ -42,8 +42,9 @@
 -endif.
 
 
--type json_term() :: list({binary(), json_term()})
-    | list(json_term())
+-type json_term()
+   :: [{binary() | atom(), json_term()}]
+    | [json_term()]
     | true
     | false
     | null
