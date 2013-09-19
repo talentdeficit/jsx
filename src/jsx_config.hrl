@@ -12,3 +12,5 @@
     error_handler = false,
     incomplete_handler = false
 }).
+
+-type config() :: #config{}.
