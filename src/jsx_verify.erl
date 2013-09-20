@@ -32,6 +32,7 @@
 }).
 
 -type config() :: [].
+-export_type([config/0]).
 
 
 -spec is_json(Source::binary(), Config::config()) -> true | false.
@@ -72,9 +73,13 @@ parse_config([K|Rest] = Options, Config) ->
 parse_config([], Config) ->
     Config.
 
+-type state() :: {#config{}, any()}.
+-spec init(Config::proplists:proplist()) -> state().
 
 init(Config) -> {parse_config(Config), []}.
 
+
+-spec handle_event(Event::any(), State::state()) -> state().
 
 handle_event(end_json, _) -> true;
 
