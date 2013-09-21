@@ -71,6 +71,7 @@ to_json(Source, Config) -> encode(Source, Config).
 
 -spec term_to_json(Source::json_term()) -> json_text() | {incomplete, encoder()}.
 -spec term_to_json(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
+
 term_to_json(Source) -> encode(Source, []).
 term_to_json(Source, Config) -> encode(Source, Config).
 
