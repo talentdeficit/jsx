@@ -33,6 +33,8 @@
 }).
 
 -type config() :: list().
+-export_type([config/0]).
+
 
 -type json_value() :: list({binary(), json_value()})
     | list(json_value())
@@ -72,9 +74,12 @@ parse_config([K|Rest] = Options, Config) ->
 parse_config([], Config) ->
     Config.
 
+-type state() :: {[any()], #config{}}.
+-spec init(Config::proplists:proplist()) -> state().
 
 init(Config) -> {[[]], parse_config(Config)}.
 
+-spec handle_event(Event::any(), State::state()) -> state().
 
 handle_event(end_json, {[[Terms]], _Config}) -> Terms;
 

@@ -36,12 +36,12 @@ parser(Handler, State, Config) ->
 %% resume allows continuation from interrupted decoding without having to explicitly export
 %%  all states
 -spec resume(
-        Rest::binary(),
+        Rest::list(), %% was binary(),
         State::atom(),
         Handler::{atom(), any()},
         Stack::list(atom()),
         Config::jsx:config()
-    ) -> jsx:parser().
+    ) -> jsx:parser() | {incomplete, _}.
 
 resume(Rest, State, Handler, Stack, Config) ->
     case State of
@@ -208,7 +208,11 @@ clean_string(Bin, Tokens, Handler, Stack, Config) ->
 
 
 %% for raw input
+-spec init(proplists:proplist()) -> list().
+
 init([]) -> [].
+
+-spec handle_event(Event::any(), Acc::list()) -> list().
 
 handle_event(end_json, State) -> lists:reverse(State);
 handle_event(Event, State) -> [Event] ++ State.
