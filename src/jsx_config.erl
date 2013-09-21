@@ -40,7 +40,6 @@
 parse_config(Config) ->
     parse_config(Config, #config{}).
 
-
 parse_config([], Config) ->
     Config;
 parse_config([replaced_bad_utf8|Rest], Config) ->
@@ -104,6 +103,7 @@ parse_config([ignore_bad_escapes|Rest], Config) ->
 parse_config(Options, Config) ->
     erlang:error(badarg, [Options, Config]).
 
+
 -spec config_to_list(Config::config()) -> proplists:proplist().
 
 config_to_list(Config) ->
@@ -118,6 +118,7 @@ config_to_list(Config) ->
             lists:zip(record_info(fields, config), tl(tuple_to_list(Config)))
         )
     ).
+
 
 -spec valid_flags() -> [atom()].
 
@@ -145,6 +146,7 @@ valid_flags() ->
         json_escape,            %% escaped_strings
         ignore_bad_escapes      %% ignored_bad_escapes
     ].
+
 
 -spec extract_config(Config::proplists:proplist()) -> proplists:proplist().
 
