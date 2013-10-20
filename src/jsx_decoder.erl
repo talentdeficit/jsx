@@ -590,21 +590,21 @@ string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false
 string(Bin, Handler, Acc, Stack, Config) -> ?error(string, Bin, Handler, Acc, Stack, Config).
 
 
-doublequote(<<Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
+doublequote(Rest, Handler, Acc, [key|_] = Stack, Config) ->
     colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
-doublequote(<<Rest/binary>>, Handler, Acc, [singlequote|_] = Stack, Config) ->
+doublequote(Rest, Handler, Acc, [singlequote|_] = Stack, Config) ->
     string(Rest, Handler,acc_seq(Acc, maybe_replace(?doublequote, Config)), Stack, Config);
 doublequote(<<>>, Handler, Acc, [singlequote|_] = Stack, Config) ->
     incomplete(string, <<?doublequote>>, Handler, Acc, Stack, Config);
-doublequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
+doublequote(Rest, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config).
 
 
-singlequote(<<Rest/binary>>, Handler, Acc, [singlequote, key|Stack], Config) ->
+singlequote(Rest, Handler, Acc, [singlequote, key|Stack], Config) ->
     colon(Rest, handle_event({key, end_seq(Acc, Config)}, Handler, Config), [key|Stack], Config);
-singlequote(<<Rest/binary>>, Handler, Acc, [singlequote|Stack], Config) ->
+singlequote(Rest, Handler, Acc, [singlequote|Stack], Config) ->
     maybe_done(Rest, handle_event({string, end_seq(Acc, Config)}, Handler, Config), Stack, Config);
-singlequote(<<Rest/binary>>, Handler, Acc, Stack, Config) ->
+singlequote(Rest, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config).
 
 
