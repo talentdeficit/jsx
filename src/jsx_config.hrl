@@ -3,7 +3,7 @@
     escaped_forward_slashes = false,
     single_quoted_strings = false,
     unescaped_jsonp = false,
-    comments = false,
+    no_comments = false,
     escaped_strings = false,
     dirty_strings = false,
     ignored_bad_escapes = false,

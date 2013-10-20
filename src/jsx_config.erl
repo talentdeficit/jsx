@@ -50,8 +50,8 @@ parse_config([single_quoted_strings|Rest], Config) ->
     parse_config(Rest, Config#config{single_quoted_strings=true});
 parse_config([unescaped_jsonp|Rest], Config) ->
     parse_config(Rest, Config#config{unescaped_jsonp=true});
-parse_config([comments|Rest], Config) ->
-    parse_config(Rest, Config#config{comments=true});
+parse_config([no_comments|Rest], Config) ->
+    parse_config(Rest, Config#config{no_comments=true});
 parse_config([escaped_strings|Rest], Config) ->
     parse_config(Rest, Config#config{escaped_strings=true});
 parse_config([dirty_strings|Rest], Config) ->
@@ -61,7 +61,6 @@ parse_config([ignored_bad_escapes|Rest], Config) ->
 parse_config([relax|Rest], Config) ->
     parse_config(Rest, Config#config{
         single_quoted_strings = true,
-        comments = true,
         ignored_bad_escapes = true
     });
 parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 3) ->
@@ -98,7 +97,7 @@ valid_flags() ->
         escaped_forward_slashes,
         single_quoted_strings,
         unescaped_jsonp,
-        comments,
+        no_comments,
         escaped_strings,
         dirty_strings,
         ignored_bad_escapes,
@@ -140,7 +139,7 @@ config_test_() ->
                     stream=true,
                     single_quoted_strings=true,
                     unescaped_jsonp=true,
-                    comments=true,
+                    no_comments=true,
                     dirty_strings=true,
                     ignored_bad_escapes=true
                 },
@@ -150,7 +149,7 @@ config_test_() ->
                     stream,
                     single_quoted_strings,
                     unescaped_jsonp,
-                    comments,
+                    no_comments,
                     dirty_strings,
                     ignored_bad_escapes
                 ])
@@ -160,7 +159,6 @@ config_test_() ->
             ?_assertEqual(
                 #config{
                     single_quoted_strings=true,
-                    comments=true,
                     ignored_bad_escapes=true
                 },
                 parse_config([relax])
@@ -204,7 +202,7 @@ config_to_list_test_() ->
                 escaped_forward_slashes,
                 single_quoted_strings,
                 unescaped_jsonp,
-                comments,
+                no_comments,
                 dirty_strings,
                 ignored_bad_escapes,
                 stream
@@ -216,7 +214,7 @@ config_to_list_test_() ->
                     stream=true,
                     single_quoted_strings=true,
                     unescaped_jsonp=true,
-                    comments=true,
+                    no_comments=true,
                     dirty_strings=true,
                     ignored_bad_escapes=true
                 }
