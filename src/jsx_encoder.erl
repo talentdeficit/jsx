@@ -61,24 +61,12 @@ unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K) -> unzip(Rest, [V, K] ++
 -include_lib("eunit/include/eunit.hrl").
 
 
-encode_test_() ->
-    Data = jsx:test_cases(),
-    Encode = encoder(jsx, [], []),
-    [
-        {
-            Title, ?_assertEqual(
-                Events,
-                Encode(Term) -- [end_json]
-            )
-        } || {Title, _, Term, Events} <- Data
-    ].
-
-err(Term, Opts) -> (jsx:parser(jsx, [], Opts))(Term).
+parser(Term, Opts) -> (jsx:parser(jsx, [], Opts))(Term).
 
 error_test_() ->
     [
-        {"value error", ?_assertError(badarg, err(self(), []))},
-        {"string error", ?_assertError(badarg, err(<<239, 191, 191>>, [strict]))}
+        {"value error", ?_assertError(badarg, parser(self(), []))},
+        {"string error", ?_assertError(badarg, parser(<<239, 191, 191>>, [strict]))}
     ].
 
 custom_error_handler_test_() ->
@@ -86,11 +74,11 @@ custom_error_handler_test_() ->
     [
         {"value error", ?_assertEqual(
             {value, [self()]},
-            err(self(), [{error_handler, Error}])
+            parser(self(), [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
             {string, [{string, <<239, 191, 191>>}]},
-            err(<<239, 191, 191>>, [{error_handler, Error}, strict])
+            parser(<<239, 191, 191>>, [{error_handler, Error}, strict])
         )}
     ].
 

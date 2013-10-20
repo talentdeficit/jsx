@@ -26,10 +26,6 @@
 -export([parser/3, resume/5]).
 -export([init/1, handle_event/2]).
 
--ifdef(TEST).
--export([clean_string/2, json_escape_sequence/1]).
--endif.
-
 
 -spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
 
@@ -455,47 +451,15 @@ handle_event(Event, State) -> [Event] ++ State.
 -include_lib("eunit/include/eunit.hrl").
 
 
-parse(Events, Config) ->
-    Chunk = try
-        value(Events ++ [end_json], {jsx, []}, [], jsx_config:parse_config(Config))
-    catch
-        error:badarg -> {error, badarg}
-    end,
-    Incremental = try
-        Final = lists:foldl(
-            fun(Event, Parser) -> {incomplete, F} = Parser(Event), F end,
-            parser(jsx, [], [stream] ++ Config),
-            lists:map(fun(X) -> [X] end, Events)
-        ),
-        Final(end_stream)
-    catch
-        error:badarg -> {error, badarg}
-    end,
-    ?assert(Chunk == Incremental),
-    Chunk.
-
-
-parse_test_() ->
-    Data = jsx:test_cases(),
-    [
-        {
-            Title, ?_assertEqual(
-                Events ++ [end_json],
-                parse(Events, [])
-            )
-        } || {Title, _, _, Events} <- Data
-    ].
-
-
-parse_error(Events, Config) -> value(Events, {jsx, []}, [], jsx_config:parse_config(Config)).
+parse(Events, Config) -> value(Events, {jsx, []}, [], jsx_config:parse_config(Config)).
 
 
 error_test_() ->
     [
-        {"value error", ?_assertError(badarg, parse_error([self()], []))},
-        {"maybe_done error", ?_assertError(badarg, parse_error([start_array, end_array, start_array, end_json], []))},
-        {"done error", ?_assertError(badarg, parse_error([{string, <<"">>}, {literal, true}, end_json], []))},
-        {"string error", ?_assertError(badarg, parse_error([{string, <<239, 191, 191>>}, end_json], [strict_utf8]))}
+        {"value error", ?_assertError(badarg, parse([self()], []))},
+        {"maybe_done error", ?_assertError(badarg, parse([start_array, end_array, start_array, end_json], []))},
+        {"done error", ?_assertError(badarg, parse([{string, <<"">>}, {literal, true}, end_json], []))},
+        {"string error", ?_assertError(badarg, parse([{string, <<239, 191, 191>>}, end_json], [strict_utf8]))}
     ].
 
 
@@ -504,20 +468,32 @@ custom_error_handler_test_() ->
     [
         {"value error", ?_assertEqual(
             {value, [self()]},
-            parse_error([self()], [{error_handler, Error}])
+            parse([self()], [{error_handler, Error}])
         )},
         {"maybe_done error", ?_assertEqual(
             {maybe_done, [start_array, end_json]},
-            parse_error([start_array, end_array, start_array, end_json], [{error_handler, Error}])
+            parse([start_array, end_array, start_array, end_json], [{error_handler, Error}])
         )},
         {"done error", ?_assertEqual(
             {maybe_done, [{literal, true}, end_json]},
-            parse_error([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
+            parse([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
             {string, [{string, <<239, 191, 191>>}, end_json]},
-            parse_error([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}, strict])
+            parse([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}, strict])
         )}
+    ].
+
+
+incomplete_test_() ->
+    Cases = [
+        {"incomplete value", []},
+        {"incomplete object", [start_object]},
+        {"incomplete array", [start_array]},
+        {"incomplete maybe_done", [start_array, end_array]}
+    ],
+    [{Title, ?_assertError(badarg, parse(Events, []))}
+        || {Title, Events} <- Cases
     ].
 
 
@@ -525,25 +501,499 @@ custom_incomplete_handler_test_() ->
     [
         {"custom incomplete handler", ?_assertError(
             badarg,
-            parse_error([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
+            parse([], [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
         )}
     ].
 
 
 raw_test_() ->
+    Parse = fun(Events, Config) -> (parser(?MODULE, [], Config))(Events ++ [end_json]) end,
     [
         {"raw empty list", ?_assertEqual(
-            [start_array, end_array, end_json],
-            parse([{raw, <<"[]">>}], [])
+            [start_array, end_array],
+            Parse([{raw, <<"[]">>}], [])
         )},
         {"raw empty object", ?_assertEqual(
-            [start_object, end_object, end_json],
-            parse([{raw, <<"{}">>}], [])
+            [start_object, end_object],
+            Parse([{raw, <<"{}">>}], [])
         )},
         {"raw chunk inside stream", ?_assertEqual(
-            [start_object, {key, <<"key">>}, start_array, {literal, true}, end_array, end_object, end_json],
-            parse([start_object, {key, <<"key">>}, {raw, <<"[true]">>}, end_object], [])
+            [start_object, {key, <<"key">>}, start_array, {literal, true}, end_array, end_object],
+            Parse([start_object, {key, <<"key">>}, {raw, <<"[true]">>}, end_object], [])
         )}
+    ].
+
+
+%% erlang refuses to encode certain codepoints, so fake them
+to_fake_utf8(N) when N < 16#0080 -> <<N:8>>;
+to_fake_utf8(N) when N < 16#0800 ->
+    <<0:5, Y:5, X:6>> = <<N:16>>,
+    <<2#110:3, Y:5, 2#10:2, X:6>>;
+to_fake_utf8(N) when N < 16#10000 ->
+    <<Z:4, Y:6, X:6>> = <<N:16>>,
+    <<2#1110:4, Z:4, 2#10:2, Y:6, 2#10:2, X:6>>;
+to_fake_utf8(N) ->
+    <<0:3, W:3, Z:6, Y:6, X:6>> = <<N:24>>,
+    <<2#11110:5, W:3, 2#10:2, Z:6, 2#10:2, Y:6, 2#10:2, X:6>>.
+
+
+codepoints() ->
+    unicode:characters_to_binary(
+        [32, 33]
+        ++ lists:seq(35, 46)
+        ++ lists:seq(48, 91)
+        ++ lists:seq(93, 16#2027)
+        ++ lists:seq(16#202a, 16#d7ff)
+        ++ lists:seq(16#e000, 16#fdcf)
+        ++ lists:seq(16#fdf0, 16#fffd)
+    ).
+
+extended_codepoints() ->
+    unicode:characters_to_binary(
+        lists:seq(16#10000, 16#1fffd) ++ [
+            16#20000, 16#30000, 16#40000, 16#50000, 16#60000,
+            16#70000, 16#80000, 16#90000, 16#a0000, 16#b0000,
+            16#c0000, 16#d0000, 16#e0000, 16#f0000, 16#100000
+        ]
+    ).
+
+reserved_space() -> [ to_fake_utf8(N) || N <- lists:seq(16#fdd0, 16#fdef) ].
+
+surrogates() -> [ to_fake_utf8(N) || N <- lists:seq(16#d800, 16#dfff) ].
+
+noncharacters() -> [ to_fake_utf8(N) || N <- lists:seq(16#fffe, 16#ffff) ].
+
+extended_noncharacters() ->
+    [ to_fake_utf8(N) || N <- [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
+        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
+        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
+        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
+        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
+        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
+        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
+        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff]
+    ].
+
+
+clean_string_test_() ->
+    [
+        {"clean codepoints", ?_assertEqual(
+            codepoints(),
+            clean_string(codepoints(), #config{})
+        )},
+        {"clean extended codepoints", ?_assertEqual(
+            extended_codepoints(),
+            clean_string(extended_codepoints(), #config{})
+        )},
+        {"escape path codepoints", ?_assertEqual(
+            codepoints(),
+            clean_string(codepoints(), #config{escaped_strings=true})
+        )},
+        {"escape path extended codepoints", ?_assertEqual(
+            extended_codepoints(),
+            clean_string(extended_codepoints(), #config{escaped_strings=true})
+        )},
+        {"error reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), {error, badarg}),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, reserved_space())
+        )},
+        {"error surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), {error, badarg}),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, surrogates())
+        )},
+        {"error noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, noncharacters())
+        )},
+        {"error extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), {error, badarg}),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, extended_noncharacters())
+        )},
+        {"clean reserved space", ?_assertEqual(
+            lists:duplicate(length(reserved_space()), <<16#fffd/utf8>>),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, reserved_space())
+        )},
+        {"clean surrogates", ?_assertEqual(
+            lists:duplicate(length(surrogates()), <<16#fffd/utf8>>),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, surrogates())
+        )},
+        {"clean noncharacters", ?_assertEqual(
+            lists:duplicate(length(noncharacters()), <<16#fffd/utf8>>),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, noncharacters())
+        )},
+        {"clean extended noncharacters", ?_assertEqual(
+            lists:duplicate(length(extended_noncharacters()), <<16#fffd/utf8>>),
+            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, extended_noncharacters())
+        )}
+    ].
+
+
+escape_test_() ->
+    [
+        {"maybe_escape backspace", ?_assertEqual(
+            <<"\\b">>,
+            clean_string(<<16#0008/utf8>>, #config{escaped_strings=true})
+        )},
+        {"don't escape backspace", ?_assertEqual(
+            <<"\b">>,
+            clean_string(<<16#0008/utf8>>, #config{})
+        )},
+        {"maybe_escape tab", ?_assertEqual(
+            <<"\\t">>,
+            clean_string(<<16#0009/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape newline", ?_assertEqual(
+            <<"\\n">>,
+            clean_string(<<16#000a/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape formfeed", ?_assertEqual(
+            <<"\\f">>,
+            clean_string(<<16#000c/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape carriage return", ?_assertEqual(
+            <<"\\r">>,
+            clean_string(<<16#000d/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape quote", ?_assertEqual(
+            <<"\\\"">>,
+            clean_string(<<16#0022/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape forward slash", ?_assertEqual(
+            <<"\\/">>,
+            clean_string(<<16#002f/utf8>>, #config{escaped_strings=true, escaped_forward_slashes=true})
+        )},
+        {"do not maybe_escape forward slash", ?_assertEqual(
+            <<"/">>,
+            clean_string(<<16#002f/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape backslash", ?_assertEqual(
+            <<"\\\\">>,
+            clean_string(<<16#005c/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape jsonp (u2028)", ?_assertEqual(
+            <<"\\u2028">>,
+            clean_string(<<16#2028/utf8>>, #config{escaped_strings=true})
+        )},
+        {"do not maybe_escape jsonp (u2028)", ?_assertEqual(
+            <<16#2028/utf8>>,
+            clean_string(<<16#2028/utf8>>, #config{escaped_strings=true, unescaped_jsonp=true})
+        )},
+        {"maybe_escape jsonp (u2029)", ?_assertEqual(
+            <<"\\u2029">>,
+            clean_string(<<16#2029/utf8>>, #config{escaped_strings=true})
+        )},
+        {"do not maybe_escape jsonp (u2029)", ?_assertEqual(
+            <<16#2029/utf8>>,
+            clean_string(<<16#2029/utf8>>, #config{escaped_strings=true, unescaped_jsonp=true})
+        )},
+        {"maybe_escape u0000", ?_assertEqual(
+            <<"\\u0000">>,
+            clean_string(<<16#0000/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0001", ?_assertEqual(
+            <<"\\u0001">>,
+            clean_string(<<16#0001/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0002", ?_assertEqual(
+            <<"\\u0002">>,
+            clean_string(<<16#0002/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0003", ?_assertEqual(
+            <<"\\u0003">>,
+            clean_string(<<16#0003/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0004", ?_assertEqual(
+            <<"\\u0004">>,
+            clean_string(<<16#0004/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0005", ?_assertEqual(
+            <<"\\u0005">>,
+            clean_string(<<16#0005/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0006", ?_assertEqual(
+            <<"\\u0006">>,
+            clean_string(<<16#0006/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0007", ?_assertEqual(
+            <<"\\u0007">>,
+            clean_string(<<16#0007/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u000b", ?_assertEqual(
+            <<"\\u000b">>,
+            clean_string(<<16#000b/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u000e", ?_assertEqual(
+            <<"\\u000e">>,
+            clean_string(<<16#000e/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u000f", ?_assertEqual(
+            <<"\\u000f">>,
+            clean_string(<<16#000f/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0010", ?_assertEqual(
+            <<"\\u0010">>,
+            clean_string(<<16#0010/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0011", ?_assertEqual(
+            <<"\\u0011">>,
+            clean_string(<<16#0011/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0012", ?_assertEqual(
+            <<"\\u0012">>,
+            clean_string(<<16#0012/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0013", ?_assertEqual(
+            <<"\\u0013">>,
+            clean_string(<<16#0013/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0014", ?_assertEqual(
+            <<"\\u0014">>,
+            clean_string(<<16#0014/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0015", ?_assertEqual(
+            <<"\\u0015">>,
+            clean_string(<<16#0015/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0016", ?_assertEqual(
+            <<"\\u0016">>,
+            clean_string(<<16#0016/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0017", ?_assertEqual(
+            <<"\\u0017">>,
+            clean_string(<<16#0017/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0018", ?_assertEqual(
+            <<"\\u0018">>,
+            clean_string(<<16#0018/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u0019", ?_assertEqual(
+            <<"\\u0019">>,
+            clean_string(<<16#0019/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001a", ?_assertEqual(
+            <<"\\u001a">>,
+            clean_string(<<16#001a/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001b", ?_assertEqual(
+            <<"\\u001b">>,
+            clean_string(<<16#001b/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001c", ?_assertEqual(
+            <<"\\u001c">>,
+            clean_string(<<16#001c/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001d", ?_assertEqual(
+            <<"\\u001d">>,
+            clean_string(<<16#001d/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001e", ?_assertEqual(
+            <<"\\u001e">>,
+            clean_string(<<16#001e/utf8>>, #config{escaped_strings=true})
+        )},
+        {"maybe_escape u001f", ?_assertEqual(
+            <<"\\u001f">>,
+            clean_string(<<16#001f/utf8>>, #config{escaped_strings=true})
+        )}
+    ].
+
+
+bad_utf8_test_() ->
+    [
+        {"noncharacter u+fffe", ?_assertEqual(
+            {error, badarg},
+            clean_string(to_fake_utf8(16#fffe), #config{strict_utf8=true})
+        )},
+        {"noncharacter u+fffe replaced", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            clean_string(to_fake_utf8(16#fffe), #config{})
+        )},
+        {"noncharacter u+ffff", ?_assertEqual(
+            {error, badarg},
+            clean_string(to_fake_utf8(16#ffff), #config{strict_utf8=true})
+        )},
+        {"noncharacter u+ffff replaced", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            clean_string(to_fake_utf8(16#ffff), #config{})
+        )},
+        {"orphan continuation byte u+0080", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#0080>>, #config{strict_utf8=true})
+        )},
+        {"orphan continuation byte u+0080 replaced", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            clean_string(<<16#0080>>, #config{})
+        )},
+        {"orphan continuation byte u+00bf", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00bf>>, #config{strict_utf8=true})
+        )},
+        {"orphan continuation byte u+00bf replaced", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            clean_string(<<16#00bf>>, #config{})
+        )},
+        {"2 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{strict_utf8=true})
+        )},
+        {"2 continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, 2),
+            clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{})
+        )},
+        {"3 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{strict_utf8=true})
+        )},
+        {"3 continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, 3),
+            clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
+        )},
+        {"4 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{strict_utf8=true})
+        )},
+        {"4 continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, 4),
+            clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
+        )},
+        {"5 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{strict_utf8=true})
+        )},
+        {"5 continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, 5),
+            clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
+        )},
+        {"6 continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{strict_utf8=true})
+        )},
+        {"6 continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, 6),
+            clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
+        )},
+        {"all continuation bytes", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, #config{strict_utf8=true})
+        )},
+        {"all continuation bytes replaced", ?_assertEqual(
+            binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf))),
+            clean_string(
+                <<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>,
+                #config{}
+            )
+        )},
+        {"lonely start byte", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00c0>>, #config{strict_utf8=true})
+        )},
+        {"lonely start byte replaced", ?_assertEqual(
+            <<16#fffd/utf8>>,
+            clean_string(<<16#00c0>>, #config{})
+        )},
+        {"lonely start bytes (2 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00c0, 32, 16#00df>>, #config{strict_utf8=true})
+        )},
+        {"lonely start bytes (2 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32, 16#fffd/utf8>>,
+            clean_string(<<16#00c0, 32, 16#00df>>, #config{})
+        )},
+        {"lonely start bytes (3 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00e0, 32, 16#00ef>>, #config{strict_utf8=true})
+        )},
+        {"lonely start bytes (3 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32, 16#fffd/utf8>>,
+            clean_string(<<16#00e0, 32, 16#00ef>>, #config{})
+        )},
+        {"lonely start bytes (4 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#00f0, 32, 16#00f7>>, #config{strict_utf8=true})
+        )},
+        {"lonely start bytes (4 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32, 16#fffd/utf8>>,
+            clean_string(<<16#00f0, 32, 16#00f7>>, #config{})
+        )},
+        {"missing continuation byte (3 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<224, 160, 32>>, #config{strict_utf8=true})
+        )},
+        {"missing continuation byte (3 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<224, 160, 32>>, #config{})
+        )},
+        {"missing continuation byte (4 byte missing one)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<240, 144, 128, 32>>, #config{strict_utf8=true})
+        )},
+        {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<240, 144, 128, 32>>, #config{})
+        )},
+        {"missing continuation byte (4 byte missing two)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<240, 144, 32>>, #config{strict_utf8=true})
+        )},
+        {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<240, 144, 32>>, #config{})
+        )},
+        {"overlong encoding of u+002f (2 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#c0, 16#af, 32>>, #config{strict_utf8=true})
+        )},
+        {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#c0, 16#af, 32>>, #config{})
+        )},
+        {"overlong encoding of u+002f (3 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{strict_utf8=true})
+        )},
+        {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{})
+        )},
+        {"overlong encoding of u+002f (4 byte)", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{strict_utf8=true})
+        )},
+        {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{})
+        )},
+        {"highest overlong 2 byte sequence", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#c1, 16#bf, 32>>, #config{strict_utf8=true})
+        )},
+        {"highest overlong 2 byte sequence replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#c1, 16#bf, 32>>, #config{})
+        )},
+        {"highest overlong 3 byte sequence", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{strict_utf8=true})
+        )},
+        {"highest overlong 3 byte sequence replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{})
+        )},
+        {"highest overlong 4 byte sequence", ?_assertEqual(
+            {error, badarg},
+            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{strict_utf8=true})
+        )},
+        {"highest overlong 4 byte sequence replaced", ?_assertEqual(
+            <<16#fffd/utf8, 32>>,
+            clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{})
+        )}
+    ].
+
+
+json_escape_sequence_test_() ->
+    [
+        {"json escape sequence test - 16#0000", ?_assertEqual(json_escape_sequence(16#0000), "\\u0000")},
+        {"json escape sequence test - 16#abc", ?_assertEqual(json_escape_sequence(16#abc), "\\u0abc")},
+        {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
     ].
 
 
