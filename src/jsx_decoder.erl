@@ -631,12 +631,10 @@ strip_continuations(<<Rest/binary>>, Handler, Acc, Stack, Config, _) ->
 
 %% this all gets really gross and should probably eventually be folded into
 %%  but for now it fakes being part of string on incompletes and errors
+unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
+    string(<<?rsolidus, Rest/binary>>, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
 unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    case C of
-        ?doublequote -> string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
-        ?rsolidus -> string(<<?rsolidus/utf8, Rest/binary>>, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
-        _ -> string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config)
-    end;
+    string(Rest, Handler, acc_seq(Acc, [?rsolidus, C]), Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\b, Config)), Stack, Config);
 unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -1365,6 +1363,16 @@ dirty_string_test_() ->
         {"dirty 0",
             [start_array, {string, <<0>>}, end_array, end_json],
             <<"[\"", 0, "\"]">>,
+            [dirty_strings]
+        },
+        {"dirty 0\\\"0",
+            [start_array, {string, <<0, ?rsolidus, ?doublequote, 0>>}, end_array, end_json],
+            <<"[\"", 0, ?rsolidus, ?doublequote, 0, "\"]">>,
+            [dirty_strings]
+        },
+        {"dirty 0\\\\\"0",
+            [start_array, {string, <<0, ?rsolidus, ?rsolidus, ?doublequote, 0>>}, end_array, end_json],
+            <<"[\"", 0, ?rsolidus, ?rsolidus, ?doublequote, 0, "\"]">>,
             [dirty_strings]
         },
         {"dirty 16#d800",
