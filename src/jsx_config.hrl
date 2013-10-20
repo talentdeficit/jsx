@@ -1,5 +1,5 @@
 -record(config, {
-    replaced_bad_utf8 = false,
+    strict_utf8 = false,
     escaped_forward_slashes = false,
     single_quoted_strings = false,
     unescaped_jsonp = false,

@@ -193,209 +193,46 @@ clean_string(Bin, Tokens, Handler, Stack, Config) ->
     end.
 
 clean_string(Bin, #config{dirty_strings=true}) -> Bin;
-clean_string(Bin, Config) ->
-    case Config#config.replaced_bad_utf8 orelse Config#config.escaped_strings of
-        true -> clean(Bin, [], Config);
-        false -> ensure_clean(Bin)
-    end.
-
-
-ensure_clean(Bin) ->
-    case is_clean(Bin) of
-        ok -> Bin;
-        {error, badarg} -> {error, badarg}
-    end.
-
-
-%% fast path for no escaping and no correcting, throws error if string is 'bad'
-is_clean(<<>>) -> ok;
-is_clean(<<0, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<1, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<2, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<3, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<4, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<5, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<6, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<7, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<8, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<9, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<10, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<11, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<12, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<13, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<14, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<15, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<16, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<17, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<18, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<19, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<20, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<21, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<22, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<23, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<24, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<25, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<26, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<27, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<28, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<29, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<30, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<31, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<32, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<33, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<34, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<35, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<36, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<37, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<38, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<39, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<40, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<41, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<42, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<43, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<44, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<45, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<46, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<47, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<48, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<49, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<50, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<51, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<52, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<53, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<54, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<55, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<56, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<57, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<58, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<59, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<60, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<61, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<62, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<63, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<64, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<65, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<66, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<67, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<68, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<69, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<70, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<71, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<72, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<73, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<74, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<75, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<76, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<77, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<78, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<79, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<80, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<81, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<82, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<83, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<84, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<85, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<86, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<87, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<88, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<89, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<90, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<91, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<92, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<93, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<94, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<95, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<96, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<97, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<98, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<99, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<100, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<101, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<102, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<103, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<104, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<105, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<106, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<107, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<108, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<109, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<110, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<111, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<112, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<113, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<114, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<115, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<116, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<117, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<118, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<119, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<120, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<121, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<122, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<123, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<124, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<125, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<126, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<127, Rest/binary>>) -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X < 16#d800 -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X > 16#dfff, X < 16#fdd0 -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X > 16#fdef, X < 16#fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#10000, X < 16#1fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#20000, X < 16#2fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#30000, X < 16#3fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#40000, X < 16#4fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#50000, X < 16#5fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#60000, X < 16#6fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#70000, X < 16#7fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#80000, X < 16#8fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#90000, X < 16#9fffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#a0000, X < 16#afffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#b0000, X < 16#bfffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#c0000, X < 16#cfffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#d0000, X < 16#dfffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#e0000, X < 16#efffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#f0000, X < 16#ffffe -> is_clean(Rest);
-is_clean(<<X/utf8, Rest/binary>>) when X >= 16#100000, X < 16#10fffe -> is_clean(Rest);
-is_clean(_Bin) -> {error, badarg}.
+clean_string(Bin, Config) -> clean(Bin, [], Config).
 
 
 %% escape and/or replace bad codepoints if requested
 clean(<<>>, Acc, _Config) -> unicode:characters_to_binary(lists:reverse(Acc));
-clean(<<0, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(0, Config) ++ Acc, Config);
-clean(<<1, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(1, Config) ++ Acc, Config);
-clean(<<2, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(2, Config) ++ Acc, Config);
-clean(<<3, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(3, Config) ++ Acc, Config);
-clean(<<4, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(4, Config) ++ Acc, Config);
-clean(<<5, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(5, Config) ++ Acc, Config);
-clean(<<6, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(6, Config) ++ Acc, Config);
-clean(<<7, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(7, Config) ++ Acc, Config);
-clean(<<8, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(8, Config) ++ Acc, Config);
-clean(<<9, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(9, Config) ++ Acc, Config);
-clean(<<10, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(10, Config) ++ Acc, Config);
-clean(<<11, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(11, Config) ++ Acc, Config);
-clean(<<12, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(12, Config) ++ Acc, Config);
-clean(<<13, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(13, Config) ++ Acc, Config);
-clean(<<14, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(14, Config) ++ Acc, Config);
-clean(<<15, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(15, Config) ++ Acc, Config);
-clean(<<16, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(16, Config) ++ Acc, Config);
-clean(<<17, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(17, Config) ++ Acc, Config);
-clean(<<18, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(18, Config) ++ Acc, Config);
-clean(<<19, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(19, Config) ++ Acc, Config);
-clean(<<20, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(20, Config) ++ Acc, Config);
-clean(<<21, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(21, Config) ++ Acc, Config);
-clean(<<22, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(22, Config) ++ Acc, Config);
-clean(<<23, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(23, Config) ++ Acc, Config);
-clean(<<24, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(24, Config) ++ Acc, Config);
-clean(<<25, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(25, Config) ++ Acc, Config);
-clean(<<26, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(26, Config) ++ Acc, Config);
-clean(<<27, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(27, Config) ++ Acc, Config);
-clean(<<28, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(28, Config) ++ Acc, Config);
-clean(<<29, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(29, Config) ++ Acc, Config);
-clean(<<30, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(30, Config) ++ Acc, Config);
-clean(<<31, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(31, Config) ++ Acc, Config);
+clean(<<0, Rest/binary>>, Acc, Config) -> maybe_replace(0, Rest, Acc, Config);
+clean(<<1, Rest/binary>>, Acc, Config) -> maybe_replace(1, Rest, Acc, Config);
+clean(<<2, Rest/binary>>, Acc, Config) -> maybe_replace(2, Rest, Acc, Config);
+clean(<<3, Rest/binary>>, Acc, Config) -> maybe_replace(3, Rest, Acc, Config);
+clean(<<4, Rest/binary>>, Acc, Config) -> maybe_replace(4, Rest, Acc, Config);
+clean(<<5, Rest/binary>>, Acc, Config) -> maybe_replace(5, Rest, Acc, Config);
+clean(<<6, Rest/binary>>, Acc, Config) -> maybe_replace(6, Rest, Acc, Config);
+clean(<<7, Rest/binary>>, Acc, Config) -> maybe_replace(7, Rest, Acc, Config);
+clean(<<8, Rest/binary>>, Acc, Config) -> maybe_replace(8, Rest, Acc, Config);
+clean(<<9, Rest/binary>>, Acc, Config) -> maybe_replace(9, Rest, Acc, Config);
+clean(<<10, Rest/binary>>, Acc, Config) -> maybe_replace(10, Rest, Acc, Config);
+clean(<<11, Rest/binary>>, Acc, Config) -> maybe_replace(11, Rest, Acc, Config);
+clean(<<12, Rest/binary>>, Acc, Config) -> maybe_replace(12, Rest, Acc, Config);
+clean(<<13, Rest/binary>>, Acc, Config) -> maybe_replace(13, Rest, Acc, Config);
+clean(<<14, Rest/binary>>, Acc, Config) -> maybe_replace(14, Rest, Acc, Config);
+clean(<<15, Rest/binary>>, Acc, Config) -> maybe_replace(15, Rest, Acc, Config);
+clean(<<16, Rest/binary>>, Acc, Config) -> maybe_replace(16, Rest, Acc, Config);
+clean(<<17, Rest/binary>>, Acc, Config) -> maybe_replace(17, Rest, Acc, Config);
+clean(<<18, Rest/binary>>, Acc, Config) -> maybe_replace(18, Rest, Acc, Config);
+clean(<<19, Rest/binary>>, Acc, Config) -> maybe_replace(19, Rest, Acc, Config);
+clean(<<20, Rest/binary>>, Acc, Config) -> maybe_replace(20, Rest, Acc, Config);
+clean(<<21, Rest/binary>>, Acc, Config) -> maybe_replace(21, Rest, Acc, Config);
+clean(<<22, Rest/binary>>, Acc, Config) -> maybe_replace(22, Rest, Acc, Config);
+clean(<<23, Rest/binary>>, Acc, Config) -> maybe_replace(23, Rest, Acc, Config);
+clean(<<24, Rest/binary>>, Acc, Config) -> maybe_replace(24, Rest, Acc, Config);
+clean(<<25, Rest/binary>>, Acc, Config) -> maybe_replace(25, Rest, Acc, Config);
+clean(<<26, Rest/binary>>, Acc, Config) -> maybe_replace(26, Rest, Acc, Config);
+clean(<<27, Rest/binary>>, Acc, Config) -> maybe_replace(27, Rest, Acc, Config);
+clean(<<28, Rest/binary>>, Acc, Config) -> maybe_replace(28, Rest, Acc, Config);
+clean(<<29, Rest/binary>>, Acc, Config) -> maybe_replace(29, Rest, Acc, Config);
+clean(<<30, Rest/binary>>, Acc, Config) -> maybe_replace(30, Rest, Acc, Config);
+clean(<<31, Rest/binary>>, Acc, Config) -> maybe_replace(31, Rest, Acc, Config);
 clean(<<32, Rest/binary>>, Acc, Config) -> clean(Rest, [32] ++ Acc, Config);
 clean(<<33, Rest/binary>>, Acc, Config) -> clean(Rest, [33] ++ Acc, Config);
-clean(<<34, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(34, Config) ++ Acc, Config);
+clean(<<34, Rest/binary>>, Acc, Config) -> maybe_replace(34, Rest, Acc, Config);
 clean(<<35, Rest/binary>>, Acc, Config) -> clean(Rest, [35] ++ Acc, Config);
 clean(<<36, Rest/binary>>, Acc, Config) -> clean(Rest, [36] ++ Acc, Config);
 clean(<<37, Rest/binary>>, Acc, Config) -> clean(Rest, [37] ++ Acc, Config);
@@ -408,7 +245,7 @@ clean(<<43, Rest/binary>>, Acc, Config) -> clean(Rest, [43] ++ Acc, Config);
 clean(<<44, Rest/binary>>, Acc, Config) -> clean(Rest, [44] ++ Acc, Config);
 clean(<<45, Rest/binary>>, Acc, Config) -> clean(Rest, [45] ++ Acc, Config);
 clean(<<46, Rest/binary>>, Acc, Config) -> clean(Rest, [46] ++ Acc, Config);
-clean(<<47, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(47, Config) ++ Acc, Config);
+clean(<<47, Rest/binary>>, Acc, Config) -> maybe_replace(47, Rest, Acc, Config);
 clean(<<48, Rest/binary>>, Acc, Config) -> clean(Rest, [48] ++ Acc, Config);
 clean(<<49, Rest/binary>>, Acc, Config) -> clean(Rest, [49] ++ Acc, Config);
 clean(<<50, Rest/binary>>, Acc, Config) -> clean(Rest, [50] ++ Acc, Config);
@@ -453,7 +290,7 @@ clean(<<88, Rest/binary>>, Acc, Config) -> clean(Rest, [88] ++ Acc, Config);
 clean(<<89, Rest/binary>>, Acc, Config) -> clean(Rest, [89] ++ Acc, Config);
 clean(<<90, Rest/binary>>, Acc, Config) -> clean(Rest, [90] ++ Acc, Config);
 clean(<<91, Rest/binary>>, Acc, Config) -> clean(Rest, [91] ++ Acc, Config);
-clean(<<92, Rest/binary>>, Acc, Config) -> clean(Rest, maybe_replace(92, Config) ++ Acc, Config);
+clean(<<92, Rest/binary>>, Acc, Config) -> maybe_replace(92, Rest, Acc, Config);
 clean(<<93, Rest/binary>>, Acc, Config) -> clean(Rest, [93] ++ Acc, Config);
 clean(<<94, Rest/binary>>, Acc, Config) -> clean(Rest, [94] ++ Acc, Config);
 clean(<<95, Rest/binary>>, Acc, Config) -> clean(Rest, [95] ++ Acc, Config);
@@ -490,7 +327,7 @@ clean(<<125, Rest/binary>>, Acc, Config) -> clean(Rest, [125] ++ Acc, Config);
 clean(<<126, Rest/binary>>, Acc, Config) -> clean(Rest, [126] ++ Acc, Config);
 clean(<<127, Rest/binary>>, Acc, Config) -> clean(Rest, [127] ++ Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
-    clean(Rest, maybe_replace(X, Config) ++ Acc, Config);
+    maybe_replace(X, Rest, Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#d800 ->
     clean(Rest, [X] ++ Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X > 16#dfff, X < 16#fdd0 ->
@@ -531,24 +368,24 @@ clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#100000, X < 16#10fffe -
     clean(Rest, [X] ++ Acc, Config);
 %% surrogates
 clean(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
-    clean(Rest, maybe_replace(surrogate, Config) ++ Acc, Config);
+    maybe_replace(surrogate, Rest, Acc, Config);
 %% noncharacters
 clean(<<_/utf8, Rest/binary>>, Acc, Config) ->
-    clean(Rest, maybe_replace(noncharacter, Config) ++ Acc, Config);
+    maybe_replace(noncharacter, Rest, Acc, Config);
 %% u+fffe and u+ffff for R14BXX
 clean(<<239, 191, X, Rest/binary>>, Acc, Config) when X == 190; X == 191 ->
-    clean(Rest, maybe_replace(noncharacter, Config) ++ Acc, Config);
+    maybe_replace(noncharacter, Rest, Acc, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 192, X =< 223 ->
-    clean(strip_continuations(Rest, 1), maybe_replace(badutf, Config) ++ Acc, Config);
+    maybe_replace(badutf, strip_continuations(Rest, 1), Acc, Config);
 %% overlong encodings and missing continuations of a 3 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 224, X =< 239 ->
-    clean(strip_continuations(Rest, 2), maybe_replace(badutf, Config) ++ Acc, Config);
+    maybe_replace(badutf, strip_continuations(Rest, 2), Acc, Config);
 %% overlong encodings and missing continuations of a 4 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 240, X =< 247 ->
-    clean(strip_continuations(Rest, 3), maybe_replace(badutf, Config) ++ Acc, Config);
+    maybe_replace(badutf, strip_continuations(Rest, 3), Acc, Config);
 clean(<<_, Rest/binary>>, Acc, Config) ->
-    clean(Rest, maybe_replace(badutf, Config) ++ Acc, Config).
+    maybe_replace(badutf, Rest, Acc, Config).
 
 
 strip_continuations(Bin, 0) -> Bin;
@@ -558,29 +395,37 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
-maybe_replace($\b, #config{escaped_strings=true}) -> [$b, $\\];
-maybe_replace($\t, #config{escaped_strings=true}) -> [$t, $\\];
-maybe_replace($\n, #config{escaped_strings=true}) -> [$n, $\\];
-maybe_replace($\f, #config{escaped_strings=true}) -> [$f, $\\];
-maybe_replace($\r, #config{escaped_strings=true}) -> [$r, $\\];
-maybe_replace($\", #config{escaped_strings=true}) -> [$\", $\\];
-maybe_replace($/, Config=#config{escaped_strings=true}) ->
+maybe_replace($\b, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$b, $\\] ++ Acc, Config);
+maybe_replace($\t, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$t, $\\] ++ Acc, Config);
+maybe_replace($\n, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$n, $\\] ++ Acc, Config);
+maybe_replace($\f, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$f, $\\] ++ Acc, Config);
+maybe_replace($\r, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$r, $\\] ++ Acc, Config);
+maybe_replace($\", Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$\", $\\] ++ Acc, Config);
+maybe_replace($/, Rest, Acc, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
-        true -> [$/, $\\];
-        false -> [$/]
+        true -> clean(Rest, [$/, $\\] ++ Acc, Config);
+        false -> clean(Rest, [$/] ++ Acc, Config)
     end;
-maybe_replace($\\, #config{escaped_strings=true}) -> [$\\, $\\];
-maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
+maybe_replace($\\, Rest, Acc, Config=#config{escaped_strings=true}) ->
+    clean(Rest, [$\\, $\\] ++ Acc, Config);
+maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
-        true -> [X];
-        false -> lists:reverse(json_escape_sequence(X))
+        true -> clean(Rest, [X] ++ Acc, Config);
+        false -> clean(Rest, lists:reverse(json_escape_sequence(X)) ++ Acc, Config)
     end;
-maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    lists:reverse(json_escape_sequence(X));
-maybe_replace(noncharacter, #config{replaced_bad_utf8=true}) -> [16#fffd];
-maybe_replace(surrogate, #config{replaced_bad_utf8=true}) -> [16#fffd];
-maybe_replace(badutf, #config{replaced_bad_utf8=true}) -> [16#fffd];
-maybe_replace(_, _) -> {error, badarg}.
+maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true}) when X < 32 ->
+    clean(Rest, lists:reverse(json_escape_sequence(X)) ++ Acc, Config);
+maybe_replace(Atom, _, _, #config{strict_utf8=true}) when is_atom(Atom) -> {error, badarg};
+maybe_replace(noncharacter, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
+maybe_replace(surrogate, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
+maybe_replace(badutf, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
+maybe_replace(X, Rest, Acc, Config) -> clean(Rest, [X] ++ Acc, Config).
 
 
 %% convert a codepoint to it's \uXXXX equiv.
@@ -650,7 +495,7 @@ error_test_() ->
         {"value error", ?_assertError(badarg, parse_error([self()], []))},
         {"maybe_done error", ?_assertError(badarg, parse_error([start_array, end_array, start_array, end_json], []))},
         {"done error", ?_assertError(badarg, parse_error([{string, <<"">>}, {literal, true}, end_json], []))},
-        {"string error", ?_assertError(badarg, parse_error([{string, <<239, 191, 191>>}, end_json], []))}
+        {"string error", ?_assertError(badarg, parse_error([{string, <<239, 191, 191>>}, end_json], [strict_utf8]))}
     ].
 
 
@@ -671,7 +516,7 @@ custom_error_handler_test_() ->
         )},
         {"string error", ?_assertEqual(
             {string, [{string, <<239, 191, 191>>}, end_json]},
-            parse_error([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}])
+            parse_error([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}, strict_utf8])
         )}
     ].
 

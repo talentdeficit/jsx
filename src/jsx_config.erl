@@ -40,8 +40,8 @@ parse_config(Config) ->
 
 parse_config([], Config) ->
     Config;
-parse_config([replaced_bad_utf8|Rest], Config) ->
-    parse_config(Rest, Config#config{replaced_bad_utf8=true});
+parse_config([strict_utf8|Rest], Config) ->
+    parse_config(Rest, Config#config{strict_utf8=true});
 parse_config([escaped_forward_slashes|Rest], Config) ->
     parse_config(Rest, Config#config{escaped_forward_slashes=true});
 parse_config([stream|Rest], Config) ->
@@ -60,7 +60,6 @@ parse_config([ignored_bad_escapes|Rest], Config) ->
     parse_config(Rest, Config#config{ignored_bad_escapes=true});
 parse_config([relax|Rest], Config) ->
     parse_config(Rest, Config#config{
-        replaced_bad_utf8 = true,
         single_quoted_strings = true,
         comments = true,
         ignored_bad_escapes = true
@@ -95,7 +94,7 @@ config_to_list(Config) ->
 
 valid_flags() ->
     [
-        replaced_bad_utf8,
+        strict_utf8,
         escaped_forward_slashes,
         single_quoted_strings,
         unescaped_jsonp,
@@ -136,7 +135,7 @@ config_test_() ->
         {"all flags",
             ?_assertEqual(
                 #config{
-                    replaced_bad_utf8=true,
+                    strict_utf8=true,
                     escaped_forward_slashes=true,
                     stream=true,
                     single_quoted_strings=true,
@@ -146,7 +145,7 @@ config_test_() ->
                     ignored_bad_escapes=true
                 },
                 parse_config([
-                    replaced_bad_utf8,
+                    strict_utf8,
                     escaped_forward_slashes,
                     stream,
                     single_quoted_strings,
@@ -160,7 +159,6 @@ config_test_() ->
         {"relax flag",
             ?_assertEqual(
                 #config{
-                    replaced_bad_utf8=true,
                     single_quoted_strings=true,
                     comments=true,
                     ignored_bad_escapes=true
@@ -202,7 +200,7 @@ config_to_list_test_() ->
         )},
         {"all flags", ?_assertEqual(
             [
-                replaced_bad_utf8,
+                strict_utf8,
                 escaped_forward_slashes,
                 single_quoted_strings,
                 unescaped_jsonp,
@@ -213,7 +211,7 @@ config_to_list_test_() ->
             ],
             config_to_list(
                 #config{
-                    replaced_bad_utf8=true,
+                    strict_utf8=true,
                     escaped_forward_slashes=true,
                     stream=true,
                     single_quoted_strings=true,

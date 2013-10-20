@@ -548,36 +548,35 @@ string(<<X, Y, Z>>, Handler, Acc, Stack, Config)
         when X >= 16#f0, X =< 16#f4,
             Y >= 16#80, Y =< 16#bf,
             Z >= 16#80, Z =< 16#bf ->
-    incomplete(string, <<X, Y, Z>>, Handler, Acc, Stack, Config); 
+    incomplete(string, <<X, Y, Z>>, Handler, Acc, Stack, Config);
 %% surrogates
-string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X >= 160 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% u+xfffe, u+xffff, control codes and other noncharacters
-string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
+string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match the
 %%  preceeding clause
-string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X == 190; X == 191 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X >= 192, X =< 223 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 1);
 %% overlong encodings and missing continuations of a 3 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X >= 224, X =< 239 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 2);
 %% overlong encodings and missing continuations of a 4 byte sequence
-string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true})
+string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X >= 240, X =< 247 ->
     strip_continuations(Rest, Handler, Acc, Stack, Config, 3);
 %% incompletes and unexpected bytes, including orphan continuations
-string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{replaced_bad_utf8=true}) ->
+string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false}) ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-string(Bin, Handler, Acc, Stack, Config) ->
-    ?error(string, Bin, Handler, Acc, Stack, Config).
+string(Bin, Handler, Acc, Stack, Config) -> ?error(string, Bin, Handler, Acc, Stack, Config).
 
 
 doublequote(<<Rest/binary>>, Handler, Acc, [key|_] = Stack, Config) ->
@@ -658,9 +657,9 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, A
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
-    case Config#config.replaced_bad_utf8 of
-        true -> string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config);
-        false -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+    case Config#config.strict_utf8 of
+        true -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config);
+        false -> string(Rest, Handler, acc_seq(Acc, [16#fffd, 16#fffd]), Stack, Config)
     end;
 unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
@@ -677,9 +676,9 @@ unescape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
     case erlang:list_to_integer([A, B, C, D], 16) of
         Codepoint when Codepoint < 16#d800; Codepoint > 16#dfff ->
             string(Rest, Handler, acc_seq(Acc, maybe_replace(Codepoint, Config)), Stack, Config);
-        _ when Config#config.replaced_bad_utf8 ->
-            string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-        _ -> ?error(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
+        _ when Config#config.strict_utf8 ->
+            ?error(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config);
+        _ -> string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config)
     end;
 unescape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
     string(Bin, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
@@ -904,7 +903,7 @@ comment(<<?star>>, Handler, Resume, [multicomment|_] = Stack, Config) ->
     incomplete(comment, <<?star>>, Handler, Resume, Stack, Config);
 comment(<<_/utf8, Rest/binary>>, Handler, Resume, Stack, Config) ->
     comment(Rest, Handler, Resume, Stack, Config);
-comment(<<_, Rest/binary>>, Handler, Resume, Stack, Config=#config{replaced_bad_utf8=true}) ->
+comment(<<_, Rest/binary>>, Handler, Resume, Stack, Config=#config{strict_utf8=false}) ->
     comment(Rest, Handler, Resume, Stack, Config);
 comment(<<>>, Handler, done, [Comment], Config=#config{stream=false})
         when Comment == comment; Comment == multicomment ->
@@ -1250,15 +1249,15 @@ comments_test_() ->
         )},
         {"// comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
-            decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [comments, replaced_bad_utf8])
+            decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [comments])
         )},
         {"/**/ comment with badutf", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
-            decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
+            decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [comments])
         )},
         {"/**/ comment with badutf preceeded by /", ?_assertEqual(
             [start_array, {literal, true}, end_array, end_json],
-            decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [comments, replaced_bad_utf8])
+            decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [comments])
         )}
     ].
 
@@ -1326,35 +1325,35 @@ clean_string_test_() ->
         )},
         {"error reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, reserved_space())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, reserved_space())
         )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, surrogates())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, surrogates())
         )},
         {"error noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, noncharacters())
         )},
         {"error extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, extended_noncharacters())
         )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, reserved_space())
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, reserved_space())
         )},
         {"clean surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, surrogates())
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, surrogates())
         )},
         {"clean noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, noncharacters())
         )},
         {"clean extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), [{string, <<16#fffd/utf8>>}, end_json]),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [replaced_bad_utf8]) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, []) end, extended_noncharacters())
         )},
         {"dirty \\uwxyz", ?_assertEqual(
             [{string, <<"\\uwxyz">>}, end_json],
@@ -1405,190 +1404,190 @@ bad_utf8_test_() ->
     [
         {"noncharacter u+fffe", ?_assertError(
             badarg,
-            decode_bad_utf(<<239, 191, 190>>, [])
+            decode_bad_utf(<<239, 191, 190>>, [strict_utf8])
         )},
         {"noncharacter u+fffe replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            decode_bad_utf(<<239, 191, 190>>, [replaced_bad_utf8])
+            decode_bad_utf(<<239, 191, 190>>, [])
         )},
         {"noncharacter u+ffff", ?_assertError(
             badarg,
-            decode_bad_utf(<<239, 191, 191>>, [])
+            decode_bad_utf(<<239, 191, 191>>, [strict_utf8])
         )},
         {"noncharacter u+ffff replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            decode_bad_utf(<<239, 191, 191>>, [replaced_bad_utf8])
+            decode_bad_utf(<<239, 191, 191>>, [])
         )},
         {"orphan continuation byte u+0080", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#0080>>, [])
+            decode_bad_utf(<<16#0080>>, [strict_utf8])
         )},
         {"orphan continuation byte u+0080 replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            decode_bad_utf(<<16#0080>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#0080>>, [])
         )},
         {"orphan continuation byte u+00bf", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00bf>>, [])
+            decode_bad_utf(<<16#00bf>>, [strict_utf8])
         )},
         {"orphan continuation byte u+00bf replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            decode_bad_utf(<<16#00bf>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#00bf>>, [])
         )},
         {"2 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [strict_utf8])
         )},
         {"2 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 2),
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [replaced_bad_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [])
         )},
         {"3 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [strict_utf8])
         )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [replaced_bad_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [])
         )},
         {"4 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [strict_utf8])
         )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [replaced_bad_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [])
         )},
         {"5 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [strict_utf8])
         )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [replaced_bad_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [])
         )},
         {"6 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [strict_utf8])
         )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [replaced_bad_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [])
         )},
         {"all continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [])
+            decode_bad_utf(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [strict_utf8])
         )},
         {"all continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf))),
             decode_bad_utf(
                 <<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>,
-                [replaced_bad_utf8]
+                []
             )
         )},
         {"lonely start byte", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00c0>>, [])
+            decode_bad_utf(<<16#00c0>>, [strict_utf8])
         )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
-            decode_bad_utf(<<16#00c0>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#00c0>>, [])
         )},
         {"lonely start bytes (2 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [])
+            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [strict_utf8])
         )},
         {"lonely start bytes (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [])
         )},
         {"lonely start bytes (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [])
+            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [strict_utf8])
         )},
         {"lonely start bytes (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [])
         )},
         {"lonely start bytes (4 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [])
+            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [strict_utf8])
         )},
         {"lonely start bytes (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
-            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [])
         )},
         {"missing continuation byte (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<224, 160, 32>>, [])
+            decode_bad_utf(<<224, 160, 32>>, [strict_utf8])
         )},
         {"missing continuation byte (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<224, 160, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<224, 160, 32>>, [])
         )},
         {"missing continuation byte (4 byte missing one)", ?_assertError(
             badarg,
-            decode_bad_utf(<<240, 144, 128, 32>>, [])
+            decode_bad_utf(<<240, 144, 128, 32>>, [strict_utf8])
         )},
         {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<240, 144, 128, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<240, 144, 128, 32>>, [])
         )},
         {"missing continuation byte (4 byte missing two)", ?_assertError(
             badarg,
-            decode_bad_utf(<<240, 144, 32>>, [])
+            decode_bad_utf(<<240, 144, 32>>, [strict_utf8])
         )},
         {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<240, 144, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<240, 144, 32>>, [])
         )},
         {"overlong encoding of u+002f (2 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#c0, 16#af, 32>>, [])
+            decode_bad_utf(<<16#c0, 16#af, 32>>, [strict_utf8])
         )},
         {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#c0, 16#af, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#c0, 16#af, 32>>, [])
         )},
         {"overlong encoding of u+002f (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [])
+            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [strict_utf8])
         )},
         {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [])
         )},
         {"overlong encoding of u+002f (4 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [])
+            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [strict_utf8])
         )},
         {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [])
         )},
         {"highest overlong 2 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#c1, 16#bf, 32>>, [])
+            decode_bad_utf(<<16#c1, 16#bf, 32>>, [strict_utf8])
         )},
         {"highest overlong 2 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#c1, 16#bf, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#c1, 16#bf, 32>>, [])
         )},
         {"highest overlong 3 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [])
+            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [strict_utf8])
         )},
         {"highest overlong 3 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [])
         )},
         {"highest overlong 4 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [])
+            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [strict_utf8])
         )},
         {"highest overlong 4 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
-            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [replaced_bad_utf8])
+            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [])
         )}
     ].
 
@@ -1647,35 +1646,35 @@ unescape_test_() ->
         )},
         {"replace bad high surrogate", ?_assertEqual(
             <<16#fffd/utf8>>,
-            unescape(<<"\\udc00"/utf8>>, [replaced_bad_utf8])
+            unescape(<<"\\udc00"/utf8>>, [])
         )},
         {"do not unescape bad high surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\udc00"/utf8>>, [])
+            unescape(<<"\\udc00"/utf8>>, [strict_utf8])
         )},
         {"replace naked high surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
-            unescape(<<"\\ud800hello world"/utf8>>, [replaced_bad_utf8])
+            unescape(<<"\\ud800hello world"/utf8>>, [])
         )},
         {"do not unescape naked high surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\ud800hello world"/utf8>>, [])
+            unescape(<<"\\ud800hello world"/utf8>>, [strict_utf8])
         )},
         {"replace naked low surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
-            unescape(<<"\\udc00hello world"/utf8>>, [replaced_bad_utf8])
+            unescape(<<"\\udc00hello world"/utf8>>, [])
         )},
         {"do not unescape naked low surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\udc00hello world"/utf8>>, [])
+            unescape(<<"\\udc00hello world"/utf8>>, [strict_utf8])
         )},
         {"replace bad surrogate pair", ?_assertEqual(
             <<16#fffd/utf8, 16#fffd/utf8>>,
-            unescape(<<"\\ud800\\u0000">>, [replaced_bad_utf8])
+            unescape(<<"\\ud800\\u0000">>, [])
         )},
         {"do not unescape bad surrogate pair", ?_assertError(
             badarg,
-            unescape(<<"\\ud800\\u0000">>, [])
+            unescape(<<"\\ud800\\u0000">>, [strict_utf8])
         )},
         {"bad pseudo escape sequence", ?_assertError(
             badarg,
@@ -2104,11 +2103,11 @@ custom_error_handler_test_() ->
         )},
         {"single_comment error", ?_assertEqual(
             {comment, <<192>>},
-            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, comments])
+            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, comments, strict_utf8])
         )},
         {"multi_comment error", ?_assertEqual(
             {comment, <<192>>},
-            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, comments])
+            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, comments, strict_utf8])
         )}
     ].
 
