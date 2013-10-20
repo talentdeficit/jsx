@@ -195,7 +195,7 @@ start(Bin, Handler, Stack, Config) ->
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
+value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
     string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     true(Rest, Handler, Stack, Config);
@@ -215,7 +215,7 @@ value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
     array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     value(Rest, Handler, Stack, Config);
-value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(value, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 value(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, value, [comment|Stack], Config);
@@ -231,13 +231,13 @@ value(Bin, Handler, Stack, Config) ->
 
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
+object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
     string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
 object(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     object(Rest, Handler, Stack, Config);
-object(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+object(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(object, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 object(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, object, [comment|Stack], Config);
@@ -255,7 +255,7 @@ array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Config) ->
     maybe_done(Rest, handle_event(end_array, Handler, Config), Stack, Config);
 array(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     array(Rest, Handler, Stack, Config);
-array(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+array(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     value(<<?solidus, Rest/binary>>, Handler, Stack, Config);
 array(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, array, [comment|Stack], Config);
@@ -273,7 +273,7 @@ colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Config) ->
     value(Rest, Handler, [object|Stack], Config);
 colon(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     colon(Rest, Handler, Stack, Config);
-colon(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+colon(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(colon, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 colon(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, colon, [comment|Stack], Config);
@@ -289,11 +289,11 @@ colon(Bin, Handler, Stack, Config) ->
 
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, new_seq(), Stack, Config);
-key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{single_quoted_strings=true}) ->
+key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
     string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
-key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(key, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 key(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, key, [comment|Stack], Config);
@@ -649,8 +649,8 @@ unescape(<<$t, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\t, Config)), Stack, Config);
 unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\", Config)), Stack, Config);
-unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{single_quoted_strings=true}) ->
-    string(Rest, Handler, acc_seq(Acc, maybe_replace(?singlequote, Config)), Stack, Config);
+unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_single_quotes=false}) ->
+    string(Rest, Handler, acc_seq(Acc, ?singlequote), Stack, Config);
 unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace($\\, Config)), Stack, Config);
 unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -691,12 +691,13 @@ unescape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
             ?error(string, <<?rsolidus, $u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config);
         _ -> string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config)
     end;
-unescape(Bin, Handler, Acc, Stack, Config=#config{ignored_bad_escapes=true}) ->
-    string(Bin, Handler, acc_seq(Acc, ?rsolidus), Stack, Config);
 unescape(Bin, Handler, Acc, Stack, Config) ->
     case is_partial_escape(Bin) of
         true -> incomplete(string, <<?rsolidus/utf8, Bin/binary>>, Handler, Acc, Stack, Config);
-        false -> ?error(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config)
+        false -> case Config#config.strict_escapes of
+                true -> ?error(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
+                false -> string(Bin, Handler, acc_seq(Acc, ?rsolidus), Stack, Config)
+            end
     end.
 
 
@@ -829,7 +830,7 @@ finish_number(<<?comma, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
     value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
 finish_number(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_whitespace(S) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-finish_number(<<?solidus, Rest/binary>>, Handler, {NumType, Acc}, Stack, Config=#config{no_comments=true}) ->
+finish_number(<<?solidus, Rest/binary>>, Handler, {NumType, Acc}, Stack, Config=#config{strict_comments=true}) ->
     ?error(NumType, <<?solidus, Rest/binary>>, Handler, Acc, Stack, Config);
 finish_number(<<?solidus, ?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     comment(Rest, handle_event(format_number(Acc), Handler, Config), maybe_done, [comment|Stack], Config);
@@ -924,7 +925,7 @@ maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 maybe_done(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     maybe_done(Rest, Handler, Stack, Config);
-maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(maybe_done, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 maybe_done(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, maybe_done, [comment|Stack], Config);
@@ -940,7 +941,7 @@ maybe_done(Bin, Handler, Stack, Config) ->
 
 done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
     done(Rest, Handler, [], Config);
-done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{no_comments=true}) ->
+done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(done, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 done(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, done, [comment|Stack], Config);
@@ -1269,191 +1270,191 @@ no_comments_test_() ->
     [
         {"preceeding // comment", ?_assertError(
             badarg,
-            Decode(<<"// comment ", ?newline, "[]">>, [no_comments])
+            Decode(<<"// comment ", ?newline, "[]">>, [{strict, [comments]}])
         )},
         {"preceeding /**/ comment", ?_assertError(
             badarg,
-            Decode(<<"/* comment */[]">>, [no_comments])
+            Decode(<<"/* comment */[]">>, [{strict, [comments]}])
         )},
         {"trailing // comment", ?_assertError(
             badarg,
-            Decode(<<"[]// comment", ?newline>>, [no_comments])
+            Decode(<<"[]// comment", ?newline>>, [{strict, [comments]}])
         )},
         {"trailing // comment (no newline)", ?_assertError(
             badarg,
-            Decode(<<"[]// comment">>, [no_comments])
+            Decode(<<"[]// comment">>, [{strict, [comments]}])
         )},
         {"trailing /**/ comment", ?_assertError(
             badarg,
-            Decode(<<"[] /* comment */">>, [no_comments])
+            Decode(<<"[] /* comment */">>, [{strict, [comments]}])
         )},
         {"// comment inside array", ?_assertError(
             badarg,
-            Decode(<<"[ // comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ // comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"/**/ comment inside array", ?_assertError(
             badarg,
-            Decode(<<"[ /* comment */ ]">>, [no_comments])
+            Decode(<<"[ /* comment */ ]">>, [{strict, [comments]}])
         )},
         {"// comment at beginning of array", ?_assertError(
             badarg,
-            Decode(<<"[ // comment", ?newline, "true", ?newline, "]">>, [no_comments])
+            Decode(<<"[ // comment", ?newline, "true", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"/**/ comment at beginning of array", ?_assertError(
             badarg,
-            Decode(<<"[ /* comment */ true ]">>, [no_comments])
+            Decode(<<"[ /* comment */ true ]">>, [{strict, [comments]}])
         )},
         {"// comment at end of array", ?_assertError(
             badarg,
-            Decode(<<"[ true // comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ true // comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"/**/ comment at end of array", ?_assertError(
             badarg,
-            Decode(<<"[ true /* comment */ ]">>, [no_comments])
+            Decode(<<"[ true /* comment */ ]">>, [{strict, [comments]}])
         )},
         {"// comment midarray (post comma)", ?_assertError(
             badarg,
-            Decode(<<"[ true, // comment", ?newline, "false ]">>, [no_comments])
+            Decode(<<"[ true, // comment", ?newline, "false ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment midarray (post comma)", ?_assertError(
             badarg,
-            Decode(<<"[ true, /* comment */ false ]">>, [no_comments])
+            Decode(<<"[ true, /* comment */ false ]">>, [{strict, [comments]}])
         )},
         {"// comment midarray (pre comma)", ?_assertError(
             badarg,
-            Decode(<<"[ true// comment", ?newline, ", false ]">>, [no_comments])
+            Decode(<<"[ true// comment", ?newline, ", false ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment midarray (pre comma)", ?_assertError(
             badarg,
-            Decode(<<"[ true/* comment */, false ]">>, [no_comments])
+            Decode(<<"[ true/* comment */, false ]">>, [{strict, [comments]}])
         )},
         {"// comment inside object", ?_assertError(
             badarg,
-            Decode(<<"{ // comment", ?newline, "}">>, [no_comments])
+            Decode(<<"{ // comment", ?newline, "}">>, [{strict, [comments]}])
         )},
         {"/**/ comment inside object", ?_assertError(
             badarg,
-            Decode(<<"{ /* comment */ }">>, [no_comments])
+            Decode(<<"{ /* comment */ }">>, [{strict, [comments]}])
         )},
         {"// comment at beginning of object", ?_assertError(
             badarg,
-            Decode(<<"{ // comment", ?newline, " \"key\": true", ?newline, "}">>, [no_comments])
+            Decode(<<"{ // comment", ?newline, " \"key\": true", ?newline, "}">>, [{strict, [comments]}])
         )},
         {"/**/ comment at beginning of object", ?_assertError(
             badarg,
-            Decode(<<"{ /* comment */ \"key\": true }">>, [no_comments])
+            Decode(<<"{ /* comment */ \"key\": true }">>, [{strict, [comments]}])
         )},
         {"// comment at end of object", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\": true // comment", ?newline, "}">>, [no_comments])
+            Decode(<<"{ \"key\": true // comment", ?newline, "}">>, [{strict, [comments]}])
         )},
         {"/**/ comment at end of object", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\": true /* comment */ }">>, [no_comments])
+            Decode(<<"{ \"key\": true /* comment */ }">>, [{strict, [comments]}])
         )},
         {"// comment midobject (post comma)", ?_assertError(
             badarg,
-            Decode(<<"{ \"x\": true, // comment", ?newline, "\"y\": false }">>, [no_comments])
+            Decode(<<"{ \"x\": true, // comment", ?newline, "\"y\": false }">>, [{strict, [comments]}])
         )},
         {"/**/ comment midobject (post comma)", ?_assertError(
             badarg,
-            Decode(<<"{ \"x\": true, /* comment */", ?newline, "\"y\": false }">>, [no_comments])
+            Decode(<<"{ \"x\": true, /* comment */", ?newline, "\"y\": false }">>, [{strict, [comments]}])
         )},
         {"// comment midobject (pre comma)", ?_assertError(
             badarg,
-            Decode(<<"{ \"x\": true// comment", ?newline, ", \"y\": false }">>, [no_comments])
+            Decode(<<"{ \"x\": true// comment", ?newline, ", \"y\": false }">>, [{strict, [comments]}])
         )},
         {"/**/ comment midobject (pre comma)", ?_assertError(
             badarg,
-            Decode(<<"{ \"x\": true/* comment */", ?newline, ", \"y\": false }">>, [no_comments])
+            Decode(<<"{ \"x\": true/* comment */", ?newline, ", \"y\": false }">>, [{strict, [comments]}])
         )},
         {"// comment precolon", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\" // comment", ?newline, ": true }">>, [no_comments])
+            Decode(<<"{ \"key\" // comment", ?newline, ": true }">>, [{strict, [comments]}])
         )},
         {"/**/ comment precolon", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\"/* comment */: true }">>, [no_comments])
+            Decode(<<"{ \"key\"/* comment */: true }">>, [{strict, [comments]}])
         )},
         {"// comment postcolon", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\": // comment", ?newline, " true }">>, [no_comments])
+            Decode(<<"{ \"key\": // comment", ?newline, " true }">>, [{strict, [comments]}])
         )},
         {"/**/ comment postcolon", ?_assertError(
             badarg,
-            Decode(<<"{ \"key\":/* comment */ true }">>, [no_comments])
+            Decode(<<"{ \"key\":/* comment */ true }">>, [{strict, [comments]}])
         )},
         {"// comment terminating zero", ?_assertError(
             badarg,
-            Decode(<<"[ 0// comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ 0// comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"// comment terminating integer", ?_assertError(
             badarg,
-            Decode(<<"[ 1// comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ 1// comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"// comment terminating float", ?_assertError(
             badarg,
-            Decode(<<"[ 1.0// comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ 1.0// comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"// comment terminating exp", ?_assertError(
             badarg,
-            Decode(<<"[ 1e1// comment", ?newline, "]">>, [no_comments])
+            Decode(<<"[ 1e1// comment", ?newline, "]">>, [{strict, [comments]}])
         )},
         {"/**/ comment terminating zero", ?_assertError(
             badarg,
-            Decode(<<"[ 0/* comment */ ]">>, [no_comments])
+            Decode(<<"[ 0/* comment */ ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment terminating integer", ?_assertError(
             badarg,
-            Decode(<<"[ 1/* comment */ ]">>, [no_comments])
+            Decode(<<"[ 1/* comment */ ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment terminating float", ?_assertError(
             badarg,
-            Decode(<<"[ 1.0/* comment */ ]">>, [no_comments])
+            Decode(<<"[ 1.0/* comment */ ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment terminating exp", ?_assertError(
             badarg,
-            Decode(<<"[ 1e1/* comment */ ]">>, [no_comments])
+            Decode(<<"[ 1e1/* comment */ ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment following /**/ comment", ?_assertError(
             badarg,
-            Decode(<<"[/* comment *//* comment */true]">>, [no_comments])
+            Decode(<<"[/* comment *//* comment */true]">>, [{strict, [comments]}])
         )},
         {"/**/ comment following // comment", ?_assertError(
             badarg,
-            Decode(<<"[// comment", ?newline, "/* comment */true]">>, [no_comments])
+            Decode(<<"[// comment", ?newline, "/* comment */true]">>, [{strict, [comments]}])
         )},
         {"// comment following /**/ comment", ?_assertError(
             badarg,
-            Decode(<<"[/* comment */// comment", ?newline, "true]">>, [no_comments])
+            Decode(<<"[/* comment */// comment", ?newline, "true]">>, [{strict, [comments]}])
         )},
         {"// comment following // comment", ?_assertError(
             badarg,
-            Decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [no_comments])
+            Decode(<<"[// comment", ?newline, "// comment", ?newline, "true]">>, [{strict, [comments]}])
         )},
         {"/**/ comment inside /**/ comment", ?_assertError(
             badarg,
-            Decode(<<"[ /* /* comment */ */ true ]">>, [no_comments])
+            Decode(<<"[ /* /* comment */ */ true ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment with /", ?_assertError(
             badarg,
-            Decode(<<"[ /* / */ true ]">>, [no_comments])
+            Decode(<<"[ /* / */ true ]">>, [{strict, [comments]}])
         )},
         {"/**/ comment with *", ?_assertError(
             badarg,
-            Decode(<<"[ /* * */ true ]">>, [no_comments])
+            Decode(<<"[ /* * */ true ]">>, [{strict, [comments]}])
         )},
         {"// comment with badutf", ?_assertError(
             badarg,
-            Decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [no_comments])
+            Decode(<<"[ // comment ", 16#00c0, " ", ?newline, "true]">>, [{strict, [comments]}])
         )},
         {"/**/ comment with badutf", ?_assertError(
             badarg,
-            Decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [no_comments])
+            Decode(<<"[ /* comment ", 16#00c0, " */ true]">>, [{strict, [comments]}])
         )},
         {"/**/ comment with badutf preceeded by /", ?_assertError(
             badarg,
-            Decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [no_comments])
+            Decode(<<"[ /* comment /", 16#00c0, " */ true]">>, [{strict, [comments]}])
         )}
     ].
 
@@ -1521,19 +1522,19 @@ clean_string_test_() ->
         )},
         {"error reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, reserved_space())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [{strict, [utf8]}]) end, reserved_space())
         )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, surrogates())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [{strict, [utf8]}]) end, surrogates())
         )},
         {"error noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [{strict, [utf8]}]) end, noncharacters())
         )},
         {"error extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> decode(Codepoint, [strict_utf8]) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> decode(Codepoint, [{strict, [utf8]}]) end, extended_noncharacters())
         )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), [{string, <<16#fffd/utf8>>}, end_json]),
@@ -1600,7 +1601,7 @@ bad_utf8_test_() ->
     [
         {"noncharacter u+fffe", ?_assertError(
             badarg,
-            decode_bad_utf(<<239, 191, 190>>, [strict_utf8])
+            decode_bad_utf(<<239, 191, 190>>, [{strict, [utf8]}])
         )},
         {"noncharacter u+fffe replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
@@ -1608,7 +1609,7 @@ bad_utf8_test_() ->
         )},
         {"noncharacter u+ffff", ?_assertError(
             badarg,
-            decode_bad_utf(<<239, 191, 191>>, [strict_utf8])
+            decode_bad_utf(<<239, 191, 191>>, [{strict, [utf8]}])
         )},
         {"noncharacter u+ffff replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
@@ -1616,7 +1617,7 @@ bad_utf8_test_() ->
         )},
         {"orphan continuation byte u+0080", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#0080>>, [strict_utf8])
+            decode_bad_utf(<<16#0080>>, [{strict, [utf8]}])
         )},
         {"orphan continuation byte u+0080 replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
@@ -1624,7 +1625,7 @@ bad_utf8_test_() ->
         )},
         {"orphan continuation byte u+00bf", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00bf>>, [strict_utf8])
+            decode_bad_utf(<<16#00bf>>, [{strict, [utf8]}])
         )},
         {"orphan continuation byte u+00bf replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
@@ -1632,7 +1633,7 @@ bad_utf8_test_() ->
         )},
         {"2 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 2))/binary>>, [{strict, [utf8]}])
         )},
         {"2 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 2),
@@ -1640,7 +1641,7 @@ bad_utf8_test_() ->
         )},
         {"3 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 3))/binary>>, [{strict, [utf8]}])
         )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
@@ -1648,7 +1649,7 @@ bad_utf8_test_() ->
         )},
         {"4 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 4))/binary>>, [{strict, [utf8]}])
         )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
@@ -1656,7 +1657,7 @@ bad_utf8_test_() ->
         )},
         {"5 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 5))/binary>>, [{strict, [utf8]}])
         )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
@@ -1664,7 +1665,7 @@ bad_utf8_test_() ->
         )},
         {"6 continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(binary:copy(<<16#0080>>, 6))/binary>>, [{strict, [utf8]}])
         )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
@@ -1672,7 +1673,7 @@ bad_utf8_test_() ->
         )},
         {"all continuation bytes", ?_assertError(
             badarg,
-            decode_bad_utf(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [strict_utf8])
+            decode_bad_utf(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, [{strict, [utf8]}])
         )},
         {"all continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, length(lists:seq(16#0080, 16#00bf))),
@@ -1683,7 +1684,7 @@ bad_utf8_test_() ->
         )},
         {"lonely start byte", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00c0>>, [strict_utf8])
+            decode_bad_utf(<<16#00c0>>, [{strict, [utf8]}])
         )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
@@ -1691,7 +1692,7 @@ bad_utf8_test_() ->
         )},
         {"lonely start bytes (2 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [strict_utf8])
+            decode_bad_utf(<<16#00c0, 32, 16#00df>>, [{strict, [utf8]}])
         )},
         {"lonely start bytes (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
@@ -1699,7 +1700,7 @@ bad_utf8_test_() ->
         )},
         {"lonely start bytes (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [strict_utf8])
+            decode_bad_utf(<<16#00e0, 32, 16#00ef>>, [{strict, [utf8]}])
         )},
         {"lonely start bytes (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
@@ -1707,7 +1708,7 @@ bad_utf8_test_() ->
         )},
         {"lonely start bytes (4 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [strict_utf8])
+            decode_bad_utf(<<16#00f0, 32, 16#00f7>>, [{strict, [utf8]}])
         )},
         {"lonely start bytes (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
@@ -1715,7 +1716,7 @@ bad_utf8_test_() ->
         )},
         {"missing continuation byte (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<224, 160, 32>>, [strict_utf8])
+            decode_bad_utf(<<224, 160, 32>>, [{strict, [utf8]}])
         )},
         {"missing continuation byte (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1723,7 +1724,7 @@ bad_utf8_test_() ->
         )},
         {"missing continuation byte (4 byte missing one)", ?_assertError(
             badarg,
-            decode_bad_utf(<<240, 144, 128, 32>>, [strict_utf8])
+            decode_bad_utf(<<240, 144, 128, 32>>, [{strict, [utf8]}])
         )},
         {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1731,7 +1732,7 @@ bad_utf8_test_() ->
         )},
         {"missing continuation byte (4 byte missing two)", ?_assertError(
             badarg,
-            decode_bad_utf(<<240, 144, 32>>, [strict_utf8])
+            decode_bad_utf(<<240, 144, 32>>, [{strict, [utf8]}])
         )},
         {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1739,7 +1740,7 @@ bad_utf8_test_() ->
         )},
         {"overlong encoding of u+002f (2 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#c0, 16#af, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#c0, 16#af, 32>>, [{strict, [utf8]}])
         )},
         {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1747,7 +1748,7 @@ bad_utf8_test_() ->
         )},
         {"overlong encoding of u+002f (3 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#e0, 16#80, 16#af, 32>>, [{strict, [utf8]}])
         )},
         {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1755,7 +1756,7 @@ bad_utf8_test_() ->
         )},
         {"overlong encoding of u+002f (4 byte)", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#f0, 16#80, 16#80, 16#af, 32>>, [{strict, [utf8]}])
         )},
         {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1763,7 +1764,7 @@ bad_utf8_test_() ->
         )},
         {"highest overlong 2 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#c1, 16#bf, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#c1, 16#bf, 32>>, [{strict, [utf8]}])
         )},
         {"highest overlong 2 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1771,7 +1772,7 @@ bad_utf8_test_() ->
         )},
         {"highest overlong 3 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#e0, 16#9f, 16#bf, 32>>, [{strict, [utf8]}])
         )},
         {"highest overlong 3 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1779,7 +1780,7 @@ bad_utf8_test_() ->
         )},
         {"highest overlong 4 byte sequence", ?_assertError(
             badarg,
-            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [strict_utf8])
+            decode_bad_utf(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, [{strict, [utf8]}])
         )},
         {"highest overlong 4 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
@@ -1820,10 +1821,6 @@ unescape_test_() ->
             <<"\"">>,
             unescape(<<"\\\""/utf8>>, [])
         )},
-        {"unescape single quote", ?_assertEqual(
-            <<"'">>,
-            unescape(<<"\\'"/utf8>>, [single_quoted_strings])
-        )},
         {"unescape solidus", ?_assertEqual(
             <<"/">>,
             unescape(<<"\\/"/utf8>>, [])
@@ -1846,7 +1843,7 @@ unescape_test_() ->
         )},
         {"do not unescape bad high surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\udc00"/utf8>>, [strict_utf8])
+            unescape(<<"\\udc00"/utf8>>, [{strict, [utf8]}])
         )},
         {"replace naked high surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
@@ -1854,7 +1851,7 @@ unescape_test_() ->
         )},
         {"do not unescape naked high surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\ud800hello world"/utf8>>, [strict_utf8])
+            unescape(<<"\\ud800hello world"/utf8>>, [{strict, [utf8]}])
         )},
         {"replace naked low surrogate", ?_assertEqual(
             <<16#fffd/utf8, "hello world">>,
@@ -1862,7 +1859,7 @@ unescape_test_() ->
         )},
         {"do not unescape naked low surrogate", ?_assertError(
             badarg,
-            unescape(<<"\\udc00hello world"/utf8>>, [strict_utf8])
+            unescape(<<"\\udc00hello world"/utf8>>, [{strict, [utf8]}])
         )},
         {"replace bad surrogate pair", ?_assertEqual(
             <<16#fffd/utf8, 16#fffd/utf8>>,
@@ -1870,11 +1867,11 @@ unescape_test_() ->
         )},
         {"do not unescape bad surrogate pair", ?_assertError(
             badarg,
-            unescape(<<"\\ud800\\u0000">>, [strict_utf8])
+            unescape(<<"\\ud800\\u0000">>, [{strict, [utf8]}])
         )},
         {"bad pseudo escape sequence", ?_assertError(
             badarg,
-            unescape(<<"\\uabcg">>, [])
+            unescape(<<"\\uabcg">>, [strict])
         )}
     ].
 
@@ -2056,11 +2053,15 @@ single_quoted_string_test_() ->
     [
         {"single quoted string", ?_assertEqual(
             [{string, <<"hello world">>}, end_json],
-            decode(<<39, "hello world", 39>>, [single_quoted_strings])
+            decode(<<39, "hello world", 39>>, [])
         )},
+        {"single quoted string error", ?_assertEqual(
+            {error, badarg},
+            decode(<<39, "hello world", 39>>, [{strict, [single_quotes]}])
+        )},        
         {"single quoted string with embedded double quotes", ?_assertEqual(
             [{string, <<"quoth the raven, \"nevermore\"">>}, end_json],
-            decode(<<39, "quoth the raven, \"nevermore\"", 39>>, [single_quoted_strings])
+            decode(<<39, "quoth the raven, \"nevermore\"", 39>>, [])
         )},
         {"string with embedded single quotes", ?_assertEqual(
             [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
@@ -2068,14 +2069,18 @@ single_quoted_string_test_() ->
         )},
         {"escaped single quote", ?_assertEqual(
             [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
-            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [single_quoted_strings])
+            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [])
         )},
         {"single quoted key", ?_assertEqual(
             [start_object,
                 {key, <<"key">>}, {string, <<"value">>},
                 {key, <<"another key">>}, {string, <<"another value">>},
             end_object, end_json],
-            decode(<<"{'key':'value','another key':'another value'}">>, [single_quoted_strings])
+            decode(<<"{'key':'value','another key':'another value'}">>, [])
+        )},
+        {"single quoted key error", ?_assertEqual(
+            {error, badarg},
+            decode(<<"{'key':'value','another key':'another value'}">>, [{strict, [single_quotes]}])
         )}
     ].
 
@@ -2084,7 +2089,7 @@ ignored_bad_escapes_test_() ->
     [
         {"ignore unrecognized escape sequence", ?_assertEqual(
             [{string, <<"\\x25">>}, end_json],
-            decode(<<"\"\\x25\"">>, [ignored_bad_escapes])
+            decode(<<"\"\\x25\"">>, [])
         )}
     ].
 
@@ -2299,11 +2304,11 @@ custom_error_handler_test_() ->
         )},
         {"single_comment error", ?_assertEqual(
             {comment, <<192>>},
-            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, strict_utf8])
+            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, {strict, [utf8]}])
         )},
         {"multi_comment error", ?_assertEqual(
             {comment, <<192>>},
-            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, strict_utf8])
+            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, {strict, [utf8]}])
         )}
     ].
 

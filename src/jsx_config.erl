@@ -35,34 +35,27 @@
 
 
 %% parsing of jsx config
-parse_config(Config) ->
-    parse_config(Config, #config{}).
+parse_config(Config) -> parse_config(Config, #config{}).
 
-parse_config([], Config) ->
-    Config;
-parse_config([strict_utf8|Rest], Config) ->
-    parse_config(Rest, Config#config{strict_utf8=true});
+parse_config([], Config) -> Config;
 parse_config([escaped_forward_slashes|Rest], Config) ->
     parse_config(Rest, Config#config{escaped_forward_slashes=true});
-parse_config([stream|Rest], Config) ->
-    parse_config(Rest, Config#config{stream=true});
-parse_config([single_quoted_strings|Rest], Config) ->
-    parse_config(Rest, Config#config{single_quoted_strings=true});
-parse_config([unescaped_jsonp|Rest], Config) ->
-    parse_config(Rest, Config#config{unescaped_jsonp=true});
-parse_config([no_comments|Rest], Config) ->
-    parse_config(Rest, Config#config{no_comments=true});
 parse_config([escaped_strings|Rest], Config) ->
     parse_config(Rest, Config#config{escaped_strings=true});
+parse_config([unescaped_jsonp|Rest], Config) ->
+    parse_config(Rest, Config#config{unescaped_jsonp=true});
 parse_config([dirty_strings|Rest], Config) ->
     parse_config(Rest, Config#config{dirty_strings=true});
-parse_config([ignored_bad_escapes|Rest], Config) ->
-    parse_config(Rest, Config#config{ignored_bad_escapes=true});
-parse_config([relax|Rest], Config) ->
-    parse_config(Rest, Config#config{
-        single_quoted_strings = true,
-        ignored_bad_escapes = true
+parse_config([strict|Rest], Config) ->
+    parse_config(Rest, Config#config{strict_comments=true,
+        strict_utf8=true,
+        strict_single_quotes=true,
+        strict_escapes=true
     });
+parse_config([{strict, Strict}|Rest], Config) ->
+    parse_strict(Strict, Rest, Config);
+parse_config([stream|Rest], Config) ->
+    parse_config(Rest, Config#config{stream=true});
 parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 3) ->
     case Config#config.error_handler of
         false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
@@ -73,13 +66,25 @@ parse_config([{incomplete_handler, IncompleteHandler}|Rest] = Options, Config) w
         false -> parse_config(Rest, Config#config{incomplete_handler=IncompleteHandler})
         ; _ -> erlang:error(badarg, [Options, Config])
     end;
-%% deprecated flags
-parse_config(Options, Config) ->
-    erlang:error(badarg, [Options, Config]).
+parse_config(_Options, _Config) -> erlang:error(badarg).
+
+
+parse_strict([], Rest, Config) -> parse_config(Rest, Config);
+parse_strict([comments|Strict], Rest, Config) ->
+    parse_strict(Strict, Rest, Config#config{strict_comments=true});
+parse_strict([utf8|Strict], Rest, Config) ->
+    parse_strict(Strict, Rest, Config#config{strict_utf8=true});
+parse_strict([single_quotes|Strict], Rest, Config) ->
+    parse_strict(Strict, Rest, Config#config{strict_single_quotes=true});
+parse_strict([escapes|Strict], Rest, Config) ->
+    parse_strict(Strict, Rest, Config#config{strict_escapes=true});
+parse_strict(_Strict, _Rest, _Config) ->
+    erlang:error(badarg).
+
 
 
 config_to_list(Config) ->
-    lists:map(
+    reduce_config(lists:map(
         fun ({error_handler, F}) -> {error_handler, F};
             ({incomplete_handler, F}) -> {incomplete_handler, F};
             ({Key, true}) -> Key
@@ -88,21 +93,37 @@ config_to_list(Config) ->
             fun({_, false}) -> false; (_) -> true end,
             lists:zip(record_info(fields, config), tl(tuple_to_list(Config)))
         )
-    ).
+    )).
+
+
+reduce_config(Input) -> reduce_config(Input, [], []).
+
+reduce_config([], Output, Strict) ->
+    case length(Strict) of
+        0 -> lists:reverse(Output);
+        4 -> lists:reverse(Output) ++ [strict];
+        _ -> lists:reverse(Output) ++ [{strict, lists:reverse(Strict)}]
+    end;
+reduce_config([strict_comments|Input], Output, Strict) ->
+    reduce_config(Input, Output, [comments] ++ Strict);
+reduce_config([strict_utf8|Input], Output, Strict) ->
+    reduce_config(Input, Output, [utf8] ++ Strict);
+reduce_config([strict_single_quotes|Input], Output, Strict) ->
+    reduce_config(Input, Output, [single_quotes] ++ Strict);
+reduce_config([strict_escapes|Input], Output, Strict) ->
+    reduce_config(Input, Output, [escapes] ++ Strict);
+reduce_config([Else|Input], Output, Strict) ->
+    reduce_config(Input, [Else] ++ Output, Strict).
 
 
 valid_flags() ->
     [
-        strict_utf8,
         escaped_forward_slashes,
-        single_quoted_strings,
-        unescaped_jsonp,
-        no_comments,
         escaped_strings,
+        unescaped_jsonp,
         dirty_strings,
-        ignored_bad_escapes,
+        strict,
         stream,
-        relax,
         error_handler,
         incomplete_handler
     ].
@@ -133,35 +154,43 @@ config_test_() ->
     [
         {"all flags",
             ?_assertEqual(
-                #config{
-                    strict_utf8=true,
-                    escaped_forward_slashes=true,
-                    stream=true,
-                    single_quoted_strings=true,
-                    unescaped_jsonp=true,
-                    no_comments=true,
-                    dirty_strings=true,
-                    ignored_bad_escapes=true
+                #config{escaped_forward_slashes = true,
+                    escaped_strings = true,
+                    unescaped_jsonp = true,
+                    dirty_strings = true,
+                    strict_comments = true,
+                    strict_utf8 = true,
+                    strict_single_quotes = true,
+                    strict_escapes = true,
+                    stream = true
                 },
-                parse_config([
-                    strict_utf8,
-                    escaped_forward_slashes,
-                    stream,
-                    single_quoted_strings,
+                parse_config([escaped_forward_slashes,
+                    escaped_strings,
                     unescaped_jsonp,
-                    no_comments,
                     dirty_strings,
-                    ignored_bad_escapes
+                    strict,
+                    stream
                 ])
             )
         },
-        {"relax flag",
+        {"strict flag",
             ?_assertEqual(
-                #config{
-                    single_quoted_strings=true,
-                    ignored_bad_escapes=true
+                #config{strict_comments = true,
+                    strict_utf8 = true,
+                    strict_single_quotes = true,
+                    strict_escapes = true
                 },
-                parse_config([relax])
+                parse_config([strict])
+            )
+        },
+        {"strict expanded",
+            ?_assertEqual(
+                #config{strict_comments = true,
+                    strict_utf8 = true,
+                    strict_single_quotes = true,
+                    strict_escapes = true
+                },
+                parse_config([{strict, [comments, utf8, single_quotes, escapes]}])
             )
         },
         {"error_handler flag", ?_assertEqual(
@@ -186,7 +215,7 @@ config_test_() ->
                 {incomplete_handler, fun(_) -> false end}
             ])
         )},
-        {"bad option flag", ?_assertError(badarg, parse_config([error]))}
+        {"bad option flag", ?_assertError(badarg, parse_config([this_flag_does_not_exist]))}
     ].
 
 
@@ -197,28 +226,40 @@ config_to_list_test_() ->
             config_to_list(#config{})
         )},
         {"all flags", ?_assertEqual(
-            [
-                strict_utf8,
-                escaped_forward_slashes,
-                single_quoted_strings,
+            [escaped_forward_slashes,
+                escaped_strings,
                 unescaped_jsonp,
-                no_comments,
                 dirty_strings,
-                ignored_bad_escapes,
-                stream
+                stream,
+                strict
             ],
             config_to_list(
-                #config{
-                    strict_utf8=true,
-                    escaped_forward_slashes=true,
-                    stream=true,
-                    single_quoted_strings=true,
-                    unescaped_jsonp=true,
-                    no_comments=true,
-                    dirty_strings=true,
-                    ignored_bad_escapes=true
+                #config{escaped_forward_slashes = true,
+                    escaped_strings = true,
+                    unescaped_jsonp = true,
+                    dirty_strings = true,
+                    strict_comments = true,
+                    strict_utf8 = true,
+                    strict_single_quotes = true,
+                    strict_escapes = true,
+                    stream = true
                 }
             )
+        )},
+        {"single strict", ?_assertEqual(
+            [{strict, [comments]}],
+            config_to_list(#config{strict_comments = true})
+        )},
+        {"multiple strict", ?_assertEqual(
+            [{strict, [utf8, single_quotes, escapes]}],
+            config_to_list(#config{strict_utf8 = true, strict_single_quotes = true, strict_escapes = true})
+        )},
+        {"all strict", ?_assertEqual(
+            [strict],
+            config_to_list(#config{strict_comments = true,
+                strict_utf8 = true,
+                strict_single_quotes = true,
+                strict_escapes = true})
         )},
         {"error handler", ?_assertEqual(
             [{error_handler, fun ?MODULE:fake_error_handler/3}],
