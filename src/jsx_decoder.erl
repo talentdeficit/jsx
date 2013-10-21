@@ -1653,34 +1653,29 @@ incomplete_test_() ->
 
 
 error_test_() ->
-    Error = fun(Rest, {_, State, _, _, _}, _) -> {State, Rest} end,
     Cases = [
-        {"maybe_bom error", <<16#ef, 0>>, {value, <<16#ef, 0>>}},
-        {"definitely_bom error", <<16#ef, 16#bb, 0>>, {value, <<16#ef, 16#bb, 0>>}},
-        {"value error", <<0>>, {value, <<0>>}},
-        {"object error", <<"{"/utf8, 0>>, {object, <<0>>}},
-        {"colon error", <<"{\"\""/utf8, 0>>, {colon, <<0>>}},
-        {"key error", <<"{\"\":1,"/utf8, 0>>, {key, <<0>>}},
-        {"negative error", <<"-"/utf8, 0>>, {value, <<"-"/utf8, 0>>}},
-        {"zero error", <<"0"/utf8, 0>>, {done, <<0>>}},
-        {"integer error", <<"1"/utf8, 0>>, {done, <<0>>}},
-        {"decimal error", <<"1.0"/utf8, 0>>, {done, <<0>>}},
-        {"exp error", <<"1.0e1"/utf8, 0>>, {done, <<0>>}},
-        {"e error", <<"1e"/utf8, 0>>, {decimal, <<$e, 0>>}},
-        {"ex error", <<"1e+"/utf8, 0>>, {decimal, <<$e, ?positive, 0>>}},
-        {"exp error", <<"1.e"/utf8>>, {decimal, <<$e>>}},
-        {"true error", <<"tru"/utf8, 0>>, {true, <<"ru"/utf8, 0>>}},
-        {"false error", <<"fals"/utf8, 0>>, {false, <<"als"/utf8, 0>>}},
-        {"null error", <<"nul"/utf8, 0>>, {null, <<"ul"/utf8, 0>>}},
-        {"maybe_done error", <<"[[]"/utf8, 0>>, {maybe_done, <<0>>}},
-        {"done error", <<"[]"/utf8, 0>>, {done, <<0>>}}
+        {"maybe_bom error", <<16#ef, 0>>},
+        {"definitely_bom error", <<16#ef, 16#bb, 0>>},
+        {"object error", <<"{"/utf8, 0>>},
+        {"colon error", <<"{\"\""/utf8, 0>>},
+        {"key error", <<"{\"\":1,"/utf8, 0>>},
+        {"value error", <<0>>},
+        {"negative error", <<"-"/utf8, 0>>},
+        {"zero error", <<"0"/utf8, 0>>},
+        {"integer error", <<"1"/utf8, 0>>},
+        {"decimal error", <<"1.0"/utf8, 0>>},
+        {"e error", <<"1e"/utf8, 0>>},
+        {"ex error", <<"1e+"/utf8, 0>>},
+        {"exp error", <<"1e1"/utf8, 0>>},
+        {"exp error", <<"1.0e1"/utf8, 0>>},
+        {"exp error", <<"1.e"/utf8>>},
+        {"true error", <<"tru"/utf8, 0>>},
+        {"false error", <<"fals"/utf8, 0>>},
+        {"null error", <<"nul"/utf8, 0>>},
+        {"maybe_done error", <<"[[]"/utf8, 0>>},
+        {"done error", <<"[]"/utf8, 0>>}
     ],
-    [{Title, ?_assertError(badarg, decode(State))} || {Title, State, _} <- Cases] ++
-    [{Title ++ " (custom handler)", ?_assertEqual(
-            Err,
-            decode(State, [{error_handler, Error}])
-        )} || {Title, State, Err} <- Cases
-    ].
+    [{Title, ?_assertError(badarg, decode(State))} || {Title, State} <- Cases].
 
 
 custom_incomplete_handler_test_() ->
