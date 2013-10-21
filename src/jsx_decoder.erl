@@ -818,28 +818,11 @@ exp(Bin, Handler, Acc, Stack, Config) ->
 
 finish_number(Rest, Handler, Acc, [], Config=#config{stream=false}) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), [], Config);
-finish_number(<<?end_object, Rest/binary>>, Handler, Acc, [object|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_object], Handler, Config), Stack, Config);
-finish_number(<<?end_array, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
-    maybe_done(Rest, handle_event([format_number(Acc), end_array], Handler, Config), Stack, Config);
-finish_number(<<?comma, Rest/binary>>, Handler, Acc, [object|Stack], Config) ->
-    key(Rest, handle_event(format_number(Acc), Handler, Config), [key|Stack], Config);
-finish_number(<<?comma, Rest/binary>>, Handler, Acc, [array|Stack], Config) ->
-    value(Rest, handle_event(format_number(Acc), Handler, Config), [array|Stack], Config);
-finish_number(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_whitespace(S) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config);
-finish_number(<<?solidus, Rest/binary>>, Handler, {NumType, Acc}, Stack, Config=#config{strict_comments=true}) ->
-    ?error(NumType, <<?solidus, Rest/binary>>, Handler, Acc, Stack, Config);
-finish_number(<<?solidus, ?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), maybe_done, [comment|Stack], Config);
-finish_number(<<?solidus, ?star, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    comment(Rest, handle_event(format_number(Acc), Handler, Config), maybe_done, [multicomment|Stack], Config);
-finish_number(<<?solidus>>, Handler, Acc, Stack, Config) ->
-    incomplete(maybe_done, <<?solidus>>, handle_event(format_number(Acc), Handler, Config), Stack, Config);
 finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
     incomplete(NumType, <<>>, Handler, Acc, Stack, Config);
-finish_number(Bin, Handler, {NumType, Acc}, Stack, Config) ->
-    ?error(NumType, Bin, Handler, Acc, Stack, Config).
+finish_number(Rest, Handler, Acc, Stack, Config) ->
+    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
+
 
 format_number({zero, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
 format_number({integer, Acc}) -> {integer, list_to_integer(lists:reverse(Acc))};
@@ -1576,60 +1559,58 @@ escape_test_() ->
 
 
 special_escape_test_() ->
-    [
-        {"escape forward slash", ?_assertEqual(
-            [{string, <<"\\/">>}, end_json],
-            decode(<<34, "/"/utf8, 34>>, [escaped_strings, escaped_forward_slashes])
-        )},
-        {"do not escape forward slash", ?_assertEqual(
-            [{string, <<"/">>}, end_json],
-            decode(<<34, "/"/utf8, 34>>, [escaped_strings])
-        )},
-        {"escape jsonp", ?_assertEqual(
-            [{string, <<"\\u2028">>}, end_json],
-            decode(<<34, 16#2028/utf8, 34>>, [escaped_strings])
-        )},
-        {"do not escape jsonp", ?_assertEqual(
-            [{string, <<16#2028/utf8>>}, end_json],
-            decode(<<34, 16#2028/utf8, 34>>, [escaped_strings, unescaped_jsonp])
-        )}
+    Cases = [
+        {"escape forward slash", <<"\\/">>, <<"/"/utf8>>, [escaped_forward_slashes]},
+        {"do not escape forward slash", <<"/">>, <<"/"/utf8>>, []},
+        {"escape jsonp", <<"\\u2028">>, <<16#2028/utf8>>, []},
+        {"do not escape jsonp", <<16#2028/utf8>>, <<16#2028/utf8>>, [unescaped_jsonp]}
+    ],
+    [{Title, ?_assertEqual(
+            [{string, Expect}, end_json],
+            decode(<<34, Raw/binary, 34>>, [escaped_strings] ++ Config)
+        )} || {Title, Expect, Raw, Config} <- Cases
     ].
 
 
 single_quoted_string_test_() ->
-    [
-        {"single quoted string", ?_assertEqual(
-            [{string, <<"hello world">>}, end_json],
-            decode(<<39, "hello world", 39>>, [])
-        )},
-        {"single quoted string error", ?_assertError(
-            badarg,
-            decode(<<39, "hello world", 39>>, [{strict, [single_quotes]}])
-        )},        
-        {"single quoted string with embedded double quotes", ?_assertEqual(
+    Cases = [
+        {"single quoted string", [{string, <<"hello world">>}, end_json], <<39, "hello world", 39>>},    
+        {"single quoted string with embedded double quotes",
             [{string, <<"quoth the raven, \"nevermore\"">>}, end_json],
-            decode(<<39, "quoth the raven, \"nevermore\"", 39>>, [])
-        )},
-        {"string with embedded single quotes", ?_assertEqual(
+            <<39, "quoth the raven, \"nevermore\"", 39>>
+        },
+        {"escaped single quote",
             [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
-            decode(<<34, "quoth the raven, 'nevermore'", 34>>, [])
-        )},
-        {"escaped single quote", ?_assertEqual(
-            [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
-            decode(<<39, "quoth the raven, \\'nevermore\\'", 39>>, [])
-        )},
-        {"single quoted key", ?_assertEqual(
+            <<39, "quoth the raven, \\'nevermore\\'", 39>>
+        },
+        {"single quoted key",
             [start_object,
                 {key, <<"key">>}, {string, <<"value">>},
                 {key, <<"another key">>}, {string, <<"another value">>},
             end_object, end_json],
-            decode(<<"{'key':'value','another key':'another value'}">>, [])
-        )},
-        {"single quoted key error", ?_assertError(
+            <<"{'key':'value','another key':'another value'}">>
+        }
+    ],
+    [{Title, ?_assertEqual(Expect, decode(Raw, []))} || {Title, Expect, Raw} <- Cases] ++
+    [{Title, ?_assertError(
             badarg,
-            decode(<<"{'key':'value','another key':'another value'}">>, [{strict, [single_quotes]}])
+            decode(Raw, [{strict, [single_quotes]}])
+        )} || {Title, _Expect, Raw} <- Cases
+    ].
+
+
+embedded_single_quoted_string_test_() ->
+    [
+        {"string with embedded single quotes", ?_assertEqual(
+            [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
+            decode(<<34, "quoth the raven, 'nevermore'", 34>>, [])
+        )},
+        {"string with embedded single quotes", ?_assertEqual(
+            [{string, <<"quoth the raven, 'nevermore'">>}, end_json],
+            decode(<<34, "quoth the raven, 'nevermore'", 34>>, [{strict, [single_quotes]}])
         )}
     ].
+    
 
 
 ignored_bad_escapes_test_() ->
@@ -1672,200 +1653,41 @@ incomplete_test_() ->
 
 
 error_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
-    [
-        {"maybe_bom error", ?_assertError(
-            badarg,
-            Decode(<<16#ef, 0>>, [])
-        )},
-        {"definitely_bom error", ?_assertError(
-            badarg,
-            Decode(<<16#ef, 16#bb, 0>>, [])
-        )},
-        {"value error", ?_assertError(
-            badarg,
-            Decode(<<0>>, [])
-        )},
-        {"object error", ?_assertError(
-            badarg,
-            Decode(<<"{"/utf8, 0>>, [])
-        )},
-        {"colon error", ?_assertError(
-            badarg,
-            Decode(<<"{\"\""/utf8, 0>>, [])
-        )},
-        {"key error", ?_assertError(
-            badarg,
-            Decode(<<"{\"\":1,"/utf8, 0>>, [])
-        )},
-        {"negative error", ?_assertError(
-            badarg,
-            Decode(<<"-"/utf8, 0>>, [])
-        )},
-        {"zero error", ?_assertError(
-            badarg,
-            Decode(<<"0"/utf8, 0>>, [stream])
-        )},
-        {"integer error", ?_assertError(
-            badarg,
-            Decode(<<"1"/utf8, 0>>, [stream])
-        )},
-        {"decimal error", ?_assertError(
-            badarg,
-            Decode(<<"1.0"/utf8, 0>>, [stream])
-        )},
-        {"exp error", ?_assertError(
-            badarg,
-            Decode(<<"1.0e1"/utf8, 0>>, [stream])
-        )},
-        {"e error", ?_assertError(
-            badarg,
-            Decode(<<"1e"/utf8, 0>>, [])
-        )},
-        {"ex error", ?_assertError(
-            badarg,
-            Decode(<<"1e+"/utf8, 0>>, [])
-        )},
-        {"exp error", ?_assertError(
-            badarg,
-            Decode(<<"1.e"/utf8>>, [])
-        )},
-        {"true error", ?_assertError(
-            badarg,
-            Decode(<<"tru"/utf8, 0>>, [])
-        )},
-        {"false error", ?_assertError(
-            badarg,
-            Decode(<<"fals"/utf8, 0>>, [])
-        )},
-        {"null error", ?_assertError(
-            badarg,
-            Decode(<<"nul"/utf8, 0>>, [])
-        )},
-        {"maybe_done error", ?_assertError(
-            badarg,
-            Decode(<<"[[]"/utf8, 0>>, [])
-        )},
-        {"done error", ?_assertError(
-            badarg,
-            Decode(<<"[]"/utf8, 0>>, [])
-        )},
-        {"comment error", ?_assertError(
-            badarg,
-            Decode(<<"[ / ]">>, [])
-        )},
-        {"single_comment error", ?_assertError(
-            badarg,
-            Decode(<<"[ //"/utf8, 192>>, [])
-        )},
-        {"multi_comment error", ?_assertError(
-            badarg,
-            Decode(<<"[ /*"/utf8, 192>>, [])
-        )}
-    ].
-
-
-custom_error_handler_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
     Error = fun(Rest, {_, State, _, _, _}, _) -> {State, Rest} end,
-    [
-        {"maybe_bom error", ?_assertEqual(
-            {value, <<16#ef, 0>>},
-            Decode(<<16#ef, 0>>, [{error_handler, Error}])
-        )},
-        {"definitely_bom error", ?_assertEqual(
-            {value, <<16#ef, 16#bb, 0>>},
-            Decode(<<16#ef, 16#bb, 0>>, [{error_handler, Error}])
-        )},
-        {"value error", ?_assertEqual(
-            {value, <<0>>},
-            Decode(<<0>>, [{error_handler, Error}])
-        )},
-        {"object error", ?_assertEqual(
-            {object, <<0>>},
-            Decode(<<"{"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"colon error", ?_assertEqual(
-            {colon, <<0>>},
-            Decode(<<"{\"\""/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"key error", ?_assertEqual(
-            {key, <<0>>},
-            Decode(<<"{\"\":1,"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"negative error", ?_assertEqual(
-            {value, <<"-"/utf8, 0>>},
-            Decode(<<"-"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"zero error", ?_assertEqual(
-            {zero, <<0>>},
-            Decode(<<"0"/utf8, 0>>, [stream, {error_handler, Error}])
-        )},
-        {"integer error", ?_assertEqual(
-            {integer, <<0>>},
-            Decode(<<"1"/utf8, 0>>, [stream, {error_handler, Error}])
-        )},
-        {"decimal error", ?_assertEqual(
-            {decimal, <<0>>},
-            Decode(<<"1.0"/utf8, 0>>, [stream, {error_handler, Error}])
-        )},
-        {"exp error", ?_assertEqual(
-            {exp, <<0>>},
-            Decode(<<"1.0e1"/utf8, 0>>, [stream, {error_handler, Error}])
-        )},
-        {"e error", ?_assertEqual(
-            {decimal, <<$e, 0>>},
-            Decode(<<"1e"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"ex error", ?_assertEqual(
-            {decimal, <<$e, ?positive, 0>>},
-            Decode(<<"1e+"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"exp error", ?_assertEqual(
-            {decimal, <<$e>>},
-            Decode(<<"1.e"/utf8>>, [{error_handler, Error}])
-        )},
-        {"true error", ?_assertEqual(
-            {true, <<"ru"/utf8, 0>>},
-            Decode(<<"tru"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"false error", ?_assertEqual(
-            {false, <<"als"/utf8, 0>>},
-            Decode(<<"fals"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"null error", ?_assertEqual(
-            {null, <<"ul"/utf8, 0>>},
-            Decode(<<"nul"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"maybe_done error", ?_assertEqual(
-            {maybe_done, <<0>>},
-            Decode(<<"[[]"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"done error", ?_assertEqual(
-            {done, <<0>>},
-            Decode(<<"[]"/utf8, 0>>, [{error_handler, Error}])
-        )},
-        {"comment error", ?_assertEqual(
-            {value, <<"/ ]"/utf8>>},
-            Decode(<<"[ / ]">>, [{error_handler, Error}])
-        )},
-        {"single_comment error", ?_assertEqual(
-            {comment, <<192>>},
-            Decode(<<"[ //"/utf8, 192>>, [{error_handler, Error}, {strict, [utf8]}])
-        )},
-        {"multi_comment error", ?_assertEqual(
-            {comment, <<192>>},
-            Decode(<<"[ /*"/utf8, 192>>, [{error_handler, Error}, {strict, [utf8]}])
-        )}
+    Cases = [
+        {"maybe_bom error", <<16#ef, 0>>, {value, <<16#ef, 0>>}},
+        {"definitely_bom error", <<16#ef, 16#bb, 0>>, {value, <<16#ef, 16#bb, 0>>}},
+        {"value error", <<0>>, {value, <<0>>}},
+        {"object error", <<"{"/utf8, 0>>, {object, <<0>>}},
+        {"colon error", <<"{\"\""/utf8, 0>>, {colon, <<0>>}},
+        {"key error", <<"{\"\":1,"/utf8, 0>>, {key, <<0>>}},
+        {"negative error", <<"-"/utf8, 0>>, {value, <<"-"/utf8, 0>>}},
+        {"zero error", <<"0"/utf8, 0>>, {done, <<0>>}},
+        {"integer error", <<"1"/utf8, 0>>, {done, <<0>>}},
+        {"decimal error", <<"1.0"/utf8, 0>>, {done, <<0>>}},
+        {"exp error", <<"1.0e1"/utf8, 0>>, {done, <<0>>}},
+        {"e error", <<"1e"/utf8, 0>>, {decimal, <<$e, 0>>}},
+        {"ex error", <<"1e+"/utf8, 0>>, {decimal, <<$e, ?positive, 0>>}},
+        {"exp error", <<"1.e"/utf8>>, {decimal, <<$e>>}},
+        {"true error", <<"tru"/utf8, 0>>, {true, <<"ru"/utf8, 0>>}},
+        {"false error", <<"fals"/utf8, 0>>, {false, <<"als"/utf8, 0>>}},
+        {"null error", <<"nul"/utf8, 0>>, {null, <<"ul"/utf8, 0>>}},
+        {"maybe_done error", <<"[[]"/utf8, 0>>, {maybe_done, <<0>>}},
+        {"done error", <<"[]"/utf8, 0>>, {done, <<0>>}}
+    ],
+    [{Title, ?_assertError(badarg, decode(State))} || {Title, State, _} <- Cases] ++
+    [{Title ++ " (custom handler)", ?_assertEqual(
+            Err,
+            decode(State, [{error_handler, Error}])
+        )} || {Title, State, Err} <- Cases
     ].
 
 
 custom_incomplete_handler_test_() ->
-    Decode = fun(JSON, Config) -> start(JSON, {jsx, []}, [], jsx_config:parse_config(Config)) end,
     [
         {"custom incomplete handler", ?_assertError(
-            badarg,
-            Decode(<<>>, [{incomplete_handler, fun(_, _, _) -> erlang:error(badarg) end}])
+            incomplete,
+            decode(<<>>, [{incomplete_handler, fun(_, _, _) -> erlang:error(incomplete) end}, stream])
         )}
     ].
 
