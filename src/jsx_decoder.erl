@@ -1635,16 +1635,16 @@ incomplete_test_() ->
     [
         {"stream false", ?_assertError(
             badarg,
-            start(<<"{">>, {jsx, []}, [], jsx_config:parse_config([]))
+            decode(<<"{">>)
         )},
         {"stream true", ?_assert(
-            case start(<<"{">>, {jsx, []}, [], jsx_config:parse_config([stream])) of
+            case decode(<<"{">>, [stream]) of
                 {incomplete, _} -> true;
                 _ -> false
             end
         )},
         {"complete input", ?_assert(
-            case start(<<"{}">>, {jsx, []}, [], jsx_config:parse_config([stream])) of
+            case decode(<<"{}">>, [stream]) of
                 {incomplete, _} -> true;
                 _ -> false
             end
