@@ -25,6 +25,7 @@
 
 -export([to_term/2]).
 -export([init/1, handle_event/2]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3]).
 
 
 -record(config, {
@@ -70,33 +71,20 @@ parse_config([], Config) ->
     Config.
 
 
-init(Config) -> {[[]], parse_config(Config)}.
+init(Config) -> {[], parse_config(Config)}.
 
 
-handle_event(end_json, {[[Terms]], _Config}) -> Terms;
+handle_event(end_json, {Term, _Config}) -> Term;
 
-handle_event(start_object, {Terms, Config}) -> {[[]|Terms], Config};
-handle_event(end_object, {[[], {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, [{}]}] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[Object, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, lists:reverse(Object)}] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[[], Last|Terms], Config}) ->
-    {[[[{}]] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[Object, Last|Terms], Config}) ->
-    {[[lists:reverse(Object)] ++ Last] ++ Terms, Config};
+handle_event(start_object, {Stack, Config}) -> {start_object(Stack), Config};
+handle_event(end_object, {Stack, Config}) -> {finish(Stack), Config};
 
-handle_event(start_array, {Terms, Config}) -> {[[]|Terms], Config};
-handle_event(end_array, {[List, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, lists:reverse(List)}] ++ Last] ++ Terms, Config};
-handle_event(end_array, {[List, Last|Terms], Config}) ->
-    {[[lists:reverse(List)] ++ Last] ++ Terms, Config};
+handle_event(start_array, {Stack, Config}) -> {start_array(Stack), Config};
+handle_event(end_array, {Stack, Config}) -> {finish(Stack), Config};
 
-handle_event({key, Key}, {Terms, Config}) -> {[{key, format_key(Key, Config)}] ++ Terms, Config};
+handle_event({key, Key}, {Stack, Config}) -> {insert(format_key(Key, Config), Stack), Config};
 
-handle_event({_, Event}, {[{key, Key}, Last|Terms], Config}) ->
-    {[[{Key, Event}] ++ Last] ++ Terms, Config};
-handle_event({_, Event}, {[Last|Terms], Config}) ->
-    {[[Event] ++ Last] ++ Terms, Config}.
+handle_event({_, Event}, {Stack, Config}) -> {insert(Event, Stack), Config}.
 
 
 format_key(Key, Config) ->
@@ -111,6 +99,44 @@ format_key(Key, Config) ->
                 error:badarg -> Key
             end
     end.
+
+
+%% internal state is a stack of in progress objects/arrays
+%%  `[Current, Parent, Grandparent,...OriginalAncestor]`
+%% an object has the representation on the stack of
+%%  `{object, [{NthKey, NthValue}, {NMinus1Key, NthMinus1Value},...{FirstKey, FirstValue}]}`
+%% of if there's a key with a yet to be matched value
+%%  `{object, Key, [{NthKey, NthValue},...]}`
+%% an array looks like
+%%  `{array, [NthValue, NthMinus1Value,...FirstValue]}`
+
+%% allocate a new object on top of the stack
+start_object(Stack) -> [{object, []}] ++ Stack.
+
+%% allocate a new array on top of the stack
+start_array(Stack) -> [{array, []}] ++ Stack.
+
+%% finish an object or array and insert it into the parent object if it exists
+finish([{object, []}]) -> [{}];
+finish([{object, []}|Rest]) -> insert([{}], Rest);
+finish([{object, Pairs}]) -> lists:reverse(Pairs);
+finish([{object, Pairs}|Rest]) -> insert(lists:reverse(Pairs), Rest);
+finish([{array, Values}]) -> lists:reverse(Values);
+finish([{array, Values}|Rest]) -> insert(lists:reverse(Values), Rest);
+finish(_) -> erlang:error(badarg).
+
+%% insert a value when there's no parent object or array
+insert(Value, []) -> Value;
+%% insert a key or value into an object or array, autodetects the 'right' thing
+insert(Key, [{object, Pairs}|Rest]) -> [{object, Key, Pairs}] ++ Rest;
+insert(Value, [{object, Key, Pairs}|Rest]) -> [{object, [{Key, Value}] ++ Pairs}] ++ Rest;
+insert(Value, [{array, Values}|Rest]) -> [{array, [Value] ++ Values}] ++ Rest;
+insert(_, _) -> erlang:error(badarg).
+
+%% insert a key/value pair into an object
+insert(Key, Value, [{object, Pairs}|Rest]) -> [{object, [{Key, Value}] ++ Pairs}] ++ Rest;
+insert(_, _, _) -> erlang:error(badarg).
+
 
 
 
@@ -158,13 +184,70 @@ format_key_test_() ->
     ].
 
 
+rep_manipulation_test_() ->
+    [
+        {"allocate a new object on an empty stack", ?_assertEqual(
+            [{object, []}],
+            start_object([])
+        )},
+        {"allocate a new object on a stack", ?_assertEqual(
+            [{object, []}, {object, []}],
+            start_object([{object, []}])
+        )},
+        {"allocate a new array on an empty stack", ?_assertEqual(
+            [{array, []}],
+            start_array([])
+        )},
+        {"allocate a new array on a stack", ?_assertEqual(
+            [{array, []}, {object, []}],
+            start_array([{object, []}])
+        )},
+        {"insert a key into an object", ?_assertEqual(
+            [{object, key, []}, junk],
+            insert(key, [{object, []}, junk])
+        )},
+        {"insert a value into an object", ?_assertEqual(
+            [{object, [{key, value}]}, junk],
+            insert(value, [{object, key, []}, junk])
+        )},
+        {"insert a value into an array", ?_assertEqual(
+            [{array, [value]}, junk],
+            insert(value, [{array, []}, junk])
+        )},
+        {"insert a key/value pair into an object", ?_assertEqual(
+            [{object, [{key, value}, {x, y}]}, junk],
+            insert(key, value, [{object, [{x, y}]}, junk])
+        )},
+        {"finish an object with no ancestor", ?_assertEqual(
+            [{a, b}, {x, y}],
+            finish([{object, [{x, y}, {a, b}]}])
+        )},
+        {"finish an empty object", ?_assertEqual(
+            [{}],
+            finish([{object, []}])
+        )},
+        {"finish an object with an ancestor", ?_assertEqual(
+            [{object, [{key, [{a, b}, {x, y}]}, {foo, bar}]}],
+            finish([{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}])
+        )},
+        {"finish an array with no ancestor", ?_assertEqual(
+            [a, b, c],
+            finish([{array, [c, b, a]}])
+        )},
+        {"finish an array with an ancestor", ?_assertEqual(
+            [{array, [[a, b, c], d, e, f]}],
+            finish([{array, [c, b, a]}, {array, [d, e, f]}])
+        )}
+    ].
+
+
 handle_event_test_() ->
     Data = jsx:test_cases(),
     [
         {
             Title, ?_assertEqual(
                 Term,
-                lists:foldl(fun handle_event/2, {[[]], #config{}}, Events ++ [end_json])
+                lists:foldl(fun handle_event/2, {[], #config{}}, Events ++ [end_json])
             )
         } || {Title, _, Term, Events} <- Data
     ].
