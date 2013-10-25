@@ -298,7 +298,7 @@ handle_event_test_() ->
         {
             Title, ?_assertEqual(
                 JSON,
-                lists:foldl(fun handle_event/2, {start, [], #config{}}, Events ++ [end_json])
+                lists:foldl(fun handle_event/2, init([]), Events ++ [end_json])
             )
         } || {Title, JSON, _, Events} <- Data
     ].
