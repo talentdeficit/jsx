@@ -157,21 +157,16 @@ encode(float, Float, _Config) ->
 
 space(Config) ->
     case Config#config.space of
-        0 -> []
+        0 -> <<>>
         ; X when X > 0 -> binary:copy(?space, X)
     end.
 
 
 indent(Config) ->
     case Config#config.indent of
-        0 -> []
-        ; X when X > 0 ->
-            Indent = binary:copy(?space, X),
-            indent(Indent, Config#config.depth, [?newline])
+        0 -> <<>>
+        ; X when X > 0 -> <<?newline/binary, (binary:copy(?space, X * Config#config.depth))/binary>>
     end.
-
-indent(_Indent, 0, Acc) -> Acc;
-indent(Indent, N, Acc) -> indent(Indent, N - 1, [Acc, Indent]).
 
 
 indent_or_space(Config) ->
@@ -258,7 +253,7 @@ config_test_() ->
 
 space_test_() ->
     [
-        {"no space", ?_assertEqual([], space(#config{space=0}))},
+        {"no space", ?_assertEqual(<<>>, space(#config{space=0}))},
         {"one space", ?_assertEqual(<<" ">>, space(#config{space=1}))},
         {"four spaces", ?_assertEqual(<<"    ">>, space(#config{space=4}))}
     ].
@@ -266,21 +261,21 @@ space_test_() ->
 
 indent_test_() ->
     [
-        {"no indent", ?_assertEqual([], indent(#config{indent=0, depth=1}))},
+        {"no indent", ?_assertEqual(<<>>, indent(#config{indent=0, depth=1}))},
         {"indent 1 depth 1", ?_assertEqual(
-            [[?newline], ?space],
+            <<?newline/binary, <<" ">>/binary>>,
             indent(#config{indent=1, depth=1})
         )},
         {"indent 1 depth 2", ?_assertEqual(
-            [[[?newline], ?space], ?space],
+            <<?newline/binary, <<"  ">>/binary>>,
             indent(#config{indent=1, depth=2})
         )},
         {"indent 4 depth 1", ?_assertEqual(
-            [[?newline], <<"    ">>],
+            <<?newline/binary, <<"    ">>/binary>>,
             indent(#config{indent=4, depth=1})
         )},
         {"indent 4 depth 2", ?_assertEqual(
-            [[[?newline], <<"    ">>], <<"    ">>],
+            <<?newline/binary, <<"    ">>/binary, <<"    ">>/binary>>,
             indent(#config{indent=4, depth=2})
         )}
     ].
@@ -293,7 +288,7 @@ indent_or_space_test_() ->
             indent_or_space(#config{space=1, indent=0, depth=1})
         )},
         {"indent so no space", ?_assertEqual(
-            [[?newline], ?space],
+            <<?newline/binary, <<" ">>/binary>>,
             indent_or_space(#config{space=1, indent=1, depth=1})
         )}
     ].
