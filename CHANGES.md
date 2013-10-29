@@ -1,3 +1,8 @@
+v1.4.4
+
+* typespec for `json_term/0` fixed
+* incorrect boolean shortcircuiting fixed in multibyte escape processing
+
 v1.4.3
 
 * add empty rebar.config for mix build tool
