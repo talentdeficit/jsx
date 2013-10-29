@@ -658,12 +658,12 @@ unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, A
         false -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
     end;
 unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              ?is_hex(B), ?is_hex(C)
         ->
     incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
 unescape(<<$u, $d, A, B, C>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b) andalso
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
              ?is_hex(B), ?is_hex(C)
         ->
     incomplete(string, <<?rsolidus, $u, $d, A, B, C>>, Handler, Acc, Stack, Config);
