@@ -35,6 +35,8 @@
 
 
 %% parsing of jsx config
+-spec parse_config(Config::proplists:proplist()) -> config().
+
 parse_config(Config) ->
     parse_config(Config, #config{}).
 
@@ -102,6 +104,8 @@ parse_config(Options, Config) ->
     erlang:error(badarg, [Options, Config]).
 
 
+-spec config_to_list(Config::config()) -> proplists:proplist().
+
 config_to_list(Config) ->
     lists:map(
         fun ({pre_encode, F}) -> {pre_encode, F};
@@ -115,6 +119,8 @@ config_to_list(Config) ->
         )
     ).
 
+
+-spec valid_flags() -> [atom()].
 
 valid_flags() ->
     [
@@ -141,6 +147,8 @@ valid_flags() ->
         ignore_bad_escapes      %% ignored_bad_escapes
     ].
 
+
+-spec extract_config(Config::proplists:proplist()) -> proplists:proplist().
 
 extract_config(Config) ->
     extract_parser_config(Config, []).

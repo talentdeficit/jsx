@@ -63,8 +63,15 @@ encode(Source, Config) -> jsx_to_json:to_json(Source, Config).
 
 %% old api, alias for encode/x
 
+-spec to_json(Source::json_term()) -> json_text() | {incomplete, encoder()}.
+-spec to_json(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
+
 to_json(Source) -> encode(Source, []).
 to_json(Source, Config) -> encode(Source, Config).
+
+-spec term_to_json(Source::json_term()) -> json_text() | {incomplete, encoder()}.
+-spec term_to_json(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
+
 term_to_json(Source) -> encode(Source, []).
 term_to_json(Source, Config) -> encode(Source, Config).
 
@@ -94,8 +101,15 @@ decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 %% old api, alias for to_term/x
 
+-spec to_term(Source::json_text()) -> json_term() | {incomplete, decoder()}.
+-spec to_term(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
+
 to_term(Source) -> decode(Source, []).
 to_term(Source, Config) -> decode(Source, Config).
+
+-spec json_to_term(Source::json_text()) -> json_term() | {incomplete, decoder()}.
+-spec json_to_term(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
+
 json_to_term(Source) -> decode(Source, []).
 json_to_term(Source, Config) -> decode(Source, Config).
 

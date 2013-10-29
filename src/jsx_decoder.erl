@@ -48,7 +48,7 @@ decoder(Handler, State, Config) ->
         Acc::any(),
         Stack::list(atom()),
         Config::jsx:config()
-    ) -> jsx:decoder().
+    ) -> jsx:decoder() | {incomplete, _}.
 
 resume(Rest, State, Handler, Acc, Stack, Config) ->
     case State of
