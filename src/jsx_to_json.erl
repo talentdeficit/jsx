@@ -132,7 +132,9 @@ indent_or_space(Config) ->
     end.
 
 
-%% internal state is a stack of in progress objects/arrays
+%% internal state is a stack and a config object
+%%  `{Stack, Config}`
+%% the stack is a list of in progress objects/arrays
 %%  `[Current, Parent, Grandparent,...OriginalAncestor]`
 %% an object has the representation on the stack of
 %%  `{object, Object}`
