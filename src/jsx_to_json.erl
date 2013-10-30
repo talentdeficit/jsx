@@ -88,7 +88,6 @@ parse_config([], Config) ->
 init(Config) -> {[], parse_config(Config)}.
 
 
-
 handle_event(end_json, {Term, _Config}) -> Term;
 
 handle_event(start_object, State) -> start_object(State);
