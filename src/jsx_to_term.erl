@@ -76,15 +76,15 @@ init(Config) -> {[], parse_config(Config)}.
 
 handle_event(end_json, {Term, _Config}) -> Term;
 
-handle_event(start_object, {Stack, Config}) -> {start_object(Stack), Config};
-handle_event(end_object, {Stack, Config}) -> {finish(Stack), Config};
+handle_event(start_object, State) -> start_object(State);
+handle_event(end_object, State) -> finish(State);
 
-handle_event(start_array, {Stack, Config}) -> {start_array(Stack), Config};
-handle_event(end_array, {Stack, Config}) -> {finish(Stack), Config};
+handle_event(start_array, State) -> start_array(State);
+handle_event(end_array, State) -> finish(State);
 
-handle_event({key, Key}, {Stack, Config}) -> {insert(format_key(Key, Config), Stack), Config};
+handle_event({key, Key}, {_, Config} = State) -> insert(format_key(Key, Config), State);
 
-handle_event({_, Event}, {Stack, Config}) -> {insert(Event, Stack), Config}.
+handle_event({_, Event}, State) -> insert(Event, State).
 
 
 format_key(Key, Config) ->
@@ -111,30 +111,34 @@ format_key(Key, Config) ->
 %%  `{array, [NthValue, NthMinus1Value,...FirstValue]}`
 
 %% allocate a new object on top of the stack
-start_object(Stack) -> [{object, []}] ++ Stack.
+start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
 
 %% allocate a new array on top of the stack
-start_array(Stack) -> [{array, []}] ++ Stack.
+start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
 %% finish an object or array and insert it into the parent object if it exists
-finish([{object, []}]) -> [{}];
-finish([{object, []}|Rest]) -> insert([{}], Rest);
-finish([{object, Pairs}]) -> lists:reverse(Pairs);
-finish([{object, Pairs}|Rest]) -> insert(lists:reverse(Pairs), Rest);
-finish([{array, Values}]) -> lists:reverse(Values);
-finish([{array, Values}|Rest]) -> insert(lists:reverse(Values), Rest);
+finish({[{object, []}], Config}) -> {[{}], Config};
+finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
 finish(_) -> erlang:error(badarg).
 
 %% insert a value when there's no parent object or array
-insert(Value, []) -> Value;
+insert(Value, {[], Config}) -> {Value, Config};
 %% insert a key or value into an object or array, autodetects the 'right' thing
-insert(Key, [{object, Pairs}|Rest]) -> [{object, Key, Pairs}] ++ Rest;
-insert(Value, [{object, Key, Pairs}|Rest]) -> [{object, [{Key, Value}] ++ Pairs}] ++ Rest;
-insert(Value, [{array, Values}|Rest]) -> [{array, [Value] ++ Values}] ++ Rest;
+insert(Key, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, Key, Pairs}] ++ Rest, Config};
+insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
+insert(Value, {[{array, Values}|Rest], Config}) ->
+    {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
 
 %% insert a key/value pair into an object
-insert(Key, Value, [{object, Pairs}|Rest]) -> [{object, [{Key, Value}] ++ Pairs}] ++ Rest;
+insert(Key, Value, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
 insert(_, _, _) -> erlang:error(badarg).
 
 
@@ -187,56 +191,56 @@ format_key_test_() ->
 rep_manipulation_test_() ->
     [
         {"allocate a new object on an empty stack", ?_assertEqual(
-            [{object, []}],
-            start_object([])
+            {[{object, []}], #config{}},
+            start_object({[], #config{}})
         )},
         {"allocate a new object on a stack", ?_assertEqual(
-            [{object, []}, {object, []}],
-            start_object([{object, []}])
+            {[{object, []}, {object, []}], #config{}},
+            start_object({[{object, []}], #config{}})
         )},
         {"allocate a new array on an empty stack", ?_assertEqual(
-            [{array, []}],
-            start_array([])
+            {[{array, []}], #config{}},
+            start_array({[], #config{}})
         )},
         {"allocate a new array on a stack", ?_assertEqual(
-            [{array, []}, {object, []}],
-            start_array([{object, []}])
+            {[{array, []}, {object, []}], #config{}},
+            start_array({[{object, []}], #config{}})
         )},
         {"insert a key into an object", ?_assertEqual(
-            [{object, key, []}, junk],
-            insert(key, [{object, []}, junk])
+            {[{object, key, []}, junk], #config{}},
+            insert(key, {[{object, []}, junk], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
-            [{object, [{key, value}]}, junk],
-            insert(value, [{object, key, []}, junk])
+            {[{object, [{key, value}]}, junk], #config{}},
+            insert(value, {[{object, key, []}, junk], #config{}})
         )},
         {"insert a value into an array", ?_assertEqual(
-            [{array, [value]}, junk],
-            insert(value, [{array, []}, junk])
+            {[{array, [value]}, junk], #config{}},
+            insert(value, {[{array, []}, junk], #config{}})
         )},
         {"insert a key/value pair into an object", ?_assertEqual(
-            [{object, [{key, value}, {x, y}]}, junk],
-            insert(key, value, [{object, [{x, y}]}, junk])
+            {[{object, [{key, value}, {x, y}]}, junk], #config{}},
+            insert(key, value, {[{object, [{x, y}]}, junk], #config{}})
         )},
         {"finish an object with no ancestor", ?_assertEqual(
-            [{a, b}, {x, y}],
-            finish([{object, [{x, y}, {a, b}]}])
+            {[{a, b}, {x, y}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}], #config{}})
         )},
         {"finish an empty object", ?_assertEqual(
-            [{}],
-            finish([{object, []}])
+            {[{}], #config{}},
+            finish({[{object, []}], #config{}})
         )},
         {"finish an object with an ancestor", ?_assertEqual(
-            [{object, [{key, [{a, b}, {x, y}]}, {foo, bar}]}],
-            finish([{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}])
+            {[{object, [{key, [{a, b}, {x, y}]}, {foo, bar}]}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}], #config{}})
         )},
         {"finish an array with no ancestor", ?_assertEqual(
-            [a, b, c],
-            finish([{array, [c, b, a]}])
+            {[a, b, c], #config{}},
+            finish({[{array, [c, b, a]}], #config{}})
         )},
         {"finish an array with an ancestor", ?_assertEqual(
-            [{array, [[a, b, c], d, e, f]}],
-            finish([{array, [c, b, a]}, {array, [d, e, f]}])
+            {[{array, [[a, b, c], d, e, f]}], #config{}},
+            finish({[{array, [c, b, a]}, {array, [d, e, f]}], #config{}})
         )}
     ].
 
