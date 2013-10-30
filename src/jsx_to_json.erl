@@ -210,20 +210,63 @@ insert(Value, {[], Config}) when is_binary(Value) ->
 insert(Key, {[{object, Object}|Rest], Config}) when is_binary(Key) ->
     {[{object, Key, Object}] ++ Rest, Config};
 insert(Value, {[{object, Key, ?start_object}|Rest], Config}) when is_binary(Value) ->
-    {[{object, <<?start_object/binary, Key/binary, ?colon/binary, Value/binary>>}] ++ Rest, Config};
+    {
+        [{object, <<?start_object/binary,
+            Key/binary,
+            ?colon/binary,
+            (space(Config))/binary,
+            Value/binary
+        >>}] ++ Rest,
+        Config
+    };
 insert(Value, {[{object, Key, Object}|Rest], Config}) when is_binary(Value) ->
-    {[{object, <<Object/binary, ?comma/binary, Key/binary, ?colon/binary, Value/binary>>}] ++ Rest, Config};
+    {
+        [{object, <<Object/binary,
+            ?comma/binary,
+            (indent_or_space(Config))/binary,
+            Key/binary,
+            ?colon/binary,
+            (space(Config))/binary,
+            Value/binary
+        >>}] ++ Rest,
+        Config
+    };
 insert(Value, {[{array, ?start_array}|Rest], Config}) when is_binary(Value) ->
     {[{array, <<?start_array/binary, Value/binary>>}] ++ Rest, Config};
 insert(Value, {[{array, Array}|Rest], Config}) when is_binary(Value) ->
-    {[{array, <<Array/binary, ?comma/binary, Value/binary>>}] ++ Rest, Config};
+    {
+        [{array, <<Array/binary,
+            ?comma/binary,
+            (indent_or_space(Config))/binary,
+            Value/binary
+        >>}] ++ Rest,
+        Config
+    };
 insert(_, _) -> erlang:error(badarg).
 
 %% insert a key/value pair into an object
 insert(Key, Value, {[{object, ?start_object}|Rest], Config}) when is_binary(Key), is_binary(Value) ->
-    {[{object, <<?start_object/binary, Key/binary, ?colon/binary, Value/binary>>}] ++ Rest, Config};
+    {
+        [{object, <<?start_object/binary,
+            Key/binary,
+            ?colon/binary,
+            (space(Config))/binary,
+            Value/binary
+        >>}] ++ Rest,
+        Config
+    };
 insert(Key, Value, {[{object, Object}|Rest], Config}) when is_binary(Key), is_binary(Value) ->
-    {[{object, <<Object/binary, ?comma/binary, Key/binary, ?colon/binary, Value/binary>>}] ++ Rest, Config};
+    {
+        [{object, <<Object/binary,
+            ?comma/binary,
+            (indent_or_space(Config))/binary,
+            Key/binary,
+            ?colon/binary,
+            (space(Config))/binary,
+            Value/binary
+        >>}] ++ Rest,
+        Config
+    };
 insert(_, _, _) -> erlang:error(badarg).
 
 
@@ -342,56 +385,59 @@ format_test_() ->
 rep_manipulation_test_() ->
     [
         {"allocate a new object on an empty stack", ?_assertEqual(
-            {[{object, <<"{">>}], []},
-            start_object({[], []})
+            {[{object, <<"{">>}], #config{}},
+            start_object({[], #config{}})
         )},
         {"allocate a new object on a stack", ?_assertEqual(
-            {[{object, <<"{">>}, {object, <<"{">>}], []},
-            start_object({[{object, <<"{">>}], []})
+            {[{object, <<"{">>}, {object, <<"{">>}], #config{}},
+            start_object({[{object, <<"{">>}], #config{}})
         )},
         {"allocate a new array on an empty stack", ?_assertEqual(
-            {[{array, <<"[">>}], []},
-            start_array({[], []})
+            {[{array, <<"[">>}], #config{}},
+            start_array({[], #config{}})
         )},
         {"allocate a new array on a stack", ?_assertEqual(
-            {[{array, <<"[">>}, {object, <<"{">>}], []},
-            start_array({[{object, <<"{">>}], []})
+            {[{array, <<"[">>}, {object, <<"{">>}], #config{}},
+            start_array({[{object, <<"{">>}], #config{}})
         )},
         {"insert a key into an object", ?_assertEqual(
-            {[{object, <<"\"key\"">>, <<"{">>}], []},
-            insert(<<"\"key\"">>, {[{object, <<"{">>}], []})
+            {[{object, <<"\"key\"">>, <<"{">>}], #config{}},
+            insert(<<"\"key\"">>, {[{object, <<"{">>}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
-            {[{object, <<"{\"key\":true">>}], []},
-            insert(<<"true">>, {[{object, <<"\"key\"">>, <<"{">>}], []})
+            {[{object, <<"{\"key\":true">>}], #config{}},
+            insert(<<"true">>, {[{object, <<"\"key\"">>, <<"{">>}], #config{}})
         )},
         {"insert a value into an array", ?_assertEqual(
-            {[{array, <<"[true">>}], []},
-            insert(<<"true">>, {[{array, <<"[">>}], []})
+            {[{array, <<"[true">>}], #config{}},
+            insert(<<"true">>, {[{array, <<"[">>}], #config{}})
         )},
         {"insert a key/value pair into an object", ?_assertEqual(
-            {[{object, <<"{\"x\":true,\"y\":false">>}], []},
-            insert(<<"\"y\"">>, <<"false">>, {[{object, <<"{\"x\":true">>}], []})
+            {[{object, <<"{\"x\":true,\"y\":false">>}], #config{}},
+            insert(<<"\"y\"">>, <<"false">>, {[{object, <<"{\"x\":true">>}], #config{}})
         )},
         {"finish an object with no ancestor", ?_assertEqual(
-            {<<"{\"x\":true,\"y\":false}">>, []},
-            finish({[{object, <<"{\"x\":true,\"y\":false">>}], []})
+            {<<"{\"x\":true,\"y\":false}">>, #config{}},
+            finish({[{object, <<"{\"x\":true,\"y\":false">>}], #config{}})
         )},
         {"finish an empty object", ?_assertEqual(
-            {<<"{}">>, []},
-            finish({[{object, <<"{">>}], []})
+            {<<"{}">>, #config{}},
+            finish({[{object, <<"{">>}], #config{}})
         )},
         {"finish an object with an ancestor", ?_assertEqual(
-            {[{object, <<"{\"a\":[],\"b\":{\"x\":true,\"y\":false}">>}], []},
-            finish({[{object, <<"{\"x\":true,\"y\":false">>}, {object, <<"\"b\"">>, <<"{\"a\":[]">>}], []})
+            {[{object, <<"{\"a\":[],\"b\":{\"x\":true,\"y\":false}">>}], #config{}},
+            finish({
+                [{object, <<"{\"x\":true,\"y\":false">>}, {object, <<"\"b\"">>, <<"{\"a\":[]">>}],
+                #config{}
+            })
         )},
         {"finish an array with no ancestor", ?_assertEqual(
-            {<<"[true,false,null]">>, []},
-            finish({[{array, <<"[true,false,null">>}], []})
+            {<<"[true,false,null]">>, #config{}},
+            finish({[{array, <<"[true,false,null">>}], #config{}})
         )},
         {"finish an array with an ancestor", ?_assertEqual(
-            {[{array, <<"[1,2,3,[true,false,null]">>}], []},
-            finish({[{array, <<"[true,false,null">>}, {array, <<"[1,2,3">>}], []})
+            {[{array, <<"[1,2,3,[true,false,null]">>}], #config{}},
+            finish({[{array, <<"[true,false,null">>}, {array, <<"[1,2,3">>}], #config{}})
         )}
     ].
 
