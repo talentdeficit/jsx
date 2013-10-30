@@ -85,74 +85,31 @@ parse_config([], Config) ->
 -define(newline, <<"\n">>).
 
 
-init(Config) -> {start, [], parse_config(Config)}.
+init(Config) -> {[], parse_config(Config)}.
 
 
 
-handle_event(Event, {start, Acc, Config}) ->
-    case Event of
-        {Type, Value} -> {[], [Acc, encode(Type, Value, Config)], Config}
-        ; start_object -> {[object_start], [Acc, ?start_object], Config}
-        ; start_array -> {[array_start], [Acc, ?start_array], Config}
-    end;
-handle_event(Event, {[object_start|Stack], Acc, OldConfig = #config{depth = Depth}}) ->
-    Config = OldConfig#config{depth = Depth + 1},
-    case Event of
-        {key, Key} ->
-            {[object_value|Stack], [Acc, indent(Config), encode(string, Key, Config), ?colon, space(Config)], Config}
-        ; end_object ->
-            {Stack, [Acc, ?end_object], OldConfig}
-    end;
-handle_event(Event, {[object_value|Stack], Acc, Config}) ->
-    case Event of
-        {Type, Value} when Type == string; Type == literal;
-                Type == integer; Type == float ->
-            {[key|Stack], [Acc, encode(Type, Value, Config)], Config}
-        ; start_object -> {[object_start, key|Stack], [Acc, ?start_object], Config}
-        ; start_array -> {[array_start, key|Stack], [Acc, ?start_array], Config}
-    end;
-handle_event(Event, {[key|Stack], Acc, Config = #config{depth = Depth}}) ->
-    case Event of
-        {key, Key} ->
-            {[object_value|Stack], [Acc, ?comma, indent_or_space(Config), encode(string, Key, Config), ?colon, space(Config)], Config}
-        ; end_object ->
-            NewConfig = Config#config{depth = Depth - 1},
-            {Stack, [Acc, indent(NewConfig), ?end_object], NewConfig}
-    end;
-handle_event(Event, {[array_start|Stack], Acc, OldConfig = #config{depth = Depth}}) ->
-    Config = OldConfig#config{depth = Depth + 1},
-    case Event of
-        {Type, Value} when Type == string; Type == literal;
-                Type == integer; Type == float ->
-            {[array|Stack], [Acc, indent(Config), encode(Type, Value, Config)], Config}
-        ; start_object -> {[object_start, array|Stack], [Acc, indent(Config), ?start_object], Config}
-        ; start_array -> {[array_start, array|Stack], [Acc, indent(Config), ?start_array], Config}
-        ; end_array -> {Stack, [Acc, ?end_array], OldConfig}
-    end;
-handle_event(Event, {[array|Stack], Acc, Config = #config{depth = Depth}}) ->
-    case Event of
-        {Type, Value} when Type == string; Type == literal;
-                Type == integer; Type == float ->
-            {[array|Stack], [Acc, ?comma, indent_or_space(Config), encode(Type, Value, Config)], Config}
-        ; end_array ->
-            NewConfig = Config#config{depth = Depth - 1},
-            {Stack, [Acc, indent(NewConfig), ?end_array], NewConfig}
-        ; start_object -> {[object_start, array|Stack], [Acc, ?comma, indent_or_space(Config), ?start_object], Config}
-        ; start_array -> {[array_start, array|Stack], [Acc, ?comma, indent_or_space(Config), ?start_array], Config}
-    end;
-handle_event(end_json, {[], Acc, _Config}) -> unicode:characters_to_binary(Acc, utf8).
+handle_event(end_json, {Term, _Config}) -> Term;
+
+handle_event(start_object, State) -> start_object(State);
+handle_event(end_object, State) -> finish(State);
+
+handle_event(start_array, State) -> start_array(State);
+handle_event(end_array, State) -> finish(State);
+
+handle_event({Type, Event}, {_, Config} = State) -> insert(encode(Type, Event, Config), State).
 
 
 encode(string, String, _Config) ->
-    [?quote, String, ?quote];
+    <<?quote/binary, String/binary, ?quote/binary>>;
 encode(key, Key, _Config) ->
-    [?quote, Key, ?quote];
+    <<?quote/binary, Key/binary, ?quote/binary>>;
 encode(literal, Literal, _Config) ->
-    erlang:atom_to_list(Literal);
+    unicode:characters_to_binary(erlang:atom_to_list(Literal));
 encode(integer, Integer, _Config) ->
-    erlang:integer_to_list(Integer);
+    unicode:characters_to_binary(erlang:integer_to_list(Integer));
 encode(float, Float, _Config) ->
-    [Output] = io_lib:format("~p", [Float]), Output.
+    [Output] = io_lib:format("~p", [Float]), unicode:characters_to_binary(Output).
 
 
 space(Config) ->
@@ -345,40 +302,47 @@ indent_or_space_test_() ->
 
 format_test_() ->
     [
-        {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= "0.0")},
-        {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= "1.0")},
-        {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= "-1.0")},
+        {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= <<"0.0">>)},
+        {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= <<"1.0">>)},
+        {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= <<"-1.0">>)},
         {"3.1234567890987654321", 
             ?_assert(
-                encode(float, 3.1234567890987654321, #config{}) =:= "3.1234567890987655")
+                encode(float, 3.1234567890987654321, #config{}) =:= <<"3.1234567890987655">>)
         },
-        {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= "1.0e23")},
-        {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= "0.3")},
-        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= "0.0001")},
-        {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= "1.0e-5")},
-        {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= "1.0e-8")},
-        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= "1.0e-323")},
-        {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= "1.0e308")},
+        {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= <<"1.0e23">>)},
+        {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= <<"0.3">>)},
+        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= <<"0.0001">>)},
+        {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= <<"1.0e-5">>)},
+        {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= <<"1.0e-8">>)},
+        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= <<"1.0e-323">>)},
+        {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= <<"1.0e308">>)},
         {"min normalized float", 
             ?_assert(
-                encode(float, math:pow(2, -1022), #config{}) =:= "2.2250738585072014e-308"
+                encode(float, math:pow(2, -1022), #config{}) =:= <<"2.2250738585072014e-308">>
             )
         },
         {"max normalized float", 
             ?_assert(
                 encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #config{}) 
-                    =:= "1.7976931348623157e308"
+                    =:= <<"1.7976931348623157e308">>
             )
         },
         {"min denormalized float", 
-            ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= "5.0e-324")
+            ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= <<"5.0e-324">>)
         },
         {"max denormalized float", 
             ?_assert(
                 encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #config{}) 
-                    =:= "2.225073858507201e-308"
+                    =:= <<"2.225073858507201e-308">>
             )
-        }
+        },
+        {"hello world", ?_assert(encode(string, <<"hello world">>, #config{}) =:= <<"\"hello world\"">>)},
+        {"key", ?_assert(encode(key, <<"key">>, #config{}) =:= <<"\"key\"">>)},
+        {"1", ?_assert(encode(integer, 1, #config{}) =:= <<"1">>)},
+        {"-1", ?_assert(encode(integer, -1, #config{}) =:= <<"-1">>)},
+        {"true", ?_assert(encode(literal, true, #config{}) =:= <<"true">>)},
+        {"false", ?_assert(encode(literal, false, #config{}) =:= <<"false">>)},
+        {"null", ?_assert(encode(literal, null, #config{}) =:= <<"null">>)}      
     ].
 
 
