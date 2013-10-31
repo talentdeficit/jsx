@@ -25,7 +25,7 @@
 
 -export([to_json/2, format/2]).
 -export([init/1, handle_event/2]).
--export([start_object/1, start_array/1, insert/2, insert/3, finish/1]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
 
 
 -record(config, {
@@ -228,6 +228,11 @@ insert(Key, Value, {[{object, Object}|Rest], Config}) when is_binary(Key), is_bi
 insert(_, _, _) -> erlang:error(badarg).
 
 
+get_key({[{object, Key, _}|_], _}) -> {ok, Key};
+get_key(_) -> {error, nokey}.
+
+
+
 %% eunit tests
 
 -ifdef(TEST).
@@ -368,6 +373,18 @@ rep_manipulation_test_() ->
         {"insert a key into an object", ?_assertEqual(
             {[{object, <<"\"key\"">>, <<"{">>}], #config{}},
             insert(<<"\"key\"">>, {[{object, <<"{">>}], #config{}})
+        )},
+        {"get current key", ?_assertEqual(
+            {ok, key},
+            get_key({[{object, key, <<"{">>}], #config{}})
+        )},
+        {"try to get non-key from object", ?_assertEqual(
+            {error, nokey},
+            get_key({[{object, <<"{">>}], #config{}})
+        )},
+        {"try to get key from array", ?_assertEqual(
+            {error, nokey},
+            get_key({[{array, <<"[">>}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
             {[{object, <<"{\"key\":true">>}], #config{}},

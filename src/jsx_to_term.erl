@@ -25,7 +25,7 @@
 
 -export([to_term/2]).
 -export([init/1, handle_event/2]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
 
 
 -record(config, {
@@ -144,6 +144,9 @@ insert(Key, Value, {[{object, Pairs}|Rest], Config}) ->
 insert(_, _, _) -> erlang:error(badarg).
 
 
+get_key({[{object, Key, _}|_], _}) -> {ok, Key};
+get_key(_) -> {error, nokey}.
+
 
 
 %% eunit tests
@@ -211,6 +214,18 @@ rep_manipulation_test_() ->
         {"insert a key into an object", ?_assertEqual(
             {[{object, key, []}, junk], #config{}},
             insert(key, {[{object, []}, junk], #config{}})
+        )},
+        {"get current key", ?_assertEqual(
+            {ok, key},
+            get_key({[{object, key, []}], #config{}})
+        )},
+        {"try to get non-key from object", ?_assertEqual(
+            {error, nokey},
+            get_key({[{object, []}], #config{}})
+        )},
+        {"try to get key from array", ?_assertEqual(
+            {error, nokey},
+            get_key({[{array, []}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
             {[{object, [{key, value}]}, junk], #config{}},
