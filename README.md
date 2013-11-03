@@ -21,7 +21,6 @@ copyright 2010-2013 alisdair sullivan
   - [`json_term()`](#json_term)
   - [`json_text()`](#json_text)
   - [`event()`](#event)
-  - [`token()`](#token)
   - [`option()`](#option)
 * [exports](#exports)
   - [`encoder/3`, `decoder/3` & `parser/3`](#encoder3-decoder3--parser3)
@@ -122,8 +121,7 @@ real world usage
 jsx is pragmatic. the json spec allows extensions so jsx extends the spec in a
 number of ways. see the section on `strict` in [options](#option) below though
 
-there's not supposed to be any comments in json but when did comments ever hurt
-anyone? json has no official comments but this parser allows c/c++ style comments. 
+json has no official comments but this parser allows c/c++ style comments. 
 anywhere whitespace is allowed you can insert comments (both `// ...` and `/* ... */`)
 
 all jsx decoder input should be `utf8` encoded binaries. sometimes you get binaries
@@ -145,7 +143,7 @@ ignores bad escape sequences
 
 **json**                        | **erlang**
 --------------------------------|--------------------------------
-`number`                        | `integer()` and `float()`
+`number`                        | `integer()` if possible, `float()` otherwise
 `string`                        | `binary()`
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `[]` and `[JSON]`
@@ -153,17 +151,18 @@ ignores bad escape sequences
 
 *   numbers
 
-    javascript and thus json represent all numeric values with floats. as 
-    this is woefully insufficient for many uses, **jsx**, just like erlang, 
-    supports bigints. whenever possible, this library will interpret json 
-    numbers that look like integers as integers. other numbers will be converted 
-    to erlang's floating point type, which is nearly but not quite iee754. 
-    negative zero is not representable in erlang (zero is unsigned in erlang and 
-    `0` is equivalent to `-0`) and will be interpreted as regular zero. numbers 
-    not representable are beyond the concern of this implementation, and will 
-    result in parsing errors
+    javascript and thus json represent all numeric values with floats. there's no
+    reason for erlang -- a language that supports arbitrarily large integers -- to
+    restrict all numbers to the ieee754 range
+    
+    whenever possible, **jsx** will interpret json numbers that look like integers as 
+    integers. other numbers will be converted  to erlang's floating point type, which
+    is nearly but not quite iee754. negative zero is not representable in erlang (zero
+    is unsigned in erlang and `0` is equivalent to `-0`) and will be interpreted as
+    regular zero. numbers not representable are beyond the concern of this implementation,
+    and will result in parsing errors
 
-    when converting from erlang to json, numbers are represented with their 
+    when converting from erlang to json, floats are represented with their 
     shortest representation that will round trip without loss of precision. this 
     means that some floats may be superficially dissimilar (although 
     functionally equivalent). for example, `1.0000000000000001` will be 
@@ -171,30 +170,22 @@ ignores bad escape sequences
 
 *   strings
 
-    the json [spec][rfc4627] is frustratingly vague on the exact details of json 
-    strings. json must be unicode, but no encoding is specified. javascript 
-    explicitly allows strings containing codepoints explicitly disallowed by 
-    unicode. json allows implementations to set limits on the content of 
-    strings. other implementations attempt to resolve this in various ways. this 
-    implementation, in default operation, only accepts strings that meet the 
-    constraints set out in the json spec (strings are sequences of unicode 
-    codepoints deliminated by `"` (`u+0022`) that may not contain control codes 
-    unless properly escaped with `\` (`u+005c`)) and that are encoded in `utf8`
-
-    the utf8 restriction means improperly paired surrogates are explicitly 
-    disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid 
-    surrogate pairs. surrogates encountered otherwise result in errors
+    json strings must be unicode. in practice, because **jsx** only accepts
+    `utf8` all strings must be `utf8`. in addition to being unicode json strings
+    restrict a number of codepoints and define a number of escape sequences
 
     json string escapes of the form `\uXXXX` will be converted to their 
     equivalent codepoints during parsing. this means control characters and 
     other codepoints disallowed by the json spec may be encountered in resulting 
-    strings, but codepoints disallowed by the unicode spec will not be. in the 
-    interest of pragmatism there is an [option](#option) for looser parsing
+    strings. the utf8 restriction means the surrogates are explicitly disallowed.
+    if a string contains escaped surrogates (`u+d800` to `u+dfff`) they are
+    interpreted but only when they form valid surrogate pairs. surrogates
+    encountered otherwise are replaced with the replacement codepoint (`u+fffd`)
 
     all erlang strings are represented by **valid** `utf8` encoded binaries. the 
     encoder will check strings for conformance. noncharacters (like `u+ffff`) 
-    are allowed in erlang utf8 encoded binaries, but not in strings passed to 
-    the encoder (although, again, see [options](#option))
+    are allowed in erlang utf8 encoded binaries, but will be replaced in strings
+    passed to the encoder (although, again, see [options](#option))
 
     this implementation performs no normalization on strings beyond that 
     detailed here. be careful when comparing strings as equivalent strings 
@@ -274,34 +265,6 @@ json_text() = binary()
 ```
 
 a utf8 encoded binary containing a json string
-
-
-#### `token()` ####
-
-```erlang
-event() = start_object
-    | end_object
-    | start_array
-    | end_array
-    | {key, binary()}
-    | {string, binary()}
-    | binary()
-    | {integer, integer()}
-    | integer()
-    | {float, float()}
-    | float()
-    | {literal, true}
-    | true
-    | {literal, false}
-    | false
-    | {literal, null}
-    | null
-    | end_json
-```
-
-the representation used during syntactic analysis. you can generate this 
-yourself and feed it to `jsx:parser/3` if you'd like to define your own 
-representations
 
 #### `event()` ####
 
@@ -408,28 +371,6 @@ additional options beyond these. see
 - `stream`
 
     see [incomplete input](#incomplete-input)
-
-- `incomplete_handler` & `error_handler`
-
-    the default incomplete and error handlers can be replaced with user defined 
-    handlers. if options include `{error_handler, F}` and/or 
-    `{incomplete_handler, F}` where `F` is a function of arity 3 they will be 
-    called instead of the default handler. the spec for `F` is as follows
-    ```erlang
-    F(Remaining, InternalState, Config) -> any()
-    
-      Remaining = binary() | term()
-      InternalState = opaque()
-      Config = list()
-    ```
-    `Remaining` is the binary fragment or term that caused the error
-    
-    `InternalState` is an opaque structure containing the internal state of the 
-    parser/decoder/encoder
-    
-    `Config` is a list of options/flags in use by the parser/decoder/encoder
-    
-    these functions should be considered experimental for now
 
 
 ## exports ##
