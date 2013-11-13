@@ -43,9 +43,13 @@ encode([], _EntryPoint) -> [start_array, end_array];
 encode([{}], _EntryPoint) -> [start_object, end_object];
 
 encode([{_, _}|_] = Term, EntryPoint) ->
-    lists:flatten([start_object] ++ [ EntryPoint:encode(T) || T <- unzip(Term) ] ++ [end_object]);
+    lists:flatten(
+        [start_object] ++ [ EntryPoint:encode(T, EntryPoint) || T <- unzip(Term) ] ++ [end_object]
+    );
 encode(Term, EntryPoint) when is_list(Term) ->
-    lists:flatten([start_array] ++ [ EntryPoint:encode(T) || T <- Term ] ++ [end_array]);
+    lists:flatten(
+        [start_array] ++ [ EntryPoint:encode(T, EntryPoint) || T <- Term ] ++ [end_array]
+    );
 
 encode(Else, _EntryPoint) -> [Else].
 
