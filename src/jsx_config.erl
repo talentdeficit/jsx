@@ -33,9 +33,21 @@
 
 -include("jsx_config.hrl").
 
+-type handler_type(Handler) ::
+    fun((jsx:json_text() | end_stream |
+         jsx:json_term(),
+         {decoder, any(), module(), null | list(), list()} |
+         {parser, any(), module(), list()} |
+         {encoder, any(), module()},
+         list({pre_encode, fun((any()) -> any())} |
+              {error_handler, Handler} |
+              {incomplete_handler, Handler} |
+              atom())) -> any()).
+-type handler() :: handler_type(handler()).
+-export_type([handler/0]).
 
 %% parsing of jsx config
--spec parse_config(Config::proplists:proplist()) -> config().
+-spec parse_config(Config::proplists:proplist()) -> jsx:config().
 
 parse_config(Config) ->
     parse_config(Config, #config{}).
@@ -104,7 +116,7 @@ parse_config(Options, Config) ->
     erlang:error(badarg, [Options, Config]).
 
 
--spec config_to_list(Config::config()) -> proplists:proplist().
+-spec config_to_list(Config::jsx:config()) -> proplists:proplist().
 
 config_to_list(Config) ->
     lists:map(

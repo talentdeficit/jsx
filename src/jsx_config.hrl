@@ -1,16 +1,15 @@
 -record(config, {
-    replaced_bad_utf8 = false,
-    escaped_forward_slashes = false,
-    single_quoted_strings = false,
-    unescaped_jsonp = false,
-    comments = false,
-    escaped_strings = false,
-    dirty_strings = false,
-    ignored_bad_escapes = false,
-    explicit_end = false,
-    pre_encode = false,
-    error_handler = false,
-    incomplete_handler = false
+    replaced_bad_utf8 = false         :: boolean(),
+    escaped_forward_slashes = false   :: boolean(),
+    single_quoted_strings = false     :: boolean(),
+    unescaped_jsonp = false           :: boolean(),
+    comments = false                  :: boolean(),
+    escaped_strings = false           :: boolean(),
+    dirty_strings = false             :: boolean(),
+    ignored_bad_escapes = false       :: boolean(),
+    explicit_end = false              :: boolean(),
+    pre_encode = false                :: false | fun((any()) -> any()),
+    error_handler = false             :: false | jsx_config:handler(),
+    incomplete_handler = false        :: false | jsx_config:handler()
 }).
 
--type config() :: #config{}.

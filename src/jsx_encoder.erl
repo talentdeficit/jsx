@@ -25,7 +25,7 @@
 
 -export([encoder/3]).
 
--spec encoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:encoder().
+-spec encoder(Handler::module(), State::any(), Config::list()) -> jsx:encoder().
 
 encoder(Handler, State, Config) ->
     fun(JSON) ->

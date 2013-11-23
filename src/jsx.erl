@@ -34,13 +34,15 @@
 -export([to_term/1, to_term/2]).
 
 -export_type([json_term/0, json_text/0, token/0]).
--export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
+-export_type([config/0, encoder/0, decoder/0, parser/0, internal_state/0]).
 
 
+-include("jsx_config.hrl").
 -ifdef(TEST).
 -include("jsx_tests.hrl").
 -endif.
 
+-type config() :: #config{}.
 
 -type json_term()
    :: [{binary() | atom(), json_term()}]
@@ -53,7 +55,6 @@
     | binary().
 
 -type json_text() :: binary().
-
 
 -spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
 -spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
@@ -178,3 +179,4 @@ resume(Term, {decoder, State, Handler, Acc, Stack}, Config) ->
     jsx_decoder:resume(Term, State, Handler, Acc, Stack, jsx_config:parse_config(Config));
 resume(Term, {parser, State, Handler, Stack}, Config) ->
     jsx_parser:resume(Term, State, Handler, Stack, jsx_config:parse_config(Config)).
+
