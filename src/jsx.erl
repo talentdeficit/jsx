@@ -37,9 +37,10 @@
 -export_type([config/0, encoder/0, decoder/0, parser/0, internal_state/0]).
 
 
--include("jsx_config.hrl").
 -ifdef(TEST).
 -include("jsx_tests.hrl").
+-else.
+-include("jsx_config.hrl").
 -endif.
 
 -type config() :: #config{}.
