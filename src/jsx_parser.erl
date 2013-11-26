@@ -27,7 +27,7 @@
 -export([init/1, handle_event/2]).
 
 
--spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
+-spec parser(Handler::module(), State::any(), Config::list()) -> jsx:parser().
 
 parser(Handler, State, Config) ->
     fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.
@@ -36,12 +36,12 @@ parser(Handler, State, Config) ->
 %% resume allows continuation from interrupted decoding without having to explicitly export
 %%  all states
 -spec resume(
-        Rest::list(), %% was binary(),
+        Rest::jsx:token(),
         State::atom(),
         Handler::{atom(), any()},
         Stack::list(atom()),
         Config::jsx:config()
-    ) -> jsx:parser() | {incomplete, _}.
+    ) -> jsx:parser() | {incomplete, jsx:parser()}.
 
 resume(Rest, State, Handler, Stack, Config) ->
     case State of
@@ -82,8 +82,8 @@ incomplete(State, Handler, Stack, Config=#config{incomplete_handler=F}) ->
     F([], {parser, State, Handler, Stack}, jsx_config:config_to_list(Config)).
 
 
-handle_event([], Handler, _Config) -> Handler;
-handle_event([Event|Rest], Handler, Config) -> handle_event(Rest, handle_event(Event, Handler, Config), Config);
+%handle_event([], Handler, _Config) -> Handler;
+%handle_event([Event|Rest], Handler, Config) -> handle_event(Rest, handle_event(Event, Handler, Config), Config);
 handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event(Event, State)}.
 
 
