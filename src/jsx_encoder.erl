@@ -79,14 +79,14 @@ value(Term, Handler, Config) -> ?error(value, Term, Handler, Config).
 
 list_or_object([Term|Rest], {Handler, State}, Config) ->
     case pre_encode(Term, Config) of
-        {K, V} when is_atom(K); is_binary(K) ->
+        {K, V} when is_atom(K); is_binary(K); is_integer(K) ->
             object([{K, V}|Rest], {Handler, Handler:handle_event(start_object, State)}, Config)
         ; T ->
             list([T|Rest], {Handler, Handler:handle_event(start_array, State)}, Config)
     end.
 
 
-object([{Key, Value}, Next|Rest], {Handler, State}, Config) when is_atom(Key); is_binary(Key) ->
+object([{Key, Value}, Next|Rest], {Handler, State}, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
     V = pre_encode(Value, Config),
     object(
         [pre_encode(Next, Config)|Rest],
@@ -100,7 +100,7 @@ object([{Key, Value}, Next|Rest], {Handler, State}, Config) when is_atom(Key); i
         },
         Config
     );
-object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Key) ->
+object([{Key, Value}], {Handler, State}, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
     object(
         [],
         {
@@ -128,6 +128,7 @@ pre_encode(Value, Config) -> (Config#config.pre_encode)(Value).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
+fix_key(Key) when is_integer(Key) -> fix_key(integer_to_binary(Key));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
@@ -301,6 +302,24 @@ custom_error_handler_test_() ->
         {"string error", ?_assertEqual(
             {string, <<239, 191, 191>>},
             encode(<<239, 191, 191>>, [{error_handler, Error}])
+        )}
+    ].
+
+integer_key_test_() ->
+    Term =  [{123, [{456, 789}]}],
+    [
+        {"basic integer keys", ?_assertEqual(
+            [
+                start_object,
+                    {key, <<"123">>},
+                    start_object,
+                        {key, <<"456">>},
+                        {integer, 789},
+                    end_object,
+                end_object,
+                end_json
+            ],
+            encode(Term, [])
         )}
     ].
 
