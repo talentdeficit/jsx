@@ -128,7 +128,7 @@ pre_encode(Value, Config) -> (Config#config.pre_encode)(Value).
 
 
 fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
-fix_key(Key) when is_integer(Key) -> fix_key(integer_to_binary(Key));
+fix_key(Key) when is_integer(Key) -> fix_key(list_to_binary(integer_to_list(Key)));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
