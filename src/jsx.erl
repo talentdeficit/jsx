@@ -53,7 +53,8 @@
     | null
     | integer()
     | float()
-    | binary().
+    | binary()
+    | atom().
 
 -type json_text() :: binary().
 
