@@ -141,7 +141,7 @@ real_json(_) -> erlang:error(badarg).
 **json**                        | **erlang**
 --------------------------------|--------------------------------
 `number`                        | `integer()` and `float()`
-`string`                        | `binary()`
+`string`                        | `binary()` and `atom()`
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `[]` and `[JSON]`
 `object`                        | `[{}]` and `[{binary() OR atom(), JSON}]`
@@ -166,7 +166,13 @@ real_json(_) -> erlang:error(badarg).
 
 *   strings
 
-    the json [spec][rfc4627] is frustratingly vague on the exact details of json 
+    all erlang strings are represented by **valid** `utf8` encoded binaries or
+    atoms. note that the atoms `true`, `false` and `null` will never be
+    automatically converted to strings as the json equivalent values take
+    precedence. when decoding json strings will always be presented as binaries,
+    never atoms
+
+    the [json spec][rfc4627] is frustratingly vague on the exact details of json 
     strings. json must be unicode, but no encoding is specified. javascript 
     explicitly allows strings containing codepoints explicitly disallowed by 
     unicode. json allows implementations to set limits on the content of 
@@ -178,18 +184,14 @@ real_json(_) -> erlang:error(badarg).
 
     the utf8 restriction means improperly paired surrogates are explicitly 
     disallowed. `u+d800` to `u+dfff` are allowed, but only when they form valid 
-    surrogate pairs. surrogates encountered otherwise result in errors
+    surrogate pairs. surrogates encountered otherwise result in errors. the
+    noncharacters will also result in errors
 
     json string escapes of the form `\uXXXX` will be converted to their 
     equivalent codepoints during parsing. this means control characters and 
     other codepoints disallowed by the json spec may be encountered in resulting 
     strings, but codepoints disallowed by the unicode spec will not be. in the 
     interest of pragmatism there is an [option](#option) for looser parsing
-
-    all erlang strings are represented by **valid** `utf8` encoded binaries. the 
-    encoder will check strings for conformance. noncharacters (like `u+ffff`) 
-    are allowed in erlang utf8 encoded binaries, but not in strings passed to 
-    the encoder (although, again, see [options](#option))
 
     this implementation performs no normalization on strings beyond that 
     detailed here. be careful when comparing strings as equivalent strings 
@@ -249,6 +251,7 @@ json_term() = [json_term()]
     | integer()
     | float()
     | binary()
+    | atom()
 ```
 
 the erlang representation of json. binaries should be `utf8` encoded, or close 
