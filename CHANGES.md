@@ -2,6 +2,7 @@ v1.4.5
 
 * various fixes to typespecs uncovered by dialyzer
 * allow integer keys during encoding
+* convert atoms (other than `true`, `false` and `null`) to strings during encoding
 
 v1.4.4
 
