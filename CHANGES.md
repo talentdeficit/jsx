@@ -1,3 +1,8 @@
+v1.4.5
+
+* various fixes to typespecs uncovered by dialyzer
+* allow integer keys during encoding
+
 v1.4.4
 
 * typespec for `json_term/0` fixed
