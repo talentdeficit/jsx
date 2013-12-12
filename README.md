@@ -211,9 +211,9 @@ real_json(_) -> erlang:error(badarg).
     special representation `[{}]` to differentiate it from the empty list. 
     ambiguities like `[true, false]` prevent the use of the shorthand form of 
     property lists using atoms as properties so all properties must be tuples. 
-    all keys must be encoded as in `string` or as atoms (which will be escaped 
-    and converted to binaries for presentation to handlers). values should be 
-    valid json values
+    all keys must be encoded as in `string` or as atoms or integers (which will
+    be escaped and converted to binaries for presentation to handlers). values
+    should be valid json values
 
 
 ### incomplete input ###
