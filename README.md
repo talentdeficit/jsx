@@ -3,11 +3,11 @@
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
 
-jsx is built via [rebar][rebar] and continuous integration testing provided courtesy [travis][travis]
+**jsx** is built via [rebar][rebar] and continuous integration testing provided courtesy [travis][travis]
 
 current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
-jsx is released under the terms of the [MIT][MIT] license
+**jsx** is released under the terms of the [MIT][MIT] license
 
 copyright 2010-2013 alisdair sullivan
 
@@ -16,6 +16,7 @@ copyright 2010-2013 alisdair sullivan
 * [quickstart](#quickstart)
 * [description](#description)
   - [json <-> erlang mapping](#json---erlang-mapping)
+  - [extending jsx](#extending-jsx)
   - [incomplete input](#incomplete-input)
 * [data types](#data-types)
   - [`json_term()`](#json_term)
@@ -112,29 +113,29 @@ false
 ## description ##
 
 
-jsx is an erlang application for consuming, producing and manipulating 
+**jsx** is an erlang application for consuming, producing and manipulating 
 [json][json]
 
-jsx follows the json [spec][rfc4627] as closely as possible with allowances for
+**jsx** follows the json [spec][rfc4627] as closely as possible with allowances for
 real world usage
 
-jsx is pragmatic. the json spec allows extensions so jsx extends the spec in a
+**jsx** is pragmatic. the json spec allows extensions so **jsx** extends the spec in a
 number of ways. see the section on `strict` in [options](#option) below though
 
 json has no official comments but this parser allows c/c++ style comments. 
 anywhere whitespace is allowed you can insert comments (both `// ...` and `/* ... */`)
 
-all jsx decoder input should be `utf8` encoded binaries. sometimes you get binaries
+all **jsx** decoder input should be `utf8` encoded binaries. sometimes you get binaries
 that are almost but not quite valid utf8 whether due to improper escaping or poor
-encoding. jsx replaces invalid codepoints and poorly formed sequences with the 
+encoding. **jsx** replaces invalid codepoints and poorly formed sequences with the 
 unicode replacement character (`u+FFFD`)
 
 json only allows keys and strings to be delimited by double quotes (`u+0022`) but
-javascript allows them to be delimited by single quotes (`u+0027`) as well. jsx
+javascript allows them to be delimited by single quotes (`u+0027`) as well. **jsx**
 follows javascript in this. strings that start with single quotes can contain double
 quotes but must end with single quotes and must escape any single quotes they contain
 
-json and jsx only recognize escape sequences as outlined in the json spec. it just
+json and **jsx** only recognize escape sequences as outlined in the json spec. it just
 ignores bad escape sequences
 
 
@@ -214,16 +215,16 @@ ignores bad escape sequences
 
 ### incomplete input ###
 
-jsx can handle incomplete json texts. if the option `stream` is passed to the decoder
+**jsx** can handle incomplete json texts. if the option `stream` is passed to the decoder
 or parser and if a partial json text is parsed, rather than returning a term from
-your callback handler, jsx returns `{incomplete, F}` where  `F` is a function with 
+your callback handler, **jsx** returns `{incomplete, F}` where  `F` is a function with 
 an identical API to the anonymous fun returned from `decoder/3`, `encoder/3` or 
 `parser/3`. it retains the internal state of the  parser at the point where input
 was exhausted. this allows you to parse as you stream json over a socket or file 
 descriptor, or to parse large json texts without needing to keep them entirely in
 memory
 
-however, it is important to recognize that jsx is conservative by default. jsx will 
+however, it is important to recognize that **jsx** is conservative by default. **jsx** will 
 not consider the parsing complete even when input is exhausted and the json text is
 unambiguously incomplete. to end parsing call the `incomplete` function with the
 argument `end_stream` like:
@@ -304,7 +305,7 @@ strict_option() = comments
     | escapes
 ``` 
 
-jsx functions all take a common set of options. not all flags have meaning 
+**jsx** functions all take a common set of options. not all flags have meaning 
 in all contexts, but they are always valid options. functions may have 
 additional options beyond these. see 
 [individual function documentation](#exports) for details
@@ -344,7 +345,7 @@ additional options beyond these. see
 
 - `strict`
 
-    as mentioned [earlier](#description), jsx is pragmatic. if you're more of a
+    as mentioned [earlier](#description), **jsx** is pragmatic. if you're more of a
     json purist or you're really into bdsm stricter adherence to the spec is
     possible. the following restrictions are available
     
@@ -365,7 +366,7 @@ additional options beyond these. see
 
         escape sequences not adhering to the json spec result in a `badarg` error
     
-    any combination of these can be passed to jsx by using `{strict, [strict_option()]}`.
+    any combination of these can be passed to **jsx** by using `{strict, [strict_option()]}`.
     `strict` is equivalent to `{strict, [comments, bad_utf8, single_quotes, escapes]}` 
 
 - `stream`
@@ -391,7 +392,7 @@ parser(Module, Args, Opts) -> Fun((Tokens) -> any())
   Tokens = event() | [event()]
 ```
 
-jsx is a json compiler with interleaved tokenizing, syntactic analysis and 
+**jsx** is a json compiler with interleaved tokenizing, syntactic analysis and 
 semantic analysis stages. included are two tokenizers; one that handles json 
 texts (`decoder/3`) and one that handles erlang terms (`encoder/3`). there is 
 also an entry point to the syntactic analysis stage for use with user-defined 
@@ -550,7 +551,7 @@ what exactly constitutes valid json may be altered via [options](#option)
 
 ## callback exports ##
 
-the following functions should be exported from a jsx callback module
+the following functions should be exported from a **jsx** callback module
 
 #### `Module:init/1` ####
 
@@ -630,7 +631,7 @@ following events must be handled:
 
 ## acknowledgements ##
 
-jsx wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [dmitry kolesnikov](https://github.com/fogfish) and [emptytea](https://github.com/emptytea)
+**jsx** wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [dmitry kolesnikov](https://github.com/fogfish) and [emptytea](https://github.com/emptytea)
 
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
