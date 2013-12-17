@@ -144,8 +144,8 @@ ignores bad escape sequences
 
 **json**                        | **erlang**
 --------------------------------|--------------------------------
-`number`                        | `integer()` if possible, `float()` otherwise
-`string`                        | `binary()`
+`number`                        | `integer()` and `float()`
+`string`                        | `binary()` and `atom()`
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `[]` and `[JSON]`
 `object`                        | `[{}]` and `[{binary() OR atom(), JSON}]`
@@ -171,9 +171,10 @@ ignores bad escape sequences
 
 *   strings
 
-    json strings must be unicode. in practice, because **jsx** only accepts
-    `utf8` all strings must be `utf8`. in addition to being unicode json strings
-    restrict a number of codepoints and define a number of escape sequences
+    json strings must be unicode encoded binaries or erlang atoms. in practice,
+    because **jsx** only accepts `utf8` binaries all binary strings must be `utf8`.
+    in addition to being unicode json strings restrict a number of codepoints and
+    define a number of escape sequences
 
     json string escapes of the form `\uXXXX` will be converted to their 
     equivalent codepoints during parsing. this means control characters and 
@@ -208,9 +209,9 @@ ignores bad escape sequences
     special representation `[{}]` to differentiate it from the empty list. 
     ambiguities like `[true, false]` prevent the use of the shorthand form of 
     property lists using atoms as properties so all properties must be tuples. 
-    all keys must be encoded as in `string` or as atoms (which will be escaped 
-    and converted to binaries for presentation to handlers). values should be 
-    valid json values
+    all keys must be encoded as in `string` or as atoms or integers (which will
+    be escaped and converted to binaries for presentation to handlers). values
+    should be valid json values
 
 
 ### incomplete input ###
@@ -254,6 +255,7 @@ json_term() = [json_term()]
     | integer()
     | float()
     | binary()
+    | atom()
 ```
 
 the erlang representation of json. binaries should be `utf8` encoded, or close 
@@ -631,7 +633,7 @@ following events must be handled:
 
 ## acknowledgements ##
 
-**jsx** wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [dmitry kolesnikov](https://github.com/fogfish) and [emptytea](https://github.com/emptytea)
+jsx wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [devin torres](https://github.com/devinus), [dmitry kolesnikov](https://github.com/fogfish), [emptytea](https://github.com/emptytea), [john daily](https://github.com/macintux), [ola bäckström](https://github.com/olabackstrom), [joseph crowe](https://github.com/JosephCrowe), [patrick gombert](https://github.com/patrickgombert),  [eskuat](https://github.com/eskuat) and [max lapshin](https://github.com/maxlapshin)
 
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl

@@ -27,7 +27,7 @@
 -export([init/1, handle_event/2]).
 
 
--spec parser(Handler::module(), State::any(), Config::jsx:config()) -> jsx:parser().
+-spec parser(Handler::module(), State::any(), Config::list()) -> jsx:parser().
 
 parser(Handler, State, Config) ->
     fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.
@@ -36,12 +36,12 @@ parser(Handler, State, Config) ->
 %% resume allows continuation from interrupted decoding without having to explicitly export
 %%  all states
 -spec resume(
-        Rest::binary(),
+        Rest::jsx:token(),
         State::atom(),
         Handler::{atom(), any()},
         Stack::list(atom()),
         Config::jsx:config()
-    ) -> jsx:parser().
+    ) -> jsx:parser() | {incomplete, jsx:parser()}.
 
 resume(Rest, State, Handler, Stack, Config) ->
     case State of
@@ -84,8 +84,6 @@ incomplete(State, Handler, Stack, Config=#config{incomplete_handler=F}) ->
     F([], {parser, State, Handler, Stack}, jsx_config:config_to_list(Config)).
 
 
-handle_event([], Handler, _Config) -> Handler;
-handle_event([Event|Rest], Handler, Config) -> handle_event(Rest, handle_event(Event, Handler, Config), Config);
 handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event(Event, State)}.
 
 
@@ -128,13 +126,13 @@ value(Token, Handler, Stack, Config) ->
 
 object([end_object|Tokens], Handler, [object|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
-object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
+object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
     case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
         Clean when is_binary(Clean) ->
             value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
         Error -> Error
     end;
-object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key) ->
+object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
     case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
         Clean when is_binary(Clean) ->
             value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
@@ -178,7 +176,8 @@ done(Token, Handler, Stack, Config) ->
     done([Token], Handler, Stack, Config).
 
 
-fix_key(Key) when is_atom(Key) -> fix_key(atom_to_binary(Key, utf8));
+fix_key(Key) when is_atom(Key) -> atom_to_binary(Key, utf8);
+fix_key(Key) when is_integer(Key) -> list_to_binary(integer_to_list(Key));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
@@ -440,7 +439,11 @@ to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
 
 %% for raw input
+-spec init(proplists:proplist()) -> list().
+
 init([]) -> [].
+
+-spec handle_event(Event::any(), Acc::list()) -> list().
 
 handle_event(end_json, State) -> lists:reverse(State);
 handle_event(Event, State) -> [Event] ++ State.
@@ -996,5 +999,12 @@ json_escape_sequence_test_() ->
         {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
     ].
 
+
+fix_key_test_() ->
+    [
+        {"binary key", ?_assertEqual(fix_key(<<"foo">>), <<"foo">>)},
+        {"atom key", ?_assertEqual(fix_key(foo), <<"foo">>)},
+        {"integer key", ?_assertEqual(fix_key(123), <<"123">>)}
+    ].
 
 -endif.

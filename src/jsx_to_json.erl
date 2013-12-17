@@ -35,6 +35,7 @@
 }).
 
 -type config() :: list().
+-export_type([config/0]).
 
 
 -spec to_json(Source::any(), Config::config()) -> binary().
@@ -85,8 +86,13 @@ parse_config([], Config) ->
 -define(newline, <<"\n">>).
 
 
+-type state() :: {unicode:charlist(), #config{}}.
+-spec init(Config::proplists:proplist()) -> state().
+
 init(Config) -> {[], parse_config(Config)}.
 
+
+-spec handle_event(Event::any(), State::state()) -> state().
 
 handle_event(end_json, {Term, _Config}) -> Term;
 

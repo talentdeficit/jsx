@@ -48,10 +48,10 @@
     | null
     | integer()
     | float()
-    | binary().
+    | binary()
+    | atom().
 
 -type json_text() :: binary().
-
 
 -spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
 -spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.

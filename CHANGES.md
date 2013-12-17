@@ -1,3 +1,14 @@
+v1.4.5
+
+* various fixes to typespecs uncovered by dialyzer
+* allow integer keys during encoding
+* convert atoms (other than `true`, `false` and `null`) to strings during encoding
+
+v1.4.4
+
+* typespec for `json_term/0` fixed
+* incorrect boolean shortcircuiting fixed in multibyte escape processing
+
 v1.4.3
 
 * add empty rebar.config for mix build tool

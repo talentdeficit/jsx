@@ -25,7 +25,7 @@
 
 -export([encoder/3, encode/1, encode/2, unzip/1]).
 
--spec encoder(Handler::module(), State::any(), Config::jsx:config()) -> jsx:encoder().
+-spec encoder(Handler::module(), State::any(), Config::list()) -> jsx:encoder().
 
 encoder(Handler, State, Config) ->
     Parser = jsx:parser(Handler, State, Config),
@@ -57,8 +57,7 @@ encode(Else, _EntryPoint) -> [Else].
 unzip(List) -> unzip(List, []).
 
 unzip([], Acc) -> lists:reverse(Acc);
-unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K) -> unzip(Rest, [V, K] ++ Acc).
-
+unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K); is_integer(K) -> unzip(Rest, [V, K] ++ Acc).
 
 
 -ifdef(TEST).
@@ -66,6 +65,7 @@ unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K) -> unzip(Rest, [V, K] ++
 
 
 parser(Term, Opts) -> (jsx:parser(jsx, [], Opts))(Term).
+
 
 error_test_() ->
     [

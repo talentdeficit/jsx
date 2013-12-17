@@ -33,8 +33,22 @@
 
 -include("jsx_config.hrl").
 
+-type handler_type(Handler) ::
+    fun((jsx:json_text() | end_stream |
+         jsx:json_term(),
+         {decoder, any(), module(), null | list(), list()} |
+         {parser, any(), module(), list()} |
+         {encoder, any(), module()},
+         list({pre_encode, fun((any()) -> any())} |
+              {error_handler, Handler} |
+              {incomplete_handler, Handler} |
+              atom())) -> any()).
+-type handler() :: handler_type(handler()).
+-export_type([handler/0]).
 
 %% parsing of jsx config
+-spec parse_config(Config::proplists:proplist()) -> jsx:config().
+
 parse_config(Config) -> parse_config(Config, #config{}).
 
 parse_config([], Config) -> Config;
@@ -83,6 +97,8 @@ parse_strict(_Strict, _Rest, _Config) ->
 
 
 
+-spec config_to_list(Config::jsx:config()) -> proplists:proplist().
+
 config_to_list(Config) ->
     reduce_config(lists:map(
         fun ({error_handler, F}) -> {error_handler, F};
@@ -116,6 +132,8 @@ reduce_config([Else|Input], Output, Strict) ->
     reduce_config(Input, [Else] ++ Output, Strict).
 
 
+-spec valid_flags() -> [atom()].
+
 valid_flags() ->
     [
         escaped_forward_slashes,
@@ -128,6 +146,8 @@ valid_flags() ->
         incomplete_handler
     ].
 
+
+-spec extract_config(Config::proplists:proplist()) -> proplists:proplist().
 
 extract_config(Config) ->
     extract_parser_config(Config, []).
