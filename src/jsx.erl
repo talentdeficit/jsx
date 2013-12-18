@@ -35,7 +35,7 @@
 
 -ifdef(TEST).
 %% data and helper functions for tests
--export([test_cases/0]).
+-export([test_cases/0, special_test_cases/0]).
 -export([init/1, handle_event/2]).
 -endif.
 
@@ -174,8 +174,12 @@ test_cases() ->
     ++ floats()
     ++ compound_object().
 
+%% segregate these so we can skip them in `jsx_to_term`
+special_test_cases() -> special_objects() ++ special_array().
+
 
 empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
+
 
 nested_array() ->
     [{
@@ -187,6 +191,7 @@ nested_array() ->
 
 
 empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
+
 
 nested_object() ->
     [{
@@ -221,6 +226,7 @@ naked_strings() ->
         || String <- Raw
     ].
 
+
 strings() ->
     naked_strings()
     ++ [ wrap_with_array(Test) || Test <- naked_strings() ]
@@ -245,6 +251,7 @@ naked_integers() ->
         }
         || X <- Raw ++ [ -1 * Y || Y <- Raw ] ++ [0]
     ].
+
 
 integers() ->
     naked_integers()
@@ -276,6 +283,7 @@ naked_floats() ->
         || X <- Raw ++ [ -1 * Y || Y <- Raw ]
     ].
 
+
 floats() ->
     naked_floats()
     ++ [ wrap_with_array(Test) || Test <- naked_floats() ]
@@ -292,6 +300,7 @@ naked_literals() ->
         }
         || Literal <- [true, false, null]
     ].
+
 
 literals() ->
     naked_literals()
@@ -335,6 +344,34 @@ compound_object() ->
             end_array
         ]
     }].
+
+
+special_objects() ->
+    [
+        {
+            "[{key, atom}]",
+            <<"{\"key\":\"atom\"}">>,
+            [{key, atom}],
+            [start_object, {key, <<"key">>}, {string, <<"atom">>}, end_object]
+        },
+        {
+            "[{1, true}]",
+            <<"{\"1\":true}">>,
+            [{1, true}],
+            [start_object, {key, <<"1">>}, {literal, true}, end_object]
+        }
+    ].
+
+
+special_array() ->
+    [    
+        {
+            "[foo, bar]",
+            <<"[\"foo\",\"bar\"]">>,
+            [foo, bar],
+            [start_array, {string, <<"foo">>}, {string, <<"bar">>}, end_array]
+        }
+    ].
 
 
 wrap_with_array({Title, JSON, Term, Events}) ->

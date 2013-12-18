@@ -115,6 +115,8 @@ value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) 
     end;
 value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     value([{string, String}] ++ Tokens, Handler, Stack, Config);
+value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
+    value([{string, atom_to_binary(String, utf8)}] ++ Tokens, Handler, Stack, Config);
 value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
     value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
 value([], Handler, Stack, Config) ->

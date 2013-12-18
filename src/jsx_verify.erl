@@ -159,7 +159,7 @@ repeated_keys_test_() ->
 
 
 handle_event_test_() ->
-    Data = jsx:test_cases(),
+    Data = jsx:test_cases() ++ jsx:special_test_cases(),
     [
         {
             Title, ?_assertEqual(
