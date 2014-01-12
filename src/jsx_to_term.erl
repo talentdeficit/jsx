@@ -26,7 +26,7 @@
 -export([to_term/2]).
 -export([init/1, handle_event/2]).
 -export([start_term/0, start_term/1]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
 
 
 -record(config, {
@@ -80,7 +80,7 @@ init(Config) -> {[], parse_config(Config)}.
 
 -spec handle_event(Event::any(), State::state()) -> state().
 
-handle_event(end_json, {Term, _Config}) -> Term;
+handle_event(end_json, State) -> get_value(State);
 
 handle_event(start_object, State) -> start_object(State);
 handle_event(end_object, State) -> finish(State);
@@ -128,7 +128,8 @@ start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
 %% allocate a new array on top of the stack
 start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
-%% finish an object or array and insert it into the parent object if it exists
+%% finish an object or array and insert it into the parent object if it exists or
+%%  return it if it is the root object
 finish({[{object, []}], Config}) -> {[{}], Config};
 finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
 finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
@@ -157,6 +158,9 @@ insert(_, _, _) -> erlang:error(badarg).
 get_key({[{object, Key, _}|_], _}) -> Key;
 get_key(_) -> erlang:error(badarg).
 
+
+get_value({Value, _Config}) -> Value;
+get_value(_) -> erlang:error(badarg).
 
 
 %% eunit tests

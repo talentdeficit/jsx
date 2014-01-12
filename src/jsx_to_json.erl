@@ -26,7 +26,7 @@
 -export([to_json/2, format/2]).
 -export([init/1, handle_event/2]).
 -export([start_json/0, start_json/1]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
 
 
 -record(config, {
@@ -95,7 +95,7 @@ init(Config) -> {[], parse_config(Config)}.
 
 -spec handle_event(Event::any(), State::state()) -> state().
 
-handle_event(end_json, {Term, _Config}) -> Term;
+handle_event(end_json, State) -> get_value(State);
 
 handle_event(start_object, State) -> start_object(State);
 handle_event(end_object, State) -> finish(State);
@@ -241,6 +241,14 @@ insert(_, _, _) -> erlang:error(badarg).
 
 get_key({[{object, Key, _}|_], _}) -> Key;
 get_key(_) -> erlang:error(badarg).
+
+
+get_value({Value, Config}) ->
+    case Value of
+        Value when is_binary(Value) -> Value;
+        _ -> erlang:error(badarg)
+    end;
+get_value(_) -> erlang:error(badarg).
 
 
 
