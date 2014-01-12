@@ -25,6 +25,7 @@
 
 -export([to_term/2]).
 -export([init/1, handle_event/2]).
+-export([start_term/0, start_term/1]).
 -export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
 
 
@@ -117,6 +118,10 @@ format_key(Key, Config) ->
 %% an array looks like
 %%  `{array, [NthValue, NthMinus1Value,...FirstValue]}`
 
+start_term() -> {[], #config{}}.
+
+start_term(Config) when is_list(Config) -> {[], parse_config(Config)}.
+
 %% allocate a new object on top of the stack
 start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
 
@@ -149,8 +154,8 @@ insert(Key, Value, {[{object, Pairs}|Rest], Config}) ->
 insert(_, _, _) -> erlang:error(badarg).
 
 
-get_key({[{object, Key, _}|_], _}) -> {ok, Key};
-get_key(_) -> {error, nokey}.
+get_key({[{object, Key, _}|_], _}) -> Key;
+get_key(_) -> erlang:error(badarg).
 
 
 
@@ -200,6 +205,14 @@ format_key_test_() ->
 
 rep_manipulation_test_() ->
     [
+        {"allocate a new context", ?_assertEqual(
+            {[], #config{}},
+            start_term()
+        )},
+        {"allocate a new context with option", ?_assertEqual(
+            {[], #config{labels=atom}},
+            start_term([{labels, atom}])
+        )},
         {"allocate a new object on an empty stack", ?_assertEqual(
             {[{object, []}], #config{}},
             start_object({[], #config{}})
@@ -221,15 +234,15 @@ rep_manipulation_test_() ->
             insert(key, {[{object, []}, junk], #config{}})
         )},
         {"get current key", ?_assertEqual(
-            {ok, key},
+            key,
             get_key({[{object, key, []}], #config{}})
         )},
-        {"try to get non-key from object", ?_assertEqual(
-            {error, nokey},
+        {"try to get non-key from object", ?_assertError(
+            badarg,
             get_key({[{object, []}], #config{}})
         )},
-        {"try to get key from array", ?_assertEqual(
-            {error, nokey},
+        {"try to get key from array", ?_assertError(
+            badarg,
             get_key({[{array, []}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(

@@ -25,6 +25,7 @@
 
 -export([to_json/2, format/2]).
 -export([init/1, handle_event/2]).
+-export([start_json/0, start_json/1]).
 -export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1]).
 
 
@@ -150,6 +151,10 @@ indent_or_space(Config) ->
 %%  `{array, Array}`
 %% `Object` and `Array` are utf8 encoded binaries
 
+start_json() -> {[], #config{}}.
+
+start_json(Config) when is_list(Config) -> {[], parse_config(Config)}.
+
 %% allocate a new object on top of the stack
 start_object({Stack, Config}) -> {[{object, ?start_object}] ++ Stack, Config}.
 
@@ -234,8 +239,8 @@ insert(Key, Value, {[{object, Object}|Rest], Config}) when is_binary(Key), is_bi
 insert(_, _, _) -> erlang:error(badarg).
 
 
-get_key({[{object, Key, _}|_], _}) -> {ok, Key};
-get_key(_) -> {error, nokey}.
+get_key({[{object, Key, _}|_], _}) -> Key;
+get_key(_) -> erlang:error(badarg).
 
 
 
@@ -360,6 +365,14 @@ format_test_() ->
 
 rep_manipulation_test_() ->
     [
+        {"allocate a new context", ?_assertEqual(
+            {[], #config{}},
+            start_json()
+        )},
+        {"allocate a new context with config", ?_assertEqual(
+            {[], #config{space=1, indent=2}},
+            start_json([{space, 1}, {indent, 2}])
+        )},
         {"allocate a new object on an empty stack", ?_assertEqual(
             {[{object, <<"{">>}], #config{}},
             start_object({[], #config{}})
@@ -381,15 +394,15 @@ rep_manipulation_test_() ->
             insert(<<"\"key\"">>, {[{object, <<"{">>}], #config{}})
         )},
         {"get current key", ?_assertEqual(
-            {ok, key},
+            key,
             get_key({[{object, key, <<"{">>}], #config{}})
         )},
-        {"try to get non-key from object", ?_assertEqual(
-            {error, nokey},
+        {"try to get non-key from object", ?_assertError(
+            badarg,
             get_key({[{object, <<"{">>}], #config{}})
         )},
-        {"try to get key from array", ?_assertEqual(
-            {error, nokey},
+        {"try to get key from array", ?_assertError(
+            badarg,
             get_key({[{array, <<"[">>}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
