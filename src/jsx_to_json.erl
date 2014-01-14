@@ -243,7 +243,7 @@ get_key({[{object, Key, _}|_], _}) -> Key;
 get_key(_) -> erlang:error(badarg).
 
 
-get_value({Value, Config}) ->
+get_value({Value, _Config}) ->
     case Value of
         Value when is_binary(Value) -> Value;
         _ -> erlang:error(badarg)
