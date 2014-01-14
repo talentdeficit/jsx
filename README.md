@@ -11,12 +11,16 @@ current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.
 
 copyright 2010-2013 alisdair sullivan
 
+## really important note ##
+
+this is a preview of the 2.0 release. there are lots of changes. see [CHANGES.md](CHANGES.md)
+for the overview or read this document for the details
+
 ## index ##
 
 * [quickstart](#quickstart)
 * [description](#description)
   - [json <-> erlang mapping](#json---erlang-mapping)
-  - [extending jsx](#extending-jsx)
   - [incomplete input](#incomplete-input)
 * [data types](#data-types)
   - [`json_term()`](#json_term)
