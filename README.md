@@ -1,4 +1,4 @@
-# jsx (v2.0) #
+# jsx (v2.0alpha) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -14,7 +14,7 @@ copyright 2010-2013 alisdair sullivan
 ## really important note ##
 
 this is a preview of the 2.0 release. there are lots of changes. see [CHANGES.md](CHANGES.md)
-for the overview or read this document for the details
+for the overview or read this document for the details. use master if you want the last 1.x version
 
 ## index ##
 
