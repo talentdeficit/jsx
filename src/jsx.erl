@@ -28,12 +28,9 @@
 -export([format/1, format/2, minify/1, prettify/1]).
 -export([encoder/3, decoder/3, parser/3]).
 -export([resume/3]).
--export([start_json/0, start_json/1, start_term/0, start_term/1]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
 
 -export_type([json_term/0, json_text/0, token/0]).
 -export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
--export_type([internal_json/0, internal_term/0, internal_thing/0]).
 
 
 -ifdef(TEST).
@@ -153,106 +150,10 @@ resume(Term, {parser, State, Handler, Stack}, Config) ->
     jsx_parser:resume(Term, State, Handler, Stack, jsx_config:parse_config(Config)).
 
 
--opaque internal_json() :: tuple().
-
--spec start_json() -> internal_json().
--spec start_json(Config::list()) -> internal_json().
-
-start_json() -> {jsx_to_json, jsx_to_json:start_json()}.
-start_json(Config) -> {jsx_to_json, jsx_to_json:start_json(Config)}.
-
-
--opaque internal_term() :: tuple().
-
--spec start_term() -> internal_term().
--spec start_term(Config::list()) -> internal_term().
-
-start_term() -> {jsx_to_term, jsx_to_term:start_term()}.
-start_term(Config) -> {jsx_to_term, jsx_to_term:start_term(Config)}.
-
-
-% naming things is hard
--opaque internal_thing() :: internal_term() | internal_json().
-
-
--spec start_object(internal_thing()) -> internal_thing().
-
-start_object({Handler, Internals}) -> {Handler, Handler:start_object(Internals)}.
-
-
--spec start_array(internal_thing()) -> internal_thing().
-
-start_array({Handler, Internals}) -> {Handler, Handler:start_array(Internals)}.
-
-
--spec finish(internal_thing()) -> internal_thing().
-
-finish({Handler, Internals}) -> {Handler, Handler:finish(Internals)}.
-
-
--spec insert(Value::any(), internal_thing()) -> internal_thing().
-
-insert(Value, {Handler, Internals}) -> {Handler, Handler:insert(Value, Internals)}.
-
-
--spec insert(Key::any(), Value::any(), internal_thing()) -> internal_thing().
-
-insert(Key, Value, {Handler, Internals}) -> {Handler, Handler:insert(Key, Value, Internals)}.
-
-
--spec get_key(internal_thing()) -> atom() | binary().
-
-get_key({Handler, Internals}) -> Handler:get_key(Internals).
-
-
--spec get_value(internal_thing()) -> any().
-
-get_value({Handler, Internals}) -> Handler:get_value(Internals).
-
-
 
 -ifdef(TEST).
 
 -include_lib("eunit/include/eunit.hrl").
-
-
-%% sanity checks for internal format handlers
-
-internal_format_sanity_test_() ->
-    [
-        {"jsx term sanity check", ?_assertEqual(
-            [{key, [1, true, <<"hallo world">>]}],
-            begin
-                NewTerm = start_term(),
-                ObjectAllocated = start_object(NewTerm),
-                KeyInserted = insert(key, ObjectAllocated),
-                ArrayAllocated = start_array(KeyInserted),
-                OneInserted = insert(1, ArrayAllocated),
-                TrueInserted = insert(true, OneInserted),
-                HalloWorldInserted = insert(<<"hallo world">>, TrueInserted),
-                ArrayClosed = finish(HalloWorldInserted),
-                ObjectClosed = finish(ArrayClosed),
-                TermClosed = get_value(ObjectClosed),
-                TermClosed
-            end
-        )},
-        {"jsx json sanity check", ?_assertEqual(
-            <<"{\"key\":[1,true,\"hallo world\"]}">>,
-            begin
-                NewTerm = start_json(),
-                ObjectAllocated = start_object(NewTerm),
-                KeyInserted = insert(<<"\"key\"">>, ObjectAllocated),
-                ArrayAllocated = start_array(KeyInserted),
-                OneInserted = insert(<<"1">>, ArrayAllocated),
-                TrueInserted = insert(<<"true">>, OneInserted),
-                HalloWorldInserted = insert(<<"\"hallo world\"">>, TrueInserted),
-                ArrayClosed = finish(HalloWorldInserted),
-                ObjectClosed = finish(ArrayClosed),
-                TermClosed = get_value(ObjectClosed),
-                TermClosed
-            end
-        )}
-    ].
 
 
 %% test handler
