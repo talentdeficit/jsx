@@ -14,7 +14,8 @@ copyright 2010-2013 alisdair sullivan
 ## really important note ##
 
 this is a preview of the 2.0 release. there are lots of changes. see [CHANGES.md](CHANGES.md)
-for the overview or read this document for the details. use master if you want the last 1.x version
+for the overview or read this document for the details. use 
+[master branch](https://github.com/talentdeficit/jsx/tree/master) if you want the last 1.x version
 
 ## index ##
 
