@@ -41,16 +41,11 @@
 -endif.
 
 
--type json_term()
-   :: [{binary() | atom(), json_term()}]
-    | [json_term()]
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary()
-    | atom().
+-type json_term() :: [{binary() | atom(), json_term()}] | [{}]
+    | [json_term()] | []
+    | true | false | null
+    | integer() | float()
+    | binary() | atom().
 
 -type json_text() :: binary().
 
