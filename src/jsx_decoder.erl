@@ -1633,17 +1633,13 @@ incomplete_test_() ->
             badarg,
             decode(<<"{">>)
         )},
-        {"stream true", ?_assert(
-            case decode(<<"{">>, [stream]) of
-                {incomplete, _} -> true;
-                _ -> false
-            end
+        {"stream true", ?_assertMatch(
+            {incomplete, _},
+            decode(<<"{">>, [stream])
         )},
-        {"complete input", ?_assert(
-            case decode(<<"{}">>, [stream]) of
-                {incomplete, _} -> true;
-                _ -> false
-            end
+        {"complete input", ?_assertMatch(
+            {incomplete, _},
+            decode(<<"{}">>, [stream])
         )}
     ].
 

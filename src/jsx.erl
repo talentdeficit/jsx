@@ -31,6 +31,7 @@
 
 -export_type([json_term/0, json_text/0, token/0]).
 -export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
+-export_type([config/0]).
 
 
 -ifdef(TEST).
@@ -52,6 +53,8 @@
     | atom().
 
 -type json_text() :: binary().
+
+-type config() :: jsx_config:config().
 
 -spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
 -spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.

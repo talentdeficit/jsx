@@ -46,8 +46,11 @@
 -type handler() :: handler_type(handler()).
 -export_type([handler/0]).
 
+-type config() :: #config{}.
+-export_type([config/0]).
+
 %% parsing of jsx config
--spec parse_config(Config::proplists:proplist()) -> jsx:config().
+-spec parse_config(Config::proplists:proplist()) -> config().
 
 parse_config(Config) -> parse_config(Config, #config{}).
 
@@ -97,7 +100,7 @@ parse_strict(_Strict, _Rest, _Config) ->
 
 
 
--spec config_to_list(Config::jsx:config()) -> proplists:proplist().
+-spec config_to_list(Config::config()) -> proplists:proplist().
 
 config_to_list(Config) ->
     reduce_config(lists:map(
@@ -226,8 +229,8 @@ config_test_() ->
         {"two error_handlers defined", ?_assertError(
             badarg,
             parse_config([
-                {error_handler, fun(_) -> true end},
-                {error_handler, fun(_) -> false end}
+                {error_handler, fun(_, _, _) -> true end},
+                {error_handler, fun(_, _, _) -> false end}
             ])
         )},
         {"incomplete_handler flag", ?_assertEqual(
@@ -237,8 +240,8 @@ config_test_() ->
         {"two incomplete_handlers defined", ?_assertError(
             badarg,
             parse_config([
-                {incomplete_handler, fun(_) -> true end},
-                {incomplete_handler, fun(_) -> false end}
+                {incomplete_handler, fun(_, _, _) -> true end},
+                {incomplete_handler, fun(_, _, _) -> false end}
             ])
         )},
         {"bad option flag", ?_assertError(badarg, parse_config([this_flag_does_not_exist]))}
