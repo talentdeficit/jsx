@@ -174,11 +174,7 @@ end_seq(Seq, #config{dirty_strings=true}) -> list_to_binary(lists:reverse(Seq));
 end_seq(Seq, _) -> end_seq(Seq).
 
 
-handle_event([], Handler, _Config) -> Handler;
-handle_event([Event|Rest], Handler, Config) ->
-    handle_event(Rest, handle_event(Event, Handler, Config), Config);
-handle_event(Event, {Handler, State}, _Config) ->
-    {Handler, Handler:handle_event(Event, State)}.
+handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event(Event, State)}.
 
 
 start(<<16#ef, 16#bb, 16#bf, Rest/binary>>, Handler, Stack, Config) ->
