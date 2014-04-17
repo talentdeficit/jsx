@@ -1,6 +1,8 @@
-application:start(compiler),
-case {erlang:system_info(version), application:get_key(compiler, vsn), os:getenv("JSX_NO_MAPS")} of
-    {X, {ok, Y}, false} when X >= "6.0" andalso Y >= "5.0" ->
-        CONFIG ++ [{erl_opts, [{d, release_supports_maps}]}];
-    _ -> CONFIG
+case os:getenv("JSX_NOMAPS") of
+  false ->
+    try file:script("config/maps") of {ok, true} ->
+      [{d, release_supports_maps}] ++ CONFIG
+    catch _:_ -> CONFIG
+    end;
+  _ -> CONFIG
 end.
