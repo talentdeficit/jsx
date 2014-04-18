@@ -39,25 +39,47 @@ encode(Term) -> encode(Term, ?MODULE).
 
 -spec encode(Term::any(), EntryPoint::module()) -> any().
 
-encode([], _EntryPoint) -> [start_array, end_array];
-encode([{}], _EntryPoint) -> [start_object, end_object];
+-ifndef(release_supports_maps).
+encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
+-endif.
 
-encode([{_, _}|_] = Term, EntryPoint) ->
+-ifdef(release_supports_maps).
+encode(Map, _EntryPoint) when is_map(Map), map_size(Map) < 1 -> [start_object, end_object];
+encode(Term, EntryPoint) when is_map(Term) ->
+    lists:flatten(
+        [start_object] ++ [ EntryPoint:encode(T, EntryPoint) || T <- unpack(Term) ] ++ [end_object]
+    );
+encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
+-endif.
+
+encode_([], _EntryPoint) -> [start_array, end_array];
+encode_([{}], _EntryPoint) -> [start_object, end_object];
+
+encode_([{_, _}|_] = Term, EntryPoint) ->
     lists:flatten(
         [start_object] ++ [ EntryPoint:encode(T, EntryPoint) || T <- unzip(Term) ] ++ [end_object]
     );
-encode(Term, EntryPoint) when is_list(Term) ->
+encode_(Term, EntryPoint) when is_list(Term) ->
     lists:flatten(
         [start_array] ++ [ EntryPoint:encode(T, EntryPoint) || T <- Term ] ++ [end_array]
     );
 
-encode(Else, _EntryPoint) -> [Else].
+encode_(Else, _EntryPoint) -> [Else].
 
 
 unzip(List) -> unzip(List, []).
 
 unzip([], Acc) -> lists:reverse(Acc);
 unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K); is_integer(K) -> unzip(Rest, [V, K] ++ Acc).
+
+-ifdef(release_supports_maps).
+unpack(Map) -> unpack(maps:keys(Map), Map, []).
+
+unpack([], _, Acc) -> lists:reverse(Acc);
+unpack([K|Rest], Map, Acc) when is_binary(K); is_atom(K); is_integer(K) ->
+    unpack(Rest, Map, [maps:get(K, Map), K] ++ Acc).
+-endif.
+
 
 
 -ifdef(TEST).
