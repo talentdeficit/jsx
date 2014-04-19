@@ -2,6 +2,7 @@ v2.0
 
 * jsx is much more pragmatic by default; common json errors are silently
     ignored (and fixed). stricter parsing must be enabled with options
+* add support for encoding otp 17.0's new maps data type
 * removed `pre_encode` and `post_decode` options in favour of making jsx
     functions easier to wrap and customize
 * streaming behavior is now disabled by default and must be requested explicitly
