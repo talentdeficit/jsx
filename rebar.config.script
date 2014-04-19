@@ -1,4 +1,4 @@
-case os:getenv("JSX_NOMAPS") of
+case os:getenv("JSX_NOMAPS") or proplists:get_value(jsx_nomaps, CONFIG, false) of
   false ->
     try file:script("config/maps") of
       {ok, true} -> [{erl_opts, [{d, release_supports_maps}]}] ++ CONFIG;
