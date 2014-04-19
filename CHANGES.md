@@ -4,8 +4,6 @@ v2.0
     ignored (and fixed). stricter parsing must be enabled with options
 * removed `pre_encode` and `post_decode` options in favour of making jsx
     functions easier to wrap and customize
-* added abstraction layer for manipulating the internal state of `jsx_to_term`
-    and `jsx_to_json` and exposed it to user code
 * streaming behavior is now disabled by default and must be requested explicitly
 * removed deprecated function names (`to_json`, `to_term`, `term_to_json`, etc) 
 * expanded test coverage
