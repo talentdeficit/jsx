@@ -39,11 +39,11 @@ encode(Term) -> encode(Term, ?MODULE).
 
 -spec encode(Term::any(), EntryPoint::module()) -> any().
 
--ifndef(release_supports_maps).
+-ifndef(maps_support).
 encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
 -endif.
 
--ifdef(release_supports_maps).
+-ifdef(maps_support).
 encode(Map, _EntryPoint) when is_map(Map), map_size(Map) < 1 -> [start_object, end_object];
 encode(Term, EntryPoint) when is_map(Term) ->
     lists:flatten(
@@ -72,7 +72,7 @@ unzip(List) -> unzip(List, []).
 unzip([], Acc) -> lists:reverse(Acc);
 unzip([{K, V}|Rest], Acc) when is_binary(K); is_atom(K); is_integer(K) -> unzip(Rest, [V, K] ++ Acc).
 
--ifdef(release_supports_maps).
+-ifdef(maps_support).
 unpack(Map) -> unpack(maps:keys(Map), Map, []).
 
 unpack([], _, Acc) -> lists:reverse(Acc);
