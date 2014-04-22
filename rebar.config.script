@@ -1,0 +1,9 @@
+case os:getenv("JSX_NOMAPS") or proplists:get_value(jsx_nomaps, CONFIG, false) of
+  false ->
+    try file:script("config/maps") of
+      {ok, true} -> [{erl_opts, [{d, maps_support}]}] ++ CONFIG;
+      _ -> CONFIG
+    catch _:_ -> CONFIG
+    end;
+  _ -> CONFIG
+end.

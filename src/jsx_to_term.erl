@@ -25,11 +25,12 @@
 
 -export([to_term/2]).
 -export([init/1, handle_event/2]).
+-export([start_term/0, start_term/1]).
+-export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
 
 
 -record(config, {
-    labels = binary,
-    post_decode = false
+    labels = binary
 }).
 
 -type config() :: list().
@@ -59,8 +60,6 @@ parse_config([{labels, Val}|Rest], Config)
     parse_config(Rest, Config#config{labels = Val});
 parse_config([labels|Rest], Config) ->
     parse_config(Rest, Config#config{labels = binary});
-parse_config([{post_decode, F}|Rest], Config=#config{post_decode=false}) when is_function(F, 1) ->
-    parse_config(Rest, Config#config{post_decode=F});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
@@ -77,34 +76,21 @@ parse_config([], Config) ->
 -type state() :: {[any()], #config{}}.
 -spec init(Config::proplists:proplist()) -> state().
 
-init(Config) -> {[[]], parse_config(Config)}.
+init(Config) -> {[], parse_config(Config)}.
 
 -spec handle_event(Event::any(), State::state()) -> state().
 
-handle_event(end_json, {[[Terms]], _Config}) -> Terms;
+handle_event(end_json, State) -> get_value(State);
 
-handle_event(start_object, {Terms, Config}) -> {[[]|Terms], Config};
-handle_event(end_object, {[[], {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode([{}], Config)}] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[Object, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(lists:reverse(Object), Config)}] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[[], Last|Terms], Config}) ->
-    {[[post_decode([{}], Config)] ++ Last] ++ Terms, Config};
-handle_event(end_object, {[Object, Last|Terms], Config}) ->
-    {[[post_decode(lists:reverse(Object), Config)] ++ Last] ++ Terms, Config};
+handle_event(start_object, State) -> start_object(State);
+handle_event(end_object, State) -> finish(State);
 
-handle_event(start_array, {Terms, Config}) -> {[[]|Terms], Config};
-handle_event(end_array, {[List, {key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(lists:reverse(List), Config)}] ++ Last] ++ Terms, Config};
-handle_event(end_array, {[List, Last|Terms], Config}) ->
-    {[[post_decode(lists:reverse(List), Config)] ++ Last] ++ Terms, Config};
+handle_event(start_array, State) -> start_array(State);
+handle_event(end_array, State) -> finish(State);
 
-handle_event({key, Key}, {Terms, Config}) -> {[{key, format_key(Key, Config)}] ++ Terms, Config};
+handle_event({key, Key}, {_, Config} = State) -> insert(format_key(Key, Config), State);
 
-handle_event({_, Event}, {[{key, Key}, Last|Terms], Config}) ->
-    {[[{Key, post_decode(Event, Config)}] ++ Last] ++ Terms, Config};
-handle_event({_, Event}, {[Last|Terms], Config}) ->
-    {[[post_decode(Event, Config)] ++ Last] ++ Terms, Config}.
+handle_event({_, Event}, State) -> insert(Event, State).
 
 
 format_key(Key, Config) ->
@@ -121,8 +107,60 @@ format_key(Key, Config) ->
     end.
 
 
-post_decode(Value, #config{post_decode=false}) -> Value;
-post_decode(Value, Config) -> (Config#config.post_decode)(Value).
+%% internal state is a stack and a config object
+%%  `{Stack, Config}`
+%% the stack is a list of in progress objects/arrays
+%%  `[Current, Parent, Grandparent,...OriginalAncestor]`
+%% an object has the representation on the stack of
+%%  `{object, [{NthKey, NthValue}, {NMinus1Key, NthMinus1Value},...{FirstKey, FirstValue}]}`
+%% of if there's a key with a yet to be matched value
+%%  `{object, Key, [{NthKey, NthValue},...]}`
+%% an array looks like
+%%  `{array, [NthValue, NthMinus1Value,...FirstValue]}`
+
+start_term() -> {[], #config{}}.
+
+start_term(Config) when is_list(Config) -> {[], parse_config(Config)}.
+
+%% allocate a new object on top of the stack
+start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
+
+%% allocate a new array on top of the stack
+start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
+
+%% finish an object or array and insert it into the parent object if it exists or
+%%  return it if it is the root object
+finish({[{object, []}], Config}) -> {[{}], Config};
+finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
+finish(_) -> erlang:error(badarg).
+
+%% insert a value when there's no parent object or array
+insert(Value, {[], Config}) -> {Value, Config};
+%% insert a key or value into an object or array, autodetects the 'right' thing
+insert(Key, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, Key, Pairs}] ++ Rest, Config};
+insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
+insert(Value, {[{array, Values}|Rest], Config}) ->
+    {[{array, [Value] ++ Values}] ++ Rest, Config};
+insert(_, _) -> erlang:error(badarg).
+
+%% insert a key/value pair into an object
+insert(Key, Value, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
+insert(_, _, _) -> erlang:error(badarg).
+
+
+get_key({[{object, Key, _}|_], _}) -> Key;
+get_key(_) -> erlang:error(badarg).
+
+
+get_value({Value, _Config}) -> Value;
+get_value(_) -> erlang:error(badarg).
 
 
 %% eunit tests
@@ -132,9 +170,6 @@ post_decode(Value, Config) -> (Config#config.post_decode)(Value).
 
 
 config_test_() ->
-    %% for post_decode tests
-    F = fun(X) -> X end,
-    G = fun(X, Y) -> {X, Y} end,
     [
         {"empty config", ?_assertEqual(#config{}, parse_config([]))},
         {"implicit binary labels", ?_assertEqual(#config{}, parse_config([labels]))},
@@ -144,15 +179,6 @@ config_test_() ->
             #config{labels=existing_atom},
             parse_config([{labels, existing_atom}])
         )},
-        {"sloppy existing atom labels", ?_assertEqual(
-            #config{labels=attempt_atom},
-            parse_config([{labels, attempt_atom}])
-        )},
-        {"post decode", ?_assertEqual(
-            #config{post_decode=F},
-            parse_config([{post_decode, F}])
-        )},
-        {"post decode wrong arity", ?_assertError(badarg, parse_config([{post_decode, G}]))},
         {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
         {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
     ].
@@ -181,110 +207,79 @@ format_key_test_() ->
     ].
 
 
-post_decoders_test_() ->
-    Events = [
-        [{}],
-        [{<<"key">>, <<"value">>}],
-        [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-        [],
-        [<<"string">>],
-        [true, false, null],
-        true,
-        false,
-        null,
-        <<"hello">>,
-        <<"world">>,
-        1,
-        1.0
-    ],
+rep_manipulation_test_() ->
     [
-        {"no post_decode", ?_assertEqual(
-            Events,
-            [ post_decode(Event, #config{}) || Event <- Events ]
+        {"allocate a new context", ?_assertEqual(
+            {[], #config{}},
+            start_term()
         )},
-        {"replace arrays with empty arrays", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [],
-                [],
-                true,
-                false,
-                null,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun([T|_] = V) when is_tuple(T) -> V; (V) when is_list(V) -> []; (V) -> V end
-                }) || Event <- Events
-            ]
+        {"allocate a new context with option", ?_assertEqual(
+            {[], #config{labels=atom}},
+            start_term([{labels, atom}])
         )},
-        {"replace objects with empty objects", ?_assertEqual(
-            [
-                [{}],
-                [{}],
-                [{}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                true,
-                false,
-                null,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun([T|_]) when is_tuple(T) -> [{}]; (V) -> V end
-                }) || Event <- Events
-            ]
+        {"allocate a new object on an empty stack", ?_assertEqual(
+            {[{object, []}], #config{}},
+            start_object({[], #config{}})
         )},
-        {"replace all non-array/non-object values with false", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun(V) when is_list(V) -> V; (_) -> false end
-                }) || Event <- Events
-            ]
+        {"allocate a new object on a stack", ?_assertEqual(
+            {[{object, []}, {object, []}], #config{}},
+            start_object({[{object, []}], #config{}})
         )},
-        {"atoms_to_strings", ?_assertEqual(
-            [
-                [{}],
-                [{<<"key">>, <<"value">>}],
-                [{<<"true">>, true}, {<<"false">>, false}, {<<"null">>, null}],
-                [],
-                [<<"string">>],
-                [true, false, null],
-                <<"true">>,
-                <<"false">>,
-                <<"null">>,
-                <<"hello">>,
-                <<"world">>,
-                1,
-                1.0
-            ],
-            [ post_decode(Event, #config{
-                    post_decode=fun(V) when is_atom(V) -> unicode:characters_to_binary(atom_to_list(V)); (V) -> V end
-                }) || Event <- Events
-            ]
+        {"allocate a new array on an empty stack", ?_assertEqual(
+            {[{array, []}], #config{}},
+            start_array({[], #config{}})
+        )},
+        {"allocate a new array on a stack", ?_assertEqual(
+            {[{array, []}, {object, []}], #config{}},
+            start_array({[{object, []}], #config{}})
+        )},
+        {"insert a key into an object", ?_assertEqual(
+            {[{object, key, []}, junk], #config{}},
+            insert(key, {[{object, []}, junk], #config{}})
+        )},
+        {"get current key", ?_assertEqual(
+            key,
+            get_key({[{object, key, []}], #config{}})
+        )},
+        {"try to get non-key from object", ?_assertError(
+            badarg,
+            get_key({[{object, []}], #config{}})
+        )},
+        {"try to get key from array", ?_assertError(
+            badarg,
+            get_key({[{array, []}], #config{}})
+        )},
+        {"insert a value into an object", ?_assertEqual(
+            {[{object, [{key, value}]}, junk], #config{}},
+            insert(value, {[{object, key, []}, junk], #config{}})
+        )},
+        {"insert a value into an array", ?_assertEqual(
+            {[{array, [value]}, junk], #config{}},
+            insert(value, {[{array, []}, junk], #config{}})
+        )},
+        {"insert a key/value pair into an object", ?_assertEqual(
+            {[{object, [{key, value}, {x, y}]}, junk], #config{}},
+            insert(key, value, {[{object, [{x, y}]}, junk], #config{}})
+        )},
+        {"finish an object with no ancestor", ?_assertEqual(
+            {[{a, b}, {x, y}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}], #config{}})
+        )},
+        {"finish an empty object", ?_assertEqual(
+            {[{}], #config{}},
+            finish({[{object, []}], #config{}})
+        )},
+        {"finish an object with an ancestor", ?_assertEqual(
+            {[{object, [{key, [{a, b}, {x, y}]}, {foo, bar}]}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}], #config{}})
+        )},
+        {"finish an array with no ancestor", ?_assertEqual(
+            {[a, b, c], #config{}},
+            finish({[{array, [c, b, a]}], #config{}})
+        )},
+        {"finish an array with an ancestor", ?_assertEqual(
+            {[{array, [[a, b, c], d, e, f]}], #config{}},
+            finish({[{array, [c, b, a]}, {array, [d, e, f]}], #config{}})
         )}
     ].
 
@@ -295,7 +290,7 @@ handle_event_test_() ->
         {
             Title, ?_assertEqual(
                 Term,
-                lists:foldl(fun handle_event/2, {[[]], #config{}}, Events ++ [end_json])
+                lists:foldl(fun handle_event/2, init([]), Events ++ [end_json])
             )
         } || {Title, _, Term, Events} <- Data
     ].

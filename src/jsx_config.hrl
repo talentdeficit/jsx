@@ -1,15 +1,13 @@
 -record(config, {
-    replaced_bad_utf8 = false         :: boolean(),
-    escaped_forward_slashes = false   :: boolean(),
-    single_quoted_strings = false     :: boolean(),
-    unescaped_jsonp = false           :: boolean(),
-    comments = false                  :: boolean(),
-    escaped_strings = false           :: boolean(),
-    dirty_strings = false             :: boolean(),
-    ignored_bad_escapes = false       :: boolean(),
-    explicit_end = false              :: boolean(),
-    pre_encode = false                :: false | fun((any()) -> any()),
-    error_handler = false             :: false | jsx_config:handler(),
-    incomplete_handler = false        :: false | jsx_config:handler()
+    escaped_forward_slashes = false     :: boolean(),
+    escaped_strings = false             :: boolean(),
+    unescaped_jsonp = false             :: boolean(),
+    dirty_strings = false               :: boolean(),
+    strict_comments = false             :: boolean(),
+    strict_utf8 = false                 :: boolean(),
+    strict_single_quotes = false        :: boolean(),
+    strict_escapes = false              :: boolean(),
+    stream = false                      :: boolean(),
+    error_handler = false               :: false | jsx_config:handler(),
+    incomplete_handler = false          :: false | jsx_config:handler()
 }).
-
