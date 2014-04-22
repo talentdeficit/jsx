@@ -17,6 +17,12 @@ there are a few changes for users upgrading from 1.x. see [CHANGES.md](CHANGES.m
 for the overview or [migrating from 1.x](#migrating) for the details. use 
 [master branch](https://github.com/talentdeficit/jsx/tree/master) if you want the last 1.x version
 
+## slightly less important note ##
+
+**jsx** is commited to proplists as it's object representation to the point of death.
+[jsxn][jsxn] is much more pragmatic and uses maps as it's object representation and
+is otherwise identical to **jsx**
+
 ## index ##
 
 * [quickstart](#quickstart)
@@ -676,3 +682,4 @@ jsx wouldn't be what it is without the contributions of [paul davis](https://git
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
 [travis]: https://travis-ci.org/
+[jsxn]: https://github.com/talentdeficit/jsxn
