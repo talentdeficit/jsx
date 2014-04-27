@@ -1,3 +1,7 @@
+v2.0.1
+
+* fix regression in output of empty objects/arrays
+
 v2.0
 
 * jsx is much more pragmatic by default; common json errors are silently
