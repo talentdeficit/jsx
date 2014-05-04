@@ -1,8 +1,8 @@
 language: erlang
 script: 
-  - rebar -c rebar_test.config get-deps
-  - rebar -c rebar_test.config compile 
-  - rebar -c rebar_test.config skip_deps=true eunit
+  - rebar -C rebar_test.config get-deps
+  - rebar -C rebar_test.config compile 
+  - rebar -C rebar_test.config skip_deps=true eunit
 otp_release:
   - 17.0
   - R16B03-1
