@@ -26,7 +26,7 @@
 -export([to_json/2, format/2]).
 -export([init/1, handle_event/2]).
 -export([start_json/0, start_json/1]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
+-export([start_object/1, start_array/1, finish/1, insert/2, get_key/1, get_value/1]).
 
 
 -record(config, {
@@ -156,21 +156,31 @@ start_json() -> {[], #config{}}.
 start_json(Config) when is_list(Config) -> {[], parse_config(Config)}.
 
 %% allocate a new object on top of the stack
-start_object({Stack, Config}) -> {[{object, ?start_object}] ++ Stack, Config}.
+start_object({Stack, Config = #config{depth = Depth}}) ->
+    {[{object, ?start_object}] ++ Stack, Config#config{depth = Depth + 1}}.
 
 %% allocate a new array on top of the stack
-start_array({Stack, Config}) -> {[{array, ?start_array}] ++ Stack, Config}.
+start_array({Stack, Config = #config{depth = Depth}}) ->
+    {[{array, ?start_array}] ++ Stack, Config#config{depth = Depth + 1}}.
 
 %% finish an object or array and insert it into the parent object if it exists
-finish({[{object, Object}], Config}) ->
-    {<<Object/binary, ?end_object/binary>>, Config};
-finish({[{object, Object}|Rest], Config}) ->
-    insert(<<Object/binary, ?end_object/binary>>, {Rest, Config});
-finish({[{array, Array}], Config}) ->
-    {<<Array/binary, ?end_array/binary>>, Config};
-finish({[{array, Array}|Rest], Config}) ->
-    insert(<<Array/binary, ?end_array/binary>>, {Rest, Config});
-finish(_) -> erlang:error(badarg).
+finish({Stack, Config = #config{depth = Depth}}) ->
+    NewConfig = Config#config{depth = Depth - 1},
+    finish_({Stack, NewConfig}).
+
+finish_({[{object, <<"{">>}], Config}) -> {<<"{}">>, Config};
+finish_({[{array, <<"[">>}], Config}) -> {<<"[]">>, Config};
+finish_({[{object, <<"{">>}|Rest], Config}) -> insert(<<"{}">>, {Rest, Config});
+finish_({[{array, <<"[">>}|Rest], Config}) -> insert(<<"[]">>, {Rest, Config});
+finish_({[{object, Object}], Config}) ->
+    {<<Object/binary, (indent(Config))/binary, ?end_object/binary>>, Config};
+finish_({[{object, Object}|Rest], Config}) ->
+    insert(<<Object/binary, (indent(Config))/binary, ?end_object/binary>>, {Rest, Config});
+finish_({[{array, Array}], Config}) ->
+    {<<Array/binary, (indent(Config))/binary, ?end_array/binary>>, Config};
+finish_({[{array, Array}|Rest], Config}) ->
+    insert(<<Array/binary, (indent(Config))/binary, ?end_array/binary>>, {Rest, Config});
+finish_(_) -> erlang:error(badarg).
 
 %% insert a value when there's no parent object or array
 insert(Value, {[], Config}) when is_binary(Value) ->
@@ -181,6 +191,7 @@ insert(Key, {[{object, Object}|Rest], Config}) when is_binary(Key) ->
 insert(Value, {[{object, Key, ?start_object}|Rest], Config}) when is_binary(Value) ->
     {
         [{object, <<?start_object/binary,
+            (indent(Config))/binary,
             Key/binary,
             ?colon/binary,
             (space(Config))/binary,
@@ -201,7 +212,7 @@ insert(Value, {[{object, Key, Object}|Rest], Config}) when is_binary(Value) ->
         Config
     };
 insert(Value, {[{array, ?start_array}|Rest], Config}) when is_binary(Value) ->
-    {[{array, <<?start_array/binary, Value/binary>>}] ++ Rest, Config};
+    {[{array, <<?start_array/binary, (indent(Config))/binary, Value/binary>>}] ++ Rest, Config};
 insert(Value, {[{array, Array}|Rest], Config}) when is_binary(Value) ->
     {
         [{array, <<Array/binary,
@@ -212,31 +223,6 @@ insert(Value, {[{array, Array}|Rest], Config}) when is_binary(Value) ->
         Config
     };
 insert(_, _) -> erlang:error(badarg).
-
-%% insert a key/value pair into an object
-insert(Key, Value, {[{object, ?start_object}|Rest], Config}) when is_binary(Key), is_binary(Value) ->
-    {
-        [{object, <<?start_object/binary,
-            Key/binary,
-            ?colon/binary,
-            (space(Config))/binary,
-            Value/binary
-        >>}] ++ Rest,
-        Config
-    };
-insert(Key, Value, {[{object, Object}|Rest], Config}) when is_binary(Key), is_binary(Value) ->
-    {
-        [{object, <<Object/binary,
-            ?comma/binary,
-            (indent_or_space(Config))/binary,
-            Key/binary,
-            ?colon/binary,
-            (space(Config))/binary,
-            Value/binary
-        >>}] ++ Rest,
-        Config
-    };
-insert(_, _, _) -> erlang:error(badarg).
 
 
 get_key({[{object, Key, _}|_], _}) -> Key;
@@ -325,7 +311,7 @@ indent_or_space_test_() ->
     ].
 
 
-format_test_() ->
+encode_test_() ->
     [
         {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= <<"0.0">>)},
         {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= <<"1.0">>)},
@@ -382,19 +368,19 @@ rep_manipulation_test_() ->
             start_json([{space, 1}, {indent, 2}])
         )},
         {"allocate a new object on an empty stack", ?_assertEqual(
-            {[{object, <<"{">>}], #config{}},
+            {[{object, <<"{">>}], #config{depth=1}},
             start_object({[], #config{}})
         )},
         {"allocate a new object on a stack", ?_assertEqual(
-            {[{object, <<"{">>}, {object, <<"{">>}], #config{}},
+            {[{object, <<"{">>}, {object, <<"{">>}], #config{depth=1}},
             start_object({[{object, <<"{">>}], #config{}})
         )},
         {"allocate a new array on an empty stack", ?_assertEqual(
-            {[{array, <<"[">>}], #config{}},
+            {[{array, <<"[">>}], #config{depth=1}},
             start_array({[], #config{}})
         )},
         {"allocate a new array on a stack", ?_assertEqual(
-            {[{array, <<"[">>}, {object, <<"{">>}], #config{}},
+            {[{array, <<"[">>}, {object, <<"{">>}], #config{depth=1}},
             start_array({[{object, <<"{">>}], #config{}})
         )},
         {"insert a key into an object", ?_assertEqual(
@@ -421,35 +407,54 @@ rep_manipulation_test_() ->
             {[{array, <<"[true">>}], #config{}},
             insert(<<"true">>, {[{array, <<"[">>}], #config{}})
         )},
-        {"insert a key/value pair into an object", ?_assertEqual(
-            {[{object, <<"{\"x\":true,\"y\":false">>}], #config{}},
-            insert(<<"\"y\"">>, <<"false">>, {[{object, <<"{\"x\":true">>}], #config{}})
-        )},
         {"finish an object with no ancestor", ?_assertEqual(
             {<<"{\"x\":true,\"y\":false}">>, #config{}},
-            finish({[{object, <<"{\"x\":true,\"y\":false">>}], #config{}})
+            finish({[{object, <<"{\"x\":true,\"y\":false">>}], #config{depth=1}})
         )},
         {"finish an empty object", ?_assertEqual(
             {<<"{}">>, #config{}},
-            finish({[{object, <<"{">>}], #config{}})
+            finish({[{object, <<"{">>}], #config{depth=1}})
         )},
         {"finish an object with an ancestor", ?_assertEqual(
             {[{object, <<"{\"a\":[],\"b\":{\"x\":true,\"y\":false}">>}], #config{}},
             finish({
                 [{object, <<"{\"x\":true,\"y\":false">>}, {object, <<"\"b\"">>, <<"{\"a\":[]">>}],
-                #config{}
+                #config{depth=1}
             })
         )},
         {"finish an array with no ancestor", ?_assertEqual(
             {<<"[true,false,null]">>, #config{}},
-            finish({[{array, <<"[true,false,null">>}], #config{}})
+            finish({[{array, <<"[true,false,null">>}], #config{depth=1}})
         )},
         {"finish an array with an ancestor", ?_assertEqual(
             {[{array, <<"[1,2,3,[true,false,null]">>}], #config{}},
-            finish({[{array, <<"[true,false,null">>}, {array, <<"[1,2,3">>}], #config{}})
+            finish({[{array, <<"[true,false,null">>}, {array, <<"[1,2,3">>}], #config{depth=1}})
         )}
     ].
 
+
+format_test_() ->
+    % {minified version, pretty version}
+    Cases = [
+        {"empty object", <<"{}">>, <<"{}">>},
+        {"empty array", <<"[]">>, <<"[]">>},
+        {"single key object", <<"{\"k\":\"v\"}">>, <<"{\n  \"k\": \"v\"\n}">>},
+        {"single member array", <<"[true]">>, <<"[\n  true\n]">>},
+        {"multiple key object",
+            <<"{\"k\":\"v\",\"x\":\"y\"}">>,
+            <<"{\n  \"k\": \"v\",\n  \"x\": \"y\"\n}">>
+        },
+        {"multiple member array",
+            <<"[1.0,2.0,3.0]">>,
+            <<"[\n  1.0,\n  2.0,\n  3.0\n]">>
+        },
+        {"nested structure",
+            <<"[[{},[],true],{\"k\":\"v\",\"x\":\"y\"}]">>,
+            <<"[\n  [\n    {},\n    [],\n    true\n  ],\n  {\n    \"k\": \"v\",\n    \"x\": \"y\"\n  }\n]">>
+        }
+    ],
+    [{Title, ?_assertEqual(Min, jsx:minify(Pretty))} || {Title, Min, Pretty} <- Cases] ++
+        [{Title, ?_assertEqual(Pretty, jsx:prettify(Min))} || {Title, Min, Pretty} <- Cases].
 
 handle_event_test_() ->
     Data = jsx:test_cases() ++ jsx:special_test_cases(),

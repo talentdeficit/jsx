@@ -1,4 +1,4 @@
-# jsx (v2.0alpha) #
+# jsx (v2.0.1) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -13,14 +13,21 @@ copyright 2010-2013 alisdair sullivan
 
 ## really important note ##
 
-this is a preview of the 2.0 release. there are lots of changes. see [CHANGES.md](CHANGES.md)
-for the overview or read this document for the details. use 
+there are a few changes for users upgrading from 1.x. see [CHANGES.md](CHANGES.md)
+for the overview or [migrating from 1.x](#migrating) for the details. use 
 [master branch](https://github.com/talentdeficit/jsx/tree/master) if you want the last 1.x version
+
+## slightly less important note ##
+
+**jsx** is commited to proplists as it's object representation to the point of death.
+[jsxn][jsxn] is much more pragmatic and uses maps as it's object representation and
+is otherwise identical to **jsx**
 
 ## index ##
 
 * [quickstart](#quickstart)
 * [description](#description)
+  - [migrating from 1.x](#migrating)
   - [json <-> erlang mapping](#json---erlang-mapping)
   - [incomplete input](#incomplete-input)
 * [data types](#data-types)
@@ -71,7 +78,9 @@ $ rebar -C hipe.cfg eunit
 ```erlang
 1> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
 <<"{\"library\": \"jsx\", \"awesome\": true}">>
-2> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
+2> jsx:encode(#{<<"library">> => <<"jsx">>, <<"awesome">> => true}).
+<<"{\"awesome\":true,\"library\":\"jsx\"}">>
+3> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
 <<"[\"a\",\"list\",\"of\",\"words\"]">>
 ```
 
@@ -144,6 +153,29 @@ json and **jsx** only recognize escape sequences as outlined in the json spec. i
 ignores bad escape sequences
 
 
+### migrating from 1.x ###
+
+if you're migrating from jsx v1.x to v2 or greater in most cases you won't need to
+make any changes to your code
+
+support for encoding otp 17.0's new map type is now enable by default when compiling
+via rebar for any release that supports them. jsx should still compile cleanly for
+earlier releases without any user intervention. if you'd like to disable maps (possibly
+for cross compiling to older releases) you can either set the env variable `JSX_NOMAPS` or
+by uncommenting the applicable tuple in `rebar.config`
+
+if you used any of `replaced_bad_utf8`, `single_quoted_strings`, `comments`,
+`ignored_bad_escapes` or `relax` you can simply omit them from your calls to jsx,
+they are all enabled by default now. if you want stricter parsing see the new
+[`strict` options](#option) available
+
+if you were using jsx to parse partial json using it's streaming features it is now
+disabled by default. you'll need to pass the `stream` option to calls to jsx functions
+to reenable it
+
+support for `pre_encode` and `post_decode` has been removed. they were fragile and hard
+to understand and they prevented evolution of the encoding and decoding code
+
 
 ### json &lt;-> erlang mapping ###
 
@@ -153,7 +185,7 @@ ignores bad escape sequences
 `string`                        | `binary()` and `atom()`
 `true`, `false` and `null`      | `true`, `false` and `null`
 `array`                         | `[]` and `[JSON]`
-`object`                        | `[{}]` and `[{binary() OR atom(), JSON}]`
+`object`                        | `#{}`, `[{}]` and `[{binary() OR atom() OR integer(), JSON}]`
 
 *   numbers
 
@@ -210,13 +242,15 @@ ignores bad escape sequences
 
 *   objects
 
-    json objects are represented by erlang proplists. the empty object has the 
-    special representation `[{}]` to differentiate it from the empty list. 
-    ambiguities like `[true, false]` prevent the use of the shorthand form of 
-    property lists using atoms as properties so all properties must be tuples. 
-    all keys must be encoded as in `string` or as atoms or integers (which will
-    be escaped and converted to binaries for presentation to handlers). values
-    should be valid json values
+    json objects are represented by erlang proplists. json maps may also be
+    encoded to json but the decoder will not produce maps
+    
+    the empty object has the special representation `[{}]` to differentiate it
+    from the empty list. ambiguities like `[true, false]` prevent the use of
+    the shorthand form of property lists using atoms as properties so all
+    properties must be tuples. all keys must be encoded as in `string` or as
+    atoms or integers (which will be escaped and converted to binaries for
+    presentation to handlers). values should be valid json values
 
 
 ### incomplete input ###
@@ -253,7 +287,8 @@ argument `end_stream` like:
 
 ```erlang
 json_term() = [json_term()]
-    | [{binary() | atom(), json_term()}]
+    | [{binary() | atom() | integer(), json_term()}]
+    | #{} % map of any size, not just the empty map
     | true
     | false
     | null
@@ -647,3 +682,4 @@ jsx wouldn't be what it is without the contributions of [paul davis](https://git
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
 [travis]: https://travis-ci.org/
+[jsxn]: https://github.com/talentdeficit/jsxn
