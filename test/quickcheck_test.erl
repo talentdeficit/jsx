@@ -6,7 +6,7 @@
 word_list() ->
     {ok, Data} = file:read_file("/usr/share/dict/american-english"),
     List       = binary:split(Data, <<"\n">>, [global]),
-    lists:sublist(List, 1, 1000).
+    List.
 
 word() ->    
     oneof(ct_expand:term(word_list())).
