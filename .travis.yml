@@ -1,7 +1,7 @@
 language: erlang
 before_install: 
   - sudo apt-get update -qq
-  - sudo apt-get install -qq -y ispell-english
+  - sudo apt-get install -qq -y ispell
 script: 
   - rebar -C rebar_test.config get-deps
   - rebar -C rebar_test.config compile 
