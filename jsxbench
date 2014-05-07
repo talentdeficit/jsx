@@ -32,15 +32,15 @@
 
 main([]) ->
     %% preload jsx mods
-    jsx:to_term(<<"{}">>),
-    format(frequency:profile({"empty object to term", ?averageN({jsx, to_term, [<<"{}">>]}, 1000)})),
-    format(frequency:profile({"empty object to json", ?averageN({jsx, to_json, [[{}]]}, 1000)})),
-    format(frequency:profile({"empty array to term", ?averageN({jsx, to_term, [<<"[]">>]}, 1000)})),
-    format(frequency:profile({"empty array to json", ?averageN({jsx, to_json, [[]]}, 1000)})),
-    format(frequency:profile({"sample tweet to term", ?averageN({jsx, to_term, [sample_tweet()]}, 1000)})),
-    format(frequency:profile({"sample tweet to json", ?averageN({jsx, to_json, [jsx:to_term(sample_tweet())]}, 1000)})),
-    format(frequency:profile({"sample github user to term", ?averageN({jsx, to_term, [sample_github_user()]}, 1000)})),
-    format(frequency:profile({"sample github user to json", ?averageN({jsx, to_json, [jsx:to_term(sample_github_user())]}, 1000)})).
+    jsx:decode(<<"{}">>),
+    format(frequency:profile({"empty object to term", ?averageN({jsx, decode, [<<"{}">>]}, 1000)})),
+    format(frequency:profile({"empty object to json", ?averageN({jsx, encode, [[{}]]}, 1000)})),
+    format(frequency:profile({"empty array to term", ?averageN({jsx, decode, [<<"[]">>]}, 1000)})),
+    format(frequency:profile({"empty array to json", ?averageN({jsx, encode, [[]]}, 1000)})),
+    format(frequency:profile({"sample tweet to term", ?averageN({jsx, decode, [sample_tweet()]}, 1000)})),
+    format(frequency:profile({"sample tweet to json", ?averageN({jsx, encode, [jsx:decode(sample_tweet())]}, 1000)})),
+    format(frequency:profile({"sample github user to term", ?averageN({jsx, decode, [sample_github_user()]}, 1000)})),
+    format(frequency:profile({"sample github user to json", ?averageN({jsx, encode, [jsx:decode(sample_github_user())]}, 1000)})).
 
 
 format([]) -> ok;
