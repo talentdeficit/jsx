@@ -35,7 +35,7 @@
 -export_type([config/0]).
 
 
--spec is_json(Source::binary(), Config::config()) -> true | false.
+-spec is_json(Source::binary(), Config::config()) -> true | false | {incomplete, jsx:decoder()}.
 
 is_json(Source, Config) when is_list(Config) ->
     try (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)
@@ -43,7 +43,7 @@ is_json(Source, Config) when is_list(Config) ->
     end.
 
 
--spec is_term(Source::any(), Config::config()) -> true | false.
+-spec is_term(Source::any(), Config::config()) -> true | false | {incomplete, jsx:encoder()}.
 
 is_term(Source, Config) when is_list(Config) ->
     try (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)

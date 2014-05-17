@@ -82,15 +82,15 @@ minify(Source) -> format(Source, []).
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec is_json(Source::any()) -> true | false.
--spec is_json(Source::any(), Config::jsx_verify:config()) -> true | false.
+-spec is_json(Source::any()) -> true | false | {incomplete, decoder()}.
+-spec is_json(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, decoder()}.
 
 is_json(Source) -> is_json(Source, []).
 is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 
--spec is_term(Source::any()) -> true | false.
--spec is_term(Source::any(), Config::jsx_verify:config()) -> true | false.
+-spec is_term(Source::any()) -> true | false | {incomplete, encoder()}.
+-spec is_term(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, encoder()}.
 
 is_term(Source) -> is_term(Source, []).
 is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
