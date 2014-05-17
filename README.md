@@ -338,8 +338,6 @@ option() = escaped_forward_slashes
     | strict
     | {strict, [strict_option()]}
     | stream
-    | {incomplete_handler, fun()}
-    | {error_handler, fun()}
 
 strict_option() = comments
     | utf8
