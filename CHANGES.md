@@ -1,3 +1,11 @@
+v2.0.3
+
+* update some typespecs to make them more comprehensive
+
+v2.0.2
+
+* fixes travis-ci spec
+
 v2.0.1
 
 * fix regression in output of empty objects/arrays
