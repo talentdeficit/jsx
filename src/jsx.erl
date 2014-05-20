@@ -51,45 +51,45 @@
 
 -type config() :: jsx_config:config().
 
--spec encode(Source::json_term()) -> json_text() | {incomplete, encoder()}.
+-spec encode(Source::json_term()) -> json_text().
 -spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
 
 encode(Source) -> encode(Source, []).
 encode(Source, Config) -> jsx_to_json:to_json(Source, Config).
 
 
--spec decode(Source::json_text()) -> json_term() | {incomplete, decoder()}.
+-spec decode(Source::json_text()) -> json_term().
 -spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
 
 decode(Source) -> decode(Source, []).
 decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 
--spec format(Source::json_text()) -> json_text() | {incomplete, decoder()}.
+-spec format(Source::json_text()) -> json_text().
 -spec format(Source::json_text(), Config::jsx_to_json:config()) -> json_text() | {incomplete, decoder()}.
 
 format(Source) -> format(Source, []).
 format(Source, Config) -> jsx_to_json:format(Source, Config).
 
 
--spec minify(Source::json_text()) -> json_text()  | {incomplete, decoder()}.
+-spec minify(Source::json_text()) -> json_text().
 
 minify(Source) -> format(Source, []).
 
 
--spec prettify(Source::json_text()) -> json_text() | {incomplete, decoder()}.
+-spec prettify(Source::json_text()) -> json_text().
 
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec is_json(Source::any()) -> true | false | {incomplete, decoder()}.
+-spec is_json(Source::any()) -> true | false.
 -spec is_json(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, decoder()}.
 
 is_json(Source) -> is_json(Source, []).
 is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 
--spec is_term(Source::any()) -> true | false | {incomplete, encoder()}.
+-spec is_term(Source::any()) -> true | false.
 -spec is_term(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, encoder()}.
 
 is_term(Source) -> is_term(Source, []).
