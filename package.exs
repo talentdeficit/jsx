@@ -4,7 +4,7 @@ use Mix.Project
   def project do
     [
       app: :jsx,
-      version: "2.0.3",
+      version: "2.0.4",
       description: "an erlang application for consuming, producing and manipulating json. inspired by yajl",
       package: package
     ]

@@ -1,3 +1,7 @@
+v2.0.4
+
+* more typespec adjustments
+
 v2.0.3
 
 * update some typespecs to make them more comprehensive
