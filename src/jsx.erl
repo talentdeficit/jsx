@@ -41,11 +41,22 @@
 -endif.
 
 
+-ifndef(maps_support).
 -type json_term() :: [{binary() | atom(), json_term()}] | [{}]
     | [json_term()] | []
     | true | false | null
     | integer() | float()
     | binary() | atom().
+-endif.
+
+-ifdef(maps_support).
+-type json_term() :: [{binary() | atom(), json_term()}] | [{}]
+    | [json_term()] | []
+    | map()
+    | true | false | null
+    | integer() | float()
+    | binary() | atom().
+-endif.
 
 -type json_text() :: binary().
 
