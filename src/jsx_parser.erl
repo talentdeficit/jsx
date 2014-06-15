@@ -88,7 +88,7 @@ handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event
 
 
 value([start_object|Tokens], Handler, Stack, Config) ->
-    object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
+    object(Tokens, handle_event(start_object, Handler, Config), [{object, sets:new()}|Stack], Config);
 value([start_array|Tokens], Handler, Stack, Config) ->
     array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value([{literal, Literal}|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
@@ -108,10 +108,10 @@ value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
 value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
     value([{float, Number}] ++ Tokens, Handler, Stack, Config);
 value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) ->
-    case clean_string(String, Tokens, Handler, Stack, Config) of
-        Clean when is_binary(Clean) ->
-            maybe_done(Tokens, handle_event({string, Clean}, Handler, Config), Stack, Config);
-        Error -> Error
+    try clean_string(String, Config) of Clean ->
+        maybe_done(Tokens, handle_event({string, Clean}, Handler, Config), Stack, Config)
+    catch error:badarg ->
+        ?error(value, [{string, String}|Tokens], Handler, Stack, Config)
     end;
 value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     value([{string, String}] ++ Tokens, Handler, Stack, Config);
@@ -126,19 +126,26 @@ value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 value(Token, Handler, Stack, Config) ->
     value([Token], Handler, Stack, Config).
 
-object([end_object|Tokens], Handler, [object|Stack], Config) ->
+object([end_object|Tokens], Handler, [{object, _}|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
-object([{key, Key}|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
-    case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
-        Clean when is_binary(Clean) ->
-            value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
-        Error -> Error
-    end;
-object([Key|Tokens], Handler, Stack, Config) when is_atom(Key); is_binary(Key); is_integer(Key) ->
-    case clean_string(fix_key(Key), Tokens, Handler, Stack, Config) of
-        Clean when is_binary(Clean) ->
-            value(Tokens, handle_event({key, Clean}, Handler, Config), Stack, Config);
-        Error -> Error
+object([{key, Key}|Tokens], Handler, Stack, Config)
+when is_atom(Key); is_binary(Key); is_integer(Key) ->
+    object([Key|Tokens], Handler, Stack, Config);
+object([Key|Tokens], Handler, [{object, Keys}|Stack], Config)
+when is_atom(Key); is_binary(Key); is_integer(Key) ->
+    try
+        CleanKey = clean_string(fix_key(Key), Config),
+        case sets:is_element(CleanKey, Keys) of true -> erlang:error(badarg); _ -> ok end,
+        CleanKey
+    of K ->
+        value(
+            Tokens,
+            handle_event({key, K}, Handler, Config),
+            [{object, sets:add_element(K, Keys)}|Stack],
+            Config
+        )
+    catch error:badarg ->
+        ?error(object, [{string, Key}|Tokens], Handler, Stack, Config)
     end;
 object([], Handler, Stack, Config) ->
     incomplete(object, Handler, Stack, Config);
@@ -156,7 +163,7 @@ array(Token, Handler, Stack, Config) ->
 
 maybe_done([end_json], Handler, [], Config) ->
     done([end_json], Handler, [], Config);
-maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
+maybe_done(Tokens, Handler, [{object, _}|_] = Stack, Config) when is_list(Tokens) ->
     object(Tokens, Handler, Stack, Config);
 maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
     array(Tokens, Handler, Stack, Config);
@@ -183,14 +190,12 @@ fix_key(Key) when is_integer(Key) -> list_to_binary(integer_to_list(Key));
 fix_key(Key) when is_binary(Key) -> Key.
 
 
-clean_string(Bin, Tokens, Handler, Stack, Config) ->
-    case clean_string(Bin, Config) of
-        {error, badarg} -> ?error(string, [{string, Bin}|Tokens], Handler, Stack, Config);
+clean_string(Bin, #config{dirty_strings=true}) -> Bin;
+clean_string(Bin, Config) ->
+    case clean(Bin, [], Config) of
+        {error, badarg} -> erlang:error(badarg);
         String -> String
     end.
-
-clean_string(Bin, #config{dirty_strings=true}) -> Bin;
-clean_string(Bin, Config) -> clean(Bin, [], Config).
 
 
 %% escape and/or replace bad codepoints if requested
@@ -484,7 +489,7 @@ custom_error_handler_test_() ->
             parse([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
-            {string, [{string, <<239, 191, 191>>}, end_json]},
+            {value, [{string, <<239, 191, 191>>}, end_json]},
             parse([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}, strict])
         )}
     ].
@@ -579,6 +584,10 @@ extended_noncharacters() ->
         ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff]
     ].
 
+clean_string_helper(String) ->
+    try clean_string(String, #config{strict_utf8=true}) of Clean -> Clean
+    catch error:badarg -> {error, badarg}
+    end.
 
 clean_string_test_() ->
     [
@@ -600,19 +609,19 @@ clean_string_test_() ->
         )},
         {"error reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, reserved_space())
+            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, reserved_space())
         )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, surrogates())
+            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, surrogates())
         )},
         {"error noncharacters", ?_assertEqual(
             lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, noncharacters())
+            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, noncharacters())
         )},
         {"error extended noncharacters", ?_assertEqual(
             lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{strict_utf8=true}) end, extended_noncharacters())
+            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, extended_noncharacters())
         )},
         {"clean reserved space", ?_assertEqual(
             lists:duplicate(length(reserved_space()), <<16#fffd/utf8>>),
@@ -804,80 +813,80 @@ escape_test_() ->
 
 bad_utf8_test_() ->
     [
-        {"noncharacter u+fffe", ?_assertEqual(
-            {error, badarg},
+        {"noncharacter u+fffe", ?_assertError(
+            badarg,
             clean_string(to_fake_utf8(16#fffe), #config{strict_utf8=true})
         )},
         {"noncharacter u+fffe replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(to_fake_utf8(16#fffe), #config{})
         )},
-        {"noncharacter u+ffff", ?_assertEqual(
-            {error, badarg},
+        {"noncharacter u+ffff", ?_assertError(
+            badarg,
             clean_string(to_fake_utf8(16#ffff), #config{strict_utf8=true})
         )},
         {"noncharacter u+ffff replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(to_fake_utf8(16#ffff), #config{})
         )},
-        {"orphan continuation byte u+0080", ?_assertEqual(
-            {error, badarg},
+        {"orphan continuation byte u+0080", ?_assertError(
+            badarg,
             clean_string(<<16#0080>>, #config{strict_utf8=true})
         )},
         {"orphan continuation byte u+0080 replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(<<16#0080>>, #config{})
         )},
-        {"orphan continuation byte u+00bf", ?_assertEqual(
-            {error, badarg},
+        {"orphan continuation byte u+00bf", ?_assertError(
+            badarg,
             clean_string(<<16#00bf>>, #config{strict_utf8=true})
         )},
         {"orphan continuation byte u+00bf replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(<<16#00bf>>, #config{})
         )},
-        {"2 continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"2 continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{strict_utf8=true})
         )},
         {"2 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 2),
             clean_string(<<(binary:copy(<<16#0080>>, 2))/binary>>, #config{})
         )},
-        {"3 continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"3 continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{strict_utf8=true})
         )},
         {"3 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 3),
             clean_string(<<(binary:copy(<<16#0080>>, 3))/binary>>, #config{})
         )},
-        {"4 continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"4 continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{strict_utf8=true})
         )},
         {"4 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 4),
             clean_string(<<(binary:copy(<<16#0080>>, 4))/binary>>, #config{})
         )},
-        {"5 continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"5 continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{strict_utf8=true})
         )},
         {"5 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 5),
             clean_string(<<(binary:copy(<<16#0080>>, 5))/binary>>, #config{})
         )},
-        {"6 continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"6 continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{strict_utf8=true})
         )},
         {"6 continuation bytes replaced", ?_assertEqual(
             binary:copy(<<16#fffd/utf8>>, 6),
             clean_string(<<(binary:copy(<<16#0080>>, 6))/binary>>, #config{})
         )},
-        {"all continuation bytes", ?_assertEqual(
-            {error, badarg},
+        {"all continuation bytes", ?_assertError(
+            badarg,
             clean_string(<<(list_to_binary(lists:seq(16#0080, 16#00bf)))/binary>>, #config{strict_utf8=true})
         )},
         {"all continuation bytes replaced", ?_assertEqual(
@@ -887,104 +896,104 @@ bad_utf8_test_() ->
                 #config{}
             )
         )},
-        {"lonely start byte", ?_assertEqual(
-            {error, badarg},
+        {"lonely start byte", ?_assertError(
+            badarg,
             clean_string(<<16#00c0>>, #config{strict_utf8=true})
         )},
         {"lonely start byte replaced", ?_assertEqual(
             <<16#fffd/utf8>>,
             clean_string(<<16#00c0>>, #config{})
         )},
-        {"lonely start bytes (2 byte)", ?_assertEqual(
-            {error, badarg},
+        {"lonely start bytes (2 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#00c0, 32, 16#00df>>, #config{strict_utf8=true})
         )},
         {"lonely start bytes (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
             clean_string(<<16#00c0, 32, 16#00df>>, #config{})
         )},
-        {"lonely start bytes (3 byte)", ?_assertEqual(
-            {error, badarg},
+        {"lonely start bytes (3 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#00e0, 32, 16#00ef>>, #config{strict_utf8=true})
         )},
         {"lonely start bytes (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
             clean_string(<<16#00e0, 32, 16#00ef>>, #config{})
         )},
-        {"lonely start bytes (4 byte)", ?_assertEqual(
-            {error, badarg},
+        {"lonely start bytes (4 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#00f0, 32, 16#00f7>>, #config{strict_utf8=true})
         )},
         {"lonely start bytes (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32, 16#fffd/utf8>>,
             clean_string(<<16#00f0, 32, 16#00f7>>, #config{})
         )},
-        {"missing continuation byte (3 byte)", ?_assertEqual(
-            {error, badarg},
+        {"missing continuation byte (3 byte)", ?_assertError(
+            badarg,
             clean_string(<<224, 160, 32>>, #config{strict_utf8=true})
         )},
         {"missing continuation byte (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<224, 160, 32>>, #config{})
         )},
-        {"missing continuation byte (4 byte missing one)", ?_assertEqual(
-            {error, badarg},
+        {"missing continuation byte (4 byte missing one)", ?_assertError(
+            badarg,
             clean_string(<<240, 144, 128, 32>>, #config{strict_utf8=true})
         )},
         {"missing continuation byte (4 byte missing one) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<240, 144, 128, 32>>, #config{})
         )},
-        {"missing continuation byte (4 byte missing two)", ?_assertEqual(
-            {error, badarg},
+        {"missing continuation byte (4 byte missing two)", ?_assertError(
+            badarg,
             clean_string(<<240, 144, 32>>, #config{strict_utf8=true})
         )},
         {"missing continuation byte (4 byte missing two) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<240, 144, 32>>, #config{})
         )},
-        {"overlong encoding of u+002f (2 byte)", ?_assertEqual(
-            {error, badarg},
+        {"overlong encoding of u+002f (2 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#c0, 16#af, 32>>, #config{strict_utf8=true})
         )},
         {"overlong encoding of u+002f (2 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<16#c0, 16#af, 32>>, #config{})
         )},
-        {"overlong encoding of u+002f (3 byte)", ?_assertEqual(
-            {error, badarg},
+        {"overlong encoding of u+002f (3 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{strict_utf8=true})
         )},
         {"overlong encoding of u+002f (3 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<16#e0, 16#80, 16#af, 32>>, #config{})
         )},
-        {"overlong encoding of u+002f (4 byte)", ?_assertEqual(
-            {error, badarg},
+        {"overlong encoding of u+002f (4 byte)", ?_assertError(
+            badarg,
             clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{strict_utf8=true})
         )},
         {"overlong encoding of u+002f (4 byte) replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<16#f0, 16#80, 16#80, 16#af, 32>>, #config{})
         )},
-        {"highest overlong 2 byte sequence", ?_assertEqual(
-            {error, badarg},
+        {"highest overlong 2 byte sequence", ?_assertError(
+            badarg,
             clean_string(<<16#c1, 16#bf, 32>>, #config{strict_utf8=true})
         )},
         {"highest overlong 2 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<16#c1, 16#bf, 32>>, #config{})
         )},
-        {"highest overlong 3 byte sequence", ?_assertEqual(
-            {error, badarg},
+        {"highest overlong 3 byte sequence", ?_assertError(
+            badarg,
             clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{strict_utf8=true})
         )},
         {"highest overlong 3 byte sequence replaced", ?_assertEqual(
             <<16#fffd/utf8, 32>>,
             clean_string(<<16#e0, 16#9f, 16#bf, 32>>, #config{})
         )},
-        {"highest overlong 4 byte sequence", ?_assertEqual(
-            {error, badarg},
+        {"highest overlong 4 byte sequence", ?_assertError(
+            badarg,
             clean_string(<<16#f0, 16#8f, 16#bf, 16#bf, 32>>, #config{strict_utf8=true})
         )},
         {"highest overlong 4 byte sequence replaced", ?_assertEqual(
@@ -1007,6 +1016,16 @@ fix_key_test_() ->
         {"binary key", ?_assertEqual(fix_key(<<"foo">>), <<"foo">>)},
         {"atom key", ?_assertEqual(fix_key(foo), <<"foo">>)},
         {"integer key", ?_assertEqual(fix_key(123), <<"123">>)}
+    ].
+
+
+repeated_key_test_() ->
+    Parse = fun(Events, Config) -> (parser(?MODULE, [], Config))(Events ++ [end_json]) end,
+    [
+        {"repeated key", ?_assertError(
+            badarg,
+            Parse([start_object, <<"key">>, true, <<"key">>, true, end_object], [])
+        )}
     ].
 
 -endif.

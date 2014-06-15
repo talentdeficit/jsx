@@ -250,7 +250,9 @@ to understand and they prevented evolution of the encoding and decoding code
     the shorthand form of property lists using atoms as properties so all
     properties must be tuples. all keys must be encoded as in `string` or as
     atoms or integers (which will be escaped and converted to binaries for
-    presentation to handlers). values should be valid json values
+    presentation to handlers). values should be valid json values. repeated
+    keys are tolerated in json text decoded to erlang terms but are not allowed
+    in erlang terms encoded to json
 
 
 ### incomplete input ###
