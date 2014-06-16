@@ -3,25 +3,24 @@
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
 
-**jsx** is built via [rebar][rebar] and continuous integration testing provided courtesy [travis][travis]
+**jsx** is built via [rebar][rebar] and continuous integration testing provided courtesy [travis-ci][travis]
 
 current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
 **jsx** is released under the terms of the [MIT][MIT] license
 
-copyright 2010-2013 alisdair sullivan
+copyright 2010-2014 alisdair sullivan
 
 ## really important note ##
 
 there are a few changes for users upgrading from 1.x. see [CHANGES.md](CHANGES.md)
-for the overview or [migrating from 1.x](#migrating) for the details. use 
-[master branch](https://github.com/talentdeficit/jsx/tree/master) if you want the last 1.x version
+for the overview or [migrating from 1.x](#migrating) for the details
 
 ## slightly less important note ##
 
-**jsx** is commited to proplists as it's object representation to the point of death.
-[jsxn][jsxn] is much more pragmatic and uses maps as it's object representation and
-is otherwise identical to **jsx**
+**jsx** supports encoding maps to json but not decoding json to a map [jsxn][jsxn] is a
+thin wrapper around **jsx** that uses maps as it's object representation if you're into
+that
 
 ## index ##
 
@@ -57,11 +56,6 @@ is otherwise identical to **jsx**
 ```bash
 $ rebar compile
 $ rebar eunit
-```
-or, to build using hipe
-```bash
-$ rebar -C hipe.cfg compile
-$ rebar -C hipe.cfg eunit
 ```
 
 #### to convert a utf8 binary containing a json string into an erlang term ####
@@ -142,7 +136,8 @@ anywhere whitespace is allowed you can insert comments (both `// ...` and `/* ..
 all **jsx** decoder input should be `utf8` encoded binaries. sometimes you get binaries
 that are almost but not quite valid utf8 whether due to improper escaping or poor
 encoding. **jsx** replaces invalid codepoints and poorly formed sequences with the 
-unicode replacement character (`u+FFFD`)
+unicode replacement character (`u+FFFD`) but does it's best to return something
+comprehensible
 
 json only allows keys and strings to be delimited by double quotes (`u+0022`) but
 javascript allows them to be delimited by single quotes (`u+0027`) as well. **jsx**
@@ -150,19 +145,19 @@ follows javascript in this. strings that start with single quotes can contain do
 quotes but must end with single quotes and must escape any single quotes they contain
 
 json and **jsx** only recognize escape sequences as outlined in the json spec. it just
-ignores bad escape sequences
+ignores bad escape sequences leaving them in strings unaltered
 
 
 ### migrating from 1.x ###
 
-if you're migrating from jsx v1.x to v2 or greater in most cases you won't need to
+if you're migrating from jsx v1.x to v2.x in most cases you won't need to
 make any changes to your code
 
-support for encoding otp 17.0's new map type is now enable by default when compiling
+support for encoding otp 17.0's new map type is now enabled by default when compiling
 via rebar for any release that supports them. jsx should still compile cleanly for
-earlier releases without any user intervention. if you'd like to disable maps (possibly
-for cross compiling to older releases) you can either set the env variable `JSX_NOMAPS` or
-by uncommenting the applicable tuple in `rebar.config`
+earlier releases without any user intervention. if you'd like to disable maps you can
+either set the env variable `JSX_NOMAPS` or by uncommenting the applicable tuple in
+`rebar.config`
 
 if you used any of `replaced_bad_utf8`, `single_quoted_strings`, `comments`,
 `ignored_bad_escapes` or `relax` you can simply omit them from your calls to jsx,
