@@ -46,7 +46,8 @@
     | [json_term()] | []
     | true | false | null
     | integer() | float()
-    | binary() | atom().
+    | binary() | atom()
+    | calendar:datetime().
 -endif.
 
 -ifdef(maps_support).
@@ -55,7 +56,8 @@
     | map()
     | true | false | null
     | integer() | float()
-    | binary() | atom().
+    | binary() | atom()
+    | calendar:datetime().
 -endif.
 
 -type json_text() :: binary().

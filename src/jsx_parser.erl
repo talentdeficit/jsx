@@ -119,6 +119,16 @@ value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
     value([{string, atom_to_binary(String, utf8)}] ++ Tokens, Handler, Stack, Config);
 value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
     value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
+value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
+when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_integer(Min), is_integer(Sec) ->
+    value([{string, unicode:characters_to_binary(io_lib:format(
+            "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0B",
+            [Year, Month, Day, Hour, Min, Sec]
+        ))}|Tokens],
+        Handler,
+        Stack,
+        Config
+    );
 value([], Handler, Stack, Config) ->
     incomplete(value, Handler, Stack, Config);
 value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
@@ -1025,6 +1035,15 @@ repeated_key_test_() ->
         {"repeated key", ?_assertError(
             badarg,
             Parse([start_object, <<"key">>, true, <<"key">>, true, end_object], [])
+        )}
+    ].
+
+
+datetime_test_() ->
+    [
+        {"datetime", ?_assertEqual(
+            [start_array, {string, <<"2014-08-13T23:12:34">>}, end_array, end_json],
+            parse([start_array, {{2014,08,13},{23,12,34}}, end_array, end_json], [])
         )}
     ].
 
