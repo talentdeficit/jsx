@@ -107,14 +107,14 @@ is_term(Source) -> is_term(Source, []).
 is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
 
 
--type decoder() :: fun((json_text() | end_stream) -> any()).
+-type decoder() :: fun((json_text() | end_stream | end_json) -> any()).
 
 -spec decoder(Handler::module(), State::any(), Config::list()) -> decoder().
 
 decoder(Handler, State, Config) -> jsx_decoder:decoder(Handler, State, Config).
 
 
--type encoder() :: fun((json_term() | end_stream) -> any()).
+-type encoder() :: fun((json_term() | end_stream | end_json) -> any()).
 
 -spec encoder(Handler::module(), State::any(), Config::list()) -> encoder().
 
@@ -462,6 +462,33 @@ encode_test_() ->
                 (jsx:encoder(jsx, [], []))(Term)
             )
         } || {Title, _, Term, Events} <- Data
+    ].
+
+end_stream_test_() ->
+    Tokens = [start_object, end_object, end_json],
+    [
+        {"encoder end_stream", ?_assertEqual(
+            Tokens,
+            begin
+                {incomplete, F} = (jsx:parser(jsx, [], [stream]))([start_object, end_object]),
+                F(end_stream)
+            end
+        )},
+        {"encoder end_json", ?_assertEqual(
+            Tokens,
+            begin
+                {incomplete, F} = (jsx:parser(jsx, [], [stream]))([start_object, end_object]),
+                F(end_json)
+            end
+        )},
+        {"decoder end_stream", ?_assertEqual(
+            Tokens,
+            begin {incomplete, F} = (jsx:decoder(jsx, [], [stream]))(<<"{}">>), F(end_stream) end
+        )},
+        {"decoder end_json", ?_assertEqual(
+            Tokens,
+            begin {incomplete, F} = (jsx:decoder(jsx, [], [stream]))(<<"{}">>), F(end_json) end
+        )}
     ].
 
 

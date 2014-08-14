@@ -1,3 +1,7 @@
+v2.1
+
+* force the end of streams with `end_json` in addition to `end_stream`
+
 v2.0.4
 
 * more typespec adjustments

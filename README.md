@@ -264,16 +264,16 @@ memory
 however, it is important to recognize that **jsx** is conservative by default. **jsx** will 
 not consider the parsing complete even when input is exhausted and the json text is
 unambiguously incomplete. to end parsing call the `incomplete` function with the
-argument `end_stream` like:
+argument `end_stream` (or `end_json`) like:
 
 ```erlang
 1> {incomplete, F} = jsx:decode(<<"[">>, [stream]).
 {incomplete,#Fun<jsx_decoder.1.122947756>}
-2> F(end_stream).
+2> F(end_stream).  % can also be `F(end_json)`
 ** exception error: bad argument
 3> {incomplete, G} = F(<<"]">>).
 {incomplete,#Fun<jsx_decoder.1.122947756>}
-4> G(end_stream).
+4> G(end_stream).  % can also be `G(end_json)`
 []
 ```
 

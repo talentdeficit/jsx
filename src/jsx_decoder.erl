@@ -150,7 +150,7 @@ incomplete(State, Rest, Handler, Acc, Stack, Config = #config{stream=false}) ->
 incomplete(State, Rest, Handler, Acc, Stack, Config = #config{incomplete_handler=false}) ->
     {incomplete, fun(Stream) when is_binary(Stream) ->
                 resume(<<Rest/binary, Stream/binary>>, State, Handler, Acc, Stack, Config);
-            (end_stream) ->
+            (End) when End == end_stream; End == end_json ->
                 case resume(<<Rest/binary, ?space/utf8>>, State, Handler, Acc, Stack, Config#config{stream=false}) of
                     {incomplete, _} -> ?error(State, Rest, Handler, Acc, Stack, Config);
                     Else -> Else
