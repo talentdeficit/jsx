@@ -52,6 +52,7 @@ encode(Term, EntryPoint) when is_map(Term) ->
 encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
 -endif.
 
+encode_([empty_array], _EntryPoint) -> [start_array, end_array];
 encode_([], _EntryPoint) -> [start_array, end_array];
 encode_([{}], _EntryPoint) -> [start_object, end_object];
 
