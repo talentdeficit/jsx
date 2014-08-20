@@ -133,6 +133,10 @@ number of ways. see the section on `strict` in [options](#option) below though
 json has no official comments but this parser allows c/c++ style comments. 
 anywhere whitespace is allowed you can insert comments (both `// ...` and `/* ... */`)
 
+some particularly irresponsible json emitters leave trailing commas at the end of
+objects or arrays. **jsx** allows a single trailing comma in input. multiple commas
+in any posistion or a preceding comma are still errors
+
 all **jsx** decoder input should be `utf8` encoded binaries. sometimes you get binaries
 that are almost but not quite valid utf8 whether due to improper escaping or poor
 encoding. **jsx** replaces invalid codepoints and poorly formed sequences with the 
@@ -337,6 +341,7 @@ option() = escaped_forward_slashes
     | stream
 
 strict_option() = comments
+    | trailing_commas
     | utf8
     | single_quotes
     | escapes
@@ -389,6 +394,10 @@ additional options beyond these. see
     * `comments`
     
         comments are disabled and result in a `badarg` error
+    
+    * `trailing_commas`
+    
+        trailing commas in an object or list result in `badarg` errors
     
     * `utf8`
     

@@ -211,6 +211,8 @@ value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
     array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     value(Rest, Handler, Stack, Config);
+value(<<?end_array, _/binary>> = Rest, Handler, Stack, Config=#config{strict_commas=false}) ->
+    maybe_done(Rest, Handler, Stack, Config);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(value, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 value(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
@@ -289,6 +291,8 @@ key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_
     string(Rest, Handler, new_seq(), [singlequote|Stack], Config);
 key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
     key(Rest, Handler, Stack, Config);
+key(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config=#config{strict_commas=false}) ->
+    maybe_done(<<?end_object, Rest/binary>>, Handler, [object|Stack], Config);
 key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(key, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 key(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
@@ -1623,6 +1627,43 @@ bom_test_() ->
         {"bom", ?_assertEqual(
             [start_array, end_array, end_json],
             decode(<<16#ef, 16#bb, 16#bf, "[]"/utf8>>, [])
+        )}
+    ].
+
+
+trailing_comma_test_() ->
+    [
+        {"trailing comma in object", ?_assertEqual(
+            [start_object, {key, <<"key">>}, {literal, true}, end_object, end_json],
+            decode(<<"{\"key\": true,}">>, [])
+        )},
+        {"strict trailing comma in object", ?_assertError(
+            badarg,
+            decode(<<"{\"key\": true,}">>, [{strict, [trailing_commas]}])
+        )},
+        {"two trailing commas in object", ?_assertError(
+            badarg,
+            decode(<<"{\"key\": true,,}">>, [])
+        )},
+        {"comma in empty object", ?_assertError(
+            badarg,
+            decode(<<"{,}">>, [])
+        )},
+        {"trailing comma in list", ?_assertEqual(
+            [start_array, {literal, true}, end_array, end_json],
+            decode(<<"[true,]">>, [])
+        )},
+        {"strict trailing comma in list", ?_assertError(
+            badarg,
+            decode(<<"[true,]">>, [{strict, [trailing_commas]}])
+        )},
+        {"two trailing commas in list", ?_assertError(
+            badarg,
+            decode(<<"[true,,]">>, [])
+        )},
+        {"comma in empty list", ?_assertError(
+            badarg,
+            decode(<<"[,]">>, [])
         )}
     ].
 

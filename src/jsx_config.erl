@@ -65,6 +65,7 @@ parse_config([dirty_strings|Rest], Config) ->
     parse_config(Rest, Config#config{dirty_strings=true});
 parse_config([strict|Rest], Config) ->
     parse_config(Rest, Config#config{strict_comments=true,
+        strict_commas=true,
         strict_utf8=true,
         strict_single_quotes=true,
         strict_escapes=true
@@ -89,6 +90,8 @@ parse_config(_Options, _Config) -> erlang:error(badarg).
 parse_strict([], Rest, Config) -> parse_config(Rest, Config);
 parse_strict([comments|Strict], Rest, Config) ->
     parse_strict(Strict, Rest, Config#config{strict_comments=true});
+parse_strict([trailing_commas|Strict], Rest, Config) ->
+    parse_strict(Strict, Rest, Config#config{strict_commas=true});
 parse_strict([utf8|Strict], Rest, Config) ->
     parse_strict(Strict, Rest, Config#config{strict_utf8=true});
 parse_strict([single_quotes|Strict], Rest, Config) ->
@@ -182,6 +185,7 @@ config_test_() ->
                     unescaped_jsonp = true,
                     dirty_strings = true,
                     strict_comments = true,
+                    strict_commas = true,
                     strict_utf8 = true,
                     strict_single_quotes = true,
                     strict_escapes = true,
@@ -199,6 +203,7 @@ config_test_() ->
         {"strict flag",
             ?_assertEqual(
                 #config{strict_comments = true,
+                    strict_commas = true,
                     strict_utf8 = true,
                     strict_single_quotes = true,
                     strict_escapes = true
