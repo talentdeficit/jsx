@@ -1,7 +1,7 @@
 {application, jsx,
 [
     {description, "a streaming, evented json parsing toolkit"},
-    {vsn, "2.0.4"},
+    {vsn, "2.1"},
     {modules, [
         jsx,
         jsx_encoder,

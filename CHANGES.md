@@ -2,6 +2,7 @@ v2.1
 
 * force the end of streams with `end_json` in addition to `end_stream`
 * support for encoding erlang datetime tuples to iso8601 format
+* allow a single trailing comma in objects and arrays
 
 v2.0.4
 
