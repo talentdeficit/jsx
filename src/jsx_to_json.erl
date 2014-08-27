@@ -107,15 +107,15 @@ handle_event({Type, Event}, {_, Config} = State) -> insert(encode(Type, Event, C
 
 
 encode(string, String, _Config) ->
-    <<?quote/binary, String/binary, ?quote/binary>>;
+    [?quote, String, ?quote];
 encode(key, Key, _Config) ->
-    <<?quote/binary, Key/binary, ?quote/binary>>;
+    [?quote, Key, ?quote];
 encode(literal, Literal, _Config) ->
-    unicode:characters_to_binary(erlang:atom_to_list(Literal));
+    erlang:atom_to_list(Literal);
 encode(integer, Integer, _Config) ->
-    unicode:characters_to_binary(erlang:integer_to_list(Integer));
+    erlang:integer_to_list(Integer);
 encode(float, Float, _Config) ->
-    [Output] = io_lib:format("~p", [Float]), unicode:characters_to_binary(Output).
+    io_lib:format("~p", [Float]).
 
 
 space(Config) ->
@@ -173,53 +173,55 @@ finish_({[{array, <<"[">>}], Config}) -> {<<"[]">>, Config};
 finish_({[{object, <<"{">>}|Rest], Config}) -> insert(<<"{}">>, {Rest, Config});
 finish_({[{array, <<"[">>}|Rest], Config}) -> insert(<<"[]">>, {Rest, Config});
 finish_({[{object, Object}], Config}) ->
-    {<<Object/binary, (indent(Config))/binary, ?end_object/binary>>, Config};
+    {[Object, indent(Config), ?end_object], Config};
 finish_({[{object, Object}|Rest], Config}) ->
-    insert(<<Object/binary, (indent(Config))/binary, ?end_object/binary>>, {Rest, Config});
+    insert([Object, indent(Config), ?end_object], {Rest, Config});
 finish_({[{array, Array}], Config}) ->
-    {<<Array/binary, (indent(Config))/binary, ?end_array/binary>>, Config};
+    {[Array, indent(Config), ?end_array], Config};
 finish_({[{array, Array}|Rest], Config}) ->
-    insert(<<Array/binary, (indent(Config))/binary, ?end_array/binary>>, {Rest, Config});
+    insert([Array, indent(Config), ?end_array], {Rest, Config});
 finish_(_) -> erlang:error(badarg).
 
 %% insert a value when there's no parent object or array
-insert(Value, {[], Config}) when is_binary(Value) ->
+insert(Value, {[], Config}) ->
     {Value, Config};
 %% insert a key or value into an object or array, autodetects the 'right' thing
-insert(Key, {[{object, Object}|Rest], Config}) when is_binary(Key) ->
+insert(Key, {[{object, Object}|Rest], Config}) ->
     {[{object, Key, Object}] ++ Rest, Config};
-insert(Value, {[{object, Key, ?start_object}|Rest], Config}) when is_binary(Value) ->
+insert(Value, {[{object, Key, ?start_object}|Rest], Config}) ->
     {
-        [{object, <<?start_object/binary,
-            (indent(Config))/binary,
-            Key/binary,
-            ?colon/binary,
-            (space(Config))/binary,
-            Value/binary
-        >>}] ++ Rest,
+        [{object, [
+            ?start_object,
+            indent(Config),
+            Key,
+            ?colon,
+            space(Config),
+            Value
+        ]}] ++ Rest,
         Config
     };
-insert(Value, {[{object, Key, Object}|Rest], Config}) when is_binary(Value) ->
+insert(Value, {[{object, Key, Object}|Rest], Config}) ->
     {
-        [{object, <<Object/binary,
-            ?comma/binary,
-            (indent_or_space(Config))/binary,
-            Key/binary,
-            ?colon/binary,
-            (space(Config))/binary,
-            Value/binary
-        >>}] ++ Rest,
+        [{object, [
+            Object,
+            ?comma,
+            indent_or_space(Config),
+            Key,
+            ?colon,
+            space(Config),
+            Value
+        ]}] ++ Rest,
         Config
     };
-insert(Value, {[{array, ?start_array}|Rest], Config}) when is_binary(Value) ->
-    {[{array, <<?start_array/binary, (indent(Config))/binary, Value/binary>>}] ++ Rest, Config};
-insert(Value, {[{array, Array}|Rest], Config}) when is_binary(Value) ->
+insert(Value, {[{array, ?start_array}|Rest], Config}) ->
+    {[{array, [?start_array, indent(Config), Value]}] ++ Rest, Config};
+insert(Value, {[{array, Array}|Rest], Config}) ->
     {
-        [{array, <<Array/binary,
-            ?comma/binary,
-            (indent_or_space(Config))/binary,
-            Value/binary
-        >>}] ++ Rest,
+        [{array, [Array,
+            ?comma,
+            indent_or_space(Config),
+            Value
+        ]}] ++ Rest,
         Config
     };
 insert(_, _) -> erlang:error(badarg).
@@ -230,9 +232,8 @@ get_key(_) -> erlang:error(badarg).
 
 
 get_value({Value, _Config}) ->
-    case Value of
-        Value when is_binary(Value) -> Value;
-        _ -> erlang:error(badarg)
+    try unicode:characters_to_binary(Value)
+    catch error:_ -> erlang:error(badarg)
     end;
 get_value(_) -> erlang:error(badarg).
 
@@ -313,123 +314,49 @@ indent_or_space_test_() ->
 
 encode_test_() ->
     [
-        {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= <<"0.0">>)},
-        {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= <<"1.0">>)},
-        {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= <<"-1.0">>)},
+        {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= ["0.0"])},
+        {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= ["1.0"])},
+        {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= ["-1.0"])},
         {"3.1234567890987654321", 
             ?_assert(
-                encode(float, 3.1234567890987654321, #config{}) =:= <<"3.1234567890987655">>)
+                encode(float, 3.1234567890987654321, #config{}) =:= ["3.1234567890987655"])
         },
-        {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= <<"1.0e23">>)},
-        {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= <<"0.3">>)},
-        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= <<"0.0001">>)},
-        {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= <<"1.0e-5">>)},
-        {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= <<"1.0e-8">>)},
-        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= <<"1.0e-323">>)},
-        {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= <<"1.0e308">>)},
+        {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= ["1.0e23"])},
+        {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= ["0.3"])},
+        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= ["0.0001"])},
+        {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= ["1.0e-5"])},
+        {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= ["1.0e-8"])},
+        {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= ["1.0e-323"])},
+        {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= ["1.0e308"])},
         {"min normalized float", 
             ?_assert(
-                encode(float, math:pow(2, -1022), #config{}) =:= <<"2.2250738585072014e-308">>
+                encode(float, math:pow(2, -1022), #config{}) =:= ["2.2250738585072014e-308"]
             )
         },
         {"max normalized float", 
             ?_assert(
                 encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #config{}) 
-                    =:= <<"1.7976931348623157e308">>
+                    =:= ["1.7976931348623157e308"]
             )
         },
         {"min denormalized float", 
-            ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= <<"5.0e-324">>)
+            ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= ["5.0e-324"])
         },
         {"max denormalized float", 
             ?_assert(
                 encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #config{}) 
-                    =:= <<"2.225073858507201e-308">>
+                    =:= ["2.225073858507201e-308"]
             )
         },
-        {"hello world", ?_assert(encode(string, <<"hello world">>, #config{}) =:= <<"\"hello world\"">>)},
-        {"key", ?_assert(encode(key, <<"key">>, #config{}) =:= <<"\"key\"">>)},
-        {"1", ?_assert(encode(integer, 1, #config{}) =:= <<"1">>)},
-        {"-1", ?_assert(encode(integer, -1, #config{}) =:= <<"-1">>)},
-        {"true", ?_assert(encode(literal, true, #config{}) =:= <<"true">>)},
-        {"false", ?_assert(encode(literal, false, #config{}) =:= <<"false">>)},
-        {"null", ?_assert(encode(literal, null, #config{}) =:= <<"null">>)}      
-    ].
-
-
-rep_manipulation_test_() ->
-    [
-        {"allocate a new context", ?_assertEqual(
-            {[], #config{}},
-            start_json()
+        {"hello world", ?_assert(encode(string, <<"hello world">>, #config{})
+            =:= [<<"\"">>, <<"hello world">>, <<"\"">>]
         )},
-        {"allocate a new context with config", ?_assertEqual(
-            {[], #config{space=1, indent=2}},
-            start_json([{space, 1}, {indent, 2}])
-        )},
-        {"allocate a new object on an empty stack", ?_assertEqual(
-            {[{object, <<"{">>}], #config{depth=1}},
-            start_object({[], #config{}})
-        )},
-        {"allocate a new object on a stack", ?_assertEqual(
-            {[{object, <<"{">>}, {object, <<"{">>}], #config{depth=1}},
-            start_object({[{object, <<"{">>}], #config{}})
-        )},
-        {"allocate a new array on an empty stack", ?_assertEqual(
-            {[{array, <<"[">>}], #config{depth=1}},
-            start_array({[], #config{}})
-        )},
-        {"allocate a new array on a stack", ?_assertEqual(
-            {[{array, <<"[">>}, {object, <<"{">>}], #config{depth=1}},
-            start_array({[{object, <<"{">>}], #config{}})
-        )},
-        {"insert a key into an object", ?_assertEqual(
-            {[{object, <<"\"key\"">>, <<"{">>}], #config{}},
-            insert(<<"\"key\"">>, {[{object, <<"{">>}], #config{}})
-        )},
-        {"get current key", ?_assertEqual(
-            key,
-            get_key({[{object, key, <<"{">>}], #config{}})
-        )},
-        {"try to get non-key from object", ?_assertError(
-            badarg,
-            get_key({[{object, <<"{">>}], #config{}})
-        )},
-        {"try to get key from array", ?_assertError(
-            badarg,
-            get_key({[{array, <<"[">>}], #config{}})
-        )},
-        {"insert a value into an object", ?_assertEqual(
-            {[{object, <<"{\"key\":true">>}], #config{}},
-            insert(<<"true">>, {[{object, <<"\"key\"">>, <<"{">>}], #config{}})
-        )},
-        {"insert a value into an array", ?_assertEqual(
-            {[{array, <<"[true">>}], #config{}},
-            insert(<<"true">>, {[{array, <<"[">>}], #config{}})
-        )},
-        {"finish an object with no ancestor", ?_assertEqual(
-            {<<"{\"x\":true,\"y\":false}">>, #config{}},
-            finish({[{object, <<"{\"x\":true,\"y\":false">>}], #config{depth=1}})
-        )},
-        {"finish an empty object", ?_assertEqual(
-            {<<"{}">>, #config{}},
-            finish({[{object, <<"{">>}], #config{depth=1}})
-        )},
-        {"finish an object with an ancestor", ?_assertEqual(
-            {[{object, <<"{\"a\":[],\"b\":{\"x\":true,\"y\":false}">>}], #config{}},
-            finish({
-                [{object, <<"{\"x\":true,\"y\":false">>}, {object, <<"\"b\"">>, <<"{\"a\":[]">>}],
-                #config{depth=1}
-            })
-        )},
-        {"finish an array with no ancestor", ?_assertEqual(
-            {<<"[true,false,null]">>, #config{}},
-            finish({[{array, <<"[true,false,null">>}], #config{depth=1}})
-        )},
-        {"finish an array with an ancestor", ?_assertEqual(
-            {[{array, <<"[1,2,3,[true,false,null]">>}], #config{}},
-            finish({[{array, <<"[true,false,null">>}, {array, <<"[1,2,3">>}], #config{depth=1}})
-        )}
+        {"key", ?_assert(encode(key, <<"key">>, #config{}) =:= [<<"\"">>, <<"key">>, <<"\"">>])},
+        {"1", ?_assert(encode(integer, 1, #config{}) =:= "1")},
+        {"-1", ?_assert(encode(integer, -1, #config{}) =:= "-1")},
+        {"true", ?_assert(encode(literal, true, #config{}) =:= "true")},
+        {"false", ?_assert(encode(literal, false, #config{}) =:= "false")},
+        {"null", ?_assert(encode(literal, null, #config{}) =:= "null")}
     ].
 
 
@@ -455,6 +382,7 @@ format_test_() ->
     ],
     [{Title, ?_assertEqual(Min, jsx:minify(Pretty))} || {Title, Min, Pretty} <- Cases] ++
         [{Title, ?_assertEqual(Pretty, jsx:prettify(Min))} || {Title, Min, Pretty} <- Cases].
+
 
 handle_event_test_() ->
     Data = jsx:test_cases() ++ jsx:special_test_cases(),
