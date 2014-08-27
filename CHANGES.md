@@ -1,4 +1,4 @@
-v2.2
+v2.1.1
 
 * faster generation of json via iolists
 * `repeat_keys` option
