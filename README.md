@@ -341,13 +341,14 @@ the subset of [`token()`](#token) emitted by the decoder and encoder to handlers
 #### `option()` ####
 
 ```erlang
-option() = escaped_forward_slashes
+option() = dirty_strings
+    | escaped_forward_slashes
     | escaped_strings
-    | unescaped_jsonp
-    | dirty_strings
+    | repeat_keys
+    | stream
     | strict
     | {strict, [strict_option()]}
-    | stream
+    | unescaped_jsonp
 
 strict_option() = comments
     | trailing_commas
@@ -360,6 +361,15 @@ strict_option() = comments
 in all contexts, but they are always valid options. functions may have 
 additional options beyond these. see 
 [individual function documentation](#exports) for details
+
+- `dirty_strings`
+
+    json escaping is lossy; it mutates the json string and repeated application 
+    can result in unwanted behaviour. if your strings are already escaped (or 
+    you'd like to force invalid strings into "json" you monster) use this flag 
+    to bypass escaping. this can also be used to read in **really** invalid json 
+    strings. everything between unescaped quotes are passed as is to the resulting 
+    string term. note that this takes precedence over any other options
 
 - `escaped_forward_slashes`
 
@@ -376,23 +386,14 @@ additional options beyond these. see
     unaltered. this flag escapes strings as if for output in json, removing 
     control codes and problematic codepoints and replacing them with the 
     appropriate escapes
-    
-- `unescaped_jsonp`
 
-    javascript interpreters treat the codepoints `u+2028` and `u+2029` as 
-    significant whitespace. json strings that contain either of these codepoints 
-    will be parsed incorrectly by some javascript interpreters. by default, 
-    these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to 
-    retain compatibility. this option simply removes that escaping
+- `repeat_keys`
 
-- `dirty_strings`
+    this flag circumvents checking for repeated keys in generated json
 
-    json escaping is lossy; it mutates the json string and repeated application 
-    can result in unwanted behaviour. if your strings are already escaped (or 
-    you'd like to force invalid strings into "json" you monster) use this flag 
-    to bypass escaping. this can also be used to read in **really** invalid json 
-    strings. everything between unescaped quotes are passed as is to the resulting 
-    string term. note that this takes precedence over any other options
+- `stream`
+
+    see [incomplete input](#incomplete-input)
 
 - `strict`
 
@@ -424,9 +425,13 @@ additional options beyond these. see
     any combination of these can be passed to **jsx** by using `{strict, [strict_option()]}`.
     `strict` is equivalent to `{strict, [comments, bad_utf8, single_quotes, escapes]}` 
 
-- `stream`
+- `unescaped_jsonp`
 
-    see [incomplete input](#incomplete-input)
+    javascript interpreters treat the codepoints `u+2028` and `u+2029` as 
+    significant whitespace. json strings that contain either of these codepoints 
+    will be parsed incorrectly by some javascript interpreters. by default, 
+    these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to 
+    retain compatibility. this option simply removes that escaping
 
 
 ## exports ##
