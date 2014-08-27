@@ -63,6 +63,8 @@ parse_config([unescaped_jsonp|Rest], Config) ->
     parse_config(Rest, Config#config{unescaped_jsonp=true});
 parse_config([dirty_strings|Rest], Config) ->
     parse_config(Rest, Config#config{dirty_strings=true});
+parse_config([repeat_keys|Rest], Config) ->
+    parse_config(Rest, Config#config{repeat_keys=true});
 parse_config([strict|Rest], Config) ->
     parse_config(Rest, Config#config{strict_comments=true,
         strict_commas=true,
@@ -146,6 +148,7 @@ valid_flags() ->
         escaped_strings,
         unescaped_jsonp,
         dirty_strings,
+        repeat_keys,
         strict,
         stream,
         error_handler,
@@ -184,6 +187,7 @@ config_test_() ->
                     escaped_strings = true,
                     unescaped_jsonp = true,
                     dirty_strings = true,
+                    repeat_keys = true,
                     strict_comments = true,
                     strict_commas = true,
                     strict_utf8 = true,
@@ -195,6 +199,7 @@ config_test_() ->
                     escaped_strings,
                     unescaped_jsonp,
                     dirty_strings,
+                    repeat_keys,
                     strict,
                     stream
                 ])
@@ -264,6 +269,7 @@ config_to_list_test_() ->
                 escaped_strings,
                 unescaped_jsonp,
                 dirty_strings,
+                repeat_keys,
                 stream,
                 strict
             ],
@@ -272,6 +278,7 @@ config_to_list_test_() ->
                     escaped_strings = true,
                     unescaped_jsonp = true,
                     dirty_strings = true,
+                    repeat_keys = true,
                     strict_comments = true,
                     strict_utf8 = true,
                     strict_single_quotes = true,

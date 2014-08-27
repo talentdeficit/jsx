@@ -141,6 +141,19 @@ object([end_object|Tokens], Handler, [{object, _}|Stack], Config) ->
 object([{key, Key}|Tokens], Handler, Stack, Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     object([Key|Tokens], Handler, Stack, Config);
+object([Key|Tokens], Handler, [{object, _Keys}|Stack], Config=#config{repeat_keys=true})
+when is_atom(Key); is_binary(Key); is_integer(Key) ->
+    try clean_string(fix_key(Key), Config)
+    of K ->
+        value(
+            Tokens,
+            handle_event({key, K}, Handler, Config),
+            [{object, []}|Stack],
+            Config
+        )
+    catch error:badarg ->
+        ?error(object, [{string, Key}|Tokens], Handler, Stack, Config)
+    end;
 object([Key|Tokens], Handler, [{object, Keys}|Stack], Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     try

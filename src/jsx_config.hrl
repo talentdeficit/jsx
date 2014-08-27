@@ -3,6 +3,7 @@
     escaped_strings = false             :: boolean(),
     unescaped_jsonp = false             :: boolean(),
     dirty_strings = false               :: boolean(),
+    repeat_keys = false                 :: boolean(),
     strict_comments = false             :: boolean(),
     strict_commas = false               :: boolean(),
     strict_utf8 = false                 :: boolean(),

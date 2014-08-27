@@ -39,8 +39,10 @@ main([]) ->
     format(frequency:profile({"empty array to json", ?averageN({jsx, encode, [[]]}, 1000)})),
     format(frequency:profile({"sample tweet to term", ?averageN({jsx, decode, [sample_tweet()]}, 1000)})),
     format(frequency:profile({"sample tweet to json", ?averageN({jsx, encode, [jsx:decode(sample_tweet())]}, 1000)})),
+    format(frequency:profile({"sample tweet to json (without key checks)", ?averageN({jsx, encode, [jsx:decode(sample_tweet()), [repeat_keys]]}, 1000)})),
     format(frequency:profile({"sample github user to term", ?averageN({jsx, decode, [sample_github_user()]}, 1000)})),
-    format(frequency:profile({"sample github user to json", ?averageN({jsx, encode, [jsx:decode(sample_github_user())]}, 1000)})).
+    format(frequency:profile({"sample github user to json", ?averageN({jsx, encode, [jsx:decode(sample_github_user())]}, 1000)})),
+    format(frequency:profile({"sample github user to json", ?averageN({jsx, encode, [jsx:decode(sample_github_user()), [repeat_keys]]}, 1000)})).
 
 
 format([]) -> ok;
