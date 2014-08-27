@@ -479,7 +479,7 @@ error_test_() ->
         {"value error", ?_assertError(badarg, parse([self()], []))},
         {"maybe_done error", ?_assertError(badarg, parse([start_array, end_array, start_array, end_json], []))},
         {"done error", ?_assertError(badarg, parse([{string, <<"">>}, {literal, true}, end_json], []))},
-        {"string error", ?_assertError(badarg, parse([{string, <<239, 191, 191>>}, end_json], [strict_utf8]))}
+        {"string error", ?_assertError(badarg, parse([{string, <<239, 191, 191>>}, end_json], [strict]))}
     ].
 
 
