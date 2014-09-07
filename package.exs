@@ -23,7 +23,8 @@ use Mix.Project
         "src"
       ],
       contributors: ["alisdair sullivan"],
-      links: [{"github", "https://github.com/talentdeficit/jsx"}]
+      links: %{"github" => "https://github.com/talentdeficit/jsx"},
+      licenses: ["MIT"]
     ]
   end
 end
