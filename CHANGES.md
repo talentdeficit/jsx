@@ -2,6 +2,9 @@ v2.2
 
 * `return_maps` option
 * `uescape` option for 7-bit clean output
+* add `Makefile` for slightly better `erlang.mk` compatibility
+* add `maps_support/0` call to determine whether `jsx` was compiled
+  with support for maps or not
 
 v2.1.1
 
