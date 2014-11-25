@@ -1,6 +1,7 @@
 v2.2
 
 * `return_maps` option
+* `uescape` option for 7-bit clean output
 
 v2.1.1
 

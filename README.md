@@ -426,6 +426,10 @@ additional options beyond these. see
     any combination of these can be passed to **jsx** by using `{strict, [strict_option()]}`.
     `strict` is equivalent to `{strict, [comments, bad_utf8, single_quotes, escapes]}` 
 
+- `uescape`
+
+    escape all codepoints outside the ascii range for 7 bit clean output
+
 - `unescaped_jsonp`
 
     javascript interpreters treat the codepoints `u+2028` and `u+2029` as 
