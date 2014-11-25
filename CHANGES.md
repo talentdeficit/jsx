@@ -1,3 +1,7 @@
+v2.2
+
+* `return_maps` option
+
 v2.1.1
 
 * faster generation of json via iolists

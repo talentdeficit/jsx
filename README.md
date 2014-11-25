@@ -483,7 +483,7 @@ decode(JSON, Opts) -> Term
 
   JSON = json_text()
   Term = json_term()
-  Opts = [option() | labels | {labels, Label}]
+  Opts = [option() | labels | {labels, Label} | return_maps]
     Label = binary | atom | existing_atom | attempt_atom
     F = fun((any()) -> any())
 ```
@@ -499,6 +499,10 @@ atoms. `existing_atom` is identical to `atom` except it will not add
 new atoms to the atom table and will result in a `badarg` error if the atom
 does not exist. `attempt_atom` will convert keys to atoms when they exist,
 and leave them as binary otherwise
+
+the option `return_maps` will attempt to return objects as maps instead of
+proplists. this option has no effect when used with releases that do not
+support maps
 
 raises a `badarg` error exception if input is not valid json
 
