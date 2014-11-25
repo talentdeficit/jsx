@@ -30,7 +30,8 @@
 
 
 -record(config, {
-    labels = binary
+    labels = binary,
+    return_maps = false
 }).
 
 -type config() :: list().
@@ -60,6 +61,11 @@ parse_config([{labels, Val}|Rest], Config)
     parse_config(Rest, Config#config{labels = Val});
 parse_config([labels|Rest], Config) ->
     parse_config(Rest, Config#config{labels = binary});
+parse_config([{return_maps, Val}|Rest], Config)
+        when Val == true; Val == false ->
+    parse_config(Rest, Config#config{return_maps = true});
+parse_config([return_maps|Rest], Config) ->
+    parse_config(Rest, Config#config{return_maps = true});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
@@ -128,15 +134,31 @@ start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
 %% allocate a new array on top of the stack
 start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
+-ifndef(maps_support).
+finish(Any) -> finish0(Any).
+-endif.
+
+-ifdef(maps_support).
+finish({[{object, []}], Config=#config{return_maps=true}}) ->
+    {#{}, Config};
+finish({[{object, []}|Rest], Config=#config{return_maps=true}}) ->
+    insert(#{}, {Rest, Config});
+finish({[{object, Pairs}], Config=#config{return_maps=true}}) ->
+    {maps:from_list(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config=#config{return_maps=true}}) ->
+    insert(maps:from_list(Pairs), {Rest, Config});
+finish(Else) -> finish0(Else).
+-endif.
+
 %% finish an object or array and insert it into the parent object if it exists or
 %%  return it if it is the root object
-finish({[{object, []}], Config}) -> {[{}], Config};
-finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
-finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
-finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
-finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
-finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
-finish(_) -> erlang:error(badarg).
+finish0({[{object, []}], Config}) -> {[{}], Config};
+finish0({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
+finish0({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish0({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish0({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish0({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
+finish0(_) -> erlang:error(badarg).
 
 %% insert a value when there's no parent object or array
 insert(Value, {[], Config}) -> {Value, Config};
@@ -178,6 +200,10 @@ config_test_() ->
         {"existing atom labels", ?_assertEqual(
             #config{labels=existing_atom},
             parse_config([{labels, existing_atom}])
+        )},
+        {"return_maps true", ?_assertEqual(
+            #config{return_maps=true},
+            parse_config([return_maps])
         )},
         {"invalid opt flag", ?_assertError(badarg, parse_config([error]))},
         {"invalid opt tuple", ?_assertError(badarg, parse_config([{error, true}]))}
@@ -282,6 +308,34 @@ rep_manipulation_test_() ->
             finish({[{array, [c, b, a]}, {array, [d, e, f]}], #config{}})
         )}
     ].
+
+-ifdef(maps_support).
+
+return_maps_test_() ->
+    [
+        {"an empty map", ?_assertEqual(
+            #{},
+            jsx:decode(<<"{}">>, [return_maps])
+        )},
+        {"an empty map", ?_assertEqual(
+            [{}],
+            jsx:decode(<<"{}">>, [])
+        )},
+        {"a small map", ?_assertEqual(
+            #{<<"awesome">> => true, <<"library">> => <<"jsx">>},
+            jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [return_maps])
+        )},
+        {"a recursive map", ?_assertEqual(
+            #{<<"key">> => #{<<"key">> => true}},
+            jsx:decode(<<"{\"key\": {\"key\": true}}">>, [return_maps])
+        )},
+        {"a map inside a list", ?_assertEqual(
+            [#{}],
+            jsx:decode(<<"[{}]">>, [return_maps])
+        )}
+    ].
+
+-endif.
 
 
 handle_event_test_() ->
