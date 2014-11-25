@@ -10,6 +10,7 @@
     strict_single_quotes = false        :: boolean(),
     strict_escapes = false              :: boolean(),
     stream = false                      :: boolean(),
+    uescape = false                     :: boolean(),
     error_handler = false               :: false | jsx_config:handler(),
     incomplete_handler = false          :: false | jsx_config:handler()
 }).

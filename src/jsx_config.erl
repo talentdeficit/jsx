@@ -65,6 +65,8 @@ parse_config([dirty_strings|Rest], Config) ->
     parse_config(Rest, Config#config{dirty_strings=true});
 parse_config([repeat_keys|Rest], Config) ->
     parse_config(Rest, Config#config{repeat_keys=true});
+parse_config([uescape|Rest], Config) ->
+    parse_config(Rest, Config#config{uescape=true});
 parse_config([strict|Rest], Config) ->
     parse_config(Rest, Config#config{strict_comments=true,
         strict_commas=true,
@@ -151,6 +153,7 @@ valid_flags() ->
         repeat_keys,
         strict,
         stream,
+        uescape,
         error_handler,
         incomplete_handler
     ].
@@ -193,7 +196,8 @@ config_test_() ->
                     strict_utf8 = true,
                     strict_single_quotes = true,
                     strict_escapes = true,
-                    stream = true
+                    stream = true,
+                    uescape = true
                 },
                 parse_config([escaped_forward_slashes,
                     escaped_strings,
@@ -201,7 +205,8 @@ config_test_() ->
                     dirty_strings,
                     repeat_keys,
                     strict,
-                    stream
+                    stream,
+                    uescape
                 ])
             )
         },
@@ -271,6 +276,7 @@ config_to_list_test_() ->
                 dirty_strings,
                 repeat_keys,
                 stream,
+                uescape,
                 strict
             ],
             config_to_list(
@@ -283,7 +289,8 @@ config_to_list_test_() ->
                     strict_utf8 = true,
                     strict_single_quotes = true,
                     strict_escapes = true,
-                    stream = true
+                    stream = true,
+                    uescape = true
                 }
             )
         )},
