@@ -355,53 +355,11 @@ clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) ->
     maybe_replace(X, Rest, Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
     maybe_replace(X, Rest, Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#d800 ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X > 16#dfff, X < 16#fdd0 ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X > 16#fdef, X < 16#fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#10000, X < 16#1fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#20000, X < 16#2fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#30000, X < 16#3fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#40000, X < 16#4fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#50000, X < 16#5fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#60000, X < 16#6fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#70000, X < 16#7fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#80000, X < 16#8fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#90000, X < 16#9fffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#a0000, X < 16#afffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#b0000, X < 16#bfffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#c0000, X < 16#cfffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#d0000, X < 16#dfffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#e0000, X < 16#efffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#f0000, X < 16#ffffe ->
-    clean(Rest, [X] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X >= 16#100000, X < 16#10fffe ->
+clean(<<X/utf8, Rest/binary>>, Acc, Config) ->
     clean(Rest, [X] ++ Acc, Config);
 %% surrogates
 clean(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
     maybe_replace(surrogate, Rest, Acc, Config);
-%% noncharacters
-clean(<<_/utf8, Rest/binary>>, Acc, Config) ->
-    maybe_replace(noncharacter, Rest, Acc, Config);
-%% u+fffe and u+ffff for R14BXX
-clean(<<239, 191, X, Rest/binary>>, Acc, Config) when X == 190; X == 191 ->
-    maybe_replace(noncharacter, Rest, Acc, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 192, X =< 223 ->
     maybe_replace(badutf, strip_continuations(Rest, 1), Acc, Config);
@@ -500,7 +458,7 @@ error_test_() ->
         {"value error", ?_assertError(badarg, parse([self()], []))},
         {"maybe_done error", ?_assertError(badarg, parse([start_array, end_array, start_array, end_json], []))},
         {"done error", ?_assertError(badarg, parse([{string, <<"">>}, {literal, true}, end_json], []))},
-        {"string error", ?_assertError(badarg, parse([{string, <<239, 191, 191>>}, end_json], [strict]))}
+        {"string error", ?_assertError(badarg, parse([{string, <<237, 160, 128>>}, end_json], [strict]))}
     ].
 
 
@@ -520,8 +478,8 @@ custom_error_handler_test_() ->
             parse([{string, <<"">>}, {literal, true}, end_json], [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
-            {value, [{string, <<239, 191, 191>>}, end_json]},
-            parse([{string, <<239, 191, 191>>}, end_json], [{error_handler, Error}, strict])
+            {value, [{string, <<237, 160, 128>>}, end_json]},
+            parse([{string, <<237, 160, 128>>}, end_json], [{error_handler, Error}, strict])
         )}
     ].
 
@@ -585,35 +543,19 @@ codepoints() ->
         ++ lists:seq(48, 91)
         ++ lists:seq(93, 16#2027)
         ++ lists:seq(16#202a, 16#d7ff)
-        ++ lists:seq(16#e000, 16#fdcf)
-        ++ lists:seq(16#fdf0, 16#fffd)
+        ++ lists:seq(16#e000, 16#ffff)
     ).
 
 extended_codepoints() ->
     unicode:characters_to_binary(
-        lists:seq(16#10000, 16#1fffd) ++ [
+        lists:seq(16#10000, 16#1ffff) ++ [
             16#20000, 16#30000, 16#40000, 16#50000, 16#60000,
             16#70000, 16#80000, 16#90000, 16#a0000, 16#b0000,
             16#c0000, 16#d0000, 16#e0000, 16#f0000, 16#100000
         ]
     ).
 
-reserved_space() -> [ to_fake_utf8(N) || N <- lists:seq(16#fdd0, 16#fdef) ].
-
 surrogates() -> [ to_fake_utf8(N) || N <- lists:seq(16#d800, 16#dfff) ].
-
-noncharacters() -> [ to_fake_utf8(N) || N <- lists:seq(16#fffe, 16#ffff) ].
-
-extended_noncharacters() ->
-    [ to_fake_utf8(N) || N <- [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff]
-        ++ [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff]
-        ++ [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff]
-        ++ [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff]
-        ++ [16#9fffe, 16#9ffff, 16#afffe, 16#affff]
-        ++ [16#bfffe, 16#bffff, 16#cfffe, 16#cffff]
-        ++ [16#dfffe, 16#dffff, 16#efffe, 16#effff]
-        ++ [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff]
-    ].
 
 clean_string_helper(String) ->
     try clean_string(String, #config{strict_utf8=true}) of Clean -> Clean
@@ -638,37 +580,13 @@ clean_string_test_() ->
             extended_codepoints(),
             clean_string(extended_codepoints(), #config{escaped_strings=true})
         )},
-        {"error reserved space", ?_assertEqual(
-            lists:duplicate(length(reserved_space()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, reserved_space())
-        )},
         {"error surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), {error, badarg}),
             lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, surrogates())
         )},
-        {"error noncharacters", ?_assertEqual(
-            lists:duplicate(length(noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, noncharacters())
-        )},
-        {"error extended noncharacters", ?_assertEqual(
-            lists:duplicate(length(extended_noncharacters()), {error, badarg}),
-            lists:map(fun(Codepoint) -> clean_string_helper(Codepoint) end, extended_noncharacters())
-        )},
-        {"clean reserved space", ?_assertEqual(
-            lists:duplicate(length(reserved_space()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, reserved_space())
-        )},
         {"clean surrogates", ?_assertEqual(
             lists:duplicate(length(surrogates()), <<16#fffd/utf8>>),
             lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, surrogates())
-        )},
-        {"clean noncharacters", ?_assertEqual(
-            lists:duplicate(length(noncharacters()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, noncharacters())
-        )},
-        {"clean extended noncharacters", ?_assertEqual(
-            lists:duplicate(length(extended_noncharacters()), <<16#fffd/utf8>>),
-            lists:map(fun(Codepoint) -> clean_string(Codepoint, #config{}) end, extended_noncharacters())
         )}
     ].
 
@@ -844,22 +762,6 @@ escape_test_() ->
 
 bad_utf8_test_() ->
     [
-        {"noncharacter u+fffe", ?_assertError(
-            badarg,
-            clean_string(to_fake_utf8(16#fffe), #config{strict_utf8=true})
-        )},
-        {"noncharacter u+fffe replaced", ?_assertEqual(
-            <<16#fffd/utf8>>,
-            clean_string(to_fake_utf8(16#fffe), #config{})
-        )},
-        {"noncharacter u+ffff", ?_assertError(
-            badarg,
-            clean_string(to_fake_utf8(16#ffff), #config{strict_utf8=true})
-        )},
-        {"noncharacter u+ffff replaced", ?_assertEqual(
-            <<16#fffd/utf8>>,
-            clean_string(to_fake_utf8(16#ffff), #config{})
-        )},
         {"orphan continuation byte u+0080", ?_assertError(
             badarg,
             clean_string(<<16#0080>>, #config{strict_utf8=true})

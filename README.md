@@ -223,9 +223,9 @@ see below                       | `datetime()`
     encountered otherwise are replaced with the replacement codepoint (`u+fffd`)
 
     all erlang strings are represented by **valid** `utf8` encoded binaries. the 
-    encoder will check strings for conformance. noncharacters (like `u+ffff`) 
-    are allowed in erlang utf8 encoded binaries, but will be replaced in strings
-    passed to the encoder (although, again, see [options](#option))
+    encoder will check strings for conformance. badly formed `utf8` sequences may
+    be replaced with the replacement codepoint (`u+fffd`) according to the unicode
+    spec
 
     this implementation performs no normalization on strings beyond that 
     detailed here. be careful when comparing strings as equivalent strings 
@@ -244,7 +244,8 @@ see below                       | `datetime()`
 *   objects
 
     json objects are represented by erlang proplists. json maps may also be
-    encoded to json but the decoder will not produce maps
+    encoded to json and optionally decoded to maps (via the `return_maps`
+    option)
     
     the empty object has the special representation `[{}]` to differentiate it
     from the empty list. ambiguities like `[true, false]` prevent the use of
@@ -349,6 +350,7 @@ option() = dirty_strings
     | stream
     | strict
     | {strict, [strict_option()]}
+    | uescape
     | unescaped_jsonp
 
 strict_option() = comments

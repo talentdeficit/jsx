@@ -103,8 +103,8 @@ custom_error_handler_test_() ->
             parser(self(), [{error_handler, Error}])
         )},
         {"string error", ?_assertEqual(
-            {value, [{string, <<239, 191, 191>>}]},
-            parser(<<239, 191, 191>>, [{error_handler, Error}, strict])
+            {value, [{string, <<237, 160, 128>>}]},
+            parser(<<237, 160, 128>>, [{error_handler, Error}, strict])
         )}
     ].
 

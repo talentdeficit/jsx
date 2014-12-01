@@ -505,72 +505,28 @@ string(<<127, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, acc_seq(Acc, 127), Stack, Config);
 string(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, acc_seq(Acc, C), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20, X < 16#2028 ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
     string(Rest, Handler, acc_seq(Acc, maybe_replace(X, Config)), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X > 16#2029, X < 16#d800 ->
+string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#80 ->
     string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X > 16#dfff, X < 16#fdd0 ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X > 16#fdef, X < 16#fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#10000, X < 16#1fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#20000, X < 16#2fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#30000, X < 16#3fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#40000, X < 16#4fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#50000, X < 16#5fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#60000, X < 16#6fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#70000, X < 16#7fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#80000, X < 16#8fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#90000, X < 16#9fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#a0000, X < 16#afffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#b0000, X < 16#bfffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#c0000, X < 16#cfffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#d0000, X < 16#dfffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#e0000, X < 16#efffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#f0000, X < 16#ffffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X >= 16#100000, X < 16#10fffe ->
-    string(Rest, Handler, acc_seq(Acc, X), Stack, Config);
-%% partial utf8 codepoints. check that input could possibly be valid before attempting
-%%  to correct
+%% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match preceeding
+string(<<239, 191, 190, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 16#fffe), Stack, Config);
+string(<<239, 191, 191, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, acc_seq(Acc, 16#ffff), Stack, Config);
+%% partial utf8 codepoints
 string(<<>>, Handler, Acc, Stack, Config) ->
     incomplete(string, <<>>, Handler, Acc, Stack, Config);
-string(<<X>>, Handler, Acc, Stack, Config) when X >= 16#c2, X =< 16#f4 ->
+string(<<X>>, Handler, Acc, Stack, Config) when X >= 2#11000000 ->
     incomplete(string, <<X>>, Handler, Acc, Stack, Config);
-string(<<X, Y>>, Handler, Acc, Stack, Config) when X >= 16#e0, X =< 16#f4, Y >= 16#80, Y =< 16#bf ->
+string(<<X, Y>>, Handler, Acc, Stack, Config) when X >= 2#11100000, Y >= 2#10000000 ->
     incomplete(string, <<X, Y>>, Handler, Acc, Stack, Config);
 string(<<X, Y, Z>>, Handler, Acc, Stack, Config)
-        when X >= 16#f0, X =< 16#f4,
-            Y >= 16#80, Y =< 16#bf,
-            Z >= 16#80, Z =< 16#bf ->
+        when X >= 2#11100000, Y >= 2#10000000, Z >= 2#10000000 ->
     incomplete(string, <<X, Y, Z>>, Handler, Acc, Stack, Config);
 %% surrogates
 string(<<237, X, _, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
         when X >= 160 ->
-    string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-%% u+xfffe, u+xffff, control codes and other noncharacters
-string(<<_/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false}) ->
-    string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
-%% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match the
-%%  preceeding clause
-string(<<239, 191, X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
-        when X == 190; X == 191 ->
     string(Rest, Handler, acc_seq(Acc, 16#fffd), Stack, Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
 string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false})
@@ -1268,26 +1224,15 @@ codepoints() ->
         lists:seq(35, 46) ++
         lists:seq(48, 91) ++
         lists:seq(93, 127) ++
-        [16#2027, 16#202a, 16#d7ff, 16#e000, 16#fdcf, 16#fdf0, 16#fffd] ++
-        [16#10000, 16#1fffd, 16#20000, 16#30000, 16#40000, 16#50000] ++
+        [16#2027, 16#202a, 16#d7ff, 16#e000] ++
+        lists:seq(16#fdd0, 16#ffff) ++
+        [16#10000, 16#20000, 16#30000, 16#40000, 16#50000] ++
         [16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 16#b0000] ++
     [16#c0000, 16#d0000, 16#e0000, 16#f0000, 16#100000].
 
-reserved_space() -> lists:seq(16#fdd0, 16#fdef).
+controls() -> lists:seq(0, 31).
 
 surrogates() -> lists:seq(16#d800, 16#dfff).
-
-noncharacters() -> lists:seq(16#fffe, 16#ffff).
-
-extended_noncharacters() ->
-    [16#1fffe, 16#1ffff, 16#2fffe, 16#2ffff] ++
-        [16#3fffe, 16#3ffff, 16#4fffe, 16#4ffff] ++
-        [16#5fffe, 16#5ffff, 16#6fffe, 16#6ffff] ++
-        [16#7fffe, 16#7ffff, 16#8fffe, 16#8ffff] ++
-        [16#9fffe, 16#9ffff, 16#afffe, 16#affff] ++
-        [16#bfffe, 16#bffff, 16#cfffe, 16#cffff] ++
-        [16#dfffe, 16#dffff, 16#efffe, 16#effff] ++
-    [16#ffffe, 16#fffff, 16#10fffe, 16#10ffff].
 
 
 %% erlang refuses to decode certain codepoints, so fake them all
@@ -1305,7 +1250,7 @@ to_fake_utf8(N) ->
 
 clean_string_test_() ->
     Clean = codepoints(),
-    Dirty = reserved_space() ++ surrogates() ++ noncharacters() ++ extended_noncharacters(),
+    Dirty = surrogates() ++ controls(),
     % clean codepoints
     [{"clean u+" ++ integer_to_list(Codepoint, 16), ?_assertEqual(
             [{string, <<Codepoint/utf8>>}, end_json],
@@ -1363,11 +1308,6 @@ dirty_string_test_() ->
             <<"[\"", 237, 160, 128, "\"]">>,
             [dirty_strings]
         },
-        {"dirty 16#10ffff",
-            [start_array, {string, <<244, 143, 191, 191>>}, end_array, end_json],
-            <<"[\"", 244, 143, 191, 191, "\"]">>,
-            [dirty_strings]
-        },
         {"dirty /",
             [start_array, {string, <<$/>>}, end_array, end_json],
             <<"[\"", $/, "\"]">>,
@@ -1393,8 +1333,6 @@ dirty_string_test_() ->
 
 bad_utf8_test_() ->
     Cases = [
-        {"noncharacter u+fffe", <<16#fffd/utf8>>, <<239, 191, 190>>},
-        {"noncharacter u+ffff", <<16#fffd/utf8>>, <<239, 191, 191>>},
         {"orphan continuation byte u+0080", <<16#fffd/utf8>>, <<16#0080>>},
         {"orphan continuation byte u+00bf", <<16#fffd/utf8>>, <<16#00bf>>},
         {"2 continuation bytes",
@@ -1610,7 +1548,6 @@ embedded_single_quoted_string_test_() ->
             decode(<<34, "quoth the raven, 'nevermore'", 34>>, [{strict, [single_quotes]}])
         )}
     ].
-    
 
 
 ignored_bad_escapes_test_() ->
