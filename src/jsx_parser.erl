@@ -214,149 +214,26 @@ fix_key(Key) when is_binary(Key) -> Key.
 
 
 clean_string(Bin, #config{dirty_strings=true}) -> Bin;
-clean_string(Bin, Config) ->
-    case clean(Bin, [], Config) of
-        {error, badarg} -> erlang:error(badarg);
-        String -> String
-    end.
+clean_string(Bin, Config) -> clean(Bin, [], Config).
 
 
-%% escape and/or replace bad codepoints if requested
-clean(<<>>, Acc, _Config) -> unicode:characters_to_binary(lists:reverse(Acc));
-clean(<<0, Rest/binary>>, Acc, Config) -> maybe_replace(0, Rest, Acc, Config);
-clean(<<1, Rest/binary>>, Acc, Config) -> maybe_replace(1, Rest, Acc, Config);
-clean(<<2, Rest/binary>>, Acc, Config) -> maybe_replace(2, Rest, Acc, Config);
-clean(<<3, Rest/binary>>, Acc, Config) -> maybe_replace(3, Rest, Acc, Config);
-clean(<<4, Rest/binary>>, Acc, Config) -> maybe_replace(4, Rest, Acc, Config);
-clean(<<5, Rest/binary>>, Acc, Config) -> maybe_replace(5, Rest, Acc, Config);
-clean(<<6, Rest/binary>>, Acc, Config) -> maybe_replace(6, Rest, Acc, Config);
-clean(<<7, Rest/binary>>, Acc, Config) -> maybe_replace(7, Rest, Acc, Config);
-clean(<<8, Rest/binary>>, Acc, Config) -> maybe_replace(8, Rest, Acc, Config);
-clean(<<9, Rest/binary>>, Acc, Config) -> maybe_replace(9, Rest, Acc, Config);
-clean(<<10, Rest/binary>>, Acc, Config) -> maybe_replace(10, Rest, Acc, Config);
-clean(<<11, Rest/binary>>, Acc, Config) -> maybe_replace(11, Rest, Acc, Config);
-clean(<<12, Rest/binary>>, Acc, Config) -> maybe_replace(12, Rest, Acc, Config);
-clean(<<13, Rest/binary>>, Acc, Config) -> maybe_replace(13, Rest, Acc, Config);
-clean(<<14, Rest/binary>>, Acc, Config) -> maybe_replace(14, Rest, Acc, Config);
-clean(<<15, Rest/binary>>, Acc, Config) -> maybe_replace(15, Rest, Acc, Config);
-clean(<<16, Rest/binary>>, Acc, Config) -> maybe_replace(16, Rest, Acc, Config);
-clean(<<17, Rest/binary>>, Acc, Config) -> maybe_replace(17, Rest, Acc, Config);
-clean(<<18, Rest/binary>>, Acc, Config) -> maybe_replace(18, Rest, Acc, Config);
-clean(<<19, Rest/binary>>, Acc, Config) -> maybe_replace(19, Rest, Acc, Config);
-clean(<<20, Rest/binary>>, Acc, Config) -> maybe_replace(20, Rest, Acc, Config);
-clean(<<21, Rest/binary>>, Acc, Config) -> maybe_replace(21, Rest, Acc, Config);
-clean(<<22, Rest/binary>>, Acc, Config) -> maybe_replace(22, Rest, Acc, Config);
-clean(<<23, Rest/binary>>, Acc, Config) -> maybe_replace(23, Rest, Acc, Config);
-clean(<<24, Rest/binary>>, Acc, Config) -> maybe_replace(24, Rest, Acc, Config);
-clean(<<25, Rest/binary>>, Acc, Config) -> maybe_replace(25, Rest, Acc, Config);
-clean(<<26, Rest/binary>>, Acc, Config) -> maybe_replace(26, Rest, Acc, Config);
-clean(<<27, Rest/binary>>, Acc, Config) -> maybe_replace(27, Rest, Acc, Config);
-clean(<<28, Rest/binary>>, Acc, Config) -> maybe_replace(28, Rest, Acc, Config);
-clean(<<29, Rest/binary>>, Acc, Config) -> maybe_replace(29, Rest, Acc, Config);
-clean(<<30, Rest/binary>>, Acc, Config) -> maybe_replace(30, Rest, Acc, Config);
-clean(<<31, Rest/binary>>, Acc, Config) -> maybe_replace(31, Rest, Acc, Config);
-clean(<<32, Rest/binary>>, Acc, Config) -> clean(Rest, [32] ++ Acc, Config);
-clean(<<33, Rest/binary>>, Acc, Config) -> clean(Rest, [33] ++ Acc, Config);
-clean(<<34, Rest/binary>>, Acc, Config) -> maybe_replace(34, Rest, Acc, Config);
-clean(<<35, Rest/binary>>, Acc, Config) -> clean(Rest, [35] ++ Acc, Config);
-clean(<<36, Rest/binary>>, Acc, Config) -> clean(Rest, [36] ++ Acc, Config);
-clean(<<37, Rest/binary>>, Acc, Config) -> clean(Rest, [37] ++ Acc, Config);
-clean(<<38, Rest/binary>>, Acc, Config) -> clean(Rest, [38] ++ Acc, Config);
-clean(<<39, Rest/binary>>, Acc, Config) -> clean(Rest, [39] ++ Acc, Config);
-clean(<<40, Rest/binary>>, Acc, Config) -> clean(Rest, [40] ++ Acc, Config);
-clean(<<41, Rest/binary>>, Acc, Config) -> clean(Rest, [41] ++ Acc, Config);
-clean(<<42, Rest/binary>>, Acc, Config) -> clean(Rest, [42] ++ Acc, Config);
-clean(<<43, Rest/binary>>, Acc, Config) -> clean(Rest, [43] ++ Acc, Config);
-clean(<<44, Rest/binary>>, Acc, Config) -> clean(Rest, [44] ++ Acc, Config);
-clean(<<45, Rest/binary>>, Acc, Config) -> clean(Rest, [45] ++ Acc, Config);
-clean(<<46, Rest/binary>>, Acc, Config) -> clean(Rest, [46] ++ Acc, Config);
-clean(<<47, Rest/binary>>, Acc, Config) -> maybe_replace(47, Rest, Acc, Config);
-clean(<<48, Rest/binary>>, Acc, Config) -> clean(Rest, [48] ++ Acc, Config);
-clean(<<49, Rest/binary>>, Acc, Config) -> clean(Rest, [49] ++ Acc, Config);
-clean(<<50, Rest/binary>>, Acc, Config) -> clean(Rest, [50] ++ Acc, Config);
-clean(<<51, Rest/binary>>, Acc, Config) -> clean(Rest, [51] ++ Acc, Config);
-clean(<<52, Rest/binary>>, Acc, Config) -> clean(Rest, [52] ++ Acc, Config);
-clean(<<53, Rest/binary>>, Acc, Config) -> clean(Rest, [53] ++ Acc, Config);
-clean(<<54, Rest/binary>>, Acc, Config) -> clean(Rest, [54] ++ Acc, Config);
-clean(<<55, Rest/binary>>, Acc, Config) -> clean(Rest, [55] ++ Acc, Config);
-clean(<<56, Rest/binary>>, Acc, Config) -> clean(Rest, [56] ++ Acc, Config);
-clean(<<57, Rest/binary>>, Acc, Config) -> clean(Rest, [57] ++ Acc, Config);
-clean(<<58, Rest/binary>>, Acc, Config) -> clean(Rest, [58] ++ Acc, Config);
-clean(<<59, Rest/binary>>, Acc, Config) -> clean(Rest, [59] ++ Acc, Config);
-clean(<<60, Rest/binary>>, Acc, Config) -> clean(Rest, [60] ++ Acc, Config);
-clean(<<61, Rest/binary>>, Acc, Config) -> clean(Rest, [61] ++ Acc, Config);
-clean(<<62, Rest/binary>>, Acc, Config) -> clean(Rest, [62] ++ Acc, Config);
-clean(<<63, Rest/binary>>, Acc, Config) -> clean(Rest, [63] ++ Acc, Config);
-clean(<<64, Rest/binary>>, Acc, Config) -> clean(Rest, [64] ++ Acc, Config);
-clean(<<65, Rest/binary>>, Acc, Config) -> clean(Rest, [65] ++ Acc, Config);
-clean(<<66, Rest/binary>>, Acc, Config) -> clean(Rest, [66] ++ Acc, Config);
-clean(<<67, Rest/binary>>, Acc, Config) -> clean(Rest, [67] ++ Acc, Config);
-clean(<<68, Rest/binary>>, Acc, Config) -> clean(Rest, [68] ++ Acc, Config);
-clean(<<69, Rest/binary>>, Acc, Config) -> clean(Rest, [69] ++ Acc, Config);
-clean(<<70, Rest/binary>>, Acc, Config) -> clean(Rest, [70] ++ Acc, Config);
-clean(<<71, Rest/binary>>, Acc, Config) -> clean(Rest, [71] ++ Acc, Config);
-clean(<<72, Rest/binary>>, Acc, Config) -> clean(Rest, [72] ++ Acc, Config);
-clean(<<73, Rest/binary>>, Acc, Config) -> clean(Rest, [73] ++ Acc, Config);
-clean(<<74, Rest/binary>>, Acc, Config) -> clean(Rest, [74] ++ Acc, Config);
-clean(<<75, Rest/binary>>, Acc, Config) -> clean(Rest, [75] ++ Acc, Config);
-clean(<<76, Rest/binary>>, Acc, Config) -> clean(Rest, [76] ++ Acc, Config);
-clean(<<77, Rest/binary>>, Acc, Config) -> clean(Rest, [77] ++ Acc, Config);
-clean(<<78, Rest/binary>>, Acc, Config) -> clean(Rest, [78] ++ Acc, Config);
-clean(<<79, Rest/binary>>, Acc, Config) -> clean(Rest, [79] ++ Acc, Config);
-clean(<<80, Rest/binary>>, Acc, Config) -> clean(Rest, [80] ++ Acc, Config);
-clean(<<81, Rest/binary>>, Acc, Config) -> clean(Rest, [81] ++ Acc, Config);
-clean(<<82, Rest/binary>>, Acc, Config) -> clean(Rest, [82] ++ Acc, Config);
-clean(<<83, Rest/binary>>, Acc, Config) -> clean(Rest, [83] ++ Acc, Config);
-clean(<<84, Rest/binary>>, Acc, Config) -> clean(Rest, [84] ++ Acc, Config);
-clean(<<85, Rest/binary>>, Acc, Config) -> clean(Rest, [85] ++ Acc, Config);
-clean(<<86, Rest/binary>>, Acc, Config) -> clean(Rest, [86] ++ Acc, Config);
-clean(<<87, Rest/binary>>, Acc, Config) -> clean(Rest, [87] ++ Acc, Config);
-clean(<<88, Rest/binary>>, Acc, Config) -> clean(Rest, [88] ++ Acc, Config);
-clean(<<89, Rest/binary>>, Acc, Config) -> clean(Rest, [89] ++ Acc, Config);
-clean(<<90, Rest/binary>>, Acc, Config) -> clean(Rest, [90] ++ Acc, Config);
-clean(<<91, Rest/binary>>, Acc, Config) -> clean(Rest, [91] ++ Acc, Config);
-clean(<<92, Rest/binary>>, Acc, Config) -> maybe_replace(92, Rest, Acc, Config);
-clean(<<93, Rest/binary>>, Acc, Config) -> clean(Rest, [93] ++ Acc, Config);
-clean(<<94, Rest/binary>>, Acc, Config) -> clean(Rest, [94] ++ Acc, Config);
-clean(<<95, Rest/binary>>, Acc, Config) -> clean(Rest, [95] ++ Acc, Config);
-clean(<<96, Rest/binary>>, Acc, Config) -> clean(Rest, [96] ++ Acc, Config);
-clean(<<97, Rest/binary>>, Acc, Config) -> clean(Rest, [97] ++ Acc, Config);
-clean(<<98, Rest/binary>>, Acc, Config) -> clean(Rest, [98] ++ Acc, Config);
-clean(<<99, Rest/binary>>, Acc, Config) -> clean(Rest, [99] ++ Acc, Config);
-clean(<<100, Rest/binary>>, Acc, Config) -> clean(Rest, [100] ++ Acc, Config);
-clean(<<101, Rest/binary>>, Acc, Config) -> clean(Rest, [101] ++ Acc, Config);
-clean(<<102, Rest/binary>>, Acc, Config) -> clean(Rest, [102] ++ Acc, Config);
-clean(<<103, Rest/binary>>, Acc, Config) -> clean(Rest, [103] ++ Acc, Config);
-clean(<<104, Rest/binary>>, Acc, Config) -> clean(Rest, [104] ++ Acc, Config);
-clean(<<105, Rest/binary>>, Acc, Config) -> clean(Rest, [105] ++ Acc, Config);
-clean(<<106, Rest/binary>>, Acc, Config) -> clean(Rest, [106] ++ Acc, Config);
-clean(<<107, Rest/binary>>, Acc, Config) -> clean(Rest, [107] ++ Acc, Config);
-clean(<<108, Rest/binary>>, Acc, Config) -> clean(Rest, [108] ++ Acc, Config);
-clean(<<109, Rest/binary>>, Acc, Config) -> clean(Rest, [109] ++ Acc, Config);
-clean(<<110, Rest/binary>>, Acc, Config) -> clean(Rest, [110] ++ Acc, Config);
-clean(<<111, Rest/binary>>, Acc, Config) -> clean(Rest, [111] ++ Acc, Config);
-clean(<<112, Rest/binary>>, Acc, Config) -> clean(Rest, [112] ++ Acc, Config);
-clean(<<113, Rest/binary>>, Acc, Config) -> clean(Rest, [113] ++ Acc, Config);
-clean(<<114, Rest/binary>>, Acc, Config) -> clean(Rest, [114] ++ Acc, Config);
-clean(<<115, Rest/binary>>, Acc, Config) -> clean(Rest, [115] ++ Acc, Config);
-clean(<<116, Rest/binary>>, Acc, Config) -> clean(Rest, [116] ++ Acc, Config);
-clean(<<117, Rest/binary>>, Acc, Config) -> clean(Rest, [117] ++ Acc, Config);
-clean(<<118, Rest/binary>>, Acc, Config) -> clean(Rest, [118] ++ Acc, Config);
-clean(<<119, Rest/binary>>, Acc, Config) -> clean(Rest, [119] ++ Acc, Config);
-clean(<<120, Rest/binary>>, Acc, Config) -> clean(Rest, [120] ++ Acc, Config);
-clean(<<121, Rest/binary>>, Acc, Config) -> clean(Rest, [121] ++ Acc, Config);
-clean(<<122, Rest/binary>>, Acc, Config) -> clean(Rest, [122] ++ Acc, Config);
-clean(<<123, Rest/binary>>, Acc, Config) -> clean(Rest, [123] ++ Acc, Config);
-clean(<<124, Rest/binary>>, Acc, Config) -> clean(Rest, [124] ++ Acc, Config);
-clean(<<125, Rest/binary>>, Acc, Config) -> clean(Rest, [125] ++ Acc, Config);
-clean(<<126, Rest/binary>>, Acc, Config) -> clean(Rest, [126] ++ Acc, Config);
-clean(<<127, Rest/binary>>, Acc, Config) -> clean(Rest, [127] ++ Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) ->
+clean(<<>>, Acc, _) -> iolist_to_binary(Acc);
+clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#20 ->
+    maybe_replace(X, Rest, Acc, Config);
+clean(<<34, Rest/binary>>, Acc, Config) ->
+    maybe_replace(34, Rest, Acc, Config);
+clean(<<47, Rest/binary>>, Acc, Config) ->
+    maybe_replace(47, Rest, Acc, Config);
+clean(<<92, Rest/binary>>, Acc, Config) ->
+    maybe_replace(92, Rest, Acc, Config);
+clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
     maybe_replace(X, Rest, Acc, Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
     maybe_replace(X, Rest, Acc, Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) ->
-    clean(Rest, [X] ++ Acc, Config);
+clean(<<_/utf8, _/binary>> = Bin, Acc, Config) ->
+    Size = count(Bin, 0, Config),
+    <<Clean:Size/binary, Rest/binary>> = Bin,
+    clean(Rest, [Acc, Clean], Config);
 %% surrogates
 clean(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
     maybe_replace(surrogate, Rest, Acc, Config);
@@ -373,6 +250,239 @@ clean(<<_, Rest/binary>>, Acc, Config) ->
     maybe_replace(badutf, Rest, Acc, Config).
 
 
+count(<<>>, N, _) -> N;
+count(<<0, _/binary>>, N, _) -> N;
+count(<<1, _/binary>>, N, _) -> N;
+count(<<2, _/binary>>, N, _) -> N;
+count(<<3, _/binary>>, N, _) -> N;
+count(<<4, _/binary>>, N, _) -> N;
+count(<<5, _/binary>>, N, _) -> N;
+count(<<6, _/binary>>, N, _) -> N;
+count(<<7, _/binary>>, N, _) -> N;
+count(<<8, _/binary>>, N, _) -> N;
+count(<<9, _/binary>>, N, _) -> N;
+count(<<10, _/binary>>, N, _) -> N;
+count(<<11, _/binary>>, N, _) -> N;
+count(<<12, _/binary>>, N, _) -> N;
+count(<<13, _/binary>>, N, _) -> N;
+count(<<14, _/binary>>, N, _) -> N;
+count(<<15, _/binary>>, N, _) -> N;
+count(<<16, _/binary>>, N, _) -> N;
+count(<<17, _/binary>>, N, _) -> N;
+count(<<18, _/binary>>, N, _) -> N;
+count(<<19, _/binary>>, N, _) -> N;
+count(<<20, _/binary>>, N, _) -> N;
+count(<<21, _/binary>>, N, _) -> N;
+count(<<22, _/binary>>, N, _) -> N;
+count(<<23, _/binary>>, N, _) -> N;
+count(<<24, _/binary>>, N, _) -> N;
+count(<<25, _/binary>>, N, _) -> N;
+count(<<26, _/binary>>, N, _) -> N;
+count(<<27, _/binary>>, N, _) -> N;
+count(<<28, _/binary>>, N, _) -> N;
+count(<<29, _/binary>>, N, _) -> N;
+count(<<30, _/binary>>, N, _) -> N;
+count(<<31, _/binary>>, N, _) -> N;
+count(<<32, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<33, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<34, _/binary>>, N, _) -> N;
+count(<<35, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<36, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<37, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<38, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<39, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<40, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<41, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<42, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<43, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<44, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<45, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<46, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<47, _/binary>>, N, _) -> N;
+count(<<48, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<49, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<50, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<51, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<52, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<53, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<54, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<55, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<56, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<57, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<58, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<59, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<60, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<61, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<62, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<63, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<64, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<65, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<66, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<67, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<68, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<69, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<70, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<71, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<72, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<73, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<74, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<75, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<76, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<77, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<78, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<79, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<80, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<81, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<82, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<83, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<84, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<85, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<86, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<87, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<88, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<89, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<90, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<91, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<92, _/binary>>, N, _) -> N;
+count(<<93, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<94, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<95, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<96, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<97, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<98, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<99, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<100, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<101, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<102, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<103, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<104, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<105, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<106, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<107, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<108, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<109, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<110, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<111, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<112, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<113, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<114, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<115, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<116, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<117, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<118, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<119, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<120, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<121, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<122, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<123, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<124, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<125, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<126, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<127, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
+count(<<X/utf8, _/binary>>, N, _) when X == 16#2028; X == 16#2029 -> N;
+count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#800 ->
+    count(Rest, N + 2, Config);
+count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#10000 ->
+    count(Rest, N + 3, Config);
+count(<<_/utf8, Rest/binary>>, N, Config) ->
+    count(Rest, N + 4, Config);
+count(<<_, _/binary>>, N, _) -> N.
+
+
 strip_continuations(Bin, 0) -> Bin;
 strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
     strip_continuations(Rest, N - 1);
@@ -381,38 +491,42 @@ strip_continuations(Bin, _) -> Bin.
 
 
 maybe_replace($\b, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$b, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $b], Config);
 maybe_replace($\t, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$t, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $t], Config);
 maybe_replace($\n, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$n, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $n], Config);
 maybe_replace($\f, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$f, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $f], Config);
 maybe_replace($\r, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$r, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $r], Config);
 maybe_replace($\", Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$\", $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $\"], Config);
 maybe_replace($/, Rest, Acc, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
-        true -> clean(Rest, [$/, $\\] ++ Acc, Config);
-        false -> clean(Rest, [$/] ++ Acc, Config)
+        true -> clean(Rest, [Acc, $\\, $/], Config);
+        false -> clean(Rest, [Acc, $/], Config)
     end;
 maybe_replace($\\, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [$\\, $\\] ++ Acc, Config);
+    clean(Rest, [Acc, $\\, $\\], Config);
 maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true}) when X < 32 ->
-    clean(Rest, lists:reverse(json_escape_sequence(X)) ++ Acc, Config);
-maybe_replace(X, Rest, Acc, Config=#config{uescape=true}) when is_integer(X) ->
-    clean(Rest, lists:reverse(json_escape_sequence(X)) ++ Acc, Config);
+    clean(Rest, [Acc, json_escape_sequence(X)], Config);
+%% escaped even if no other escaping was requested!
+maybe_replace(X, Rest, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
+    clean(Rest, [Acc, json_escape_sequence(X)], Config);
 maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
-        true -> clean(Rest, [X] ++ Acc, Config);
-        false -> clean(Rest, lists:reverse(json_escape_sequence(X)) ++ Acc, Config)
+        true -> clean(Rest, [Acc, <<X/utf8>>], Config);
+        false -> clean(Rest, [Acc, json_escape_sequence(X)], Config)
     end;
-maybe_replace(Atom, _, _, #config{strict_utf8=true}) when is_atom(Atom) -> {error, badarg};
-maybe_replace(noncharacter, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
-maybe_replace(surrogate, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
-maybe_replace(badutf, Rest, Acc, Config) -> clean(Rest, [16#fffd] ++ Acc, Config);
-maybe_replace(X, Rest, Acc, Config) -> clean(Rest, [X] ++ Acc, Config).
+maybe_replace(Atom, _, _, #config{strict_utf8=true}) when is_atom(Atom) ->
+    erlang:error(badarg);
+maybe_replace(surrogate, Rest, Acc, Config) ->
+    clean(Rest, [Acc, <<16#fffd/utf8>>], Config);
+maybe_replace(badutf, Rest, Acc, Config) ->
+    clean(Rest, [Acc, <<16#fffd/utf8>>], Config);
+maybe_replace(X, Rest, Acc, Config) ->
+    clean(Rest, [Acc, <<X/utf8>>], Config).
 
 
 %% convert a codepoint to it's \uXXXX equiv.
@@ -943,7 +1057,7 @@ json_escape_sequence_test_() ->
         {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
     ].
 
-uescaped_test_() ->
+uescape_test_() ->
     [
         {"\"\\u0080\"", ?_assertEqual(
             <<"\\u0080">>,
