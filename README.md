@@ -1,4 +1,4 @@
-# jsx (v2.3) #
+# jsx (v2.3.0) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -16,11 +16,6 @@ copyright 2010-2014 alisdair sullivan
 there are a few changes for users upgrading from 1.x. see [CHANGES.md](CHANGES.md)
 for the overview or [migrating from 1.x](#migrating) for the details
 
-## slightly less important note ##
-
-**jsx** supports encoding maps to json but not decoding json to a map [jsxn][jsxn] is a
-thin wrapper around **jsx** that uses maps as it's object representation if you're into
-that
 
 ## index ##
 
@@ -64,7 +59,9 @@ $ rebar eunit
 ```erlang
 1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
 [{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
-2> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
+2> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [return_maps]).
+#{<<"awesome">> => true,<<"library">> => <<"jsx">>}
+3> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
 [<<"a">>, <<"list">>, <<"of">>, <<"words">>]
 ```
 
