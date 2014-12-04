@@ -430,7 +430,9 @@ additional options beyond these. see
 
 - `uescape`
 
-    escape all codepoints outside the ascii range for 7 bit clean output
+    escape all codepoints outside the ascii range for 7 bit clean output. note
+    this escaping takes place even if no other string escaping is requested (via
+    `escaped_strings`)
 
 - `unescaped_jsonp`
 

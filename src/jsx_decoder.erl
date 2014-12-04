@@ -310,6 +310,8 @@ string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace(?solidus, Config)], Stack, Config);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
+string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{uescape=true}) when X >= 16#80 ->
+    string(Rest, Handler, [Acc, maybe_replace(X, Config)], Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
     string(Rest, Handler, [Acc, maybe_replace(X, Config)], Stack, Config);
 string(<<_/utf8, _/binary>> = Bin, Handler, Acc, Stack, Config) ->
@@ -547,6 +549,7 @@ count(<<127, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<_, Rest/binary>>, N, Config=#config{dirty_strings=true}) ->
     count(Rest, N + 1, Config);
+count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
 count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#800 ->
     count(Rest, N + 2, Config);
 count(<<X/utf8, _/binary>>, N, _) when X == 16#2028; X == 16#2029 -> N;
@@ -694,13 +697,20 @@ maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 
     end;
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
     json_escape_sequence(X);
+%% escaped even if no other escaping requested!
+maybe_replace(X, #config{uescape=true}) when X >= 16#80 ->
+    json_escape_sequence(X);
 maybe_replace(X, _Config) -> <<X/utf8>>.
 
 
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) when X < 65536 ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))].
+    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))];
+json_escape_sequence(X) ->
+    Adjusted = X - 16#10000,
+    <<A:10, B:10>> = <<Adjusted:20>>,
+    json_escape_sequence(A + 16#d800) ++ json_escape_sequence(B + 16#dc00).
 
 
 %% ascii "1" is [49], "2" is [50], etc...
@@ -1521,6 +1531,30 @@ special_escape_test_() ->
             [{string, Expect}, end_json],
             decode(<<34, Raw/binary, 34>>, [escaped_strings] ++ Config)
         )} || {Title, Expect, Raw, Config} <- Cases
+    ].
+
+
+uescape_test_() ->
+    [
+        {"\"\\u0080\"", ?_assertEqual(
+            [{string, <<"\\u0080">>}, end_json],
+            decode(<<34, 128/utf8, 34>>, [uescape])
+        )},
+        {"\"\\u8ca8\\u5481\\u3002\\u0091\\u0091\"", ?_assertEqual(
+            [{string, <<"\\u8ca8\\u5481\\u3002\\u0091\\u0091">>}, end_json],
+            decode(
+                <<34,232,178,168,229,146,129,227,128,130,194,145,194,145,34>>,
+                [uescape]
+            )
+        )},
+        {"\"\\ud834\\udd1e\"", ?_assertEqual(
+            [{string, <<"\\ud834\\udd1e">>}, end_json],
+            decode(<<34, 240, 157, 132, 158, 34>>, [uescape])
+        )},
+        {"\"\\ud83d\\ude0a\"", ?_assertEqual(
+            [{string, <<"\\ud83d\\ude0a">>}, end_json],
+            decode(<<34, 240, 159, 152, 138, 34>>, [uescape])
+        )}
     ].
 
 
