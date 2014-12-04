@@ -359,6 +359,70 @@ string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false
 string(Bin, Handler, Acc, Stack, Config) -> ?error(string, Bin, Handler, Acc, Stack, Config).
 
 
+count(<<0, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<1, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<2, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<3, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<4, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<5, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<6, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<7, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<8, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<9, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<10, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<11, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<12, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<13, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<14, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<15, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<16, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<17, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<18, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<19, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<20, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<21, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<22, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<23, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<24, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<25, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<26, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<27, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<28, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<29, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<30, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
+count(<<31, Rest/binary>>, N, Config) ->
+    count(Rest, N + 1, Config);
 count(<<32, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<33, Rest/binary>>, N, Config) ->
@@ -1246,7 +1310,8 @@ no_comments_test_() ->
 % doing the full unicode range takes foreverrrrrrr so just do boundaries
 % excludes characters that may need escaping
 codepoints() ->
-    [32, 33] ++
+    lists:seq(0, 32) ++
+        [32, 33] ++
         lists:seq(35, 46) ++
         lists:seq(48, 91) ++
         lists:seq(93, 127) ++
