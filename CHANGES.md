@@ -1,3 +1,11 @@
+v2.3
+
+* switched to a faster implementation of string parsing in both
+  the decoder and encoder
+* expand `uescape` option to the decoder
+* allow control codes in json passed to decoder (contrary to the spec,
+  yes)
+
 v2.2
 
 * `return_maps` option
