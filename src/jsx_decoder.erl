@@ -311,7 +311,7 @@ string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{uescape=true}) when X >= 16#80 ->
-    string(Rest, Handler, [Acc, maybe_replace(X, Config)], Stack, Config);
+    string(Rest, Handler, [Acc, json_escape_sequence(X)], Stack, Config);
 string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
     string(Rest, Handler, [Acc, maybe_replace(X, Config)], Stack, Config);
 string(<<_/utf8, _/binary>> = Bin, Handler, Acc, Stack, Config) ->
@@ -760,9 +760,6 @@ maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 
         ; false -> json_escape_sequence(X)
     end;
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    json_escape_sequence(X);
-%% escaped even if no other escaping requested!
-maybe_replace(X, #config{uescape=true}) when X >= 16#80 ->
     json_escape_sequence(X);
 maybe_replace(X, _Config) -> <<X/utf8>>.
 

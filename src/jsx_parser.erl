@@ -205,7 +205,7 @@ clean(<<47, Rest/binary>>, Acc, Config) ->
 clean(<<92, Rest/binary>>, Acc, Config) ->
     clean(Rest, [Acc, maybe_replace(92, Config)], Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
-    clean(Rest, [Acc, maybe_replace(X, Config)], Config);
+    clean(Rest, [Acc, json_escape_sequence(X)], Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
     clean(Rest, [Acc, maybe_replace(X, Config)], Config);
 clean(<<_/utf8, _/binary>> = Bin, Acc, Config) ->
@@ -488,9 +488,6 @@ maybe_replace($/, Config=#config{escaped_strings=true}) ->
 maybe_replace($\\, #config{escaped_strings=true}) ->
     [$\\, $\\];
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
-    json_escape_sequence(X);
-%% escaped even if no other escaping was requested!
-maybe_replace(X, #config{uescape=true}) when X >= 16#80 ->
     json_escape_sequence(X);
 maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
