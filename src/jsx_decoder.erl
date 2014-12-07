@@ -687,31 +687,36 @@ unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace($\\, Config)], Stack, Config);
 unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace($/, Config)], Stack, Config);
-unescape(<<$u, $d, A, B, C, ?rsolidus, $u, $d, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
-             (X == $c orelse X == $d orelse X == $e orelse X == $f),
-             ?is_hex(B), ?is_hex(C), ?is_hex(Y), ?is_hex(Z)
+unescape(<<$u, F, A, B, C, ?rsolidus, $u, G, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b orelse A == $A orelse A == $B),
+            (X == $c orelse X == $d orelse X == $e orelse X == $f orelse X == $C orelse X == $D orelse X == $E orelse X == $F),
+            (F == $d orelse F == $D),
+            (G == $d orelse G == $D),
+            ?is_hex(B), ?is_hex(C), ?is_hex(Y), ?is_hex(Z)
         ->
     High = erlang:list_to_integer([$d, A, B, C], 16),
     Low = erlang:list_to_integer([$d, X, Y, Z], 16),
     Codepoint = (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000,
     string(Rest, Handler, [Acc, <<Codepoint/utf8>>], Stack, Config);
-unescape(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
-             ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
+unescape(<<$u, F, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b orelse A == $A orelse A == $B),
+            (F == $d orelse F == $D),
+            ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
     case Config#config.strict_utf8 of
         true -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config);
         false -> string(Rest, Handler, [Acc, <<16#fffd/utf8>>, <<16#fffd/utf8>>], Stack, Config)
     end;
-unescape(<<$u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
-             ?is_hex(B), ?is_hex(C)
+unescape(<<$u, F, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b orelse A == $A orelse A == $B),
+            (F == $d orelse F == $D),
+            ?is_hex(B), ?is_hex(C)
         ->
     incomplete(string, <<?rsolidus, $u, $d, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config);
-unescape(<<$u, $d, A, B, C>>, Handler, Acc, Stack, Config)
-        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b),
-             ?is_hex(B), ?is_hex(C)
+unescape(<<$u, F, A, B, C>>, Handler, Acc, Stack, Config)
+        when (A == $8 orelse A == $9 orelse A == $a orelse A == $b orelse A == $A orelse A == $B),
+            (F == $d orelse F == $D),
+            ?is_hex(B), ?is_hex(C)
         ->
     incomplete(string, <<?rsolidus, $u, $d, A, B, C>>, Handler, Acc, Stack, Config);
 unescape(<<$u, A, B, C, D, Rest/binary>>, Handler, Acc, Stack, Config)
@@ -1529,16 +1534,27 @@ unescape_test_() ->
         {"unescape reverse solidus", <<"\\">>, <<"\\\\"/utf8>>},
         {"unescape control", <<0>>, <<"\\u0000"/utf8>>},
         {"unescape surrogate pair", <<16#10000/utf8>>, <<"\\ud800\\udc00"/utf8>>},
+        {"unescape surrogate pair", <<16#10000/utf8>>, <<"\\uD800\\uDC00"/utf8>>},
         {"replace bad high surrogate", <<16#fffd/utf8>>, <<"\\udc00"/utf8>>},
+        {"replace bad high surrogate", <<16#fffd/utf8>>, <<"\\uDC00"/utf8>>},
         {"replace naked high surrogate",
             <<16#fffd/utf8, "hello world">>,
             <<"\\ud800hello world"/utf8>>
+        },
+        {"replace naked high surrogate",
+            <<16#fffd/utf8, "hello world">>,
+            <<"\\uD800hello world"/utf8>>
         },
         {"replace naked low surrogate",
             <<16#fffd/utf8, "hello world">>,
             <<"\\udc00hello world"/utf8>>
         },
-        {"replace bad surrogate pair", <<16#fffd/utf8, 16#fffd/utf8>>, <<"\\ud800\\u0000">>}
+        {"replace naked low surrogate",
+            <<16#fffd/utf8, "hello world">>,
+            <<"\\uDC00hello world"/utf8>>
+        },
+        {"replace bad surrogate pair", <<16#fffd/utf8, 16#fffd/utf8>>, <<"\\ud800\\u0000">>},
+        {"replace bad surrogate pair", <<16#fffd/utf8, 16#fffd/utf8>>, <<"\\uD800\\u0000">>}
     ],
     [{Title, ?_assertEqual([{string, Escaped}, end_json], decode(<<34, JSON/binary, 34>>))}
         || {Title, Escaped, JSON} <- Cases

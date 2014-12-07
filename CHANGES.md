@@ -1,3 +1,9 @@
+v2.3.1
+
+* fixes an issue where astral plane json escape sequences were
+  inadvertently being converted to the unicode replacement
+  character
+
 v2.3
 
 * switched to a faster implementation of string parsing in both
