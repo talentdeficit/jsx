@@ -88,7 +88,7 @@ handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event
 
 
 value([start_object|Tokens], Handler, Stack, Config) ->
-    object(Tokens, handle_event(start_object, Handler, Config), [{object, sets:new()}|Stack], Config);
+    object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
 value([start_array|Tokens], Handler, Stack, Config) ->
     array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value([{literal, Literal}|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
@@ -136,35 +136,19 @@ value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 value(Token, Handler, Stack, Config) ->
     value([Token], Handler, Stack, Config).
 
-object([end_object|Tokens], Handler, [{object, _}|Stack], Config) ->
+object([end_object|Tokens], Handler, [object|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
 object([{key, Key}|Tokens], Handler, Stack, Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     object([Key|Tokens], Handler, Stack, Config);
-object([Key|Tokens], Handler, [{object, _Keys}|Stack], Config=#config{repeat_keys=true})
+object([Key|Tokens], Handler, [object|Stack], Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     try clean_string(fix_key(Key), Config)
     of K ->
         value(
             Tokens,
             handle_event({key, K}, Handler, Config),
-            [{object, []}|Stack],
-            Config
-        )
-    catch error:badarg ->
-        ?error(object, [{string, Key}|Tokens], Handler, Stack, Config)
-    end;
-object([Key|Tokens], Handler, [{object, Keys}|Stack], Config)
-when is_atom(Key); is_binary(Key); is_integer(Key) ->
-    try
-        CleanKey = clean_string(fix_key(Key), Config),
-        case sets:is_element(CleanKey, Keys) of true -> erlang:error(badarg); _ -> ok end,
-        CleanKey
-    of K ->
-        value(
-            Tokens,
-            handle_event({key, K}, Handler, Config),
-            [{object, sets:add_element(K, Keys)}|Stack],
+            [object|Stack],
             Config
         )
     catch error:badarg ->
@@ -186,7 +170,7 @@ array(Token, Handler, Stack, Config) ->
 
 maybe_done([end_json], Handler, [], Config) ->
     done([end_json], Handler, [], Config);
-maybe_done(Tokens, Handler, [{object, _}|_] = Stack, Config) when is_list(Tokens) ->
+maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
     object(Tokens, Handler, Stack, Config);
 maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
     array(Tokens, Handler, Stack, Config);
@@ -1057,6 +1041,7 @@ json_escape_sequence_test_() ->
         {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
     ].
 
+
 uescape_test_() ->
     [
         {"\"\\u0080\"", ?_assertEqual(
@@ -1080,21 +1065,12 @@ uescape_test_() ->
         )}
     ].
 
+
 fix_key_test_() ->
     [
         {"binary key", ?_assertEqual(fix_key(<<"foo">>), <<"foo">>)},
         {"atom key", ?_assertEqual(fix_key(foo), <<"foo">>)},
         {"integer key", ?_assertEqual(fix_key(123), <<"123">>)}
-    ].
-
-
-repeated_key_test_() ->
-    Parse = fun(Events, Config) -> (parser(?MODULE, [], Config))(Events ++ [end_json]) end,
-    [
-        {"repeated key", ?_assertError(
-            badarg,
-            Parse([start_object, <<"key">>, true, <<"key">>, true, end_object], [])
-        )}
     ].
 
 

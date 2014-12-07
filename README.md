@@ -387,10 +387,6 @@ additional options beyond these. see
     control codes and problematic codepoints and replacing them with the 
     appropriate escapes
 
-- `repeat_keys`
-
-    this flag circumvents checking for repeated keys in generated json
-
 - `stream`
 
     see [incomplete input](#incomplete-input)
