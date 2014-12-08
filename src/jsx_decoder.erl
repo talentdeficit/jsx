@@ -119,10 +119,6 @@ resume(Rest, State, Handler, Acc, Stack, Config) ->
     Symbol >= $1 andalso Symbol =< $9
 ).
 
--define(is_whitespace(Symbol),
-    Symbol =:= ?space; Symbol =:= ?tab; Symbol =:= ?cr; Symbol =:= ?newline
-).
-
 
 %% error is a macro so the stack trace shows the error site when possible
 -ifndef(error).
@@ -177,8 +173,12 @@ start(Bin, Handler, Stack, Config) ->
 
 value(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, Stack, Config);
-value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
-    string(Rest, Handler, [singlequote|Stack], Config);
+value(<<?space, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
+value(<<?start_object, Rest/binary>>, Handler, Stack, Config) ->
+    object(Rest, handle_event(start_object, Handler, Config), [key|Stack], Config);
+value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
+    array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     true(Rest, Handler, Stack, Config);
 value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
@@ -189,14 +189,16 @@ value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
     negative(Rest, Handler, [$-], Stack, Config);
 value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
     zero(Rest, Handler, [$0], Stack, Config);
+value(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
+value(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
+value(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
+value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
+    string(Rest, Handler, [singlequote|Stack], Config);
 value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_nonzero(S) ->
     integer(Rest, Handler, [S], Stack, Config);
-value(<<?start_object, Rest/binary>>, Handler, Stack, Config) ->
-    object(Rest, handle_event(start_object, Handler, Config), [key|Stack], Config);
-value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
-    array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
-value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
-    value(Rest, Handler, Stack, Config);
 value(<<?end_array, _/binary>> = Rest, Handler, Stack, Config=#config{strict_commas=false}) ->
     maybe_done(Rest, Handler, Stack, Config);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
@@ -215,12 +217,18 @@ value(Bin, Handler, Stack, Config) ->
 
 object(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, Stack, Config);
-object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
-    string(Rest, Handler, [singlequote|Stack], Config);
+object(<<?space, Rest/binary>>, Handler, Stack, Config) ->
+    object(Rest, Handler, Stack, Config);
 object(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
-object(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
+object(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
     object(Rest, Handler, Stack, Config);
+object(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    object(Rest, Handler, Stack, Config);
+object(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
+    object(Rest, Handler, Stack, Config);
+object(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
+    string(Rest, Handler, [singlequote|Stack], Config);
 object(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(object, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 object(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
@@ -237,7 +245,13 @@ object(Bin, Handler, Stack, Config) ->
 
 array(<<?end_array, Rest/binary>>, Handler, [array|Stack], Config) ->
     maybe_done(Rest, handle_event(end_array, Handler, Config), Stack, Config);
-array(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
+array(<<?space, Rest/binary>>, Handler, Stack, Config) ->
+    array(Rest, Handler, Stack, Config);
+array(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    array(Rest, Handler, Stack, Config);
+array(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    array(Rest, Handler, Stack, Config);
+array(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
     array(Rest, Handler, Stack, Config);
 array(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     value(<<?solidus, Rest/binary>>, Handler, Stack, Config);
@@ -255,7 +269,13 @@ array(Bin, Handler, Stack, Config) ->
 
 colon(<<?colon, Rest/binary>>, Handler, [key|Stack], Config) ->
     value(Rest, Handler, [object|Stack], Config);
-colon(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
+colon(<<?space, Rest/binary>>, Handler, Stack, Config) ->
+    colon(Rest, Handler, Stack, Config);
+colon(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    colon(Rest, Handler, Stack, Config);
+colon(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    colon(Rest, Handler, Stack, Config);
+colon(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
     colon(Rest, Handler, Stack, Config);
 colon(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(colon, <<?solidus, Rest/binary>>, Handler, Stack, Config);
@@ -273,12 +293,18 @@ colon(Bin, Handler, Stack, Config) ->
 
 key(<<?doublequote, Rest/binary>>, Handler, Stack, Config) ->
     string(Rest, Handler, Stack, Config);
-key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
-    string(Rest, Handler, [singlequote|Stack], Config);
-key(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
+key(<<?space, Rest/binary>>, Handler, Stack, Config) ->
     key(Rest, Handler, Stack, Config);
 key(<<?end_object, Rest/binary>>, Handler, [key|Stack], Config=#config{strict_commas=false}) ->
     maybe_done(<<?end_object, Rest/binary>>, Handler, [object|Stack], Config);
+key(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    key(Rest, Handler, Stack, Config);
+key(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    key(Rest, Handler, Stack, Config);
+key(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
+    key(Rest, Handler, Stack, Config);
+key(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
+    string(Rest, Handler, [singlequote|Stack], Config);
 key(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(key, <<?solidus, Rest/binary>>, Handler, Stack, Config);
 key(<<?solidus, ?solidus, Rest/binary>>, Handler, Stack, Config) ->
@@ -310,10 +336,17 @@ string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace(?solidus, Config)], Stack, Config);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{uescape=true}) when X >= 16#80 ->
-    string(Rest, Handler, [Acc, json_escape_sequence(X)], Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config) when X == 16#2028; X == 16#2029 ->
-    string(Rest, Handler, [Acc, maybe_replace(X, Config)], Stack, Config);
+string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{uescape=true}) ->
+    case X of
+        X when X < 16#80 -> string(Rest, Handler, [Acc, X], Stack, Config);
+        X -> string(Rest, Handler, [Acc, json_escape_sequence(X)], Stack, Config)
+    end;
+%% u+2028
+string(<<226, 128, 168, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, [Acc, maybe_replace(16#2028, Config)], Stack, Config);
+%% u+2029
+string(<<226, 128, 169, Rest/binary>>, Handler, Acc, Stack, Config) ->
+    string(Rest, Handler, [Acc, maybe_replace(16#2029, Config)], Stack, Config);
 string(<<_/utf8, _/binary>> = Bin, Handler, Acc, Stack, Config) ->
     Size = count(Bin, 0, Config),
     <<Clean:Size/binary, Rest/binary>> = Bin,
@@ -616,7 +649,10 @@ count(<<_, Rest/binary>>, N, Config=#config{dirty_strings=true}) ->
 count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
 count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#800 ->
     count(Rest, N + 2, Config);
-count(<<X/utf8, _/binary>>, N, _) when X == 16#2028; X == 16#2029 -> N;
+%% u+2028
+count(<<226, 128, 168, _/binary>>, N, _) -> N;
+%% u+2029
+count(<<226, 128, 169, _/binary>>, N, _) -> N;
 count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#10000 ->
     count(Rest, N + 3, Config);
 count(<<_/utf8, Rest/binary>>, N, Config) ->
@@ -944,6 +980,8 @@ comment(Bin, Handler, Resume, Stack, Config) ->
 
 maybe_done(<<Rest/binary>>, Handler, [], Config) ->
     done(Rest, handle_event(end_json, Handler, Config), [], Config);
+maybe_done(<<?space, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, Handler, Stack, Config);
 maybe_done(<<?end_object, Rest/binary>>, Handler, [object|Stack], Config) ->
     maybe_done(Rest, handle_event(end_object, Handler, Config), Stack, Config);
 maybe_done(<<?end_array, Rest/binary>>, Handler, [array|Stack], Config) ->
@@ -952,7 +990,11 @@ maybe_done(<<?comma, Rest/binary>>, Handler, [object|Stack], Config) ->
     key(Rest, Handler, [key|Stack], Config);
 maybe_done(<<?comma, Rest/binary>>, Handler, [array|_] = Stack, Config) ->
     value(Rest, Handler, Stack, Config);
-maybe_done(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_whitespace(S) ->
+maybe_done(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, Handler, Stack, Config);
+maybe_done(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, Handler, Stack, Config);
+maybe_done(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, Handler, Stack, Config);
 maybe_done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(maybe_done, <<?solidus, Rest/binary>>, Handler, Stack, Config);
@@ -968,7 +1010,13 @@ maybe_done(Bin, Handler, Stack, Config) ->
     ?error(maybe_done, Bin, Handler, Stack, Config).
 
 
-done(<<S, Rest/binary>>, Handler, [], Config) when ?is_whitespace(S) ->
+done(<<?space, Rest/binary>>, Handler, [], Config) ->
+    done(Rest, Handler, [], Config);
+done(<<?newline, Rest/binary>>, Handler, [], Config) ->
+    done(Rest, Handler, [], Config);
+done(<<?tab, Rest/binary>>, Handler, [], Config) ->
+    done(Rest, Handler, [], Config);
+done(<<?cr, Rest/binary>>, Handler, [], Config) ->
     done(Rest, Handler, [], Config);
 done(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
     ?error(done, <<?solidus, Rest/binary>>, Handler, Stack, Config);
