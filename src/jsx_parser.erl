@@ -451,13 +451,16 @@ count(<<126, Rest/binary>>, N, Config) ->
 count(<<127, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
-count(<<X/utf8, _/binary>>, N, _) when X == 16#2028; X == 16#2029 -> N;
-count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#800 ->
-    count(Rest, N + 2, Config);
-count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#10000 ->
-    count(Rest, N + 3, Config);
-count(<<_/utf8, Rest/binary>>, N, Config) ->
-    count(Rest, N + 4, Config);
+%% u+2028
+count(<<226, 128, 168, _/binary>>, N, _) -> N;
+%% u+2029
+count(<<226, 128, 169, _/binary>>, N, _) -> N;
+count(<<X/utf8, Rest/binary>>, N, Config) ->
+    case X of
+        X when X < 16#800 -> count(Rest, N + 2, Config);
+        X when X < 16#10000 -> count(Rest, N + 3, Config);
+        _ -> count(Rest, N + 4, Config)
+    end;
 count(<<_, _/binary>>, N, _) -> N.
 
 
