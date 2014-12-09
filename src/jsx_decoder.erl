@@ -58,12 +58,7 @@ resume(Rest, State, Handler, Acc, Stack, Config) ->
         colon -> colon(Rest, Handler, Stack, Config);
         key -> key(Rest, Handler, Stack, Config);
         string -> string(Rest, Handler, Acc, Stack, Config);
-        integer -> integer(Rest, Handler, Acc, Stack, Config);
-        decimal -> decimal(Rest, Handler, Acc, Stack, Config);
-        e -> e(Rest, Handler, Acc, Stack, Config);
-        ex -> ex(Rest, Handler, Acc, Stack, Config);
-        exp -> exp(Rest, Handler, Acc, Stack, Config);
-        zero -> zero(Rest, Handler, Acc, Stack, Config);
+        number -> number(Rest, Handler, Acc, Stack, Config);
         true -> true(Rest, Handler, Stack, Config);
         false -> false(Rest, Handler, Stack, Config);
         null -> null(Rest, Handler, Stack, Config);
@@ -188,27 +183,27 @@ value(<<$f, $a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
 value(<<$n, $u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, null}, Handler, Config), Stack, Config);
 value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
-    zero(Rest, Handler, [$0], Stack, Config);
+    number(Rest, Handler, [?zero], [zero|Stack], Config);
 value(<<$1, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$1], Stack, Config);
+    number(Rest, Handler, [$1], [integer|Stack], Config);
 value(<<$2, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$2], Stack, Config);
+    number(Rest, Handler, [$2], [integer|Stack], Config);
 value(<<$3, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$3], Stack, Config);
+    number(Rest, Handler, [$3], [integer|Stack], Config);
 value(<<$4, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$4], Stack, Config);
+    number(Rest, Handler, [$4], [integer|Stack], Config);
 value(<<$5, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$5], Stack, Config);
+    number(Rest, Handler, [$5], [integer|Stack], Config);
 value(<<$6, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$6], Stack, Config);
+    number(Rest, Handler, [$6], [integer|Stack], Config);
 value(<<$7, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$7], Stack, Config);
+    number(Rest, Handler, [$7], [integer|Stack], Config);
 value(<<$8, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$8], Stack, Config);
+    number(Rest, Handler, [$8], [integer|Stack], Config);
 value(<<$9, Rest/binary>>, Handler, Stack, Config) ->
-    integer(Rest, Handler, [$9], Stack, Config);
+    number(Rest, Handler, [$9], [integer|Stack], Config);
 value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
-    negative(Rest, Handler, [$-], Stack, Config);
+    number(Rest, Handler, [$-], [negative|Stack], Config);
 value(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
@@ -384,9 +379,9 @@ string(<<239, 191, 190, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, <<16#fffe/utf8>>], Stack, Config);
 string(<<239, 191, 191, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, <<16#ffff/utf8>>], Stack, Config);
-%% partial utf8 codepoints
 string(<<>>, Handler, Acc, Stack, Config) ->
     incomplete(string, <<>>, Handler, Acc, Stack, Config);
+%% partial utf8 codepoints
 string(<<X>>, Handler, Acc, Stack, Config) when X >= 2#11000000 ->
     incomplete(string, <<X>>, Handler, Acc, Stack, Config);
 string(<<X, Y>>, Handler, Acc, Stack, Config) when X >= 2#11100000, Y >= 2#10000000 ->
@@ -849,98 +844,173 @@ to_hex(15) -> $f;
 to_hex(X) -> X + 48.
 
 
-%% like in strings, there's some pseudo states in here that will never
-%%  show up in incompletes. some show up in value, some show up in
-%%  integer, decimal or exp
-negative(<<$0, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    zero(Rest, Handler, [Acc, $0], Stack, Config);
-negative(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [Acc, S], Stack, Config);
-negative(<<>>, Handler, [?negative], Stack, Config) ->
-    incomplete(value, <<?negative>>, Handler, Stack, Config);
-negative(Bin, Handler, Acc, Stack, Config) ->
-    ?error(negative, Bin, Handler, Acc, Stack, Config).
+number(<<$e, Rest/binary>>, Handler, Acc, [integer|Stack], Config) ->
+    number(Rest, Handler, [Acc, $., $0, $e], [e|Stack], Config);
+number(<<$E, Rest/binary>>, Handler, Acc, [integer|Stack], Config) ->
+    number(Rest, Handler, [Acc, $., $0, $e], [e|Stack], Config);
+number(<<$e, Rest/binary>>, Handler, Acc, [zero|Stack], Config) ->
+    number(Rest, Handler, [Acc, $., $0, $e], [e|Stack], Config);
+number(<<$E, Rest/binary>>, Handler, Acc, [zero|Stack], Config) ->
+    number(Rest, Handler, [Acc, $., $0, $e], [e|Stack], Config);
+number(<<>>, Handler, Acc, [State|Stack], Config=#config{stream=false}) ->
+    NumType = case State of
+        zero -> integer;
+        integer -> integer;
+        decimal -> float;
+        exp -> float
+    end,
+    finish_number(<<>>, Handler, {NumType, iolist_to_binary(Acc)}, Stack, Config);
+number(<<>>, Handler, Acc, Stack, Config) ->
+    incomplete(number, <<>>, Handler, Acc, Stack, Config);
+number(Bin, Handler, Acc, [State|Stack], Config) ->
+    Counted = case State of
+        zero -> zero(Bin, 0);
+        integer -> integer(Bin, 0);
+        negative -> negative(Bin, 0);
+        initialdecimal -> initialdecimal(Bin, 0);
+        decimal -> decimal(Bin, 0);
+        e -> e(Bin, 0);
+        ex -> ex(Bin, 0);
+        exp -> exp(Bin, 0)
+    end,
+    case Counted of
+        {finish_integer, Size} ->
+            <<Clean:Size/binary, Rest/binary>> = Bin,
+            finish_number(Rest, Handler, {integer, iolist_to_binary([Acc, Clean])}, Stack, Config);
+        {finish_float, Size} ->
+            <<Clean:Size/binary, Rest/binary>> = Bin,
+            finish_number(Rest, Handler, {float, iolist_to_binary([Acc, Clean])}, Stack, Config);
+        {error, Size} ->
+            <<Clean:Size/binary, Rest/binary>> = Bin,
+            ?error(number, Rest, Handler, [Acc, Clean], Stack, Config);
+        {NewState, Size} ->
+            <<Clean:Size/binary, Rest/binary>> = Bin,
+            number(Rest, Handler, [Acc, Clean], [NewState|Stack], Config)
+    end.
 
 
-zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    decimal(Rest, Handler, [Acc, ?decimalpoint], Stack, Config);
-zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [Acc, ".0e"], Stack, Config);
-zero(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {zero, iolist_to_binary(Acc)}, Stack, Config).
+zero(<<?decimalpoint, Rest/binary>>, N) -> initialdecimal(Rest, N + 1);
+zero(<<>>, N) -> {zero, N};
+zero(_, N) -> {finish_integer, N}.
 
 
-integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    integer(Rest, Handler, [Acc, S], Stack, Config);
-integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
-    initialdecimal(Rest, Handler, [Acc, ?decimalpoint], Stack, Config);
-integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [Acc, ".0e"], Stack, Config);
-integer(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {integer, iolist_to_binary(Acc)}, Stack, Config).
+integer(<<$0, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$1, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$2, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$3, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$4, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$5, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$6, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$7, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$8, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<$9, Rest/binary>>, N) -> integer(Rest, N + 1);
+integer(<<?decimalpoint, Rest/binary>>, N) -> initialdecimal(Rest, N + 1);
+integer(<<$e, _/binary>>, N) -> {integer, N};
+integer(<<$E, _/binary>>, N) -> {integer, N};
+integer(<<>>, N) -> {integer, N};
+integer(_, N) -> {finish_integer, N}.
 
 
-initialdecimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Handler, [Acc, S], Stack, Config);
-initialdecimal(<<>>, Handler, Acc, Stack, Config) ->
-    [?decimalpoint|Rest] = lists:reverse(Acc),
-    incomplete(integer, <<?decimalpoint>>, Handler, lists:reverse(Rest), Stack, Config);
-initialdecimal(Bin, Handler, Acc, Stack, Config) ->
-    ?error(initialdecimal, Bin, Handler, Acc, Stack, Config).
+negative(<<$0, Rest/binary>>, N) -> zero(Rest, N + 1);
+negative(<<$1, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$2, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$3, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$4, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$5, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$6, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$7, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$8, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<$9, Rest/binary>>, N) -> integer(Rest, N + 1);
+negative(<<>>, N) -> {negative, N};
+negative(_, N) -> {error, N}.
 
 
-decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    decimal(Rest, Handler, [Acc, S], Stack, Config);
-decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
-    e(Rest, Handler, [Acc, $e], Stack, Config);
-decimal(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {decimal, iolist_to_binary(Acc)}, Stack, Config).
+initialdecimal(<<$0, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$1, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$2, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$3, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$4, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$5, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$6, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$7, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$8, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<$9, Rest/binary>>, N) -> decimal(Rest, N + 1);
+initialdecimal(<<>>, N) -> {initialdecimal, N};
+initialdecimal(_, N) -> {error, N}.
 
 
-e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [Acc, S], Stack, Config);
-e(<<Sign, Rest/binary>>, Handler, Acc, Stack, Config) when Sign =:= ?positive; Sign =:= ?negative ->
-    ex(Rest, Handler, [Acc, Sign], Stack, Config);
-e(<<>>, Handler, Acc, Stack, Config) ->
-    incomplete(e, <<>>, Handler, Acc, Stack, Config);
-e(Bin, Handler, Acc, Stack, Config) ->
-    ?error(e, Bin, Handler, Acc, Stack, Config).
+decimal(<<$0, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$1, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$2, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$3, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$4, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$5, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$6, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$7, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$8, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$9, Rest/binary>>, N) -> decimal(Rest, N + 1);
+decimal(<<$e, Rest/binary>>, N) -> e(Rest, N + 1);
+decimal(<<$E, Rest/binary>>, N) -> e(Rest, N + 1);
+decimal(<<>>, N) -> {decimal, N};
+decimal(_, N) -> {finish_float, N}.
 
 
-ex(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [Acc, S], Stack, Config);
-ex(<<>>, Handler, Acc, Stack, Config) ->
-    incomplete(ex, <<>>, Handler, Acc, Stack, Config);
-ex(Bin, Handler, Acc, Stack, Config) ->
-    ?error(ex, Bin, Handler, Acc, Stack, Config).
+e(<<$0, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$1, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$2, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$3, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$4, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$5, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$6, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$7, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$8, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<$9, Rest/binary>>, N) -> exp(Rest, N + 1);
+e(<<?positive, Rest/binary>>, N) -> ex(Rest, N + 1);
+e(<<?negative, Rest/binary>>, N) -> ex(Rest, N + 1);
+e(<<>>, N) -> {e, N};
+e(_, N) -> {error, N}.
 
 
-exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
-    exp(Rest, Handler, [Acc, S], Stack, Config);
-exp(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {exp, iolist_to_binary(Acc)}, Stack, Config).
+ex(<<$0, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$1, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$2, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$3, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$4, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$5, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$6, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$7, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$8, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<$9, Rest/binary>>, N) -> exp(Rest, N + 1);
+ex(<<>>, N) -> {ex, N};
+ex(_, N) -> {error, N}.
 
 
-finish_number(Rest, Handler, Acc, [], Config=#config{stream=false}) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), [], Config);
-finish_number(<<>>, Handler, {NumType, Acc}, Stack, Config) ->
-    incomplete(NumType, <<>>, Handler, Acc, Stack, Config);
+exp(<<$0, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$1, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$2, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$3, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$4, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$5, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$6, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$7, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$8, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<$9, Rest/binary>>, N) -> exp(Rest, N + 1);
+exp(<<>>, N) -> {exp, N};
+exp(_, N) -> {finish_float, N}.
+
+
 finish_number(Rest, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
 
 
 -ifndef(no_binary_to_whatever).
-format_number({zero, Acc}) -> {integer, binary_to_integer(Acc)};
 format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
-format_number({decimal, Acc}) -> {float, binary_to_float(Acc)};
-format_number({exp, Acc}) -> {float, binary_to_float(Acc)}.
+format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
 -endif.
 
 -ifdef(no_binary_to_whatever).
-format_number({zero, Acc}) -> {integer, list_to_integer(unicode:characters_to_list(Acc))};
 format_number({integer, Acc}) -> {integer, list_to_integer(unicode:characters_to_list(Acc))};
-format_number({decimal, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))};
-format_number({exp, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))}.
+format_number({float, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))}.
 -endif.
 
 
