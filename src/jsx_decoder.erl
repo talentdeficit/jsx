@@ -181,26 +181,48 @@ value(<<?start_object, Rest/binary>>, Handler, Stack, Config) ->
     object(Rest, handle_event(start_object, Handler, Config), [key|Stack], Config);
 value(<<?start_array, Rest/binary>>, Handler, Stack, Config) ->
     array(Rest, handle_event(start_array, Handler, Config), [array|Stack], Config);
+value(<<$t, $r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
+value(<<$f, $a, $l, $s, $e, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, handle_event({literal, false}, Handler, Config), Stack, Config);
+value(<<$n, $u, $l, $l, Rest/binary>>, Handler, Stack, Config) ->
+    maybe_done(Rest, handle_event({literal, null}, Handler, Config), Stack, Config);
+value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
+    zero(Rest, Handler, [$0], Stack, Config);
+value(<<$1, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$1], Stack, Config);
+value(<<$2, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$2], Stack, Config);
+value(<<$3, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$3], Stack, Config);
+value(<<$4, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$4], Stack, Config);
+value(<<$5, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$5], Stack, Config);
+value(<<$6, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$6], Stack, Config);
+value(<<$7, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$7], Stack, Config);
+value(<<$8, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$8], Stack, Config);
+value(<<$9, Rest/binary>>, Handler, Stack, Config) ->
+    integer(Rest, Handler, [$9], Stack, Config);
+value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
+    negative(Rest, Handler, [$-], Stack, Config);
+value(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
+    value(Rest, Handler, Stack, Config);
 value(<<$t, Rest/binary>>, Handler, Stack, Config) ->
     true(Rest, Handler, Stack, Config);
 value(<<$f, Rest/binary>>, Handler, Stack, Config) ->
     false(Rest, Handler, Stack, Config);
 value(<<$n, Rest/binary>>, Handler, Stack, Config) ->
     null(Rest, Handler, Stack, Config);
-value(<<?negative, Rest/binary>>, Handler, Stack, Config) ->
-    negative(Rest, Handler, [$-], Stack, Config);
-value(<<?zero, Rest/binary>>, Handler, Stack, Config) ->
-    zero(Rest, Handler, [$0], Stack, Config);
-value(<<?newline, Rest/binary>>, Handler, Stack, Config) ->
-    value(Rest, Handler, Stack, Config);
 value(<<?tab, Rest/binary>>, Handler, Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 value(<<?cr, Rest/binary>>, Handler, Stack, Config) ->
     value(Rest, Handler, Stack, Config);
 value(<<?singlequote, Rest/binary>>, Handler, Stack, Config=#config{strict_single_quotes=false}) ->
     string(Rest, Handler, [singlequote|Stack], Config);
-value(<<S, Rest/binary>>, Handler, Stack, Config) when ?is_nonzero(S) ->
-    integer(Rest, Handler, [S], Stack, Config);
 value(<<?end_array, _/binary>> = Rest, Handler, Stack, Config=#config{strict_commas=false}) ->
     maybe_done(Rest, Handler, Stack, Config);
 value(<<?solidus, Rest/binary>>, Handler, Stack, Config=#config{strict_comments=true}) ->
@@ -845,7 +867,7 @@ zero(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
 zero(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [Acc, ".0e"], Stack, Config);
 zero(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {zero, lists:flatten(Acc)}, Stack, Config).
+    finish_number(Bin, Handler, {zero, iolist_to_binary(Acc)}, Stack, Config).
 
 
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -855,7 +877,7 @@ integer(<<?decimalpoint, Rest/binary>>, Handler, Acc, Stack, Config) ->
 integer(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [Acc, ".0e"], Stack, Config);
 integer(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {integer, lists:flatten(Acc)}, Stack, Config).
+    finish_number(Bin, Handler, {integer, iolist_to_binary(Acc)}, Stack, Config).
 
 
 initialdecimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -872,7 +894,7 @@ decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_n
 decimal(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= $e; S =:= $E ->
     e(Rest, Handler, [Acc, $e], Stack, Config);
 decimal(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {decimal, lists:flatten(Acc)}, Stack, Config).
+    finish_number(Bin, Handler, {decimal, iolist_to_binary(Acc)}, Stack, Config).
 
 
 e(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
@@ -896,7 +918,7 @@ ex(Bin, Handler, Acc, Stack, Config) ->
 exp(<<S, Rest/binary>>, Handler, Acc, Stack, Config) when S =:= ?zero; ?is_nonzero(S) ->
     exp(Rest, Handler, [Acc, S], Stack, Config);
 exp(Bin, Handler, Acc, Stack, Config) ->
-    finish_number(Bin, Handler, {exp, lists:flatten(Acc)}, Stack, Config).
+    finish_number(Bin, Handler, {exp, iolist_to_binary(Acc)}, Stack, Config).
 
 
 finish_number(Rest, Handler, Acc, [], Config=#config{stream=false}) ->
@@ -907,10 +929,10 @@ finish_number(Rest, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
 
 
-format_number({zero, Acc}) -> {integer, list_to_integer(Acc)};
-format_number({integer, Acc}) -> {integer, list_to_integer(Acc)};
-format_number({decimal, Acc}) -> {float, list_to_float(Acc)};
-format_number({exp, Acc}) -> {float, list_to_float(Acc)}.
+format_number({zero, Acc}) -> {integer, binary_to_integer(Acc)};
+format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
+format_number({decimal, Acc}) -> {float, binary_to_float(Acc)};
+format_number({exp, Acc}) -> {float, binary_to_float(Acc)}.
 
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
