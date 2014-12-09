@@ -169,13 +169,13 @@ start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
 
 %% finish an object or array and insert it into the parent object if it exists or
-%%  return it if it is the root object
+%% return it if it is the root object
 finish({[{object, []}], Config}) -> {[{}], Config};
 finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
-finish({[{object, Pairs}], Config}) -> {flatify(Pairs), Config};
-finish({[{object, Pairs}|Rest], Config}) -> insert(flatify(Pairs), {Rest, Config});
-finish({[{array, Values}], Config}) -> {flatify(Values), Config};
-finish({[{array, Values}|Rest], Config}) -> insert(flatify(Values), {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
 finish(_) -> erlang:error(badarg).
 
 
@@ -185,9 +185,9 @@ insert(Value, {[], Config}) -> {Value, Config};
 insert(Key, {[{object, Pairs}|Rest], Config}) ->
     {[{object, Key, Pairs}] ++ Rest, Config};
 insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
-    {[{object, [Pairs, {Key, Value}]}] ++ Rest, Config};
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
 insert(Value, {[{array, Values}|Rest], Config}) ->
-    {[{array, [Values, Value]}] ++ Rest, Config};
+    {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
 -endif.
 
@@ -205,17 +205,15 @@ start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
 
 %% finish an object or array and insert it into the parent object if it exists or
-%%  return it if it is the root object
-finish({[{object, Map}], Config=#config{return_maps=true}}) ->
-    {Map, Config};
-finish({[{object, Map}|Rest], Config=#config{return_maps=true}}) ->
-    insert(Map, {Rest, Config});
+%% return it if it is the root object
+finish({[{object, Map}], Config=#config{return_maps=true}}) -> {Map, Config};
+finish({[{object, Map}|Rest], Config=#config{return_maps=true}}) -> insert(Map, {Rest, Config});
 finish({[{object, []}], Config}) -> {[{}], Config};
 finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
-finish({[{object, Pairs}], Config}) -> {flatify(Pairs), Config};
-finish({[{object, Pairs}|Rest], Config}) -> insert(flatify(Pairs), {Rest, Config});
-finish({[{array, Values}], Config}) -> {flatify(Values), Config};
-finish({[{array, Values}|Rest], Config}) -> insert(flatify(Values), {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
 finish(_) -> erlang:error(badarg).
 
 
@@ -229,9 +227,9 @@ insert(Key, {[{object, Pairs}|Rest], Config}) ->
 insert(Value, {[{object, Key, Map}|Rest], Config=#config{return_maps=true}}) ->
     {[{object, maps:put(Key, Value, Map)}] ++ Rest, Config};
 insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
-    {[{object, [Pairs, {Key, Value}]}] ++ Rest, Config};
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
 insert(Value, {[{array, Values}|Rest], Config}) ->
-    {[{array, [Values, Value]}] ++ Rest, Config};
+    {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
 -endif.
 
@@ -340,32 +338,32 @@ rep_manipulation_test_() ->
             get_key({[{array, []}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
-            {[{object, [[], {key, value}]}, junk], #config{}},
+            {[{object, [{key, value}]}, junk], #config{}},
             insert(value, {[{object, key, []}, junk], #config{}})
         )},
         {"insert a value into an array", ?_assertEqual(
-            {[{array, [[], value]}, junk], #config{}},
+            {[{array, [value]}, junk], #config{}},
             insert(value, {[{array, []}, junk], #config{}})
         )},
         {"finish an object with no ancestor", ?_assertEqual(
-            {[{x, y}, {a, b}], #config{}},
-            finish({[{object, [[[], {x, y}], {a, b}]}], #config{}})
+            {[{a, b}, {x, y}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}], #config{}})
         )},
         {"finish an empty object", ?_assertEqual(
             {[{}], #config{}},
             finish({[{object, []}], #config{}})
         )},
         {"finish an object with an ancestor", ?_assertEqual(
-            {[{object, [[[], {foo, bar}], {key, [{x, y}, {a, b}]}]}], #config{}},
-            finish({[{object, [[[], {x, y}], {a, b}]}, {object, key, [[], {foo, bar}]}], #config{}})
+            {[{object, [{key, [{a, b}, {x, y}]}, {foo, bar}]}], #config{}},
+            finish({[{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}], #config{}})
         )},
         {"finish an array with no ancestor", ?_assertEqual(
             {[a, b, c], #config{}},
-            finish({[{array, [[[[], a], b], c]}], #config{}})
+            finish({[{array, [c, b, a]}], #config{}})
         )},
         {"finish an array with an ancestor", ?_assertEqual(
-            {[{array,[[[[[],d],e],f],[a,b,c]]}], #config{}},
-            finish({[{array, [[[[], a], b], c]}, {array, [[[[], d], e], f]}], #config{}})
+            {[{array, [[a, b, c], d, e, f]}], #config{}},
+            finish({[{array, [c, b, a]}, {array, [d, e, f]}], #config{}})
         )}
     ].
 
