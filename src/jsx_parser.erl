@@ -471,50 +471,43 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
-maybe_replace($\b, #config{escaped_strings=true}) ->
-    [$\\, $b];
-maybe_replace($\t, #config{escaped_strings=true}) ->
-    [$\\, $t];
-maybe_replace($\n, #config{escaped_strings=true}) ->
-    [$\\, $n];
-maybe_replace($\f, #config{escaped_strings=true}) ->
-    [$\\, $f];
-maybe_replace($\r, #config{escaped_strings=true}) ->
-    [$\\, $r];
-maybe_replace($\", #config{escaped_strings=true}) ->
-    [$\\, $\"];
+maybe_replace($\b, #config{escaped_strings=true}) -> <<$\\, $b>>;
+maybe_replace($\t, #config{escaped_strings=true}) -> <<$\\, $t>>;
+maybe_replace($\n, #config{escaped_strings=true}) -> <<$\\, $n>>;
+maybe_replace($\f, #config{escaped_strings=true}) -> <<$\\, $f>>;
+maybe_replace($\r, #config{escaped_strings=true}) -> <<$\\, $r>>;
+maybe_replace($\", #config{escaped_strings=true}) -> <<$\\, $\">>;
 maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
-        true -> [$\\, $/];
-        false -> [$/]
+        true -> <<$\\, $/>>;
+        false -> <<$/>>
     end;
-maybe_replace($\\, #config{escaped_strings=true}) ->
-    [$\\, $\\];
+maybe_replace($\\, #config{escaped_strings=true}) -> <<$\\, $\\>>;
 maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
     json_escape_sequence(X);
 maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
-        true -> [<<X/utf8>>];
+        true -> <<X/utf8>>;
         false -> json_escape_sequence(X)
     end;
 maybe_replace(Atom, #config{strict_utf8=true}) when is_atom(Atom) ->
     erlang:error(badarg);
 maybe_replace(surrogate, _Config) ->
-    [<<16#fffd/utf8>>];
+    <<16#fffd/utf8>>;
 maybe_replace(badutf, _Config) ->
-    [<<16#fffd/utf8>>];
+    <<16#fffd/utf8>>;
 maybe_replace(X, _Config) ->
-    [<<X/utf8>>].
+    <<X/utf8>>.
 
 
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) when X < 65536 ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))];
+    <<$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>;
 json_escape_sequence(X) ->
     Adjusted = X - 16#10000,
     <<A:10, B:10>> = <<Adjusted:20>>,
-    json_escape_sequence(A + 16#d800) ++ json_escape_sequence(B + 16#dc00).
+    [json_escape_sequence(A + 16#d800), json_escape_sequence(B + 16#dc00)].
 
 
 to_hex(10) -> $a;
@@ -1030,9 +1023,9 @@ bad_utf8_test_() ->
 
 json_escape_sequence_test_() ->
     [
-        {"json escape sequence test - 16#0000", ?_assertEqual(json_escape_sequence(16#0000), "\\u0000")},
-        {"json escape sequence test - 16#abc", ?_assertEqual(json_escape_sequence(16#abc), "\\u0abc")},
-        {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
+        {"json escape sequence test - 16#0000", ?_assertEqual(<<"\\u0000"/utf8>>, json_escape_sequence(16#0000))},
+        {"json escape sequence test - 16#abc", ?_assertEqual(<<"\\u0abc"/utf8>>, json_escape_sequence(16#abc))},
+        {"json escape sequence test - 16#def", ?_assertEqual(<<"\\u0def"/utf8>>, json_escape_sequence(16#def))}
     ].
 
 

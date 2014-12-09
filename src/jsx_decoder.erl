@@ -726,9 +726,9 @@ strip_continuations(<<Rest/binary>>, Handler, Acc, Stack, Config, _) ->
 %% this all gets really gross and should probably eventually be folded into
 %%  but for now it fakes being part of string on incompletes and errors
 unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(<<?rsolidus, Rest/binary>>, Handler, [Acc, ?rsolidus], Stack, Config);
+    string(<<?rsolidus, Rest/binary>>, Handler, [Acc, <<?rsolidus>>], Stack, Config);
 unescape(<<C, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
-    string(Rest, Handler, [Acc, ?rsolidus, C], Stack, Config);
+    string(Rest, Handler, [Acc, <<?rsolidus, C>>], Stack, Config);
 unescape(<<$b, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace($\b, Config)], Stack, Config);
 unescape(<<$f, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -742,7 +742,7 @@ unescape(<<$t, Rest/binary>>, Handler, Acc, Stack, Config) ->
 unescape(<<?doublequote, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace($\", Config)], Stack, Config);
 unescape(<<?singlequote, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_single_quotes=false}) ->
-    string(Rest, Handler, [Acc, ?singlequote], Stack, Config);
+    string(Rest, Handler, [Acc, <<?singlequote>>], Stack, Config);
 unescape(<<?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace($\\, Config)], Stack, Config);
 unescape(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -793,7 +793,7 @@ unescape(Bin, Handler, Acc, Stack, Config) ->
         true -> incomplete(string, <<?rsolidus/utf8, Bin/binary>>, Handler, Acc, Stack, Config);
         false -> case Config#config.strict_escapes of
                 true -> ?error(string, <<?rsolidus, Bin/binary>>, Handler, Acc, Stack, Config);
-                false -> string(Bin, Handler, [Acc, ?rsolidus], Stack, Config)
+                false -> string(Bin, Handler, [Acc, <<?rsolidus>>], Stack, Config)
             end
     end.
 
@@ -806,19 +806,19 @@ is_partial_escape(<<>>) -> true;
 is_partial_escape(_) -> false.
 
 
-maybe_replace(C, #config{dirty_strings=true}) -> C;
-maybe_replace($\b, #config{escaped_strings=true}) -> [$\\, $b];
-maybe_replace($\t, #config{escaped_strings=true}) -> [$\\, $t];
-maybe_replace($\n, #config{escaped_strings=true}) -> [$\\, $n];
-maybe_replace($\f, #config{escaped_strings=true}) -> [$\\, $f];
-maybe_replace($\r, #config{escaped_strings=true}) -> [$\\, $r];
-maybe_replace($\", #config{escaped_strings=true}) -> [$\\, $\"];
+maybe_replace(C, #config{dirty_strings=true}) -> <<C>>;
+maybe_replace($\b, #config{escaped_strings=true}) -> <<$\\, $b>>;
+maybe_replace($\t, #config{escaped_strings=true}) -> <<$\\, $t>>;
+maybe_replace($\n, #config{escaped_strings=true}) -> <<$\\, $n>>;
+maybe_replace($\f, #config{escaped_strings=true}) -> <<$\\, $f>>;
+maybe_replace($\r, #config{escaped_strings=true}) -> <<$\\, $r>>;
+maybe_replace($\", #config{escaped_strings=true}) -> <<$\\, $\">>;
 maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
-        true -> [$\\, $/]
-        ; false -> $/
+        true -> <<$\\, $/>>
+        ; false -> <<$/>>
     end;
-maybe_replace($\\, #config{escaped_strings=true}) -> [$\\, $\\];
+maybe_replace($\\, #config{escaped_strings=true}) -> <<$\\, $\\>>;
 maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
         true -> <<X/utf8>>
@@ -832,11 +832,11 @@ maybe_replace(X, _Config) -> <<X/utf8>>.
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) when X < 65536 ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))];
+    <<$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>;
 json_escape_sequence(X) ->
     Adjusted = X - 16#10000,
     <<A:10, B:10>> = <<Adjusted:20>>,
-    json_escape_sequence(A + 16#d800) ++ json_escape_sequence(B + 16#dc00).
+    [json_escape_sequence(A + 16#d800), json_escape_sequence(B + 16#dc00)].
 
 
 %% ascii "1" is [49], "2" is [50], etc...
