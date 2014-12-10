@@ -23,7 +23,7 @@
 
 -module(jsx_to_term).
 
--export([to_term/2, flatify/1]).
+-export([to_term/2]).
 -export([init/1, handle_event/2]).
 -export([
     start_term/1,
@@ -240,14 +240,6 @@ get_key(_) -> erlang:error(badarg).
 
 get_value({Value, _Config}) -> Value;
 get_value(_) -> erlang:error(badarg).
-
-
-%% we know the structure of our accumulator so we can safely
-%%  flatten like this
-flatify(List) -> flatify(List, []).
-%% head of list should always be []
-flatify([], Tail) -> Tail;
-flatify([H, T], Tail) -> flatify(H, [T] ++ Tail).
 
 
 
