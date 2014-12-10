@@ -1,4 +1,4 @@
-# jsx (v2.3.1) #
+# jsx (v2.4) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -386,10 +386,6 @@ additional options beyond these. see
     unaltered. this flag escapes strings as if for output in json, removing 
     control codes and problematic codepoints and replacing them with the 
     appropriate escapes
-
-- `repeat_keys`
-
-    this flag circumvents checking for repeated keys in generated json
 
 - `stream`
 

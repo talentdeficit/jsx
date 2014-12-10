@@ -1,3 +1,8 @@
+v2.4.0
+
+* enough performance improvements to justify a new version. 2-3x
+  speedup depending on mode of operation
+
 v2.3.1
 
 * fixes an issue where astral plane json escape sequences were

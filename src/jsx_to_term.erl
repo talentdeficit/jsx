@@ -23,10 +23,17 @@
 
 -module(jsx_to_term).
 
--export([to_term/2]).
+-export([to_term/2, flatify/1]).
 -export([init/1, handle_event/2]).
--export([start_term/0, start_term/1]).
--export([start_object/1, start_array/1, finish/1, insert/2, insert/3, get_key/1, get_value/1]).
+-export([
+    start_term/1,
+    start_object/1,
+    start_array/1,
+    finish/1,
+    insert/2,
+    get_key/1,
+    get_value/1
+]).
 
 
 -record(config, {
@@ -37,15 +44,27 @@
 -type config() :: list().
 -export_type([config/0]).
 
-
--type json_value() :: list({binary(), json_value()})
-    | list(json_value())
+-ifndef(maps_support).
+-type json_value() :: list(json_value())
+    | list({binary() | atom(), json_value()})
     | true
     | false
     | null
     | integer()
     | float()
     | binary().
+-endif.
+
+-ifdef(maps_support).
+-type json_value() :: list(json_value())
+    | map()
+    | true
+    | false
+    | null
+    | integer()
+    | float()
+    | binary().
+-endif.
 
 
 -spec to_term(Source::binary(), Config::config()) -> json_value().
@@ -79,10 +98,11 @@ parse_config([K|Rest] = Options, Config) ->
 parse_config([], Config) ->
     Config.
 
--type state() :: {[any()], #config{}}.
+
+-type state() :: {list(), #config{}}.
 -spec init(Config::proplists:proplist()) -> state().
 
-init(Config) -> {[], parse_config(Config)}.
+init(Config) -> start_term(Config).
 
 -spec handle_event(Event::any(), State::state()) -> state().
 
@@ -118,47 +138,46 @@ format_key(Key, Config) ->
 %% the stack is a list of in progress objects/arrays
 %%  `[Current, Parent, Grandparent,...OriginalAncestor]`
 %% an object has the representation on the stack of
-%%  `{object, [{NthKey, NthValue}, {NMinus1Key, NthMinus1Value},...{FirstKey, FirstValue}]}`
-%% of if there's a key with a yet to be matched value
-%%  `{object, Key, [{NthKey, NthValue},...]}`
+%%  `{object, [
+%%    {NthKey, NthValue},
+%%    {NMinus1Key, NthMinus1Value},
+%%    ...,
+%%    {FirstKey, FirstValue}
+%%  ]}`
+%% or if returning maps
+%%  `{object, #{
+%%    FirstKey => FirstValue,
+%%    SecondKey => SecondValue,
+%%    ...,
+%%    NthKey => NthValue
+%%  }}`
+%% or if there's a key with a yet to be matched value
+%%  `{object, Key, ...}`
 %% an array looks like
 %%  `{array, [NthValue, NthMinus1Value,...FirstValue]}`
 
-start_term() -> {[], #config{}}.
-
 start_term(Config) when is_list(Config) -> {[], parse_config(Config)}.
 
+
+-ifndef(maps_support).
 %% allocate a new object on top of the stack
 start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
+
 
 %% allocate a new array on top of the stack
 start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
--ifndef(maps_support).
-finish(Any) -> finish0(Any).
--endif.
-
--ifdef(maps_support).
-finish({[{object, []}], Config=#config{return_maps=true}}) ->
-    {#{}, Config};
-finish({[{object, []}|Rest], Config=#config{return_maps=true}}) ->
-    insert(#{}, {Rest, Config});
-finish({[{object, Pairs}], Config=#config{return_maps=true}}) ->
-    {maps:from_list(Pairs), Config};
-finish({[{object, Pairs}|Rest], Config=#config{return_maps=true}}) ->
-    insert(maps:from_list(Pairs), {Rest, Config});
-finish(Else) -> finish0(Else).
--endif.
 
 %% finish an object or array and insert it into the parent object if it exists or
-%%  return it if it is the root object
-finish0({[{object, []}], Config}) -> {[{}], Config};
-finish0({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
-finish0({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
-finish0({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
-finish0({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
-finish0({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
-finish0(_) -> erlang:error(badarg).
+%% return it if it is the root object
+finish({[{object, []}], Config}) -> {[{}], Config};
+finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
+finish(_) -> erlang:error(badarg).
+
 
 %% insert a value when there's no parent object or array
 insert(Value, {[], Config}) -> {Value, Config};
@@ -170,11 +189,49 @@ insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
 insert(Value, {[{array, Values}|Rest], Config}) ->
     {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
+-endif.
 
-%% insert a key/value pair into an object
-insert(Key, Value, {[{object, Pairs}|Rest], Config}) ->
+
+-ifdef(maps_support).
+%% allocate a new object on top of the stack
+start_object({Stack, Config=#config{return_maps=true}}) ->
+    {[{object, #{}}] ++ Stack, Config};
+start_object({Stack, Config}) ->
+    {[{object, []}] ++ Stack, Config}.
+
+
+%% allocate a new array on top of the stack
+start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
+
+
+%% finish an object or array and insert it into the parent object if it exists or
+%% return it if it is the root object
+finish({[{object, Map}], Config=#config{return_maps=true}}) -> {Map, Config};
+finish({[{object, Map}|Rest], Config=#config{return_maps=true}}) -> insert(Map, {Rest, Config});
+finish({[{object, []}], Config}) -> {[{}], Config};
+finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
+finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
+finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
+finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
+finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
+finish(_) -> erlang:error(badarg).
+
+
+%% insert a value when there's no parent object or array
+insert(Value, {[], Config}) -> {Value, Config};
+%% insert a key or value into an object or array, autodetects the 'right' thing
+insert(Key, {[{object, Map}|Rest], Config=#config{return_maps=true}}) ->
+    {[{object, Key, Map}] ++ Rest, Config};
+insert(Key, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, Key, Pairs}] ++ Rest, Config};
+insert(Value, {[{object, Key, Map}|Rest], Config=#config{return_maps=true}}) ->
+    {[{object, maps:put(Key, Value, Map)}] ++ Rest, Config};
+insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
     {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
-insert(_, _, _) -> erlang:error(badarg).
+insert(Value, {[{array, Values}|Rest], Config}) ->
+    {[{array, [Value] ++ Values}] ++ Rest, Config};
+insert(_, _) -> erlang:error(badarg).
+-endif.
 
 
 get_key({[{object, Key, _}|_], _}) -> Key;
@@ -183,6 +240,15 @@ get_key(_) -> erlang:error(badarg).
 
 get_value({Value, _Config}) -> Value;
 get_value(_) -> erlang:error(badarg).
+
+
+%% we know the structure of our accumulator so we can safely
+%%  flatten like this
+flatify(List) -> flatify(List, []).
+%% head of list should always be []
+flatify([], Tail) -> Tail;
+flatify([H, T], Tail) -> flatify(H, [T] ++ Tail).
+
 
 
 %% eunit tests
@@ -235,10 +301,6 @@ format_key_test_() ->
 
 rep_manipulation_test_() ->
     [
-        {"allocate a new context", ?_assertEqual(
-            {[], #config{}},
-            start_term()
-        )},
         {"allocate a new context with option", ?_assertEqual(
             {[], #config{labels=atom}},
             start_term([{labels, atom}])
@@ -283,10 +345,6 @@ rep_manipulation_test_() ->
             {[{array, [value]}, junk], #config{}},
             insert(value, {[{array, []}, junk], #config{}})
         )},
-        {"insert a key/value pair into an object", ?_assertEqual(
-            {[{object, [{key, value}, {x, y}]}, junk], #config{}},
-            insert(key, value, {[{object, [{x, y}]}, junk], #config{}})
-        )},
         {"finish an object with no ancestor", ?_assertEqual(
             {[{a, b}, {x, y}], #config{}},
             finish({[{object, [{x, y}, {a, b}]}], #config{}})
@@ -309,7 +367,54 @@ rep_manipulation_test_() ->
         )}
     ].
 
+
 -ifdef(maps_support).
+rep_manipulation_with_maps_test_() ->
+    [
+        {"allocate a new object on an empty stack", ?_assertEqual(
+            {[{object, #{}}], #config{return_maps=true}},
+            start_object({[], #config{return_maps=true}})
+        )},
+        {"allocate a new object on a stack", ?_assertEqual(
+            {[{object, #{}}, {object, #{}}], #config{return_maps=true}},
+            start_object({[{object, #{}}], #config{return_maps=true}})
+        )},
+        {"insert a key into an object", ?_assertEqual(
+            {[{object, key, #{}}, junk], #config{return_maps=true}},
+            insert(key, {[{object, #{}}, junk], #config{return_maps=true}})
+        )},
+        {"get current key", ?_assertEqual(
+            key,
+            get_key({[{object, key, #{}}], #config{return_maps=true}})
+        )},
+        {"try to get non-key from object", ?_assertError(
+            badarg,
+            get_key({[{object, #{}}], #config{return_maps=true}})
+        )},
+        {"insert a value into an object", ?_assertEqual(
+            {[{object, #{key => value}}, junk], #config{return_maps=true}},
+            insert(value, {[{object, key, #{}}, junk], #config{return_maps=true}})
+        )},
+        {"finish an object with no ancestor", ?_assertEqual(
+            {#{a => b, x => y}, #config{return_maps=true}},
+            finish({[{object, #{x => y, a => b}}], #config{return_maps=true}})
+        )},
+        {"finish an empty object", ?_assertEqual(
+            {#{}, #config{return_maps=true}},
+            finish({[{object, #{}}], #config{return_maps=true}})
+        )},
+        {"finish an object with an ancestor", ?_assertEqual(
+            {
+                [{object, #{key => #{a => b, x => y}, foo => bar}}],
+                #config{return_maps=true}
+            },
+            finish({
+                [{object, #{x => y, a => b}}, {object, key, #{foo => bar}}],
+                #config{return_maps=true}
+            })
+        )}
+    ].
+
 
 return_maps_test_() ->
     [
@@ -334,7 +439,6 @@ return_maps_test_() ->
             jsx:decode(<<"[{}]">>, [return_maps])
         )}
     ].
-
 -endif.
 
 

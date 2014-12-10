@@ -87,36 +87,26 @@ incomplete(State, Handler, Stack, Config=#config{incomplete_handler=F}) ->
 handle_event(Event, {Handler, State}, _Config) -> {Handler, Handler:handle_event(Event, State)}.
 
 
-value([start_object|Tokens], Handler, Stack, Config) ->
-    object(Tokens, handle_event(start_object, Handler, Config), [{object, sets:new()}|Stack], Config);
-value([start_array|Tokens], Handler, Stack, Config) ->
-    array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
-value([{literal, Literal}|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
-    maybe_done(Tokens, handle_event({literal, Literal}, Handler, Config), Stack, Config);
-value([Literal|Tokens], Handler, Stack, Config) when Literal == true; Literal == false; Literal == null ->
-    value([{literal, Literal}] ++ Tokens, Handler, Stack, Config);
-value([{integer, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
-    maybe_done(Tokens, handle_event({integer, Number}, Handler, Config), Stack, Config);
-value([{float, Number}|Tokens], Handler, Stack, Config) when is_float(Number) ->
-    maybe_done(Tokens, handle_event({float, Number}, Handler, Config), Stack, Config);
-value([{number, Number}|Tokens], Handler, Stack, Config) when is_integer(Number) ->
-    value([{integer, Number}] ++ Tokens, Handler, Stack, Config);
-value([{number, Number}|Tokens], Handler, Stack, Config) when is_float(Number) ->
-    value([{float, Number}] ++ Tokens, Handler, Stack, Config);
-value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
-    value([{integer, Number}] ++ Tokens, Handler, Stack, Config);
-value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
-    value([{float, Number}] ++ Tokens, Handler, Stack, Config);
-value([{string, String}|Tokens], Handler, Stack, Config) when is_binary(String) ->
+value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
     try clean_string(String, Config) of Clean ->
         maybe_done(Tokens, handle_event({string, Clean}, Handler, Config), Stack, Config)
     catch error:badarg ->
         ?error(value, [{string, String}|Tokens], Handler, Stack, Config)
     end;
-value([String|Tokens], Handler, Stack, Config) when is_binary(String) ->
-    value([{string, String}] ++ Tokens, Handler, Stack, Config);
-value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
-    value([{string, atom_to_binary(String, utf8)}] ++ Tokens, Handler, Stack, Config);
+value([true|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, true}, Handler, Config), Stack, Config);
+value([false|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, false}, Handler, Config), Stack, Config);
+value([null|Tokens], Handler, Stack, Config) ->
+    maybe_done(Tokens, handle_event({literal, null}, Handler, Config), Stack, Config);
+value([start_object|Tokens], Handler, Stack, Config) ->
+    object(Tokens, handle_event(start_object, Handler, Config), [object|Stack], Config);
+value([start_array|Tokens], Handler, Stack, Config) ->
+    array(Tokens, handle_event(start_array, Handler, Config), [array|Stack], Config);
+value([Number|Tokens], Handler, Stack, Config) when is_integer(Number) ->
+    maybe_done(Tokens, handle_event({integer, Number}, Handler, Config), Stack, Config);
+value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
+    maybe_done(Tokens, handle_event({float, Number}, Handler, Config), Stack, Config);
 value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
     value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
 value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
@@ -129,6 +119,10 @@ when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_
         Stack,
         Config
     );
+value([{_, Value}|Tokens], Handler, Stack, Config) ->
+    value([Value] ++ Tokens, Handler, Stack, Config);
+value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
+    value([{string, atom_to_binary(String, utf8)}] ++ Tokens, Handler, Stack, Config);
 value([], Handler, Stack, Config) ->
     incomplete(value, Handler, Stack, Config);
 value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
@@ -136,35 +130,19 @@ value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 value(Token, Handler, Stack, Config) ->
     value([Token], Handler, Stack, Config).
 
-object([end_object|Tokens], Handler, [{object, _}|Stack], Config) ->
+object([end_object|Tokens], Handler, [object|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
 object([{key, Key}|Tokens], Handler, Stack, Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     object([Key|Tokens], Handler, Stack, Config);
-object([Key|Tokens], Handler, [{object, _Keys}|Stack], Config=#config{repeat_keys=true})
+object([Key|Tokens], Handler, [object|Stack], Config)
 when is_atom(Key); is_binary(Key); is_integer(Key) ->
     try clean_string(fix_key(Key), Config)
     of K ->
         value(
             Tokens,
             handle_event({key, K}, Handler, Config),
-            [{object, []}|Stack],
-            Config
-        )
-    catch error:badarg ->
-        ?error(object, [{string, Key}|Tokens], Handler, Stack, Config)
-    end;
-object([Key|Tokens], Handler, [{object, Keys}|Stack], Config)
-when is_atom(Key); is_binary(Key); is_integer(Key) ->
-    try
-        CleanKey = clean_string(fix_key(Key), Config),
-        case sets:is_element(CleanKey, Keys) of true -> erlang:error(badarg); _ -> ok end,
-        CleanKey
-    of K ->
-        value(
-            Tokens,
-            handle_event({key, K}, Handler, Config),
-            [{object, sets:add_element(K, Keys)}|Stack],
+            [object|Stack],
             Config
         )
     catch error:badarg ->
@@ -186,7 +164,7 @@ array(Token, Handler, Stack, Config) ->
 
 maybe_done([end_json], Handler, [], Config) ->
     done([end_json], Handler, [], Config);
-maybe_done(Tokens, Handler, [{object, _}|_] = Stack, Config) when is_list(Tokens) ->
+maybe_done(Tokens, Handler, [object|_] = Stack, Config) when is_list(Tokens) ->
     object(Tokens, Handler, Stack, Config);
 maybe_done(Tokens, Handler, [array|_] = Stack, Config) when is_list(Tokens) ->
     array(Tokens, Handler, Stack, Config);
@@ -219,35 +197,35 @@ clean_string(Bin, Config) -> clean(Bin, [], Config).
 
 clean(<<>>, Acc, _) -> iolist_to_binary(Acc);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#20 ->
-    maybe_replace(X, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(X, Config)], Config);
 clean(<<34, Rest/binary>>, Acc, Config) ->
-    maybe_replace(34, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(34, Config)], Config);
 clean(<<47, Rest/binary>>, Acc, Config) ->
-    maybe_replace(47, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(47, Config)], Config);
 clean(<<92, Rest/binary>>, Acc, Config) ->
-    maybe_replace(92, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(92, Config)], Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
-    maybe_replace(X, Rest, Acc, Config);
+    clean(Rest, [Acc, json_escape_sequence(X)], Config);
 clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
-    maybe_replace(X, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(X, Config)], Config);
 clean(<<_/utf8, _/binary>> = Bin, Acc, Config) ->
     Size = count(Bin, 0, Config),
     <<Clean:Size/binary, Rest/binary>> = Bin,
     clean(Rest, [Acc, Clean], Config);
 %% surrogates
 clean(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
-    maybe_replace(surrogate, Rest, Acc, Config);
+    clean(Rest, [Acc, maybe_replace(surrogate, Config)], Config);
 %% overlong encodings and missing continuations of a 2 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 192, X =< 223 ->
-    maybe_replace(badutf, strip_continuations(Rest, 1), Acc, Config);
+    clean(strip_continuations(Rest, 1), [Acc, maybe_replace(badutf, Config)], Config);
 %% overlong encodings and missing continuations of a 3 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 224, X =< 239 ->
-    maybe_replace(badutf, strip_continuations(Rest, 2), Acc, Config);
+    clean(strip_continuations(Rest, 2), [Acc, maybe_replace(badutf, Config)], Config);
 %% overlong encodings and missing continuations of a 4 byte sequence
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 240, X =< 247 ->
-    maybe_replace(badutf, strip_continuations(Rest, 3), Acc, Config);
+    clean(strip_continuations(Rest, 3), [Acc, maybe_replace(badutf, Config)], Config);
 clean(<<_, Rest/binary>>, Acc, Config) ->
-    maybe_replace(badutf, Rest, Acc, Config).
+    clean(Rest, [Acc, maybe_replace(badutf, Config)], Config).
 
 
 count(<<>>, N, _) -> N;
@@ -473,13 +451,16 @@ count(<<126, Rest/binary>>, N, Config) ->
 count(<<127, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
-count(<<X/utf8, _/binary>>, N, _) when X == 16#2028; X == 16#2029 -> N;
-count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#800 ->
-    count(Rest, N + 2, Config);
-count(<<X/utf8, Rest/binary>>, N, Config) when X < 16#10000 ->
-    count(Rest, N + 3, Config);
-count(<<_/utf8, Rest/binary>>, N, Config) ->
-    count(Rest, N + 4, Config);
+%% u+2028
+count(<<226, 128, 168, _/binary>>, N, _) -> N;
+%% u+2029
+count(<<226, 128, 169, _/binary>>, N, _) -> N;
+count(<<X/utf8, Rest/binary>>, N, Config) ->
+    case X of
+        X when X < 16#800 -> count(Rest, N + 2, Config);
+        X when X < 16#10000 -> count(Rest, N + 3, Config);
+        _ -> count(Rest, N + 4, Config)
+    end;
 count(<<_, _/binary>>, N, _) -> N.
 
 
@@ -490,53 +471,43 @@ strip_continuations(<<X, Rest/binary>>, N) when X >= 128, X =< 191 ->
 strip_continuations(Bin, _) -> Bin.
 
 
-maybe_replace($\b, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $b], Config);
-maybe_replace($\t, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $t], Config);
-maybe_replace($\n, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $n], Config);
-maybe_replace($\f, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $f], Config);
-maybe_replace($\r, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $r], Config);
-maybe_replace($\", Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $\"], Config);
-maybe_replace($/, Rest, Acc, Config=#config{escaped_strings=true}) ->
+maybe_replace($\b, #config{escaped_strings=true}) -> <<$\\, $b>>;
+maybe_replace($\t, #config{escaped_strings=true}) -> <<$\\, $t>>;
+maybe_replace($\n, #config{escaped_strings=true}) -> <<$\\, $n>>;
+maybe_replace($\f, #config{escaped_strings=true}) -> <<$\\, $f>>;
+maybe_replace($\r, #config{escaped_strings=true}) -> <<$\\, $r>>;
+maybe_replace($\", #config{escaped_strings=true}) -> <<$\\, $\">>;
+maybe_replace($/, Config=#config{escaped_strings=true}) ->
     case Config#config.escaped_forward_slashes of
-        true -> clean(Rest, [Acc, $\\, $/], Config);
-        false -> clean(Rest, [Acc, $/], Config)
+        true -> <<$\\, $/>>;
+        false -> <<$/>>
     end;
-maybe_replace($\\, Rest, Acc, Config=#config{escaped_strings=true}) ->
-    clean(Rest, [Acc, $\\, $\\], Config);
-maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true}) when X < 32 ->
-    clean(Rest, [Acc, json_escape_sequence(X)], Config);
-%% escaped even if no other escaping was requested!
-maybe_replace(X, Rest, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
-    clean(Rest, [Acc, json_escape_sequence(X)], Config);
-maybe_replace(X, Rest, Acc, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
+maybe_replace($\\, #config{escaped_strings=true}) -> <<$\\, $\\>>;
+maybe_replace(X, #config{escaped_strings=true}) when X < 32 ->
+    json_escape_sequence(X);
+maybe_replace(X, Config=#config{escaped_strings=true})  when X == 16#2028; X == 16#2029 ->
     case Config#config.unescaped_jsonp of
-        true -> clean(Rest, [Acc, <<X/utf8>>], Config);
-        false -> clean(Rest, [Acc, json_escape_sequence(X)], Config)
+        true -> <<X/utf8>>;
+        false -> json_escape_sequence(X)
     end;
-maybe_replace(Atom, _, _, #config{strict_utf8=true}) when is_atom(Atom) ->
+maybe_replace(Atom, #config{strict_utf8=true}) when is_atom(Atom) ->
     erlang:error(badarg);
-maybe_replace(surrogate, Rest, Acc, Config) ->
-    clean(Rest, [Acc, <<16#fffd/utf8>>], Config);
-maybe_replace(badutf, Rest, Acc, Config) ->
-    clean(Rest, [Acc, <<16#fffd/utf8>>], Config);
-maybe_replace(X, Rest, Acc, Config) ->
-    clean(Rest, [Acc, <<X/utf8>>], Config).
+maybe_replace(surrogate, _Config) ->
+    <<16#fffd/utf8>>;
+maybe_replace(badutf, _Config) ->
+    <<16#fffd/utf8>>;
+maybe_replace(X, _Config) ->
+    <<X/utf8>>.
 
 
 %% convert a codepoint to it's \uXXXX equiv.
 json_escape_sequence(X) when X < 65536 ->
     <<A:4, B:4, C:4, D:4>> = <<X:16>>,
-    [$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))];
+    <<$\\, $u, (to_hex(A)), (to_hex(B)), (to_hex(C)), (to_hex(D))>>;
 json_escape_sequence(X) ->
     Adjusted = X - 16#10000,
     <<A:10, B:10>> = <<Adjusted:20>>,
-    json_escape_sequence(A + 16#d800) ++ json_escape_sequence(B + 16#dc00).
+    [json_escape_sequence(A + 16#d800), json_escape_sequence(B + 16#dc00)].
 
 
 to_hex(10) -> $a;
@@ -1052,10 +1023,11 @@ bad_utf8_test_() ->
 
 json_escape_sequence_test_() ->
     [
-        {"json escape sequence test - 16#0000", ?_assertEqual(json_escape_sequence(16#0000), "\\u0000")},
-        {"json escape sequence test - 16#abc", ?_assertEqual(json_escape_sequence(16#abc), "\\u0abc")},
-        {"json escape sequence test - 16#def", ?_assertEqual(json_escape_sequence(16#def), "\\u0def")}
+        {"json escape sequence test - 16#0000", ?_assertEqual(<<"\\u0000"/utf8>>, json_escape_sequence(16#0000))},
+        {"json escape sequence test - 16#abc", ?_assertEqual(<<"\\u0abc"/utf8>>, json_escape_sequence(16#abc))},
+        {"json escape sequence test - 16#def", ?_assertEqual(<<"\\u0def"/utf8>>, json_escape_sequence(16#def))}
     ].
+
 
 uescape_test_() ->
     [
@@ -1080,21 +1052,12 @@ uescape_test_() ->
         )}
     ].
 
+
 fix_key_test_() ->
     [
         {"binary key", ?_assertEqual(fix_key(<<"foo">>), <<"foo">>)},
         {"atom key", ?_assertEqual(fix_key(foo), <<"foo">>)},
         {"integer key", ?_assertEqual(fix_key(123), <<"123">>)}
-    ].
-
-
-repeated_key_test_() ->
-    Parse = fun(Events, Config) -> (parser(?MODULE, [], Config))(Events ++ [end_json]) end,
-    [
-        {"repeated key", ?_assertError(
-            badarg,
-            Parse([start_object, <<"key">>, true, <<"key">>, true, end_object], [])
-        )}
     ].
 
 
