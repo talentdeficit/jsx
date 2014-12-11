@@ -130,6 +130,7 @@ value(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
 value(Token, Handler, Stack, Config) ->
     value([Token], Handler, Stack, Config).
 
+
 object([end_object|Tokens], Handler, [object|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_object, Handler, Config), Stack, Config);
 object([{key, Key}|Tokens], Handler, Stack, Config)
@@ -153,6 +154,7 @@ object([], Handler, Stack, Config) ->
 object(Token, Handler, Stack, Config) ->
     object([Token], Handler, Stack, Config).
 
+
 array([end_array|Tokens], Handler, [array|Stack], Config) ->
     maybe_done(Tokens, handle_event(end_array, Handler, Config), Stack, Config);
 array([], Handler, Stack, Config) ->
@@ -161,6 +163,7 @@ array(Tokens, Handler, Stack, Config) when is_list(Tokens) ->
     value(Tokens, Handler, Stack, Config);
 array(Token, Handler, Stack, Config) ->
     array([Token], Handler, Stack, Config).
+
 
 maybe_done([end_json], Handler, [], Config) ->
     done([end_json], Handler, [], Config);
@@ -174,6 +177,7 @@ maybe_done(BadTokens, Handler, Stack, Config) when is_list(BadTokens) ->
     ?error(maybe_done, BadTokens, Handler, Stack, Config);
 maybe_done(Token, Handler, Stack, Config) ->
     maybe_done([Token], Handler, Stack, Config).
+
 
 done([], Handler, [], Config=#config{stream=true}) ->
     incomplete(done, Handler, [], Config);
@@ -195,23 +199,89 @@ clean_string(Bin, #config{dirty_strings=true}) -> Bin;
 clean_string(Bin, Config) -> clean(Bin, [], Config).
 
 
-clean(<<>>, Acc, _) -> iolist_to_binary(Acc);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X < 16#20 ->
-    clean(Rest, [Acc, maybe_replace(X, Config)], Config);
+%% unroll the control characters
+clean(<<0, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(0, Config)], Config);
+clean(<<1, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(1, Config)], Config);
+clean(<<2, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(2, Config)], Config);
+clean(<<3, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(3, Config)], Config);
+clean(<<4, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(4, Config)], Config);
+clean(<<5, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(5, Config)], Config);
+clean(<<6, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(6, Config)], Config);
+clean(<<7, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(7, Config)], Config);
+clean(<<8, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(8, Config)], Config);
+clean(<<9, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(9, Config)], Config);
+clean(<<10, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(10, Config)], Config);
+clean(<<11, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(11, Config)], Config);
+clean(<<12, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(12, Config)], Config);
+clean(<<13, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(13, Config)], Config);
+clean(<<14, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(14, Config)], Config);
+clean(<<15, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(15, Config)], Config);
+clean(<<16, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(16, Config)], Config);
+clean(<<17, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(17, Config)], Config);
+clean(<<18, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(18, Config)], Config);
+clean(<<19, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(19, Config)], Config);
+clean(<<20, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(20, Config)], Config);
+clean(<<21, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(21, Config)], Config);
+clean(<<22, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(22, Config)], Config);
+clean(<<23, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(23, Config)], Config);
+clean(<<24, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(24, Config)], Config);
+clean(<<25, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(25, Config)], Config);
+clean(<<26, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(26, Config)], Config);
+clean(<<27, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(27, Config)], Config);
+clean(<<28, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(28, Config)], Config);
+clean(<<29, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(29, Config)], Config);
+clean(<<30, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(30, Config)], Config);
+clean(<<31, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(31, Config)], Config);
 clean(<<34, Rest/binary>>, Acc, Config) ->
     clean(Rest, [Acc, maybe_replace(34, Config)], Config);
 clean(<<47, Rest/binary>>, Acc, Config) ->
     clean(Rest, [Acc, maybe_replace(47, Config)], Config);
 clean(<<92, Rest/binary>>, Acc, Config) ->
     clean(Rest, [Acc, maybe_replace(92, Config)], Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config=#config{uescape=true}) when X >= 16#80 ->
-    clean(Rest, [Acc, json_escape_sequence(X)], Config);
-clean(<<X/utf8, Rest/binary>>, Acc, Config) when X == 16#2028; X == 16#2029 ->
-    clean(Rest, [Acc, maybe_replace(X, Config)], Config);
-clean(<<_/utf8, _/binary>> = Bin, Acc, Config) ->
-    Size = count(Bin, 0, Config),
-    <<Clean:Size/binary, Rest/binary>> = Bin,
-    clean(Rest, [Acc, Clean], Config);
+clean(<<X/utf8, Rest/binary>> = Bin, Acc, Config=#config{uescape=true}) ->
+    case X of
+        X when X < 16#80 -> start_count(Bin, Acc, Config);
+        _ -> clean(Rest, [Acc, json_escape_sequence(X)], Config)
+    end;
+%% u+2028
+clean(<<226, 128, 168, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(16#2028, Config)], Config);
+%% u+2029
+clean(<<226, 128, 169, Rest/binary>>, Acc, Config) ->
+    clean(Rest, [Acc, maybe_replace(16#2029, Config)], Config);
+clean(<<_/utf8, _/binary>> = Bin, Acc, Config) -> start_count(Bin, Acc, Config);
 %% surrogates
 clean(<<237, X, _, Rest/binary>>, Acc, Config) when X >= 160 ->
     clean(Rest, [Acc, maybe_replace(surrogate, Config)], Config);
@@ -225,10 +295,17 @@ clean(<<X, Rest/binary>>, Acc, Config) when X >= 224, X =< 239 ->
 clean(<<X, Rest/binary>>, Acc, Config) when X >= 240, X =< 247 ->
     clean(strip_continuations(Rest, 3), [Acc, maybe_replace(badutf, Config)], Config);
 clean(<<_, Rest/binary>>, Acc, Config) ->
-    clean(Rest, [Acc, maybe_replace(badutf, Config)], Config).
+    clean(Rest, [Acc, maybe_replace(badutf, Config)], Config);
+clean(<<>>, Acc, _) -> iolist_to_binary(Acc).
 
 
-count(<<>>, N, _) -> N;
+start_count(Bin, Acc, Config) ->
+    Size = count(Bin, 0, Config),
+    <<Clean:Size/binary, Rest/binary>> = Bin,
+    clean(Rest, [Acc, Clean], Config).
+
+
+%% again, unrolling ascii makes a huge difference. sadly
 count(<<0, _/binary>>, N, _) -> N;
 count(<<1, _/binary>>, N, _) -> N;
 count(<<2, _/binary>>, N, _) -> N;
@@ -451,17 +528,16 @@ count(<<126, Rest/binary>>, N, Config) ->
 count(<<127, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
-%% u+2028
-count(<<226, 128, 168, _/binary>>, N, _) -> N;
-%% u+2029
-count(<<226, 128, 169, _/binary>>, N, _) -> N;
 count(<<X/utf8, Rest/binary>>, N, Config) ->
     case X of
         X when X < 16#800 -> count(Rest, N + 2, Config);
+        16#2028 -> N;
+        16#2029 -> N;
         X when X < 16#10000 -> count(Rest, N + 3, Config);
         _ -> count(Rest, N + 4, Config)
     end;
-count(<<_, _/binary>>, N, _) -> N.
+count(<<_, _/binary>>, N, _) -> N;
+count(<<>>, N, _) -> N.
 
 
 strip_continuations(Bin, 0) -> Bin;
@@ -523,6 +599,7 @@ to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 -spec init(proplists:proplist()) -> list().
 
 init([]) -> [].
+
 
 -spec handle_event(Event::any(), Acc::list()) -> list().
 
@@ -631,6 +708,7 @@ codepoints() ->
         ++ lists:seq(16#e000, 16#ffff)
     ).
 
+
 extended_codepoints() ->
     unicode:characters_to_binary(
         lists:seq(16#10000, 16#1ffff) ++ [
@@ -640,12 +718,15 @@ extended_codepoints() ->
         ]
     ).
 
+
 surrogates() -> [ to_fake_utf8(N) || N <- lists:seq(16#d800, 16#dfff) ].
+
 
 clean_string_helper(String) ->
     try clean_string(String, #config{strict_utf8=true}) of Clean -> Clean
     catch error:badarg -> {error, badarg}
     end.
+
 
 clean_string_test_() ->
     [
@@ -1068,5 +1149,6 @@ datetime_test_() ->
             parse([start_array, {{2014,08,13},{23,12,34}}, end_array, end_json], [])
         )}
     ].
+
 
 -endif.

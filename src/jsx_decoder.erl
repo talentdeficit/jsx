@@ -338,11 +338,8 @@ key(Bin, Handler, Stack, Config) ->
     ?error(key, Bin, Handler, Stack, Config).
 
 
-%% explicitly whitelist ascii set for faster parsing. really? really. someone should
-%%  submit a patch that unrolls simple guards
 %% note that if you encounter an error from string and you can't find the clause that
 %%  caused it here, it might be in unescape below
-
 string(Bin, Handler, Stack, Config) ->
     string(Bin, Handler, [], Stack, Config).
 
@@ -355,9 +352,10 @@ string(<<?solidus, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace(?solidus, Config)], Stack, Config);
 string(<<?rsolidus/utf8, Rest/binary>>, Handler, Acc, Stack, Config) ->
     unescape(Rest, Handler, Acc, Stack, Config);
-string(<<X/utf8, Rest/binary>>, Handler, Acc, Stack, Config=#config{uescape=true}) ->
+%% TODO this is pretty gross and i don't like it
+string(<<X/utf8, Rest/binary>> = Bin, Handler, Acc, Stack, Config=#config{uescape=true}) ->
     case X of
-        X when X < 16#80 -> string(Rest, Handler, [Acc, X], Stack, Config);
+        X when X < 16#80 -> count(Bin, Handler, Acc, Stack, Config);
         X -> string(Rest, Handler, [Acc, json_escape_sequence(X)], Stack, Config)
     end;
 %% u+2028
@@ -367,14 +365,11 @@ string(<<226, 128, 168, Rest/binary>>, Handler, Acc, Stack, Config) ->
 string(<<226, 128, 169, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, maybe_replace(16#2029, Config)], Stack, Config);
 string(<<_/utf8, _/binary>> = Bin, Handler, Acc, Stack, Config) ->
-    Size = count(Bin, 0, Config),
-    <<Clean:Size/binary, Rest/binary>> = Bin,
-    string(Rest, Handler, [Acc, Clean], Stack, Config);
-%% really, really dirty strings. if there's no valid utf8 we never reach `count`
-%%  and things get replaced instead of ignored
+    count(Bin, Handler, Acc, Stack, Config);
+%% necessary for bytes that are badly formed utf8 that won't match in `count`
 string(<<X, Rest/binary>>, Handler, Acc, Stack, Config=#config{dirty_strings=true}) ->
     string(Rest, Handler, [Acc, X], Stack, Config);
-%% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match preceeding
+%% u+fffe and u+ffff for R14BXX (subsequent runtimes will happily match with /utf8
 string(<<239, 191, 190, Rest/binary>>, Handler, Acc, Stack, Config) ->
     string(Rest, Handler, [Acc, <<16#fffe/utf8>>], Stack, Config);
 string(<<239, 191, 191, Rest/binary>>, Handler, Acc, Stack, Config) ->
@@ -411,6 +406,14 @@ string(<<_, Rest/binary>>, Handler, Acc, Stack, Config=#config{strict_utf8=false
 string(Bin, Handler, Acc, Stack, Config) -> ?error(string, Bin, Handler, Acc, Stack, Config).
 
 
+count(Bin, Handler, Acc, Stack, Config) ->
+    Size = count(Bin, 0, Config),
+    <<Clean:Size/binary, Rest/binary>> = Bin,
+    string(Rest, Handler, [Acc, Clean], Stack, Config).
+
+
+%% explicitly whitelist ascii set for faster parsing. really? really. someone should
+%%  submit a patch that unrolls simple guards
 count(<<0, Rest/binary>>, N, Config) ->
     count(Rest, N + 1, Config);
 count(<<1, Rest/binary>>, N, Config) ->
@@ -666,13 +669,12 @@ count(<<127, Rest/binary>>, N, Config) ->
 count(<<_, Rest/binary>>, N, Config=#config{dirty_strings=true}) ->
     count(Rest, N + 1, Config);
 count(<<_/utf8, _/binary>>, N, #config{uescape=true}) -> N;
-%% u+2028
-count(<<226, 128, 168, _/binary>>, N, _) -> N;
-%% u+2029
-count(<<226, 128, 169, _/binary>>, N, _) -> N;
 count(<<X/utf8, Rest/binary>>, N, Config) ->
     case X of
         X when X < 16#800 -> count(Rest, N + 2, Config);
+        %% jsonp escaping
+        16#2028 -> N;
+        16#2029 -> N;
         X when X < 16#10000 -> count(Rest, N + 3, Config);
         _ -> count(Rest, N + 4, Config)
     end;
@@ -1007,7 +1009,6 @@ finish_number(Rest, Handler, Acc, Stack, Config) ->
 format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
 format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
 -endif.
-
 -ifdef(no_binary_to_whatever).
 format_number({integer, Acc}) -> {integer, list_to_integer(unicode:characters_to_list(Acc))};
 format_number({float, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))}.
@@ -1470,6 +1471,7 @@ codepoints() ->
         [16#10000, 16#20000, 16#30000, 16#40000, 16#50000] ++
         [16#60000, 16#70000, 16#80000, 16#90000, 16#a0000, 16#b0000] ++
     [16#c0000, 16#d0000, 16#e0000, 16#f0000, 16#100000].
+
 
 surrogates() -> lists:seq(16#d800, 16#dfff).
 
