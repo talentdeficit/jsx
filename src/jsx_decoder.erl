@@ -1130,6 +1130,8 @@ done(<<?solidus>>, Handler, Stack, Config) ->
 done(<<>>, {Handler, State}, [], Config=#config{stream=true}) ->
     incomplete(done, <<>>, {Handler, State}, [], Config);
 done(<<>>, {_Handler, State}, [], _Config) -> State;
+done(Bin, {Handler, State}, _Stack, Config=#config{multi_term=true}) ->
+     value(Bin, {Handler, Handler:reset(State)}, [], Config);
 done(Bin, Handler, Stack, Config) -> ?error(done, Bin, Handler, Stack, Config).
 
 

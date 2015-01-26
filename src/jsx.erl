@@ -26,6 +26,7 @@
 -export([encode/1, encode/2, decode/1, decode/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
 -export([format/1, format/2, minify/1, prettify/1]).
+-export([consult/1, consult/2]).
 -export([encoder/3, decoder/3, parser/3]).
 -export([resume/3]).
 -export([maps_support/0]).
@@ -108,6 +109,13 @@ is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 is_term(Source) -> is_term(Source, []).
 is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
+
+
+-spec consult(File::file:name_all()) -> list(json_term()).
+-spec consult(File::file:name_all(), Config::jsx_to_term:config()) -> list(json_term()).
+
+consult(File) -> consult(File, []).
+consult(File, Config) -> jsx_consult:consult(File, Config).
 
 
 -type decoder() :: fun((json_text() | end_stream | end_json) -> any()).
