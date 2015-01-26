@@ -204,10 +204,10 @@ config_test_() ->
                     stream = true,
                     uescape = true
                 },
-                parse_config([escaped_forward_slashes,
+                parse_config([dirty_strings,
+                    escaped_forward_slashes,
                     escaped_strings,
                     unescaped_jsonp,
-                    dirty_strings,
                     multi_term,
                     repeat_keys,
                     strict,
@@ -276,13 +276,13 @@ config_to_list_test_() ->
             config_to_list(#config{})
         )},
         {"all flags", ?_assertEqual(
-            [escaped_forward_slashes,
+            [dirty_strings,
+                escaped_forward_slashes,
                 escaped_strings,
-                unescaped_jsonp,
-                dirty_strings,
                 multi_term,
                 stream,
                 uescape,
+                unescaped_jsonp,
                 strict
             ],
             config_to_list(
