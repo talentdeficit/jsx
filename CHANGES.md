@@ -1,3 +1,10 @@
+v2.5.0
+
+* `consult/2` function for reading a file directly to a json term
+* `maps_always` build flag for always returning maps on platforms
+  that support them
+* dialyzer fixes
+
 v2.4.0
 
 * enough performance improvements to justify a new version. 2-3x
