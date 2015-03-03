@@ -257,8 +257,7 @@ see below                       | `datetime()`
 
     erlang datetime tuples (`{{Year, Month, Day}, {Hour, Min, Sec}}`) as returned
     from `erlang:localtime/0` are automatically encoded as [iso8601][iso8601]
-    strings. no conversion is attempted of json [iso8601][iso8601] strings in
-    decoded json
+    strings and are assumed to be UTC time. no conversion is attempted of json [iso8601][iso8601] strings in decoded json
 
 
 ### incomplete input ###

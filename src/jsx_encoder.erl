@@ -54,6 +54,9 @@ encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
 encode_([], _EntryPoint) -> [start_array, end_array];
 encode_([{}], _EntryPoint) -> [start_object, end_object];
 
+%% datetime special case
+encode_([{{_,_,_},{_,_,_}} = DateTime|Rest], EntryPoint) ->
+    [start_array] ++ [DateTime] ++ unhitch(Rest, EntryPoint);
 encode_([{_, _}|_] = Term, EntryPoint) ->
     [start_object] ++ unzip(Term, EntryPoint);
 encode_(Term, EntryPoint) when is_list(Term) ->
