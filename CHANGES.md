@@ -1,3 +1,8 @@
+v2.5.1
+
+* assume all datetimes are UTC time and add `Z` designator to indicate
+* fix parsing issue with datetimes in arrays
+
 v2.5.0
 
 * `consult/2` function for reading a file directly to a json term
