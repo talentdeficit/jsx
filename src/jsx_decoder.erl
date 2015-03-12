@@ -892,6 +892,8 @@ number(Bin, Handler, Acc, [State|Stack], Config) ->
 
 
 zero(<<?decimalpoint, Rest/binary>>, N) -> initialdecimal(Rest, N + 1);
+zero(<<$e, _/binary>>, N) -> {integer, N};
+zero(<<$E, _/binary>>, N) -> {integer, N};
 zero(<<>>, N) -> {zero, N};
 zero(_, N) -> {finish_integer, N}.
 
@@ -1171,6 +1173,7 @@ special_number_test_() ->
         {"0e4", [{float, 0.0}, end_json], <<"0e4">>},
         {"1e0", [{float, 1.0}, end_json], <<"1e0">>},
         {"-1e0", [{float, -1.0}, end_json], <<"-1e0">>},
+        {"-0e0", [{float, -0.0}, end_json], <<"-0e0">>},
         {"1e4", [{float, 1.0e4}, end_json], <<"1e4">>},
         {"number terminated by whitespace", 
             [start_array, {integer, 1}, end_array, end_json],
