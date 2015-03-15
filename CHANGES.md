@@ -1,3 +1,7 @@
+v2.5.2
+
+* fix regression parsing <<"-0e...">> (thanks @c-bik)
+
 v2.5.1
 
 * assume all datetimes are UTC time and add `Z` designator to indicate

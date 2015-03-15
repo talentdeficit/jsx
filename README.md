@@ -1,4 +1,4 @@
-# jsx (v2.5.1) #
+# jsx (v2.5.2) #
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
@@ -707,7 +707,7 @@ following events must be handled:
 
 ## acknowledgements ##
 
-jsx wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [devin torres](https://github.com/devinus), [dmitry kolesnikov](https://github.com/fogfish), [emptytea](https://github.com/emptytea), [john daily](https://github.com/macintux), [ola bäckström](https://github.com/olabackstrom), [joseph crowe](https://github.com/JosephCrowe), [patrick gombert](https://github.com/patrickgombert),  [eskuat](https://github.com/eskuat) and [max lapshin](https://github.com/maxlapshin)
+jsx wouldn't be what it is without the contributions of [paul davis](https://github.com/davisp), [lloyd hilaiel](https://github.com/lloyd), [john engelhart](https://github.com/johnezang), [bob ippolito](https://github.com/etrepum), [fernando benavides](https://github.com/elbrujohalcon), [alex kropivny](https://github.com/amtal), [steve strong](https://github.com/srstrong), [michael truog](https://github.com/okeuday), [devin torres](https://github.com/devinus), [dmitry kolesnikov](https://github.com/fogfish), [emptytea](https://github.com/emptytea), [john daily](https://github.com/macintux), [ola bäckström](https://github.com/olabackstrom), [joseph crowe](https://github.com/JosephCrowe), [patrick gombert](https://github.com/patrickgombert), [eskuat](https://github.com/eskuat), [max lapshin](https://github.com/maxlapshin) and [bikram chatterjee](https://github.com/c-bik)
 
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
