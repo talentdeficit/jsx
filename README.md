@@ -517,7 +517,6 @@ encode(Term, Opts) -> JSON
   Term = json_term()
   JSON = json_text()
   Opts = [option() | space | {space, N} | indent | {indent, N}]
-    F = fun((any()) -> any())
     N = pos_integer()
 ```
 
