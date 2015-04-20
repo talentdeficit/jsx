@@ -1,3 +1,8 @@
+v2.5.3
+
+* add a `mix.exs` to be buildable by both mix and rebar
+* minor README updates
+
 v2.5.2
 
 * fix regression parsing <<"-0e...">> (thanks @c-bik)
