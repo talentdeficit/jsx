@@ -16,7 +16,7 @@ use Mix.Project
   defp opts(:dev), do: [d: :TEST]
   defp opts(_), do: []
 
-  defp deps(:dev), do: [{:mixunit, "~> 0.9.1", :optional}]
+  defp deps(:dev), do: [{:mixunit, "~> 0.9.1", [optional: true]}]
   defp deps(_), do: []
 
   defp package do
