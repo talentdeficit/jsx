@@ -1,3 +1,7 @@
+v2.6.0
+
+* equivalent to v2.5.3 but created for semver reasons
+
 v2.5.3
 
 * add a `mix.exs` to be buildable by both mix and rebar
