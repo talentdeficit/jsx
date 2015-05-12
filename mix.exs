@@ -4,7 +4,7 @@ use Mix.Project
   def project do
     [
       app: :jsx,
-      version: "2.6.0",
+      version: "2.6.1",
       description: "an erlang application for consuming, producing and manipulating json. inspired by yajl",
       deps: deps(Mix.env),
       package: package,
@@ -16,7 +16,7 @@ use Mix.Project
   defp opts(:dev), do: [d: :TEST]
   defp opts(_), do: []
 
-  defp deps(), do: [{:mixunit, "~> 0.9.1", [only: :dev]}]
+  defp deps(_), do: [{:mixunit, "~> 0.9.1", [only: :dev]}]
 
   defp package do
     [
