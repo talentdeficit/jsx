@@ -16,7 +16,7 @@ use Mix.Project
   defp opts(:dev), do: [d: :TEST]
   defp opts(_), do: []
 
-  defp deps(_), do: [{:mixunit, "~> 0.9.1", [only: :dev]}]
+  defp deps(_), do: [{:mixunit, git: "git@github.com:talentdeficit/mixunit.git", only: :dev}]
 
   defp package do
     [
