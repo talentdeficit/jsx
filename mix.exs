@@ -13,8 +13,8 @@ use Mix.Project
     ]
   end
 
-  defp opts(:dev), do: [d: :TEST]
-  defp opts(_), do: []
+  defp opts(:dev), do: [d: :TEST] ++ opts(:prod)
+  defp opts(_), do: [d: :maps_support, d: :maps_always]
 
   defp deps(_), do: [{:mixunit, git: "git@github.com:talentdeficit/mixunit.git", only: :dev}]
 
