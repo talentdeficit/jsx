@@ -1,3 +1,7 @@
+v2.6.2
+
+* ensure maps are always enabled when compiling via mix
+
 v2.6.1
 
 * hex.pm maintenance release
