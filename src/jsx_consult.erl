@@ -58,14 +58,14 @@
 -endif.
 
 
--spec consult(File::file:name_all(), Config::config()) -> [json_value()].
-
 -ifdef(maps_always).
 opts(Opts) -> [return_maps, multi_term] ++ Opts.
 -endif.
 -ifndef(maps_always).
 opts(Opts) -> [multi_term] ++ Opts.
 -endif.
+
+-spec consult(File::file:name_all(), Config::config()) -> [json_value()].
 
 consult(File, Config) when is_list(Config) ->
     case file:read_file(File) of
