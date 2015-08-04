@@ -65,6 +65,8 @@ parse_config([dirty_strings|Rest], Config) ->
     parse_config(Rest, Config#config{dirty_strings=true});
 parse_config([multi_term|Rest], Config) ->
     parse_config(Rest, Config#config{multi_term=true});
+parse_config([return_tail|Rest], Config) ->
+    parse_config(Rest, Config#config{return_tail=true});
 %% retained for backwards compat, now does nothing however
 parse_config([repeat_keys|Rest], Config) ->
     parse_config(Rest, Config);
@@ -155,6 +157,7 @@ valid_flags() ->
         unescaped_jsonp,
         dirty_strings,
         multi_term,
+        return_tail,
         repeat_keys,
         strict,
         stream,
@@ -196,6 +199,7 @@ config_test_() ->
                     unescaped_jsonp = true,
                     dirty_strings = true,
                     multi_term = true,
+                    return_tail = true,
                     strict_comments = true,
                     strict_commas = true,
                     strict_utf8 = true,
@@ -209,6 +213,7 @@ config_test_() ->
                     escaped_strings,
                     unescaped_jsonp,
                     multi_term,
+                    return_tail,
                     repeat_keys,
                     strict,
                     stream,

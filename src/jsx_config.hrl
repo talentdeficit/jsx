@@ -9,6 +9,7 @@
     strict_single_quotes = false        :: boolean(),
     strict_escapes = false              :: boolean(),
     stream = false                      :: boolean(),
+    return_tail = false                 :: boolean(),
     uescape = false                     :: boolean(),
     unescaped_jsonp = false             :: boolean(),
     error_handler = false               :: false | jsx_config:handler(),
