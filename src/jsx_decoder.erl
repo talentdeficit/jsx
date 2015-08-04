@@ -1010,8 +1010,7 @@ finish_number(Rest, Handler, Acc, Stack, Config) ->
 -ifndef(no_binary_to_whatever).
 format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
 format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
--endif.
--ifdef(no_binary_to_whatever).
+-else.
 format_number({integer, Acc}) -> {integer, list_to_integer(unicode:characters_to_list(Acc))};
 format_number({float, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))}.
 -endif.
