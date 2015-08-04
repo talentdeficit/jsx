@@ -1,3 +1,8 @@
+v2.7.0
+
+* `return_tail` option
+* fixes for edoc generation
+
 v2.6.2
 
 * ensure maps are always enabled when compiling via mix
