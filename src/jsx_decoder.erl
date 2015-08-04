@@ -1129,6 +1129,8 @@ done(<<?solidus, ?star, Rest/binary>>, Handler, Stack, Config) ->
     comment(Rest, Handler, done, [multicomment|Stack], Config);
 done(<<?solidus>>, Handler, Stack, Config) ->
     incomplete(done, <<?solidus>>, Handler, Stack, Config);
+done(Bin, {_Handler, State}, _Stack, #config{return_tail=true}) ->
+     {with_tail,State, Bin};
 done(<<>>, {Handler, State}, [], Config=#config{stream=true}) ->
     incomplete(done, <<>>, {Handler, State}, [], Config);
 done(<<>>, {_Handler, State}, [], _Config) -> State;
@@ -1937,5 +1939,39 @@ custom_incomplete_handler_test_() ->
         )}
     ].
 
+
+return_tail_test_() ->
+    [
+        {"return_tail with tail", ?_assertEqual(
+            {with_tail,[{}],<<"3">>},
+            jsx:decode(<<"{} 3">>, [return_tail])
+        )},
+        {"return_tail without tail", ?_assertEqual(
+            {with_tail,[{}],<<"">>},
+            jsx:decode(<<"{}">>, [return_tail])
+        )},
+        {"return_tail with trimmed whitespace", ?_assertEqual(
+            {with_tail,[{}],<<"">>},
+            jsx:decode(<<"{} ">>, [return_tail])
+        )},
+        {"return_tail and streaming", ?_assertEqual(
+            {with_tail,[{}],<<"3">>},
+            begin
+                {incomplete, F} = jsx:decode(<<"{">>, [return_tail, stream]),
+                F(<<"} 3">>)
+            end
+        )},
+        {"return_tail and streaming", ?_assertEqual(
+            {with_tail,[{}],<<"">>},
+            begin
+                %% In case of infinite stream of objects a user does not know
+                %% when to call F(end_stream).
+                %% So, return_tail overwrites conservative stream end.
+                %% This means that we don't need to call end_stream explicitly.
+                {incomplete, F} = jsx:decode(<<"{">>, [return_tail, stream]),
+                F(<<"}">>)
+            end
+        )}
+    ].
 
 -endif.
