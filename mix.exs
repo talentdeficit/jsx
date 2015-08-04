@@ -16,7 +16,7 @@ use Mix.Project
   defp opts(:dev), do: [d: :TEST] ++ opts(:prod)
   defp opts(_), do: [d: :maps_support, d: :maps_always]
 
-  defp deps(_), do: [{:mixunit, git: "git@github.com:talentdeficit/mixunit.git", only: :dev}]
+  defp deps(_), do: [{:mixunit, "~> 0.9.2", only: :dev}]
 
   defp package do
     [
