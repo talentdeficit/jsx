@@ -67,23 +67,29 @@
 -type config() :: jsx_config:config().
 
 -spec encode(Source::json_term()) -> json_text().
--spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
 
 encode(Source) -> encode(Source, []).
+
+-spec encode(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
+
 encode(Source, Config) -> jsx_to_json:to_json(Source, Config).
 
 
 -spec decode(Source::json_text()) -> json_term().
--spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term()  | {incomplete, decoder()}.
 
 decode(Source) -> decode(Source, []).
+
+-spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term() | {incomplete, decoder()}.
+
 decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 
 -spec format(Source::json_text()) -> json_text().
--spec format(Source::json_text(), Config::jsx_to_json:config()) -> json_text() | {incomplete, decoder()}.
 
 format(Source) -> format(Source, []).
+
+-spec format(Source::json_text(), Config::jsx_to_json:config()) -> json_text() | {incomplete, decoder()}.
+
 format(Source, Config) -> jsx_to_json:format(Source, Config).
 
 
@@ -97,24 +103,30 @@ minify(Source) -> format(Source, []).
 prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 
--spec is_json(Source::any()) -> true | false.
--spec is_json(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, decoder()}.
+-spec is_json(Source::any()) -> boolean().
 
 is_json(Source) -> is_json(Source, []).
+
+-spec is_json(Source::any(), Config::jsx_verify:config()) -> boolean() | {incomplete, decoder()}.
+
 is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 
--spec is_term(Source::any()) -> true | false.
--spec is_term(Source::any(), Config::jsx_verify:config()) -> true | false | {incomplete, encoder()}.
+-spec is_term(Source::any()) -> boolean().
 
 is_term(Source) -> is_term(Source, []).
+
+-spec is_term(Source::any(), Config::jsx_verify:config()) -> boolean() | {incomplete, encoder()}.
+
 is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
 
 
 -spec consult(File::file:name_all()) -> list(json_term()).
--spec consult(File::file:name_all(), Config::jsx_to_term:config()) -> list(json_term()).
 
 consult(File) -> consult(File, []).
+
+-spec consult(File::file:name_all(), Config::jsx_to_term:config()) -> list(json_term()).
+
 consult(File, Config) -> jsx_consult:consult(File, Config).
 
 
@@ -170,7 +182,7 @@ resume(Term, {parser, State, Handler, Stack}, Config) ->
     jsx_parser:resume(Term, State, Handler, Stack, jsx_config:parse_config(Config)).
 
 
--spec maps_support() -> true | false.
+-spec maps_support() -> boolean().
 
 -ifndef(maps_support).
 maps_support() -> false.
