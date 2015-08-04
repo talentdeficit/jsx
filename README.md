@@ -347,6 +347,7 @@ option() = dirty_strings
     | stream
     | strict
     | {strict, [strict_option()]}
+    | return_tail
     | uescape
     | unescaped_jsonp
 
@@ -420,6 +421,13 @@ additional options beyond these. see
     
     any combination of these can be passed to **jsx** by using `{strict, [strict_option()]}`.
     `strict` is equivalent to `{strict, [comments, bad_utf8, single_quotes, escapes]}` 
+
+- `return_tail`
+
+    upon reaching the end of a valid json term in an input stream return the term and any
+    remaining bytes in the input stream as `{with_tail, term(), binary()}` where the second
+    member of the tuple is the json term and the third is any remaining bytes. note that
+    leading whitespace will be stripped from the tail
 
 - `uescape`
 
