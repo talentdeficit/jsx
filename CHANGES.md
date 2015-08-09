@@ -1,3 +1,7 @@
+vNext
+
+* support for milliseconds in datetimes
+
 v2.7.0
 
 * `return_tail` option
