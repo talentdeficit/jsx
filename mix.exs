@@ -4,7 +4,7 @@ use Mix.Project
   def project do
     [
       app: :jsx,
-      version: "2.7.0",
+      version: "2.7.1",
       description: "an erlang application for consuming, producing and manipulating json. inspired by yajl",
       deps: deps(Mix.env),
       package: package,
@@ -25,6 +25,7 @@ use Mix.Project
         "LICENSE",
         "mix.exs",
         "rebar.config",
+        "rebar.config.script",
         "README.md",
         "src"
       ],

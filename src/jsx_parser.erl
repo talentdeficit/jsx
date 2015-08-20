@@ -119,6 +119,16 @@ when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_
         Stack,
         Config
     );
+value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
+when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_integer(Min), is_float(Sec) ->
+    value([{string, unicode:characters_to_binary(io_lib:format(
+            "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~9.6.0fZ",
+            [Year, Month, Day, Hour, Min, Sec]
+        ))}|Tokens],
+        Handler,
+        Stack,
+        Config
+    );
 value([{_, Value}|Tokens], Handler, Stack, Config) ->
     value([Value] ++ Tokens, Handler, Stack, Config);
 value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
@@ -1147,6 +1157,10 @@ datetime_test_() ->
         {"datetime", ?_assertEqual(
             [start_array, {string, <<"2014-08-13T23:12:34Z">>}, end_array, end_json],
             parse([start_array, {{2014,08,13},{23,12,34}}, end_array, end_json], [])
+        )},
+        {"datetime", ?_assertEqual(
+            [start_array, {string, <<"2014-08-13T23:12:34.363369Z">>}, end_array, end_json],
+            parse([start_array, {{2014,08,13},{23,12,34.363369}}, end_array, end_json], [])
         )}
     ].
 
