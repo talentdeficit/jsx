@@ -1,4 +1,4 @@
-vNext
+v2.7.1
 
 * support for milliseconds in datetimes
 
