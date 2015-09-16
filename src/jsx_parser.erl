@@ -129,7 +129,20 @@ when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_
         Stack,
         Config
     );
-value([{_, Value}|Tokens], Handler, Stack, Config) ->
+value([{literal, Value}|Tokens], Handler, Stack, Config)
+when Value == true; Value == false; Value == null ->
+    value([Value] ++ Tokens, Handler, Stack, Config);
+value([{integer, Value}|Tokens], Handler, Stack, Config)
+when is_integer(Value) ->
+    value([Value] ++ Tokens, Handler, Stack, Config);
+value([{float, Value}|Tokens], Handler, Stack, Config)
+when is_float(Value) ->
+    value([Value] ++ Tokens, Handler, Stack, Config);
+value([{string, Value}|Tokens], Handler, Stack, Config)
+when is_binary(Value); is_atom(Value) ->
+    value([Value] ++ Tokens, Handler, Stack, Config);
+value([{number, Value}|Tokens], Handler, Stack, Config)
+when is_float(Value); is_integer(Value) ->
     value([Value] ++ Tokens, Handler, Stack, Config);
 value([String|Tokens], Handler, Stack, Config) when is_atom(String) ->
     value([{string, atom_to_binary(String, utf8)}] ++ Tokens, Handler, Stack, Config);
@@ -1161,6 +1174,19 @@ datetime_test_() ->
         {"datetime", ?_assertEqual(
             [start_array, {string, <<"2014-08-13T23:12:34.363369Z">>}, end_array, end_json],
             parse([start_array, {{2014,08,13},{23,12,34.363369}}, end_array, end_json], [])
+        )}
+    ].
+
+
+rogue_tuple_test_() ->
+    [
+        {"kv in value position of object", ?_assertError(
+          badarg,
+          parse([start_object, <<"key">>, {<<"key">>, <<"value">>}, end_object, end_json], [])
+        )},
+        {"kv in value position of list", ?_assertError(
+          badarg,
+          parse([start_array, {<<"key">>, <<"value">>}, end_array, end_json], [])
         )}
     ].
 
