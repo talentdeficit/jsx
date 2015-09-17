@@ -67,7 +67,8 @@ encode_(Else, _EntryPoint) -> [Else].
 
 unzip([{K, V}|Rest], EntryPoint) when is_integer(K); is_binary(K); is_atom(K) ->
     [K] ++ EntryPoint:encode(V, EntryPoint) ++ unzip(Rest, EntryPoint);
-unzip([], _) -> [end_object].
+unzip([], _) -> [end_object];
+unzip(_, _) -> erlang:error(badarg).
 
 
 unhitch([V|Rest], EntryPoint) ->
@@ -108,6 +109,18 @@ custom_error_handler_test_() ->
         {"string error", ?_assertEqual(
             {value, [{string, <<237, 160, 128>>}]},
             parser(<<237, 160, 128>>, [{error_handler, Error}, strict])
+        )}
+    ].
+
+improper_lists_test_() ->
+    [
+        {"improper proplist", ?_assertError(
+          badarg,
+          encode([{<<"key">>, <<"value">>}, false])
+        )},
+        {"improper list", ?_assertError(
+          badarg,
+          encode([{literal, true}, false, null])
         )}
     ].
 

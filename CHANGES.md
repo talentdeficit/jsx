@@ -1,3 +1,8 @@
+v2.7.2
+
+* fix an issue where tuples were assumed to be jsx ast and not checked
+* mask a `function_clause` error in encoder with a `badarg` error for api unity
+
 v2.7.1
 
 * support for milliseconds in datetimes
