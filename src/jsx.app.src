@@ -17,5 +17,10 @@
         kernel,
         stdlib
     ]},
-    {env, []}
+    {env, []},
+    {files, [
+      "src",
+      "rebar.config", "rebar.config.script", "rebar.lock"
+      "README.md", "CHANGES.md", "LICENSE"
+    ]}
 ]}.
