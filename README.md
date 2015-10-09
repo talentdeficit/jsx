@@ -4,7 +4,7 @@
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
 
-**jsx** is built via [rebar][rebar] and continuous integration testing provided courtesy [travis-ci][travis]
+**jsx** is built via [rebar3][rebar3], [rebar][rebar] or [mix][mix] and continuous integration testing provided courtesy [travis-ci][travis]
 
 current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
 
@@ -51,8 +51,12 @@ for the overview or [migrating from 1.x](#migrating) for the details
 #### to build the library and run tests ####
 
 ```bash
+$ rebar3 compile
+$ rebar3 eunit
 $ rebar compile
 $ rebar eunit
+$ mix compile
+$ mix eunit
 ```
 
 #### to convert a utf8 binary containing a json string into an erlang term ####
@@ -116,6 +120,12 @@ false
 }">>
 ```
 
+#### to compile **jsx** so that it always decodes json objects to maps #### 
+
+```bash
+$ JSX_FORCE_MAPS rebar3 compile
+$ JSX_FORCE_MAPS mix compile
+```
 
 ## description ##
 
@@ -720,7 +730,9 @@ jsx wouldn't be what it is without the contributions of [Paul J. Davis](https://
 [json]: http://json.org
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
+[rebar3]: https://rebar3.org
 [rebar]: https://github.com/rebar/rebar
+[mix]: http://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
 [travis]: https://travis-ci.org/

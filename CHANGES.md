@@ -1,3 +1,8 @@
+v2.8.0
+
+* add `JSX_FORCE_MAPS` env var for forcing decoding to maps rather than
+  attempting to autodetect
+
 v2.7.2
 
 * fix an issue where tuples were assumed to be jsx ast and not checked

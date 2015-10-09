@@ -14,7 +14,13 @@ use Mix.Project
   end
 
   defp opts(:dev), do: [d: :TEST] ++ opts(:prod)
-  defp opts(_), do: [d: :maps_support, d: :maps_always]
+  defp opts(_) do
+    force_maps = case System.get_env("JSX_FORCE_MAPS") do
+      nil -> []
+      _   -> [d: :maps_always]
+    end
+    [d: :maps_support] ++ force_maps
+  end 
 
   defp deps(_), do: [{:mixunit, "~> 0.9.2", only: :dev}]
 
