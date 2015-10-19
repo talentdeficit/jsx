@@ -46,7 +46,7 @@
 
 -ifndef(maps_support).
 -type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()})
+    | list({binary() | atom(), json_value()}) | [{},...]
     | true
     | false
     | null
@@ -57,7 +57,7 @@
 
 -ifdef(maps_support).
 -type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()})
+    | list({binary() | atom(), json_value()}) | [{},...]
     | map()
     | true
     | false
