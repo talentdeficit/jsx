@@ -29,7 +29,6 @@
 -export([consult/1, consult/2]).
 -export([encoder/3, decoder/3, parser/3]).
 -export([resume/3]).
--export([maps_support/0]).
 
 -export_type([json_term/0, json_text/0, token/0]).
 -export_type([encoder/0, decoder/0, parser/0, internal_state/0]).
@@ -43,16 +42,6 @@
 -endif.
 
 
--ifndef(maps_support).
--type json_term() :: [{binary() | atom(), json_term()}] | [{}]
-    | [json_term()] | []
-    | true | false | null
-    | integer() | float()
-    | binary() | atom()
-    | calendar:datetime().
--endif.
-
--ifdef(maps_support).
 -type json_term() :: [{binary() | atom(), json_term()}] | [{}]
     | [json_term()] | []
     | map()
@@ -60,7 +49,6 @@
     | integer() | float()
     | binary() | atom()
     | calendar:datetime().
--endif.
 
 -type json_text() :: binary().
 
@@ -181,15 +169,6 @@ resume(Term, {decoder, State, Handler, Acc, Stack}, Config) ->
 resume(Term, {parser, State, Handler, Stack}, Config) ->
     jsx_parser:resume(Term, State, Handler, Stack, jsx_config:parse_config(Config)).
 
-
--spec maps_support() -> boolean().
-
--ifndef(maps_support).
-maps_support() -> false.
--endif.
--ifdef(maps_support).
-maps_support() -> true.
--endif.
 
 
 -ifdef(TEST).

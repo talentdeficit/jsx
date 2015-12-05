@@ -4,7 +4,7 @@ use Mix.Project
   def project do
     [
       app: :jsx,
-      version: "2.8.0",
+      version: "3.0.0",
       description: "an erlang application for consuming, producing and manipulating json. inspired by yajl",
       deps: deps(Mix.env),
       package: package,
@@ -14,15 +14,13 @@ use Mix.Project
   end
 
   defp opts(:dev), do: [d: :TEST] ++ opts(:prod)
-  defp opts(_) do
-    force_maps = case System.get_env("JSX_FORCE_MAPS") do
-      nil -> []
-      _   -> [d: :maps_always]
-    end
-    [d: :maps_support] ++ force_maps
-  end 
+  defp opts(_), do: []
 
-  defp deps(_), do: [{:mixunit, "~> 0.9.2", only: :dev}]
+  defp deps(_) do
+    [
+      {:mixunit, "~> 0.9.2", only: :dev}
+    ]
+  end
 
   defp package do
     [

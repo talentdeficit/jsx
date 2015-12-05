@@ -39,7 +39,6 @@ for the overview or [migrating from 1.x](#migrating) for the details
   - [`prettify/1`](#prettify1)
   - [`is_json/1,2`](#is_json12)
   - [`is_term/1,2`](#is_term12)
-  - [`maps_support/0`](#maps_support0)
 * [callback exports](#callback_exports)
   - [`Module:init/1`](#moduleinit1)
   - [`Module:handle_event/2`](#modulehandle_event2)
@@ -629,16 +628,6 @@ is_term(MaybeJSON, Opts) -> true | false
 returns true if input is a valid erlang representation of json, false if not
 
 what exactly constitutes valid json may be altered via [options](#option)
-
-
-#### `maps_support/0` ####
-
-```erlang
-maps_support() -> true | false
-```
-
-if **jsx** was compiled with map support enabled returns `true`, else
-`false`
 
 
 ## callback exports ##

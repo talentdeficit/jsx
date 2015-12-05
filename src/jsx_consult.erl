@@ -35,18 +35,7 @@
 -type config() :: list().
 -export_type([config/0]).
 
--ifndef(maps_support).
--type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()})
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--endif.
 
--ifdef(maps_support).
 -type json_value() :: list(json_value())
     | map()
     | true
@@ -55,15 +44,10 @@
     | integer()
     | float()
     | binary().
--endif.
 
 
--ifdef(maps_always).
-opts(Opts) -> [return_maps, multi_term] ++ Opts.
--endif.
--ifndef(maps_always).
 opts(Opts) -> [multi_term] ++ Opts.
--endif.
+
 
 -spec consult(File::file:name_all(), Config::config()) -> [json_value()].
 
