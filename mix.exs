@@ -18,7 +18,8 @@ use Mix.Project
 
   defp deps(_) do
     [
-      {:mixunit, "~> 0.9.2", only: :dev}
+      {:mixunit, "~> 0.9.2", only: :dev},
+      {:benchfella, "~> 0.3.0", only: :dev}
     ]
   end
 

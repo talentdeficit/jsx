@@ -1,1 +1,4 @@
-%{"mixunit": {:hex, :mixunit, "0.9.2"}}
+%{"benchfella": {:hex, :benchfella, "0.3.0"},
+  "bmark": {:hex, :bmark, "1.0.2"},
+  "mixunit": {:hex, :mixunit, "0.9.2"},
+  "poison": {:hex, :poison, "1.5.0"}}
