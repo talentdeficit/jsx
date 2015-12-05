@@ -1945,26 +1945,26 @@ custom_incomplete_handler_test_() ->
 return_tail_test_() ->
     [
         {"return_tail with tail", ?_assertEqual(
-            {with_tail,[{}],<<"3">>},
+            {with_tail,#{},<<"3">>},
             jsx:decode(<<"{} 3">>, [return_tail])
         )},
         {"return_tail without tail", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             jsx:decode(<<"{}">>, [return_tail])
         )},
         {"return_tail with trimmed whitespace", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             jsx:decode(<<"{} ">>, [return_tail])
         )},
         {"return_tail and streaming", ?_assertEqual(
-            {with_tail,[{}],<<"3">>},
+            {with_tail,#{},<<"3">>},
             begin
                 {incomplete, F} = jsx:decode(<<"{">>, [return_tail, stream]),
                 F(<<"} 3">>)
             end
         )},
         {"return_tail and streaming", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             begin
                 %% In case of infinite stream of objects a user does not know
                 %% when to call F(end_stream).

@@ -24,6 +24,7 @@
 -module(jsx).
 
 -export([encode/1, encode/2, decode/1, decode/2]).
+-export([to_list/1, to_list/2]).
 -export([is_json/1, is_json/2, is_term/1, is_term/2]).
 -export([format/1, format/2, minify/1, prettify/1]).
 -export([consult/1, consult/2]).
@@ -70,6 +71,15 @@ decode(Source) -> decode(Source, []).
 -spec decode(Source::json_text(), Config::jsx_to_term:config()) -> json_term() | {incomplete, decoder()}.
 
 decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
+
+
+-spec to_list(Source::json_term()) -> json_text().
+
+to_list(Source) -> to_list(Source, []).
+
+-spec to_list(Source::json_term(), Config::jsx_to_json:config()) -> json_text() | {incomplete, encoder()}.
+
+to_list(Source, Config) -> jsx_to_list:to_term(Source, Config).
 
 
 -spec format(Source::json_text()) -> json_text().
@@ -210,14 +220,14 @@ nested_array() ->
     }].
 
 
-empty_object() -> [{"{}", <<"{}">>, [{}], [start_object, end_object]}].
+empty_object() -> [{"{}", <<"{}">>, #{}, [start_object, end_object]}].
 
 
 nested_object() ->
     [{
         "{\"key\":{\"key\":{}}}",
         <<"{\"key\":{\"key\":{}}}">>,
-        [{<<"key">>, [{<<"key">>, [{}]}]}],
+        #{<<"key">> => #{<<"key">> => #{}}},
         [
             start_object,
                 {key, <<"key">>},
@@ -332,7 +342,7 @@ compound_object() ->
     [{
         "[{\"alpha\":[1,2,3],\"beta\":{\"alpha\":[1.0,2.0,3.0],\"beta\":[true,false]}},[{}]]",
         <<"[{\"alpha\":[1,2,3],\"beta\":{\"alpha\":[1.0,2.0,3.0],\"beta\":[true,false]}},[{}]]">>,
-        [[{<<"alpha">>, [1, 2, 3]}, {<<"beta">>, [{<<"alpha">>, [1.0, 2.0, 3.0]}, {<<"beta">>, [true, false]}]}], [[{}]]],
+        [#{<<"alpha">> => [1, 2, 3], <<"beta">> => #{<<"alpha">> => [1.0, 2.0, 3.0], <<"beta">> => [true, false]}}, [#{}]],
         [
             start_array,
                 start_object,
@@ -369,15 +379,15 @@ compound_object() ->
 special_objects() ->
     [
         {
-            "[{key, atom}]",
+            "{\"key\": \"atom\"}",
             <<"{\"key\":\"atom\"}">>,
-            [{key, atom}],
+            #{key => atom},
             [start_object, {key, <<"key">>}, {string, <<"atom">>}, end_object]
         },
         {
-            "[{1, true}]",
+            "{\"1\": true}",
             <<"{\"1\":true}">>,
-            [{1, true}],
+            #{1 => true},
             [start_object, {key, <<"1">>}, {literal, true}, end_object]
         }
     ].
@@ -386,7 +396,7 @@ special_objects() ->
 special_array() ->
     [    
         {
-            "[foo, bar]",
+            "[\"foo\", \"bar\"]",
             <<"[\"foo\",\"bar\"]">>,
             [foo, bar],
             [start_array, {string, <<"foo">>}, {string, <<"bar">>}, end_array]
@@ -407,7 +417,7 @@ wrap_with_object({Title, JSON, Term, Events}) ->
     {
         "{\"key\":" ++ Title ++ "}",
         <<"{\"key\":", JSON/binary, "}">>,
-        [{<<"key">>, Term}],
+        #{<<"key">> => Term},
         [start_object, {key, <<"key">>}] ++ Events ++ [end_object]
     }.
 
