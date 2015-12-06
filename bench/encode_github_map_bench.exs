@@ -1,0 +1,60 @@
+defmodule Github.Encode.Map do
+  use Benchfella
+
+  @commit %{
+    "author" => %{"avatar_url" => "https://github.com/images/error/octocat_happy.gif",
+      "events_url" => "https://api.github.com/users/octocat/events{/privacy}",
+      "followers_url" => "https://api.github.com/users/octocat/followers",
+      "following_url" => "https://api.github.com/users/octocat/following{/other_user}",
+      "gists_url" => "https://api.github.com/users/octocat/gists{/gist_id}",
+      "gravatar_id" => "", "html_url" => "https://github.com/octocat", "id" => 1,
+      "login" => "octocat",
+      "organizations_url" => "https://api.github.com/users/octocat/orgs",
+      "received_events_url" => "https://api.github.com/users/octocat/received_events",
+      "repos_url" => "https://api.github.com/users/octocat/repos",
+      "site_admin" => false,
+      "starred_url" => "https://api.github.com/users/octocat/starred{/owner}{/repo}",
+      "subscriptions_url" => "https://api.github.com/users/octocat/subscriptions",
+      "type" => "User", "url" => "https://api.github.com/users/octocat"},
+    "comments_url" => "https://api.github.com/repos/octocat/Hello-World/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e/comments",
+    "commit" => %{"author" => %{"date" => "2011-04-14T16:00:49Z",
+        "email" => "support@github.com", "name" => "Monalisa Octocat"},
+      "comment_count" => 0,
+      "committer" => %{"date" => "2011-04-14T16:00:49Z",
+        "email" => "support@github.com", "name" => "Monalisa Octocat"},
+      "message" => "Fix all the bugs",
+      "tree" => %{"sha" => "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+        "url" => "https://api.github.com/repos/octocat/Hello-World/tree/6dcb09b5b57875f334f61aebed695e2e4193db5e"},
+      "url" => "https://api.github.com/repos/octocat/Hello-World/git/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e"},
+    "committer" => %{"avatar_url" => "https://github.com/images/error/octocat_happy.gif",
+      "events_url" => "https://api.github.com/users/octocat/events{/privacy}",
+      "followers_url" => "https://api.github.com/users/octocat/followers",
+      "following_url" => "https://api.github.com/users/octocat/following{/other_user}",
+      "gists_url" => "https://api.github.com/users/octocat/gists{/gist_id}",
+      "gravatar_id" => "", "html_url" => "https://github.com/octocat", "id" => 1,
+      "login" => "octocat",
+      "organizations_url" => "https://api.github.com/users/octocat/orgs",
+      "received_events_url" => "https://api.github.com/users/octocat/received_events",
+      "repos_url" => "https://api.github.com/users/octocat/repos",
+      "site_admin" => false,
+      "starred_url" => "https://api.github.com/users/octocat/starred{/owner}{/repo}",
+      "subscriptions_url" => "https://api.github.com/users/octocat/subscriptions",
+      "type" => "User", "url" => "https://api.github.com/users/octocat"},
+    "files" => [%{"additions" => 10,
+       "blob_url" => "https://github.com/octocat/Hello-World/blob/7ca483543807a51b6079e54ac4cc392bc29ae284/file1.txt",
+       "changes" => 12, "deletions" => 2, "filename" => "file1.txt",
+       "patch" => "@@ -29,7 +29,7 @@\n.....",
+       "raw_url" => "https://github.com/octocat/Hello-World/raw/7ca483543807a51b6079e54ac4cc392bc29ae284/file1.txt",
+       "status" => "modified"}],
+    "html_url" => "https://github.com/octocat/Hello-World/commit/6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "parents" => [%{"sha" => "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+       "url" => "https://api.github.com/repos/octocat/Hello-World/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e"}],
+    "sha" => "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+    "stats" => %{"additions" => 104, "deletions" => 4, "total" => 108},
+    "url" => "https://api.github.com/repos/octocat/Hello-World/commits/6dcb09b5b57875f334f61aebed695e2e4193db5e"
+  }
+
+  bench "map     :: github" do
+    :jsx.encode @commit
+  end
+end
