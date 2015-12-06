@@ -90,7 +90,15 @@ defmodule Github do
   }
   """
 
-  bench "jsx decode github" do
+  bench "decode  :: github" do
     :jsx.decode @commit
+  end
+
+  bench "to_list :: github" do
+    :jsx.to_list @commit
+  end
+
+  bench "is_json :: github" do
+    :jsx.is_json @commit
   end
 end

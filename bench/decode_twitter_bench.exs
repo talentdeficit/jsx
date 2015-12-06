@@ -111,7 +111,15 @@ defmodule Twitter do
   }
   """
 
-  bench "jsx decode twitter" do
+  bench "decode  :: twitter" do
     :jsx.decode @tweet
+  end
+
+  bench "to_list :: twitter" do
+    :jsx.to_list @tweet
+  end
+
+  bench "is_json :: twitter" do
+    :jsx.is_json @tweet
   end
 end

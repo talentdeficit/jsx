@@ -27,7 +27,15 @@ defmodule Twilio do
   }
   """
 
-  bench "jsx decode twilio" do
+  bench "decode  :: twilio" do
     :jsx.decode @sms
+  end
+
+  bench "to_list :: twilio" do
+    :jsx.to_list @sms
+  end
+
+  bench "is_json :: twilio" do
+    :jsx.is_json @sms
   end
 end

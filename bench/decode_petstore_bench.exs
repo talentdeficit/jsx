@@ -22,7 +22,15 @@ defmodule Petstore do
   }
   """
 
-  bench "jsx decode petstore" do
+  bench "decode  :: petstore" do
     :jsx.decode @pet
+  end
+
+  bench "to_list :: petstore" do
+    :jsx.to_list @pet
+  end
+
+  bench "is_json :: petstore" do
+    :jsx.is_json @pet
   end
 end
