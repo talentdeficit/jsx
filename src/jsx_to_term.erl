@@ -143,7 +143,7 @@ start_term(Config) when is_list(Config) -> {[], parse_config(Config)}.
 
 %% allocate a new object on top of the stack
 start_object({Stack, Config}) ->
-    {[{object, #{}}] ++ Stack, Config}.
+    {[{object, []}] ++ Stack, Config}.
 
 
 %% allocate a new array on top of the stack
@@ -152,8 +152,10 @@ start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
 
 %% finish an object or array and insert it into the parent object if it exists or
 %% return it if it is the root object
-finish({[{object, Map}], Config}) -> {Map, Config};
-finish({[{object, Map}|Rest], Config}) -> insert(Map, {Rest, Config});
+finish({[{object, []}], Config}) -> {#{}, Config};
+finish({[{object, []}|Rest], Config}) -> insert(#{}, {Rest, Config});
+finish({[{object, Map}], Config}) -> {maps:from_list(Map), Config};
+finish({[{object, Map}|Rest], Config}) -> insert(maps:from_list(Map), {Rest, Config});
 finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
 finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
 finish(_) -> erlang:error(badarg).
@@ -162,10 +164,10 @@ finish(_) -> erlang:error(badarg).
 %% insert a value when there's no parent object or array
 insert(Value, {[], Config}) -> {Value, Config};
 %% insert a key or value into an object or array, autodetects the 'right' thing
-insert(Key, {[{object, Map}|Rest], Config}) ->
-    {[{object, Key, Map}] ++ Rest, Config};
-insert(Value, {[{object, Key, Map}|Rest], Config}) ->
-    {[{object, maps:put(Key, Value, Map)}] ++ Rest, Config};
+insert(Key, {[{object, Pairs}|Rest], Config}) ->
+    {[{object, Key, Pairs}] ++ Rest, Config};
+insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
+    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
 insert(Value, {[{array, Values}|Rest], Config}) ->
     {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
@@ -227,44 +229,44 @@ format_key_test_() ->
 rep_manipulation_test_() ->
     [
         {"allocate a new object on an empty stack", ?_assertEqual(
-            {[{object, #{}}], #config{}},
+            {[{object, []}], #config{}},
             start_object({[], #config{}})
         )},
         {"allocate a new object on a stack", ?_assertEqual(
-            {[{object, #{}}, {object, #{}}], #config{}},
-            start_object({[{object, #{}}], #config{}})
+            {[{object, []}, {object, []}], #config{}},
+            start_object({[{object, []}], #config{}})
         )},
         {"insert a key into an object", ?_assertEqual(
-            {[{object, key, #{}}, junk], #config{}},
-            insert(key, {[{object, #{}}, junk], #config{}})
+            {[{object, key, []}, junk], #config{}},
+            insert(key, {[{object, []}, junk], #config{}})
         )},
         {"get current key", ?_assertEqual(
             key,
-            get_key({[{object, key, #{}}], #config{}})
+            get_key({[{object, key, []}], #config{}})
         )},
         {"try to get non-key from object", ?_assertError(
             badarg,
-            get_key({[{object, #{}}], #config{}})
+            get_key({[{object, []}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
-            {[{object, #{key => value}}, junk], #config{}},
-            insert(value, {[{object, key, #{}}, junk], #config{}})
+            {[{object, [{key, value}]}, junk], #config{}},
+            insert(value, {[{object, key, []}, junk], #config{}})
         )},
         {"finish an object with no ancestor", ?_assertEqual(
             {#{a => b, x => y}, #config{}},
-            finish({[{object, #{x => y, a => b}}], #config{}})
+            finish({[{object, [{x, y}, {a, b}]}], #config{}})
         )},
         {"finish an empty object", ?_assertEqual(
             {#{}, #config{}},
-            finish({[{object, #{}}], #config{}})
+            finish({[{object, []}], #config{}})
         )},
         {"finish an object with an ancestor", ?_assertEqual(
             {
-                [{object, #{key => #{a => b, x => y}, foo => bar}}],
+                [{object, [{key, #{a => b, x => y}}, {foo, bar}]}],
                 #config{}
             },
             finish({
-                [{object, #{x => y, a => b}}, {object, key, #{foo => bar}}],
+                [{object, [{x, y}, {a, b}]}, {object, key, [{foo, bar}]}],
                 #config{}
             })
         )}

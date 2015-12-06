@@ -71,11 +71,8 @@ unhitch([V|Rest], EntryPoint) ->
 unhitch([], _) -> [end_array].
 
 
-unpack(Map, EntryPoint) -> unpack(Map, maps:keys(Map), EntryPoint).
-
-unpack(Map, [K|Rest], EntryPoint) when is_integer(K); is_binary(K); is_atom(K) ->
-    [K] ++ EntryPoint:encode(maps:get(K, Map), EntryPoint) ++ unpack(Map, Rest, EntryPoint);
-unpack(_, [], _) -> [end_object].
+unpack(Map, EntryPoint) ->
+    unzip(maps:to_list(Map), EntryPoint).
 
 
 
