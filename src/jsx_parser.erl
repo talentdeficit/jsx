@@ -109,6 +109,17 @@ value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
     maybe_done(Tokens, handle_event({float, Number}, Handler, Config), Stack, Config);
 value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
     value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
+value([{_,_,_}=Timestamp|Tokens], Handler, Stack, Config) ->
+  {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:now_to_datetime(
+                                                   Timestamp),
+  value([{string, unicode:characters_to_binary(io_lib:format(
+         "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
+         [Year, Month, Day, Hour, Min, Sec]
+       ))}|Tokens],
+        Handler,
+        Stack,
+        Config
+       );
 value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
 when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_integer(Min), is_integer(Sec) ->
     value([{string, unicode:characters_to_binary(io_lib:format(
@@ -1174,6 +1185,15 @@ datetime_test_() ->
         {"datetime", ?_assertEqual(
             [start_array, {string, <<"2014-08-13T23:12:34.363369Z">>}, end_array, end_json],
             parse([start_array, {{2014,08,13},{23,12,34.363369}}, end_array, end_json], [])
+        )}
+    ].
+
+
+timestamp_test_() ->
+    [
+        {"timestamp", ?_assertEqual(
+            [start_array, {string, <<"2016-01-15T18:19:28Z">>}, end_array, end_json],
+            parse([start_array, {1452,881968,111772}, end_array, end_json], [])
         )}
     ].
 
