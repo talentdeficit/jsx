@@ -51,11 +51,13 @@ for the overview or [migrating from 1.x](#migrating) for the details
 #### to add to a rebar3 project ####
 Add to `rebar.config`
 ```erlang
+...
 {erl_opts, [debug_info]}.
 {deps, [
-       elli,
+       ...
        {jsx, {git, "https://github.com/talentdeficit/jsx.git", {branch, "v2.8.0"}}}
 ]}.
+...
 ```
 
 #### to build the library and run tests ####
