@@ -7,7 +7,7 @@ use Mix.Project
       version: "2.8.0",
       description: "an erlang application for consuming, producing and manipulating json. inspired by yajl",
       deps: deps(Mix.env),
-      package: package,
+      package: package(),
       language: :erlang,
       erlc_options: opts(Mix.env)
     ]
