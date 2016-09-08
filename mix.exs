@@ -19,8 +19,8 @@ use Mix.Project
       nil -> []
       _   -> [d: :maps_always]
     end
-    [d: :maps_support] ++ force_maps
-  end 
+    [:debug_info, d: :maps_support] ++ force_maps
+  end
 
   defp deps(_), do: [{:mixunit, "~> 0.9.2", only: :dev}]
 
@@ -41,4 +41,3 @@ use Mix.Project
     ]
   end
 end
-
