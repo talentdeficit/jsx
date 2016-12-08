@@ -1,4 +1,4 @@
-# jsx (v2.8.0) #
+# jsx (v2.8.1) #
 
 
 an erlang application for consuming, producing and manipulating [json][json]. 
@@ -10,7 +10,7 @@ current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.
 
 **jsx** is released under the terms of the [MIT][MIT] license
 
-copyright 2010-2015 alisdair sullivan
+copyright 2010-2016 alisdair sullivan
 
 ## really important note ##
 

@@ -1,3 +1,9 @@
+v2.8.1
+
+* enable `debug_info` when used via mix
+* accept `erlang:timestamp` as input to the parser
+
+
 v2.8.0
 
 * add `JSX_FORCE_MAPS` env var for forcing decoding to maps rather than
