@@ -36,6 +36,7 @@ use Mix.Project
         "src"
       ],
       contributors: ["alisdair sullivan"],
+      maintainers: ["@talentdeficit"],
       links: %{"github" => "https://github.com/talentdeficit/jsx"},
       licenses: ["MIT"]
     ]
