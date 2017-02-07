@@ -1,3 +1,7 @@
+v2.8.2
+
+* enable `debug_info` for rebar3
+
 v2.8.1
 
 * enable `debug_info` when used via mix
