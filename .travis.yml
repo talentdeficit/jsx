@@ -1,8 +1,9 @@
 language: erlang
 script: rebar compile && rebar skip_deps=true eunit
 otp_release:
-  - 17.5
-  - 18.0
-  - R16B03-1
   - R15B02
+  - R16B03-1
+  - 17.5
+  - 18.3
+  - 19.2
 
