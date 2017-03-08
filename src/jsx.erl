@@ -219,14 +219,14 @@ test_cases() ->
 special_test_cases() -> special_objects() ++ special_array().
 
 
-empty_array() -> [{"[]", <<"[]">>, [], [start_array, end_array]}].
+empty_array() -> [{"[]", <<"[]">>, [empty_array], [start_array, end_array]}].
 
 
 nested_array() ->
     [{
         "[[[]]]",
         <<"[[[]]]">>,
-        [[[]]],
+        [[[empty_array]]],
         [start_array, start_array, start_array, end_array, end_array, end_array]
     }].
 
@@ -405,7 +405,7 @@ special_objects() ->
 
 
 special_array() ->
-    [    
+    [
         {
             "[foo, bar]",
             <<"[\"foo\",\"bar\"]">>,

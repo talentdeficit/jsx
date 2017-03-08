@@ -171,7 +171,7 @@ start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
 
 
 %% allocate a new array on top of the stack
-start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
+start_array({Stack, Config}) -> {[{array, [empty_array]}] ++ Stack, Config}.
 
 
 %% finish an object or array and insert it into the parent object if it exists or
@@ -192,6 +192,8 @@ insert(Key, {[{object, Pairs}|Rest], Config}) ->
     {[{object, Key, Pairs}] ++ Rest, Config};
 insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
     {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
+insert(Value, {[{array, [empty_array]}|Rest], Config}) ->
+    {[{array, [Value]}] ++ Rest, Config};
 insert(Value, {[{array, Values}|Rest], Config}) ->
     {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
@@ -312,11 +314,11 @@ rep_manipulation_test_() ->
             start_object({[{object, []}], #config{}})
         )},
         {"allocate a new array on an empty stack", ?_assertEqual(
-            {[{array, []}], #config{}},
+            {[{array, [empty_array]}], #config{}},
             start_array({[], #config{}})
         )},
         {"allocate a new array on a stack", ?_assertEqual(
-            {[{array, []}, {object, []}], #config{}},
+            {[{array, [empty_array]}, {object, []}], #config{}},
             start_array({[{object, []}], #config{}})
         )},
         {"insert a key into an object", ?_assertEqual(
@@ -333,7 +335,7 @@ rep_manipulation_test_() ->
         )},
         {"try to get key from array", ?_assertError(
             badarg,
-            get_key({[{array, []}], #config{}})
+            get_key({[{array, [empty_array]}], #config{}})
         )},
         {"insert a value into an object", ?_assertEqual(
             {[{object, [{key, value}]}, junk], #config{}},
@@ -341,7 +343,7 @@ rep_manipulation_test_() ->
         )},
         {"insert a value into an array", ?_assertEqual(
             {[{array, [value]}, junk], #config{}},
-            insert(value, {[{array, []}, junk], #config{}})
+            insert(value, {[{array, [empty_array]}, junk], #config{}})
         )},
         {"finish an object with no ancestor", ?_assertEqual(
             {[{a, b}, {x, y}], #config{}},
