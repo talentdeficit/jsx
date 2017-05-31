@@ -70,14 +70,8 @@
 
 -spec to_term(Source::binary(), Config::config()) -> json_value().
 
--ifdef(maps_always).
 to_term(Source, Config) when is_list(Config) ->
     (jsx:decoder(?MODULE, [return_maps] ++ Config, jsx_config:extract_config(Config)))(Source).
--endif.
--ifndef(maps_always).
-to_term(Source, Config) when is_list(Config) ->
-    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source).
--endif.
 
 parse_config(Config) -> parse_config(Config, #config{}).
 
