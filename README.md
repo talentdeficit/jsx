@@ -440,7 +440,7 @@ additional options beyond these. see
         escape sequences not adhering to the json spec result in a `badarg` error
     
     any combination of these can be passed to **jsx** by using `{strict, [strict_option()]}`.
-    `strict` is equivalent to `{strict, [comments, utf8, single_quotes, escapes]}` 
+    `strict` is equivalent to `{strict, [comments, trailing_commas, utf8, single_quotes, escapes]}`
 
 - `return_tail`
 
