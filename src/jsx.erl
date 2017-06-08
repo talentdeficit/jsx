@@ -107,7 +107,7 @@ prettify(Source) -> format(Source, [space, {indent, 2}]).
 
 is_json(Source) -> is_json(Source, []).
 
--spec is_json(Source::any(), Config::jsx_verify:config()) -> boolean() | {incomplete, decoder()}.
+-spec is_json(Source::any(), Config::jsx_config:config()) -> boolean() | {incomplete, decoder()}.
 
 is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
@@ -116,7 +116,7 @@ is_json(Source, Config) -> jsx_verify:is_json(Source, Config).
 
 is_term(Source) -> is_term(Source, []).
 
--spec is_term(Source::any(), Config::jsx_verify:config()) -> boolean() | {incomplete, encoder()}.
+-spec is_term(Source::any(), Config::jsx_config:config()) -> boolean() | {incomplete, encoder()}.
 
 is_term(Source, Config) -> jsx_verify:is_term(Source, Config).
 
