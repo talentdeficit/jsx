@@ -423,6 +423,10 @@ return_maps_test_() ->
             [{}],
             jsx:decode(<<"{}">>, [])
         )},
+        {"an empty map", ?_assertEqual(
+            [{}],
+            jsx:decode(<<"{}">>, [{return_maps, false}])
+        )},
         {"a small map", ?_assertEqual(
             #{<<"awesome">> => true, <<"library">> => <<"jsx">>},
             jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [return_maps])
