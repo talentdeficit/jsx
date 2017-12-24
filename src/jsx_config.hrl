@@ -8,6 +8,7 @@
     strict_utf8 = false                 :: boolean(),
     strict_single_quotes = false        :: boolean(),
     strict_escapes = false              :: boolean(),
+    strict_control_codes = false        :: boolean(),
     stream = false                      :: boolean(),
     return_tail = false                 :: boolean(),
     uescape = false                     :: boolean(),
