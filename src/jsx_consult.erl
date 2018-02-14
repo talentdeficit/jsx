@@ -80,7 +80,7 @@ consult(File, Config) when is_list(Config) ->
     end.
 
 
--type state() :: {list(), #config{}}.
+-type state() :: {[], proplists:proplist(), {list(), #config{}}}.
 -spec init(Config::proplists:proplist()) -> state().
 
 init(Config) -> {[], Config, jsx_to_term:start_term(Config)}.
