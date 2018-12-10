@@ -693,6 +693,10 @@ following events must be handled:
 
     the start of a json object
 
+-   '{key, binary()}'
+
+    the key of an entry in a json object
+
 -   `end_object`
 
     the end of a json object
