@@ -32,7 +32,8 @@
 -record(config, {
     space = 0,
     indent = 0,
-    depth = 0
+    depth = 0,
+    newline = <<$\n>>
 }).
 
 -type config() :: list().
@@ -62,6 +63,8 @@ parse_config([{indent, Val}|Rest], Config) when is_integer(Val), Val > 0 ->
     parse_config(Rest, Config#config{indent = Val});
 parse_config([indent|Rest], Config) ->
     parse_config(Rest, Config#config{indent = 1});
+parse_config([{newline, Val}|Rest], Config) when is_binary(Val) ->
+    parse_config(Rest, Config#config{newline = Val});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
@@ -128,7 +131,7 @@ space(Config) ->
 indent(Config) ->
     case Config#config.indent of
         0 -> <<>>
-        ; X when X > 0 -> <<?newline/binary, (binary:copy(?space, X * Config#config.depth))/binary>>
+        ; X when X > 0 -> <<(Config#config.newline)/binary, (binary:copy(?space, X * Config#config.depth))/binary>>
     end.
 
 
@@ -383,6 +386,13 @@ format_test_() ->
     [{Title, ?_assertEqual(Min, jsx:minify(Pretty))} || {Title, Min, Pretty} <- Cases] ++
         [{Title, ?_assertEqual(Pretty, jsx:prettify(Min))} || {Title, Min, Pretty} <- Cases].
 
+custom_newline_test_() ->
+    [
+        {"single key object", ?_assert(
+            jsx:format(<<"{\"k\":\"v\"}">>, [space, {indent, 2}, {newline, <<$\r>>}]) 
+                =:= <<"{\r  \"k\": \"v\"\r}">>)
+        }
+    ].
 
 handle_event_test_() ->
     Data = jsx:test_cases() ++ jsx:special_test_cases(),
