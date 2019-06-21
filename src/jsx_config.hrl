@@ -10,6 +10,7 @@
     strict_escapes = false              :: boolean(),
     strict_control_codes = false        :: boolean(),
     stream = false                      :: boolean(),
+    decimal = false                     :: boolean(),
     return_tail = false                 :: boolean(),
     uescape = false                     :: boolean(),
     unescaped_jsonp = false             :: boolean(),

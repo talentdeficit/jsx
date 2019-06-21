@@ -11,4 +11,4 @@ doc
 *.sublime-*
 rebar3
 _build/
-
+tags

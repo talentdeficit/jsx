@@ -118,7 +118,9 @@ encode(literal, Literal, _Config) ->
 encode(integer, Integer, _Config) ->
     erlang:integer_to_list(Integer);
 encode(float, Float, _Config) ->
-    io_lib:format("~p", [Float]).
+    io_lib:format("~p", [Float]);
+encode(decimal, Decimal, _Config) ->
+    re:replace(decimal_conv:string(Decimal), "E\\+?", "e").
 
 
 space(Config) ->

@@ -524,4 +524,24 @@ end_stream_test_() ->
     ].
 
 
+naked_decimals() ->
+    [{Title, JSON, decimal_conv:number(JSON), []}
+     || {Title, JSON, _Term, _Events} <- naked_floats()].
+
+
+decimals() ->
+    naked_decimals()
+    ++ [ wrap_with_array(Test) || Test <- naked_decimals() ]
+    ++ [ wrap_with_object(Test) || Test <- naked_decimals() ].
+
+
+decimal_test_() ->
+    Data = decimals(),
+    [{Title, ?_assertEqual(Term, decode(JSON, [decimal]))}
+     || {Title, JSON, Term, _Events} <- Data
+    ] ++
+    [{Title, ?_assertEqual(JSON, encode(Term))}
+     || {Title, JSON, Term, _Events} <- Data
+    ].
+
 -endif.

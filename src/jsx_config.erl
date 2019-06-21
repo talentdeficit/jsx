@@ -85,6 +85,8 @@ parse_config([{strict, Strict}|Rest], Config) ->
     parse_strict(Strict, Rest, Config);
 parse_config([stream|Rest], Config) ->
     parse_config(Rest, Config#config{stream=true});
+parse_config([decimal|Rest], Config) ->
+    parse_config(Rest, Config#config{decimal=true});
 parse_config([{error_handler, ErrorHandler}|Rest] = Options, Config) when is_function(ErrorHandler, 3) ->
     case Config#config.error_handler of
         false -> parse_config(Rest, Config#config{error_handler=ErrorHandler})
@@ -166,6 +168,7 @@ valid_flags() ->
         repeat_keys,
         strict,
         stream,
+        decimal,
         uescape,
         error_handler,
         incomplete_handler

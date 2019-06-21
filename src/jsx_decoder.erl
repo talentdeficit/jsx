@@ -798,8 +798,8 @@ number(<<>>, Handler, Acc, [State|Stack], Config=#config{stream=false}) ->
     NumType = case State of
         zero -> integer;
         integer -> integer;
-        decimal -> float;
-        exp -> float
+        decimal -> float_type(Config);
+        exp -> float_type(Config)
     end,
     finish_number(<<>>, Handler, {NumType, iolist_to_binary(Acc)}, Stack, Config);
 number(<<>>, Handler, Acc, Stack, Config) ->
@@ -821,7 +821,7 @@ number(Bin, Handler, Acc, [State|Stack], Config) ->
             finish_number(Rest, Handler, {integer, iolist_to_binary([Acc, Clean])}, Stack, Config);
         {finish_float, Size} ->
             <<Clean:Size/binary, Rest/binary>> = Bin,
-            finish_number(Rest, Handler, {float, iolist_to_binary([Acc, Clean])}, Stack, Config);
+            finish_number(Rest, Handler, {float_type(Config), iolist_to_binary([Acc, Clean])}, Stack, Config);
         {error, Size} ->
             <<Clean:Size/binary, Rest/binary>> = Bin,
             ?error(number, Rest, Handler, [Acc, Clean], Stack, Config);
@@ -947,7 +947,12 @@ finish_number(Rest, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
 
 
+float_type(#config{decimal=true}) -> decimal;
+float_type(_) -> float.
+
+
 -ifndef(no_binary_to_whatever).
+format_number({decimal, Acc}) -> {decimal, decimal_conv:number(Acc)};
 format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
 format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
 -else.

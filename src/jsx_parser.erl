@@ -109,6 +109,8 @@ value([Number|Tokens], Handler, Stack, Config) when is_float(Number) ->
     maybe_done(Tokens, handle_event({float, Number}, Handler, Config), Stack, Config);
 value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
     value((jsx:decoder(?MODULE, [], []))(Raw) ++ Tokens, Handler, Stack, Config);
+value([{S,_,_}=Decimal|Tokens], Handler, Stack, Config) when S == 0; S == 1 ->
+    maybe_done(Tokens, handle_event({decimal, Decimal}, Handler, Config), Stack, Config);
 value([{_,_,_}=Timestamp|Tokens], Handler, Stack, Config) ->
   {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:now_to_datetime(
                                                    Timestamp),
