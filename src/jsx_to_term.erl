@@ -44,31 +44,7 @@
 -type config() :: list().
 -export_type([config/0]).
 
--ifndef(maps_support).
--type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()}) | [{},...]
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--endif.
-
--ifdef(maps_support).
--type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()}) | [{},...]
-    | map()
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--endif.
-
-
--spec to_term(Source::binary(), Config::config()) -> json_value().
+-spec to_term(Source::binary(), Config::config()) -> jsx:json_term() | {incomplete, jsx:decoder()}.
 
 -ifdef(maps_always).
 to_term(Source, Config) when is_list(Config) ->
