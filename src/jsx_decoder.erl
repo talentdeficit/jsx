@@ -43,7 +43,7 @@ decoder(Handler, State, Config) ->
 -spec resume(
         Rest::binary(),
         State::atom(),
-        Handler::{atom(), any()},
+        Handler::module(),
         Acc::any(),
         Stack::list(atom()),
         Config::jsx:config()
