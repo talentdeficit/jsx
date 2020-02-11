@@ -38,7 +38,7 @@ parser(Handler, State, Config) ->
 -spec resume(
         Rest::jsx:token(),
         State::atom(),
-        Handler::{atom(), any()},
+        Handler::module(),
         Stack::list(atom()),
         Config::jsx:config()
     ) -> jsx:parser() | {incomplete, jsx:parser()}.
