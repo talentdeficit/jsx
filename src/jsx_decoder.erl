@@ -695,13 +695,13 @@ unescape(<<$u, F, A, B, C, ?rsolidus, $u, G, X, Y, Z, Rest/binary>>, Handler, Ac
     Low = erlang:list_to_integer([$d, X, Y, Z], 16),
     Codepoint = (High - 16#d800) * 16#400 + (Low - 16#dc00) + 16#10000,
     string(Rest, Handler, [Acc, <<Codepoint/utf8>>], Stack, Config);
-unescape(<<$u, F, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
+unescape(<<$u, F0, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config)
         when (A == $8 orelse A == $9 orelse A == $a orelse A == $b orelse A == $A orelse A == $B),
-            (F == $d orelse F == $D),
+            (F0 == $d orelse F0 == $D),
             ?is_hex(B), ?is_hex(C), ?is_hex(W), ?is_hex(X), ?is_hex(Y), ?is_hex(Z)
         ->
     case Config#config.strict_utf8 of
-        true -> ?error(<<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config);
+        true -> ?error(string, <<$u, $d, A, B, C, ?rsolidus, $u, W, X, Y, Z, Rest/binary>>, Handler, Acc, Stack, Config);
         false -> string(Rest, Handler, [Acc, <<16#fffd/utf8>>, <<16#fffd/utf8>>], Stack, Config)
     end;
 unescape(<<$u, F, A, B, C, ?rsolidus, Rest/binary>>, Handler, Acc, Stack, Config)
