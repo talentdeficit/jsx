@@ -55,7 +55,7 @@
 -ifdef(maps_support).
 -type json_term() :: [{binary() | atom(), json_term()}] | [{},...]
     | [json_term()] | []
-    | map()
+    | #{ binary() | atom() => json_term() }
     | true | false | null
     | integer() | float()
     | binary() | atom()
