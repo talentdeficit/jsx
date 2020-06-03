@@ -23,5 +23,6 @@
       "rebar.config", "rebar.config.script", "rebar.lock"
       "README.md", "CHANGES.md", "LICENSE"
     ]},
-    {licenses, ["MIT"]}
+    {licenses, ["MIT"]},
+    {links, [{"Github", "https://github.com/talentdeficit/jsx"}]}
 ]}.
