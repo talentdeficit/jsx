@@ -1,0 +1,33 @@
+name: EUnit
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+  build:
+    name: Test on OTP ${{ matrix.otp_version }} and ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        # important to check a pre-23 version that still uses nodetool
+        # plus 23 once it is released
+        otp_version: [22.3.2]
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: gleam-lang/setup-erlang@v1.0.0
+      with:
+        otp-version: ${{ matrix.otp_version }}
+
+    - name: compile
+      run: rebar3 compile
+
+    - name: test
+      run: rebar3 eunit

@@ -946,15 +946,8 @@ exp(_, N) -> {finish_float, N}.
 finish_number(Rest, Handler, Acc, Stack, Config) ->
     maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
 
-
--ifndef(no_binary_to_whatever).
 format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
 format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
--else.
-format_number({integer, Acc}) -> {integer, list_to_integer(unicode:characters_to_list(Acc))};
-format_number({float, Acc}) -> {float, list_to_float(unicode:characters_to_list(Acc))}.
--endif.
-
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
@@ -1882,26 +1875,26 @@ custom_incomplete_handler_test_() ->
 return_tail_test_() ->
     [
         {"return_tail with tail", ?_assertEqual(
-            {with_tail,[{}],<<"3">>},
+            {with_tail,#{},<<"3">>},
             jsx:decode(<<"{} 3">>, [return_tail])
         )},
         {"return_tail without tail", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             jsx:decode(<<"{}">>, [return_tail])
         )},
         {"return_tail with trimmed whitespace", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             jsx:decode(<<"{} ">>, [return_tail])
         )},
         {"return_tail and streaming", ?_assertEqual(
-            {with_tail,[{}],<<"3">>},
+            {with_tail,#{},<<"3">>},
             begin
                 {incomplete, F} = jsx:decode(<<"{">>, [return_tail, stream]),
                 F(<<"} 3">>)
             end
         )},
         {"return_tail and streaming", ?_assertEqual(
-            {with_tail,[{}],<<"">>},
+            {with_tail,#{},<<"">>},
             begin
                 %% In case of infinite stream of objects a user does not know
                 %% when to call F(end_stream).

@@ -1,22 +1,16 @@
-# jsx (v2.9.0) #
+# jsx (v3.0.0) #
 
 
 an erlang application for consuming, producing and manipulating [json][json]. 
 inspired by [yajl][yajl]
 
-**jsx** is built via [rebar3][rebar3], [rebar][rebar] or [mix][mix] and continuous integration testing provided courtesy [travis-ci][travis]
+**jsx** is built via [rebar3][rebar3]
 
-current status: [![Build Status](https://secure.travis-ci.org/talentdeficit/jsx.png?branch=develop)](http://travis-ci.org/talentdeficit/jsx)
+current status: ![](https://github.com/talentdeficit/jsx/workflows/EUnit/badge.svg)
 
 **jsx** is released under the terms of the [MIT][MIT] license
 
 copyright 2010-2016 alisdair sullivan
-
-## really important note ##
-
-there are a few changes for users upgrading from 1.x. see [CHANGES.md](CHANGES.md)
-for the overview or [migrating from 1.x](#migrating) for the details
-
 
 ## index ##
 
@@ -39,7 +33,6 @@ for the overview or [migrating from 1.x](#migrating) for the details
   - [`prettify/1`](#prettify1)
   - [`is_json/1,2`](#is_json12)
   - [`is_term/1,2`](#is_term12)
-  - [`maps_support/0`](#maps_support0)
 * [callback exports](#callback_exports)
   - [`Module:init/1`](#moduleinit1)
   - [`Module:handle_event/2`](#modulehandle_event2)
@@ -55,7 +48,7 @@ Add to `rebar.config`
 {erl_opts, [debug_info]}.
 {deps, [
        ...
-       {jsx, {git, "https://github.com/talentdeficit/jsx.git", {branch, "v2.8.0"}}}
+       {jsx, "~> 3.0"}
 ]}.
 ...
 ```
@@ -65,19 +58,15 @@ Add to `rebar.config`
 ```bash
 $ rebar3 compile
 $ rebar3 eunit
-$ rebar compile
-$ rebar eunit
-$ mix compile
-$ mix eunit
 ```
 
 #### to convert a utf8 binary containing a json string into an erlang term ####
 
 ```erlang
-1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>).
-[{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
-2> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [return_maps]).
+1> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, []).
 #{<<"awesome">> => true,<<"library">> => <<"jsx">>}
+2> jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [{return_maps, false}]).
+[{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]
 3> jsx:decode(<<"[\"a\",\"list\",\"of\",\"words\"]">>).
 [<<"a">>, <<"list">>, <<"of">>, <<"words">>]
 ```
@@ -85,10 +74,10 @@ $ mix eunit
 #### to convert an erlang term into a utf8 binary containing a json string ####
 
 ```erlang
-1> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
-<<"{\"library\": \"jsx\", \"awesome\": true}">>
-2> jsx:encode(#{<<"library">> => <<"jsx">>, <<"awesome">> => true}).
+1> jsx:encode(#{<<"library">> => <<"jsx">>, <<"awesome">> => true}).
 <<"{\"awesome\":true,\"library\":\"jsx\"}">>
+2> jsx:encode([{<<"library">>,<<"jsx">>},{<<"awesome">>,true}]).
+<<"{\"library\": \"jsx\", \"awesome\": true}">>
 3> jsx:encode([<<"a">>, <<"list">>, <<"of">>, <<"words">>]).
 <<"[\"a\",\"list\",\"of\",\"words\"]">>
 ```
@@ -132,13 +121,6 @@ false
 }">>
 ```
 
-#### to compile **jsx** so that it always decodes json objects to maps ####
-
-```bash
-$ JSX_FORCE_MAPS rebar3 compile
-$ JSX_FORCE_MAPS mix compile
-```
-
 ## description ##
 
 
@@ -171,29 +153,6 @@ quotes but must end with single quotes and must escape any single quotes they co
 
 json and **jsx** only recognize escape sequences as outlined in the json spec. it just
 ignores bad escape sequences leaving them in strings unaltered
-
-
-### migrating from 1.x ###
-
-if you're migrating from jsx v1.x to v2.x in most cases you won't need to
-make any changes to your code
-
-support for otp 17.0's new map type is now enabled by default when compiling
-via rebar for any release that supports them. jsx should still compile cleanly for
-earlier releases without any user intervention
-
-if you used any of `replaced_bad_utf8`, `single_quoted_strings`, `comments`,
-`ignored_bad_escapes` or `relax` you can simply omit them from your calls to jsx,
-they are all enabled by default now. if you want stricter parsing see the new
-[`strict` options](#option) available
-
-if you were using jsx to parse partial json using it's streaming features it is now
-disabled by default. you'll need to pass the `stream` option to calls to jsx functions
-to reenable it
-
-support for `pre_encode` and `post_decode` has been removed. they were fragile and hard
-to understand and they prevented evolution of the encoding and decoding code
-
 
 ### json &lt;-> erlang mapping ###
 
@@ -261,18 +220,7 @@ see below                       | `datetime()`
 
 *   objects
 
-    json objects are represented by erlang proplists. json maps may also be
-    encoded to json and optionally decoded to maps (via the `return_maps`
-    option)
-    
-    the empty object has the special representation `[{}]` to differentiate it
-    from the empty list. ambiguities like `[true, false]` prevent the use of
-    the shorthand form of property lists using atoms as properties so all
-    properties must be tuples. all keys must be encoded as in `string` or as
-    atoms or integers (which will be escaped and converted to binaries for
-    presentation to handlers). values should be valid json values. repeated
-    keys are tolerated in json text decoded to erlang terms but are not allowed
-    in erlang terms encoded to json
+    json objects are represented by erlang maps.    
 
 *   datetime
 
@@ -533,9 +481,8 @@ new atoms to the atom table and will result in a `badarg` error if the atom
 does not exist. `attempt_atom` will convert keys to atoms when they exist,
 and leave them as binary otherwise
 
-the option `return_maps` will attempt to return objects as maps instead of
-proplists. this option has no effect when used with releases that do not
-support maps
+the option `{return_maps, false}` will return objects as proplists instead 
+of maps.
 
 raises a `badarg` error exception if input is not valid json
 
@@ -650,17 +597,6 @@ returns true if input is a valid erlang representation of json, false if not
 
 what exactly constitutes valid json may be altered via [options](#option)
 
-
-#### `maps_support/0` ####
-
-```erlang
-maps_support() -> true | false
-```
-
-if **jsx** was compiled with map support enabled returns `true`, else
-`false`
-
-
 ## callback exports ##
 
 the following functions should be exported from a **jsx** callback module
@@ -753,8 +689,6 @@ jsx wouldn't be what it is without the contributions of [Paul J. Davis](https://
 [yajl]: http://lloyd.github.com/yajl
 [MIT]: http://www.opensource.org/licenses/mit-license.html
 [rebar3]: https://rebar3.org
-[rebar]: https://github.com/rebar/rebar
-[mix]: http://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html
 [meck]: https://github.com/eproxus/meck
 [rfc4627]: http://tools.ietf.org/html/rfc4627
 [travis]: https://travis-ci.org/
