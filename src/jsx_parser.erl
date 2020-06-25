@@ -181,7 +181,7 @@ when is_atom(Key); is_binary(Key); is_integer(Key) ->
             Config
         )
     catch error:badarg ->
-        ?error(object, [{string, Key}|Tokens], Handler, Stack, Config)
+        ?error(object, [{key, Key}|Tokens], Handler, [object|Stack], Config)
     end;
 object([], Handler, Stack, Config) ->
     incomplete(object, Handler, Stack, Config);
@@ -1210,5 +1210,44 @@ rogue_tuple_test_() ->
         )}
     ].
 
+bad_string_encoding_test_() ->
+  B64Encoder=fun(
+               [{Type, Str}|Tokens],
+               {parser, State, Handler, Stack}, Conf) when
+                   Type==key orelse Type==string ->
+                 Conf1=jsx_config:list_to_config(Conf),
+                 resume(
+                   [{Type, base64:encode(Str)}|Tokens],
+                   State, Handler, Stack, Conf1)
+             end,
+  Config=[strict, {error_handler, B64Encoder}],
+  [
+   {"map string encoder",
+   ?_assertEqual(
+      [start_object,
+        {key,<<"AAAAAE9Yn0hn29V+nKn4CA==">>},
+        {string,<<"AQEBAdf57B7ihdvsUCSUHA==">>},
+        end_object,end_json],
+      parse([start_object,
+             <<0,0,0,0,79,88,159,72,103,219,213,126,156,169,248,8>>,
+             <<1,1,1,1,215,249,236,30,226,133,219,236,80,36,148,28>>,
+             end_object,end_json],
+            Config
+           )
+     )},
+   {"array string encoder",
+    ?_assertEqual(
+       [start_array,
+         {string,<<"DMF1ucDxtqgxw5niaXcmYQ==">>},
+         {string,<<"kutf/uauL+w61xx3dTFXjw==">>},
+         end_array,end_json],
+       parse([start_array,
+              <<12,193,117,185,192,241,182,168,49,195,153,226,105,119,38,97>>,
+              <<146,235,95,254,230,174,47,236,58,215,28,119,117,49,87,143>>,
+              end_array,end_json],
+             Config
+            )
+      )}
+  ].
 
 -endif.

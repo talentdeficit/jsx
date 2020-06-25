@@ -24,7 +24,7 @@
 -module(jsx_config).
 
 -export([parse_config/1]).
--export([config_to_list/1]).
+-export([config_to_list/1, list_to_config/1]).
 -export([extract_config/1, valid_flags/0]).
 
 -ifdef(TEST).
@@ -115,6 +115,45 @@ parse_strict(_Strict, _Rest, _Config) ->
     erlang:error(badarg).
 
 
+-spec list_to_config(Config::proplists:proplist()) -> config().
+
+list_to_config(Config) ->
+  CL=lists:foldl(
+       fun(Key, Acc) when Key==error_handler orelse
+                          Key==incomplete_handler ->
+           case lists:keyfind(Key, 1, Config) of
+             false ->
+               [false|Acc];
+             {_, Val} ->
+               [Val|Acc]
+           end;
+          (StrictKey, Acc) when StrictKey==strict_comments orelse
+                                StrictKey==strict_utf8 orelse
+                                StrictKey==strict_single_quotes orelse
+                                StrictKey==strict_commas orelse
+                                StrictKey==strict_control_codes orelse
+                                StrictKey==strict_escapes ->
+           Flag1=lists:member(StrictKey, Config) orelse
+            lists:member(strict, Config),
+            if Flag1 -> [ Flag1 |Acc];
+               true ->
+                 case lists:keyfind(strict,1,Config) of
+                   false ->
+                     [ false | Acc ];
+                   {_, StrictList } ->
+                     [ lists:member(short_flag(StrictKey),StrictList) | Acc ]
+                 end
+            end;
+          (Key, Acc) -> [lists:member(Key, Config)|Acc]
+       end, [config], record_info(fields, config)),
+  list_to_tuple(lists:reverse(CL)).
+
+short_flag(strict_comments) -> comments;
+short_flag(strict_utf8) -> utf8;
+short_flag(strict_single_quotes) -> single_quotes;
+short_flag(strict_commas) -> commas;
+short_flag(strict_control_codes) -> control_codes;
+short_flag(strict_escapes) -> escapes.
 
 -spec config_to_list(Config::config()) -> proplists:proplist().
 
@@ -339,6 +378,33 @@ config_to_list_test_() ->
         )}
     ].
 
+repack_params_test_() ->
+  C1=#config{
+             strict_comments = true,
+             strict_utf8 = true,
+             strict_escapes = true,
+             strict_control_codes = true,
+             error_handler = fun fake_error_handler/3
+            },
+  C2=#config{escaped_strings = true, %will be strict flag
+             strict_comments=true,
+             strict_commas=true,
+             strict_utf8=true,
+             strict_single_quotes=true,
+             strict_escapes=true,
+             strict_control_codes=true,
+             error_handler = fun fake_error_handler/3
+            },
+  C1L=jsx_config:config_to_list(C1),
+  C2L=jsx_config:config_to_list(C2),
+  [
+   ?_assertMatch(true,lists:member(strict,C2L)),
+   ?_assertMatch({_,_},lists:keyfind(strict,1,C1L)),
+   {"With all strict",
+    ?_assertEqual(C1,jsx_config:list_to_config(C1L))},
+   {"Partially strict",
+    ?_assertEqual(C2,jsx_config:list_to_config(C2L))}
+  ].
 
 fake_error_handler(_, _, _) -> ok.
 
