@@ -44,19 +44,6 @@
 -type config() :: list().
 -export_type([config/0]).
 
--ifndef(maps_support).
--type json_value() :: list(json_value())
-    | list({binary() | atom(), json_value()}) | [{},...]
-    | {with_tail, json_value(), binary()}
-    | true
-    | false
-    | null
-    | integer()
-    | float()
-    | binary().
--endif.
-
--ifdef(maps_support).
 -type json_value() :: list(json_value())
     | list({binary() | atom(), json_value()}) | [{},...]
     | {with_tail, json_value(), binary()}
@@ -67,19 +54,11 @@
     | integer()
     | float()
     | binary().
--endif.
-
 
 -spec to_term(Source::binary(), Config::config()) -> json_value().
 
--ifdef(maps_always).
 to_term(Source, Config) when is_list(Config) ->
     (jsx:decoder(?MODULE, [return_maps] ++ Config, jsx_config:extract_config(Config)))(Source).
--endif.
--ifndef(maps_always).
-to_term(Source, Config) when is_list(Config) ->
-    (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source).
--endif.
 
 parse_config(Config) -> parse_config(Config, #config{}).
 
@@ -166,41 +145,6 @@ format_key(Key, Config) ->
 
 start_term(Config) when is_list(Config) -> {[], parse_config(Config)}.
 
-
--ifndef(maps_support).
-%% allocate a new object on top of the stack
-start_object({Stack, Config}) -> {[{object, []}] ++ Stack, Config}.
-
-
-%% allocate a new array on top of the stack
-start_array({Stack, Config}) -> {[{array, []}] ++ Stack, Config}.
-
-
-%% finish an object or array and insert it into the parent object if it exists or
-%% return it if it is the root object
-finish({[{object, []}], Config}) -> {[{}], Config};
-finish({[{object, []}|Rest], Config}) -> insert([{}], {Rest, Config});
-finish({[{object, Pairs}], Config}) -> {lists:reverse(Pairs), Config};
-finish({[{object, Pairs}|Rest], Config}) -> insert(lists:reverse(Pairs), {Rest, Config});
-finish({[{array, Values}], Config}) -> {lists:reverse(Values), Config};
-finish({[{array, Values}|Rest], Config}) -> insert(lists:reverse(Values), {Rest, Config});
-finish(_) -> erlang:error(badarg).
-
-
-%% insert a value when there's no parent object or array
-insert(Value, {[], Config}) -> {Value, Config};
-%% insert a key or value into an object or array, autodetects the 'right' thing
-insert(Key, {[{object, Pairs}|Rest], Config}) ->
-    {[{object, Key, Pairs}] ++ Rest, Config};
-insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
-    {[{object, [{Key, Value}] ++ Pairs}] ++ Rest, Config};
-insert(Value, {[{array, Values}|Rest], Config}) ->
-    {[{array, [Value] ++ Values}] ++ Rest, Config};
-insert(_, _) -> erlang:error(badarg).
--endif.
-
-
--ifdef(maps_support).
 %% allocate a new object on top of the stack
 start_object({Stack, Config=#config{return_maps=true}}) ->
     {[{object, #{}}] ++ Stack, Config};
@@ -239,8 +183,6 @@ insert(Value, {[{object, Key, Pairs}|Rest], Config}) ->
 insert(Value, {[{array, Values}|Rest], Config}) ->
     {[{array, [Value] ++ Values}] ++ Rest, Config};
 insert(_, _) -> erlang:error(badarg).
--endif.
-
 
 get_key({[{object, Key, _}|_], _}) -> Key;
 get_key(_) -> erlang:error(badarg).
@@ -368,7 +310,6 @@ rep_manipulation_test_() ->
     ].
 
 
--ifdef(maps_support).
 rep_manipulation_with_maps_test_() ->
     [
         {"allocate a new object on an empty stack", ?_assertEqual(
@@ -420,10 +361,10 @@ return_maps_test_() ->
     [
         {"an empty map", ?_assertEqual(
             #{},
-            jsx:decode(<<"{}">>, [return_maps])
+            jsx:decode(<<"{}">>, [])
         )},
         {"an empty map", ?_assertEqual(
-            [{}],
+            #{},
             jsx:decode(<<"{}">>, [])
         )},
         {"an empty map", ?_assertEqual(
@@ -432,18 +373,17 @@ return_maps_test_() ->
         )},
         {"a small map", ?_assertEqual(
             #{<<"awesome">> => true, <<"library">> => <<"jsx">>},
-            jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [return_maps])
+            jsx:decode(<<"{\"library\": \"jsx\", \"awesome\": true}">>, [])
         )},
         {"a recursive map", ?_assertEqual(
             #{<<"key">> => #{<<"key">> => true}},
-            jsx:decode(<<"{\"key\": {\"key\": true}}">>, [return_maps])
+            jsx:decode(<<"{\"key\": {\"key\": true}}">>, [])
         )},
         {"a map inside a list", ?_assertEqual(
             [#{}],
-            jsx:decode(<<"[{}]">>, [return_maps])
+            jsx:decode(<<"[{}]">>, [])
         )}
     ].
--endif.
 
 
 handle_event_test_() ->

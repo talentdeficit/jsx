@@ -1,3 +1,8 @@
+v3.0
+
+* drop support for OTP versions before 17.0
+* remove definition options for disabling maps globally, `{return_maps, false}` is still an accepted option to `decode/2`
+
 v2.8.2
 
 * enable `debug_info` for rebar3
