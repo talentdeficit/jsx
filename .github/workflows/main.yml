@@ -15,9 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        # important to check a pre-23 version that still uses nodetool
-        # plus 23 once it is released
-        otp_version: [22.3.2]
+        otp_version: [19.3.6, 20.3.8.26, 21.3.8.16, 22.3.4.2, 23.0.2]
         os: [ubuntu-latest]
 
     steps:
