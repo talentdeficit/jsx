@@ -32,7 +32,7 @@
     return_maps = false
 }).
 
--type config() :: list().
+-type config() :: proplists:proplist().
 -export_type([config/0]).
 
 -type json_value() :: list(json_value())
@@ -43,6 +43,7 @@
     | integer()
     | float()
     | binary().
+-export_type([json_value/0]).
 
 opts(Opts) -> [return_maps, multi_term] ++ Opts.
 
@@ -61,8 +62,8 @@ consult(File, Config) when is_list(Config) ->
     end.
 
 
--type state() :: {[], proplists:proplist(), {list(), #config{}}}.
--spec init(Config::proplists:proplist()) -> state().
+-type state() :: {[], config(), {list(), #config{}}}.
+-spec init(Config::config()) -> state().
 
 init(Config) -> {[], Config, jsx_to_term:start_term(Config)}.
 

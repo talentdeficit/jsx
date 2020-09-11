@@ -36,17 +36,16 @@
     newline = <<$\n>>
 }).
 
--type config() :: list().
--export_type([config/0]).
+-type config() :: proplists:proplist().
 
 
--spec to_json(Source::any(), Config::config()) -> binary().
+-spec to_json(Source::jsx:json_term(), Config::jsx_config:options()) -> binary().
 
 to_json(Source, Config) when is_list(Config) ->
     (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source).
 
 
--spec format(Source::binary(), Config::config()) -> binary().
+-spec format(Source::binary(), Config::jsx_config:options()) -> jsx:json_text().
 
 format(Source, Config) when is_binary(Source) andalso is_list(Config) ->
     (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source);
@@ -91,7 +90,7 @@ parse_config([], Config) ->
 
 
 -type state() :: {unicode:charlist(), #config{}}.
--spec init(Config::proplists:proplist()) -> state().
+-spec init(Config::config()) -> state().
 
 init(Config) -> {[], parse_config(Config)}.
 
@@ -390,7 +389,7 @@ custom_newline_test_() ->
     [
         {"single key object", ?_assert(
             jsx:format(<<"{\"k\":\"v\"}">>, [space, {indent, 2}, {newline, <<$\r>>}]) 
-                =:= <<"{\r  \"k\": \"v\"\r}">>)
+                =:= <<"{\r  \"k\": \"v\"\r}">>) 
         }
     ].
 

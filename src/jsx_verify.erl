@@ -26,8 +26,9 @@
 -export([is_json/2, is_term/2]).
 -export([init/1, handle_event/2]).
 
+-type config() :: proplists:proplist().
 
--spec is_json(Source::binary(), Config::proplists:proplist()) -> true | false | {incomplete, jsx:decoder()}.
+-spec is_json(Source::binary(), Config::jsx_config:options()) -> true | false | {incomplete, jsx:decoder()}.
 
 is_json(Source, Config) when is_list(Config) ->
     try (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)
@@ -35,7 +36,8 @@ is_json(Source, Config) when is_list(Config) ->
     end.
 
 
--spec is_term(Source::any(), Config::proplists:proplist()) -> true | false | {incomplete, jsx:encoder()}.
+-spec is_term(Source::jsx:json_term() | end_stream | end_json,
+              Config::jsx_config:options()) -> true | false | {incomplete, jsx:encoder()}.
 
 is_term(Source, Config) when is_list(Config) ->
     try (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config)))(Source)
@@ -68,7 +70,7 @@ parse_config([], Config) ->
 
 %% we don't actually need any state for this
 -type state() :: [].
--spec init(Config::proplists:proplist()) -> state().
+-spec init(Config::config()) -> state().
 
 init(Config) -> parse_config(Config).
 
