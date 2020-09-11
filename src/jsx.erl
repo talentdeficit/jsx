@@ -76,7 +76,7 @@ decode(Source, Config) -> jsx_to_term:to_term(Source, Config).
 
 format(Source) -> format(Source, []).
 
--spec format(Source::json_text(), Config::jsx_to_json:config()) -> json_text() | {incomplete, decoder()}.
+-spec format(Source::json_text(), Config::jsx_to_json:config()) -> any().
 
 format(Source, Config) -> jsx_to_json:format(Source, Config).
 
@@ -382,7 +382,7 @@ special_objects() ->
 
 
 special_array() ->
-    [    
+    [
         {
             "[foo, bar]",
             <<"[\"foo\",\"bar\"]">>,

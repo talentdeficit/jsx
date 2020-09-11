@@ -46,7 +46,7 @@ to_json(Source, Config) when is_list(Config) ->
     (jsx:encoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source).
 
 
--spec format(Source::binary(), Config::config()) -> binary().
+-spec format(Source::binary(), Config::config()) -> any().
 
 format(Source, Config) when is_binary(Source) andalso is_list(Config) ->
     (jsx:decoder(?MODULE, Config, jsx_config:extract_config(Config ++ [escaped_strings])))(Source);
@@ -320,7 +320,7 @@ encode_test_() ->
         {"0.0", ?_assert(encode(float, 0.0, #config{}) =:= ["0.0"])},
         {"1.0", ?_assert(encode(float, 1.0, #config{}) =:= ["1.0"])},
         {"-1.0", ?_assert(encode(float, -1.0, #config{}) =:= ["-1.0"])},
-        {"3.1234567890987654321", 
+        {"3.1234567890987654321",
             ?_assert(
                 encode(float, 3.1234567890987654321, #config{}) =:= ["3.1234567890987655"])
         },
@@ -331,23 +331,23 @@ encode_test_() ->
         {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= ["1.0e-8"])},
         {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= ["1.0e-323"])},
         {"1.0e308", ?_assert(encode(float, 1.0e308, #config{}) =:= ["1.0e308"])},
-        {"min normalized float", 
+        {"min normalized float",
             ?_assert(
                 encode(float, math:pow(2, -1022), #config{}) =:= ["2.2250738585072014e-308"]
             )
         },
-        {"max normalized float", 
+        {"max normalized float",
             ?_assert(
-                encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #config{}) 
+                encode(float, (2 - math:pow(2, -52)) * math:pow(2, 1023), #config{})
                     =:= ["1.7976931348623157e308"]
             )
         },
-        {"min denormalized float", 
+        {"min denormalized float",
             ?_assert(encode(float, math:pow(2, -1074), #config{}) =:= ["5.0e-324"])
         },
-        {"max denormalized float", 
+        {"max denormalized float",
             ?_assert(
-                encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #config{}) 
+                encode(float, (1 - math:pow(2, -52)) * math:pow(2, -1022), #config{})
                     =:= ["2.225073858507201e-308"]
             )
         },
@@ -389,7 +389,7 @@ format_test_() ->
 custom_newline_test_() ->
     [
         {"single key object", ?_assert(
-            jsx:format(<<"{\"k\":\"v\"}">>, [space, {indent, 2}, {newline, <<$\r>>}]) 
+            jsx:format(<<"{\"k\":\"v\"}">>, [space, {indent, 2}, {newline, <<$\r>>}])
                 =:= <<"{\r  \"k\": \"v\"\r}">>)
         }
     ].
