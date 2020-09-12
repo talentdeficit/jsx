@@ -41,10 +41,9 @@
     return_maps = false
 }).
 
--type config() :: list().
--export_type([config/0]).
+-type config() :: proplists:proplist().
 
--spec to_term(Source::binary(), Config::config()) -> jsx:json_term() | {incomplete, jsx:decoder()}.
+-spec to_term(Source::binary(), Config::jsx_config:parsable_config()) -> jsx:json_term() | {incomplete, jsx:decoder()}.
 
 to_term(Source, Config) when is_list(Config) ->
     (jsx:decoder(?MODULE, [return_maps] ++ Config, jsx_config:extract_config(Config)))(Source).
@@ -76,7 +75,7 @@ parse_config([], Config) ->
 
 
 -type state() :: {list(), #config{}}.
--spec init(Config::proplists:proplist()) -> state().
+-spec init(Config::config()) -> state().
 
 init(Config) -> start_term(Config).
 

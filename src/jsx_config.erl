@@ -49,8 +49,37 @@
 -type config() :: #config{}.
 -export_type([config/0]).
 
+-type parsable_config() :: [valid_flag()
+                          | {valid_flag(), boolean()}
+                          | {strict, comments | utf8 | single_quotes | escapes | control_codes}
+                          | {error_handler, fun((any(), any(), any()) -> ok)}
+                          | {incomplete_handler, fun((any(), any(), any()) -> ok)}
+                          | {return_maps, boolean()}
+                          | {labels, binary | atom | existing_atom | attempt_atom}
+                          | {space, non_neg_integer()}
+                          | {indent, non_neg_integer()}
+                          | {depth, non_neg_integer()}
+                          | {newline, binary()}].
+-export_type([parsable_config/0]).
+
+-type valid_flag() :: escaped_forward_slashes
+                    | escaped_strings
+                    | unescaped_jsonp
+                    | dirty_strings
+                    | multi_term
+                    | return_tail
+                    | repeat_keys
+                    | strict
+                    | stream
+                    | uescape
+                    | error_handler
+                    | incomplete_handler
+                    | space
+                    | indent.
+-type valid_flags() :: [valid_flag(), ...].
+
 %% parsing of jsx config
--spec parse_config(Config::proplists:proplist()) -> config().
+-spec parse_config(Config::parsable_config()) -> config().
 
 parse_config(Config) -> parse_config(Config, #config{}).
 
@@ -116,7 +145,7 @@ parse_strict(_Strict, _Rest, _Config) ->
 
 
 
--spec config_to_list(Config::config()) -> proplists:proplist().
+-spec config_to_list(Config::config()) -> parsable_config().
 
 config_to_list(Config) ->
     reduce_config(lists:map(
@@ -153,7 +182,7 @@ reduce_config([Else|Input], Output, Strict) ->
     reduce_config(Input, [Else] ++ Output, Strict).
 
 
--spec valid_flags() -> [atom()].
+-spec valid_flags() -> valid_flags().
 
 valid_flags() ->
     [
@@ -168,11 +197,13 @@ valid_flags() ->
         stream,
         uescape,
         error_handler,
-        incomplete_handler
+        incomplete_handler,
+        space,
+        indent
     ].
 
 
--spec extract_config(Config::proplists:proplist()) -> proplists:proplist().
+-spec extract_config(Config::parsable_config()) -> parsable_config().
 
 extract_config(Config) ->
     extract_parser_config(Config, []).
