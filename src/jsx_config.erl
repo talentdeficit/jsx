@@ -51,7 +51,7 @@
 
 -type parsable_config() :: [valid_flag()
                           | {valid_flag(), boolean()}
-                          | {strict, comments | utf8 | single_quotes | escapes | control_codes}
+                          | {strict, [comments | utf8 | single_quotes | escapes | control_codes]}
                           | {error_handler, fun((any(), any(), any()) -> ok)}
                           | {incomplete_handler, fun((any(), any(), any()) -> ok)}
                           | {return_maps, boolean()}
@@ -59,7 +59,15 @@
                           | {space, non_neg_integer()}
                           | {indent, non_neg_integer()}
                           | {depth, non_neg_integer()}
-                          | {newline, binary()}].
+                          | {newline, binary()}
+                          | legacy_config_elements()
+                          | {legacy_config_elements(), boolean()}].
+-type legacy_config_elements() :: [strict_comments
+                                 | strict_commas
+                                 | strict_utf8
+                                 | strict_single_quotes
+                                 | strict_escapes
+                                 | strict_control_codes].
 -export_type([parsable_config/0]).
 
 -type valid_flag() :: escaped_forward_slashes
