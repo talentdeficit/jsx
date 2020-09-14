@@ -27,7 +27,7 @@
 -export([init/1, handle_event/2]).
 
 
--spec parser(Handler::module(), State::any(), Config::list()) -> jsx:parser().
+-spec parser(Handler::module(), State::any(), Config::jsx_config:options()) -> jsx:parser().
 
 parser(Handler, State, Config) ->
     fun(Tokens) -> value(Tokens, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.
@@ -630,7 +630,7 @@ to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
 
 %% for raw input
--spec init(proplists:proplist()) -> list().
+-spec init([]) -> [].
 
 init([]) -> [].
 

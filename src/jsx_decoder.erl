@@ -32,7 +32,7 @@
 -export([decoder/3, resume/6]).
 
 
--spec decoder(Handler::module(), State::any(), Config::list()) -> jsx:decoder().
+-spec decoder(Handler::module(), State::any(), Config::jsx_config:options()) -> jsx:decoder().
 
 decoder(Handler, State, Config) ->
     fun(JSON) -> start(JSON, {Handler, Handler:init(State)}, [], jsx_config:parse_config(Config)) end.

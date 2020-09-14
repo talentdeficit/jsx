@@ -25,19 +25,19 @@
 
 -export([encoder/3, encode/1, encode/2]).
 
--spec encoder(Handler::module(), State::any(), Config::list()) -> jsx:encoder().
+-spec encoder(Handler::module(), State::any(), Config::jsx_config:options()) -> jsx:encoder().
 
 encoder(Handler, State, Config) ->
     Parser = jsx:parser(Handler, State, Config),
     fun(Term) -> Parser(encode(Term) ++ [end_json]) end.
 
 
--spec encode(Term::any()) -> any().
+-spec encode(Term::any()) -> [any(), ...].
 
 encode(Term) -> encode(Term, ?MODULE).
 
 
--spec encode(Term::any(), EntryPoint::module()) -> any().
+-spec encode(Term::any(), EntryPoint::module()) -> [any(), ...].
 
 encode(Map, _EntryPoint) when is_map(Map), map_size(Map) < 1 ->
     [start_object, end_object];
