@@ -216,7 +216,7 @@ see below                       | `datetime()`
 *   arrays
 
     json arrays are represented with erlang lists of json values as described 
-    in this section, or by tuples with the `tuples_to_lists`option
+    in this section, or by tuples with the `tuples_to_lists` option
 
 *   objects
 
