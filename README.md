@@ -320,7 +320,7 @@ option() = dirty_strings
     | return_tail
     | uescape
     | unescaped_jsonp
-    | tuples-to_lists
+    | tuples_to_lists
 
 strict_option() = comments
     | trailing_commas
