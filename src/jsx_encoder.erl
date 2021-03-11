@@ -22,58 +22,59 @@
 
 
 -module(jsx_encoder).
-
--export([encoder/3, encode/1, encode/2]).
+-include("jsx_config.hrl").
+-export([encoder/3, encode/2, encode/3]).
 
 -spec encoder(Handler::module(), State::any(), Config::jsx_config:options()) -> jsx:encoder().
 
 encoder(Handler, State, Config) ->
     Parser = jsx:parser(Handler, State, Config),
-    fun(Term) -> Parser(encode(Term) ++ [end_json]) end.
+    fun(Term) -> Parser(encode(Term, jsx_config:parse_config(Config)) ++ [end_json]) end.
 
 
--spec encode(Term::any()) -> [any(), ...].
+-spec encode(Term::any(), Config::jsx_config:options()) -> [any(), ...].
 
-encode(Term) -> encode(Term, ?MODULE).
+encode(Term, Config) -> encode(Term, ?MODULE, Config).
 
 
--spec encode(Term::any(), EntryPoint::module()) -> [any(), ...].
+-spec encode(Term::any(), EntryPoint::module(), Config::jsx_config:options()) -> [any(), ...].
 
-encode(Map, _EntryPoint) when is_map(Map), map_size(Map) < 1 ->
+encode(Map, _EntryPoint, _Config) when is_map(Map), map_size(Map) < 1 ->
     [start_object, end_object];
-encode(Term, EntryPoint) when is_map(Term) ->
-    [start_object] ++ unpack(Term, EntryPoint);
-encode(Term, EntryPoint) -> encode_(Term, EntryPoint).
+encode(Term, EntryPoint, Config) when is_map(Term) ->
+    [start_object] ++ unpack(Term, EntryPoint, Config);
+encode(Term, EntryPoint, Config) -> encode_(Term, EntryPoint, Config).
 
-encode_([], _EntryPoint) -> [start_array, end_array];
-encode_([{}], _EntryPoint) -> [start_object, end_object];
+encode_([], _EntryPoint, _Config) -> [start_array, end_array];
+encode_([{}], _EntryPoint,#config{tuples_to_lists = false}) -> [start_object, end_object];
 
 %% datetime special case
-encode_([{{_,_,_},{_,_,_}} = DateTime|Rest], EntryPoint) ->
-    [start_array] ++ [DateTime] ++ unhitch(Rest, EntryPoint);
-encode_([{_, _}|_] = Term, EntryPoint) ->
-    [start_object] ++ unzip(Term, EntryPoint);
-encode_(Term, EntryPoint) when is_list(Term) ->
-    [start_array] ++ unhitch(Term, EntryPoint);
-
-encode_(Else, _EntryPoint) -> [Else].
-
-
-unzip([{K, V}|Rest], EntryPoint) when is_integer(K); is_binary(K); is_atom(K) ->
-    [K] ++ EntryPoint:encode(V, EntryPoint) ++ unzip(Rest, EntryPoint);
-unzip([], _) -> [end_object];
-unzip(_, _) -> erlang:error(badarg).
+encode_([{{_,_,_},{_,_,_}} = DateTime|Rest], EntryPoint, #config{tuples_to_lists = false} = Config) ->
+    [start_array] ++ [DateTime] ++ unhitch(Rest, EntryPoint, Config);
+encode_([{_, _}|_] = Term, EntryPoint, #config{tuples_to_lists = false} = Config) ->
+    [start_object] ++ unzip(Term, EntryPoint, Config);
+encode_(Term, EntryPoint, Config) when is_list(Term) ->
+    [start_array] ++ unhitch(Term, EntryPoint, Config);
+encode_(T, EntryPoint, #config{tuples_to_lists = true} = Config) when is_tuple(T)->
+    encode_(tuple_to_list(T), EntryPoint, Config);
+encode_(Else, _EntryPoint, _Config) -> [Else].
 
 
-unhitch([V|Rest], EntryPoint) ->
-    EntryPoint:encode(V, EntryPoint) ++ unhitch(Rest, EntryPoint);
-unhitch([], _) -> [end_array].
+unzip([{K, V}|Rest], EntryPoint, Config) when is_integer(K); is_binary(K); is_atom(K) ->
+    [K] ++ EntryPoint:encode(V, EntryPoint, Config) ++ unzip(Rest, EntryPoint, Config);
+unzip([], _, _) -> [end_object];
+unzip(_, _, _) -> erlang:error(badarg).
 
-unpack(Map, EntryPoint) -> unpack(Map, maps:keys(Map), EntryPoint).
 
-unpack(Map, [K|Rest], EntryPoint) when is_integer(K); is_binary(K); is_atom(K) ->
-    [K] ++ EntryPoint:encode(maps:get(K, Map), EntryPoint) ++ unpack(Map, Rest, EntryPoint);
-unpack(_, [], _) -> [end_object].
+unhitch([V|Rest], EntryPoint, Config) ->
+    EntryPoint:encode(V, EntryPoint, Config) ++ unhitch(Rest, EntryPoint, Config);
+unhitch([], _, _) -> [end_array].
+
+unpack(Map, EntryPoint, Config) -> unpack(Map, maps:keys(Map), EntryPoint, Config).
+
+unpack(Map, [K|Rest], EntryPoint, Config) when is_integer(K); is_binary(K); is_atom(K) ->
+    [K] ++ EntryPoint:encode(maps:get(K, Map), EntryPoint, Config) ++ unpack(Map, Rest, EntryPoint, Config);
+unpack(_, [], _, _) -> [end_object].
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -105,11 +106,11 @@ improper_lists_test_() ->
     [
         {"improper proplist", ?_assertError(
           badarg,
-          encode([{<<"key">>, <<"value">>}, false])
+          encode([{<<"key">>, <<"value">>}, false], #config{})
         )},
         {"improper list", ?_assertError(
           badarg,
-          encode([{literal, true}, false, null])
+          encode([{literal, true}, false, null], #config{})
         )}
     ].
 

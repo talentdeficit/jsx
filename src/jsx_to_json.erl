@@ -33,7 +33,8 @@
     space = 0,
     indent = 0,
     depth = 0,
-    newline = <<$\n>>
+    newline = <<$\n>>,
+    tuples_to_lists = false
 }).
 
 -type config() :: proplists:proplist().
@@ -62,6 +63,8 @@ parse_config([{indent, Val}|Rest], Config) when is_integer(Val), Val > 0 ->
     parse_config(Rest, Config#config{indent = Val});
 parse_config([indent|Rest], Config) ->
     parse_config(Rest, Config#config{indent = 1});
+parse_config([tuples_to_lists|Rest], Config) ->
+    parse_config(Rest, Config#config{tuples_to_lists = true});
 parse_config([{newline, Val}|Rest], Config) when is_binary(Val) ->
     parse_config(Rest, Config#config{newline = Val});
 parse_config([{K, _}|Rest] = Options, Config) ->

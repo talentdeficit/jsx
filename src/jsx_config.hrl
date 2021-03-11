@@ -14,5 +14,6 @@
     uescape = false                     :: boolean(),
     unescaped_jsonp = false             :: boolean(),
     error_handler = false               :: false | jsx_config:handler(),
-    incomplete_handler = false          :: false | jsx_config:handler()
+    incomplete_handler = false          :: false | jsx_config:handler(),
+    tuples_to_lists = false             :: boolean()
 }).

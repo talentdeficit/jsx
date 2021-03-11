@@ -216,7 +216,7 @@ see below                       | `datetime()`
 *   arrays
 
     json arrays are represented with erlang lists of json values as described 
-    in this section
+    in this section, or by tuples with the `tuples_to_lists`option
 
 *   objects
 
@@ -227,6 +227,7 @@ see below                       | `datetime()`
     erlang datetime tuples (`{{Year, Month, Day}, {Hour, Min, Sec}}`) as returned
     from `erlang:localtime/0` are automatically encoded as [iso8601][iso8601]
     strings and are assumed to be UTC time. no conversion is attempted of json [iso8601][iso8601] strings in decoded json
+
 
 
 ### incomplete input ###
@@ -272,7 +273,8 @@ json_term() = [json_term()]
     | float()
     | binary()
     | atom()
-		| datetime()
+    | datetime()
+    | tuple()
 ```
 
 the erlang representation of json. binaries should be `utf8` encoded, or close 
@@ -318,6 +320,7 @@ option() = dirty_strings
     | return_tail
     | uescape
     | unescaped_jsonp
+    | tuples-to_lists
 
 strict_option() = comments
     | trailing_commas
@@ -495,7 +498,7 @@ encode(Term, Opts) -> JSON
 
   Term = json_term()
   JSON = json_text()
-  Opts = [option() | space | {space, N} | indent | {indent, N}]
+  Opts = [option() | space | {space, N} | indent | {indent, N} | tuples-to_lists]
     N = pos_integer()
 ```
 
