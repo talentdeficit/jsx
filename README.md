@@ -498,7 +498,7 @@ encode(Term, Opts) -> JSON
 
   Term = json_term()
   JSON = json_text()
-  Opts = [option() | space | {space, N} | indent | {indent, N} | tuples-to_lists]
+  Opts = [option() | space | {space, N} | indent | {indent, N} | tuples_to_lists]
     N = pos_integer()
 ```
 
