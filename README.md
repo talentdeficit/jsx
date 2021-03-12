@@ -229,7 +229,6 @@ see below                       | `datetime()`
     strings and are assumed to be UTC time. no conversion is attempted of json [iso8601][iso8601] strings in decoded json
 
 
-
 ### incomplete input ###
 
 **jsx** can handle incomplete json texts. if the option `stream` is passed to the decoder
