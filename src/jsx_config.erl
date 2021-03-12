@@ -350,7 +350,6 @@ config_to_list_test_() ->
                 unescaped_jsonp,
                 tuples_to_lists,
                 strict
-
             ],
             config_to_list(
                 #config{escaped_forward_slashes = true,
