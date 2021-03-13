@@ -61,6 +61,7 @@
                 | {depth, non_neg_integer()}
                 | {newline, binary()}
                 | {tuples_to_lists, boolean()}
+                | {disable_timestamp_euristics, boolean()}
                 | legacy_option()
                 | {legacy_option(), boolean()}.
 -type legacy_option() :: strict_comments
@@ -117,6 +118,8 @@ parse_config([return_tail|Rest], Config) ->
     parse_config(Rest, Config#config{return_tail=true});
 parse_config([tuples_to_lists|Rest], Config) ->
     parse_config(Rest, Config#config{tuples_to_lists = true});
+parse_config([disable_timestamp_euristics|Rest], Config) ->
+    parse_config(Rest, Config#config{disable_timestamp_euristics = true});
 %% retained for backwards compat, now does nothing however
 parse_config([repeat_keys|Rest], Config) ->
     parse_config(Rest, Config);
@@ -219,7 +222,8 @@ valid_flags() ->
         uescape,
         error_handler,
         incomplete_handler,
-        tuples_to_lists
+        tuples_to_lists,
+        disable_timestamp_euristics
     ].
 
 
@@ -264,7 +268,8 @@ config_test_() ->
                     strict_control_codes = true,
                     stream = true,
                     uescape = true,
-                    tuples_to_lists = true
+                    tuples_to_lists = true,
+                    disable_timestamp_euristics = true
                 },
                 parse_config([dirty_strings,
                     escaped_forward_slashes,
@@ -276,7 +281,8 @@ config_test_() ->
                     strict,
                     stream,
                     uescape,
-                    tuples_to_lists
+                    tuples_to_lists,
+                    disable_timestamp_euristics
                 ])
             )
         },
@@ -349,6 +355,7 @@ config_to_list_test_() ->
                 uescape,
                 unescaped_jsonp,
                 tuples_to_lists,
+                disable_timestamp_euristics,
                 strict
             ],
             config_to_list(
@@ -364,7 +371,8 @@ config_to_list_test_() ->
                     strict_control_codes = true,
                     stream = true,
                     uescape = true,
-                    tuples_to_lists = true
+                    tuples_to_lists = true,
+                    disable_timestamp_euristics = true
                 }
             )
         )},

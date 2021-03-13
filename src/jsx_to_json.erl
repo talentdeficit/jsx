@@ -34,7 +34,8 @@
     indent = 0,
     depth = 0,
     newline = <<$\n>>,
-    tuples_to_lists = false
+    tuples_to_lists = false,
+    disable_timestamp_euristics = false
 }).
 
 -type config() :: proplists:proplist().
