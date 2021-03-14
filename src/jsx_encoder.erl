@@ -51,10 +51,10 @@ encode_([{}], _EntryPoint,#config{tuples_to_lists = false}) -> [start_object, en
 %% datetime special case
 encode_([{{_,_,_},{_,_,_}} = DateTime|Rest], EntryPoint, #config{tuples_to_lists = false} = Config) ->
     [start_array] ++ [DateTime] ++ unhitch(Rest, EntryPoint, Config);
-encode_({{A,B,C},{D,E,F}} = DateTime, _EntryPoint, #config{tuples_to_lists = true, disable_timestamp_euristics = false} = _Config)
+encode_({{A,B,C},{D,E,F}} = DateTime, _EntryPoint, #config{tuples_to_lists = true, disable_timestamp_heuristics = false} = _Config)
     when is_integer(A), is_integer(B), is_integer(C), is_integer(D), is_integer(E), is_integer(F)  ->
    [DateTime];
-encode_({A,B,C} = Timestamp, _EntryPoint, #config{tuples_to_lists = true, disable_timestamp_euristics = false} = _Config)
+encode_({A,B,C} = Timestamp, _EntryPoint, #config{tuples_to_lists = true, disable_timestamp_heuristics = false} = _Config)
     when is_integer(A), is_integer(B), is_integer(C)  ->
    [Timestamp];
 

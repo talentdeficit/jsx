@@ -35,7 +35,7 @@
     depth = 0,
     newline = <<$\n>>,
     tuples_to_lists = false,
-    disable_timestamp_euristics = false
+    disable_timestamp_heuristics = false
 }).
 
 -type config() :: proplists:proplist().
