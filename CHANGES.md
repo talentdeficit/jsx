@@ -1,3 +1,7 @@
+v3.1.0
+
+* Dialyzer and api spec improvements
+
 v3.0
 
 * drop support for OTP versions before 17.0
