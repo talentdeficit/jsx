@@ -325,7 +325,8 @@ encode_test_() ->
         },
         {"1.0e23", ?_assert(encode(float, 1.0e23, #config{}) =:= ["1.0e23"])},
         {"0.3", ?_assert(encode(float, 3.0/10.0, #config{}) =:= ["0.3"])},
-        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= ["0.0001"])},
+        {"0.0001", ?_assert(encode(float, 0.0001, #config{}) =:= ["0.0001"]
+                                orelse encode(float, 0.0001, #config{}) =:= ["1.0e-4"])}, % OTP-24
         {"0.00001", ?_assert(encode(float, 0.00001, #config{}) =:= ["1.0e-5"])},
         {"0.00000001", ?_assert(encode(float, 0.00000001, #config{}) =:= ["1.0e-8"])},
         {"1.0e-323", ?_assert(encode(float, 1.0e-323, #config{}) =:= ["1.0e-323"])},
