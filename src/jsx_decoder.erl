@@ -85,7 +85,7 @@ resume(Rest, State, Handler, Acc, Stack, Config) ->
 -define(start_array, 16#5B).
 -define(end_array, 16#5D).
 
-%% kv seperator
+%% kv separator
 -define(comma, 16#2C).
 -define(doublequote, 16#22).
 -define(singlequote, 16#27).
@@ -1133,11 +1133,11 @@ special_number_test_() ->
 comments_test_() ->
     Cases = [
         % {title, test form, json, opt flags}
-        {"preceeding // comment",
+        {"preceding // comment",
             [start_array, end_array, end_json],
             <<"// comment ", ?newline, "[]">>
         },
-        {"preceeding /**/ comment",
+        {"preceding /**/ comment",
             [start_array, end_array, end_json],
             <<"/* comment */[]">>
         },
@@ -1349,7 +1349,7 @@ comments_test_() ->
             [start_array, {literal, true}, end_array, end_json],
             <<"[ /* comment ", 16#00c0, " */ true]">>
         },
-        {"/**/ comment with badutf preceeded by /",
+        {"/**/ comment with badutf preceded by /",
             [start_array, {literal, true}, end_array, end_json],
             <<"[ /* comment /", 16#00c0, " */ true]">>
         }
@@ -1383,7 +1383,7 @@ no_comments_test_() ->
             <<"[ /* comment ", 16#00c0, " */ true]">>,
             [{strict, [utf8]}]
         },
-        {"/**/ comment with badutf preceeded by /",
+        {"/**/ comment with badutf preceded by /",
             badarg,
             <<"[ /* comment /", 16#00c0, " */ true]">>,
             [{strict, [utf8]}]
