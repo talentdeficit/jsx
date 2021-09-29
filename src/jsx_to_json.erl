@@ -421,7 +421,12 @@ encode_with_float_formatter_test_() ->
         {"foo formatter",
             ?_assert(
                 encode(float, 3.1234567890987654321, #config{float_formatter = fun ?MODULE:custom_float_formatter/1 }) =:= ["foo"])
-        }
+        },
+        {"encoded floats with formatter are floats in output",
+            ?_assertEqual(
+               <<"{\"one\":{\"two\":3.1235}}">>,
+               jsx:encode(#{one => #{two => 3.1234567890987654321}}, [{float_formatter, fun(F) -> io_lib:format("~.4f", [F]) end}])
+            )}
     ].
 
 -endif.

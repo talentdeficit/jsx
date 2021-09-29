@@ -60,6 +60,7 @@
                 | {indent, non_neg_integer()}
                 | {depth, non_neg_integer()}
                 | {newline, binary()}
+                | {float_formatter, fun((any()) -> any())}
                 | legacy_option()
                 | {legacy_option(), boolean()}.
 -type legacy_option() :: strict_comments
