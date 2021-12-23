@@ -20,5 +20,5 @@
     {env, []},
 
     {licenses, ["MIT"]},
-    {links, [{"Github", "https://github.com/talentdeficit/jsx"}]}
+    {links, [{"GitHub", "https://github.com/talentdeficit/jsx"}]}
 ]}.
