@@ -28,12 +28,16 @@
 -export([start_json/0, start_json/1]).
 -export([start_object/1, start_array/1, finish/1, insert/2, get_key/1, get_value/1]).
 
+-ifdef(TEST).
+-export([custom_float_formatter/1]).
+-endif.
 
 -record(config, {
     space = 0,
     indent = 0,
     depth = 0,
-    newline = <<$\n>>
+    newline = <<$\n>>,
+    float_formatter = undefined
 }).
 
 -type config() :: proplists:proplist().
@@ -64,6 +68,8 @@ parse_config([indent|Rest], Config) ->
     parse_config(Rest, Config#config{indent = 1});
 parse_config([{newline, Val}|Rest], Config) when is_binary(Val) ->
     parse_config(Rest, Config#config{newline = Val});
+parse_config([{float_formatter, Val}|Rest], Config)  when is_function(Val, 1) ->
+    parse_config(Rest, Config#config{float_formatter = Val});
 parse_config([{K, _}|Rest] = Options, Config) ->
     case lists:member(K, jsx_config:valid_flags()) of
         true -> parse_config(Rest, Config)
@@ -116,9 +122,11 @@ encode(literal, Literal, _Config) ->
     erlang:atom_to_list(Literal);
 encode(integer, Integer, _Config) ->
     erlang:integer_to_list(Integer);
-encode(float, Float, _Config) ->
-    io_lib:format("~p", [Float]).
-
+encode(float, Float, Config) ->
+    case Config#config.float_formatter of
+        undefined -> io_lib:format("~p", [Float]);
+        Fun -> Fun(Float)
+    end.
 
 space(Config) ->
     case Config#config.space of
@@ -405,5 +413,20 @@ handle_event_test_() ->
         } || {Title, JSON, _, Events} <- Data
     ].
 
+custom_float_formatter(_Float) ->
+    ["foo"].
+
+encode_with_float_formatter_test_() ->
+    [
+        {"foo formatter",
+            ?_assert(
+                encode(float, 3.1234567890987654321, #config{float_formatter = fun ?MODULE:custom_float_formatter/1 }) =:= ["foo"])
+        },
+        {"encoded floats with formatter are floats in output",
+            ?_assertEqual(
+               <<"{\"one\":{\"two\":3.1235}}">>,
+               jsx:encode(#{one => #{two => 3.1234567890987654321}}, [{float_formatter, fun(F) -> io_lib:format("~.4f", [F]) end}])
+            )}
+    ].
 
 -endif.
