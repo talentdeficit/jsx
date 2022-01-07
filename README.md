@@ -216,7 +216,7 @@ see below                       | `datetime()`
 *   arrays
 
     json arrays are represented with erlang lists of json values as described 
-    in this section
+    in this section, or by tuples with the `tuples_to_lists` option
 
 *   objects
 
@@ -272,7 +272,8 @@ json_term() = [json_term()]
     | float()
     | binary()
     | atom()
-		| datetime()
+    | datetime()
+    | tuple()
 ```
 
 the erlang representation of json. binaries should be `utf8` encoded, or close 
@@ -318,6 +319,7 @@ option() = dirty_strings
     | return_tail
     | uescape
     | unescaped_jsonp
+    | tuples_to_lists
 
 strict_option() = comments
     | trailing_commas
@@ -495,7 +497,7 @@ encode(Term, Opts) -> JSON
 
   Term = json_term()
   JSON = json_text()
-  Opts = [option() | space | {space, N} | indent | {indent, N}]
+  Opts = [option() | space | {space, N} | indent | {indent, N} | tuples_to_lists]
     N = pos_integer()
 ```
 
