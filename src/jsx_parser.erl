@@ -60,7 +60,7 @@ resume(Rest, State, Handler, Stack, Config) ->
 -ifndef(error).
 -define(error(State, Terms, Handler, Stack, Config),
     case Config#config.error_handler of
-        false -> erlang:error(badarg);
+        false -> erlang:error(badarg, Terms);
         F -> F(Terms, {parser, State, Handler, Stack}, jsx_config:config_to_list(Config))
     end
 
