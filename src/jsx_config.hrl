@@ -13,6 +13,7 @@
     return_tail = false                 :: boolean(),
     uescape = false                     :: boolean(),
     unescaped_jsonp = false             :: boolean(),
+    float_as_string = false             :: boolean(),
     error_handler = false               :: false | jsx_config:handler(),
     incomplete_handler = false          :: false | jsx_config:handler()
 }).

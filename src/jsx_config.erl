@@ -60,6 +60,7 @@
                 | {indent, non_neg_integer()}
                 | {depth, non_neg_integer()}
                 | {newline, binary()}
+                | {float_as_string, boolean()}
                 | legacy_option()
                 | {legacy_option(), boolean()}.
 -type legacy_option() :: strict_comments
@@ -114,6 +115,8 @@ parse_config([multi_term|Rest], Config) ->
     parse_config(Rest, Config#config{multi_term=true});
 parse_config([return_tail|Rest], Config) ->
     parse_config(Rest, Config#config{return_tail=true});
+parse_config([float_as_string|Rest], Config) ->
+    parse_config(Rest, Config#config{float_as_string=true});
 %% retained for backwards compat, now does nothing however
 parse_config([repeat_keys|Rest], Config) ->
     parse_config(Rest, Config);
@@ -215,7 +218,8 @@ valid_flags() ->
         stream,
         uescape,
         error_handler,
-        incomplete_handler
+        incomplete_handler,
+        float_as_string
     ].
 
 
@@ -259,7 +263,8 @@ config_test_() ->
                     strict_escapes = true,
                     strict_control_codes = true,
                     stream = true,
-                    uescape = true
+                    uescape = true,
+                    float_as_string = true
                 },
                 parse_config([dirty_strings,
                     escaped_forward_slashes,
@@ -270,7 +275,8 @@ config_test_() ->
                     repeat_keys,
                     strict,
                     stream,
-                    uescape
+                    uescape,
+                    float_as_string
                 ])
             )
         },
@@ -342,6 +348,7 @@ config_to_list_test_() ->
                 stream,
                 uescape,
                 unescaped_jsonp,
+                float_as_string,
                 strict
             ],
             config_to_list(
@@ -356,7 +363,8 @@ config_to_list_test_() ->
                     strict_escapes = true,
                     strict_control_codes = true,
                     stream = true,
-                    uescape = true
+                    uescape = true,
+                    float_as_string = true
                 }
             )
         )},
