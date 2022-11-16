@@ -318,6 +318,7 @@ option() = dirty_strings
     | return_tail
     | uescape
     | unescaped_jsonp
+    | float_as_string
 
 strict_option() = comments
     | trailing_commas
@@ -414,6 +415,13 @@ additional options beyond these. see
     will be parsed incorrectly by some javascript interpreters. by default, 
     these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to 
     retain compatibility. this option simply removes that escaping
+
+- `float_as_string`
+
+  the precision of float values in jsons are not restricted by the IEEE 754 standard.
+  in some cases it is not allowed to lose precision during the decoding of a json structure,
+  this option decodes the float values as strings. this way it possible to handle these values with
+  solutions that preserve precision, like the decimal library.
 
 
 ## exports ##

@@ -25,7 +25,7 @@
 
 %% inline handle_event, format_number and maybe_replace
 -compile({inline, [handle_event/3]}).
--compile({inline, [format_number/1]}).
+-compile({inline, [format_number/2]}).
 -compile({inline, [maybe_replace/2]}).
 -compile({inline, [doublequote/5, singlequote/5]}).
 
@@ -944,10 +944,14 @@ exp(_, N) -> {finish_float, N}.
 
 
 finish_number(Rest, Handler, Acc, Stack, Config) ->
-    maybe_done(Rest, handle_event(format_number(Acc), Handler, Config), Stack, Config).
+    maybe_done(Rest, handle_event(format_number(Acc, Config), Handler, Config), Stack, Config).
 
-format_number({integer, Acc}) -> {integer, binary_to_integer(Acc)};
-format_number({float, Acc}) -> {float, binary_to_float(Acc)}.
+format_number({integer, Acc}, _Config) -> {integer, binary_to_integer(Acc)};
+format_number({float, Acc}, Config) ->
+    case Config#config.float_as_string of
+        false -> {float, binary_to_float(Acc)};
+        _ -> {string, Acc}
+    end.
 
 true(<<$r, $u, $e, Rest/binary>>, Handler, Stack, Config) ->
     maybe_done(Rest, handle_event({literal, true}, Handler, Config), Stack, Config);
@@ -1903,6 +1907,18 @@ return_tail_test_() ->
                 {incomplete, F} = jsx:decode(<<"{">>, [return_tail, stream]),
                 F(<<"}">>)
             end
+        )}
+    ].
+
+decode_float_as_string_test_() ->
+    [
+        {"simple_float_as_string", ?_assertEqual(
+            <<"3.13">>,
+            jsx:decode(<<"3.13">>, [float_as_string])
+        )},
+        {"float_as_string_in_object", ?_assertEqual(
+            #{<<"a">> => <<"1000000000.5549999">>},
+            jsx:decode(<<"{\"a\":\"1000000000.5549999\"}">>, [float_as_string])
         )}
     ].
 
