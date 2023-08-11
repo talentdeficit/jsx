@@ -48,6 +48,7 @@
     | true | false | null
     | integer() | float()
     | binary() | atom()
+    | erlang:timestamp()
     | calendar:datetime().
 
 -type json_text() :: binary().
