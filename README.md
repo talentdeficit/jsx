@@ -572,8 +572,9 @@ format(JSON) -> JSON
 format(JSON, Opts) -> JSON
 
   JSON = json_text()
-  Opts = [option() | space | {space, N} | indent | {indent, N}]
-    N = pos_integer()
+  Opts = [option() | space | {space, N} | indent | {indent, N} | {newline, LF}]
+     N = pos_integer()
+    LF = binary()
 ```
 
 `format` parses a json text (a `utf8` encoded binary) and produces a new json 
@@ -585,6 +586,9 @@ json output. `space` is an alias for `{space, 1}`. the default is `{space, 0}`
 the option `{indent, N}` inserts a newline and `N` spaces for each level of 
 indentation in your json output. note that this overrides spaces inserted after 
 a comma. `indent` is an alias for `{indent, 1}`. the default is `{indent, 0}`
+
+the option `{newline, LF}` defines a custom newline symbol(s). 
+the default is `{newline, <<$\n>>}`
 
 raises a `badarg` error exception if input is not valid json
 
@@ -692,6 +696,10 @@ following events must be handled:
 -   `start_object`
 
     the start of a json object
+
+-   '{key, binary()}'
+
+    the key of an entry in a json object
 
 -   `end_object`
 

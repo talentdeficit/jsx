@@ -1,7 +1,7 @@
 {application, jsx,
 [
     {description, "a streaming, evented json parsing toolkit"},
-    {vsn, "2.9.0"},
+    {vsn, "2.11.0"},
     {modules, [
         jsx,
         jsx_encoder,
@@ -22,5 +22,7 @@
       "src",
       "rebar.config", "rebar.config.script", "rebar.lock"
       "README.md", "CHANGES.md", "LICENSE"
-    ]}
+    ]},
+    {licenses, ["MIT"]},
+    {links, [{"Github", "https://github.com/talentdeficit/jsx"}]}
 ]}.

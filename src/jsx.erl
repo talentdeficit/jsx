@@ -46,6 +46,7 @@
 -ifndef(maps_support).
 -type json_term() :: [{binary() | atom(), json_term()}] | [{},...]
     | [json_term()] | []
+    | {with_tail, json_term(), binary()}
     | true | false | null
     | integer() | float()
     | binary() | atom()
@@ -55,7 +56,8 @@
 -ifdef(maps_support).
 -type json_term() :: [{binary() | atom(), json_term()}] | [{},...]
     | [json_term()] | []
-    | map()
+    | {with_tail, json_term(), binary()}
+    | #{ binary() | atom() => json_term() }
     | true | false | null
     | integer() | float()
     | binary() | atom()
