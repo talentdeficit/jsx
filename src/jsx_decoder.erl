@@ -1102,7 +1102,8 @@ special_number_test_() ->
     Cases = [
         % {title, test form, json, opt flags}
         {"-0", [{integer, 0}, end_json], <<"-0">>},
-        {"-0.0", [{float, 0.0}, end_json], <<"-0.0">>},
+        {"0.0", [{float, 0.0}, end_json], <<"0.0">>},
+        {"-0.0", [{float, -0.0}, end_json], <<"-0.0">>},
         {"0e0", [{float, 0.0}, end_json], <<"0e0">>},
         {"0e4", [{float, 0.0}, end_json], <<"0e4">>},
         {"1e0", [{float, 1.0}, end_json], <<"1e0">>},
