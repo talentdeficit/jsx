@@ -112,9 +112,13 @@ value([{raw, Raw}|Tokens], Handler, Stack, Config) when is_binary(Raw) ->
 value([{_,_,_}=Timestamp|Tokens], Handler, Stack, Config) ->
   {{Year, Month, Day}, {Hour, Min, Sec}} = calendar:now_to_datetime(
                                                    Timestamp),
+  % In case of specify format for date
+  {Format, Order} = case Config#config.format_date of
+      false -> {"~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ", []};
+      X     -> X
+  end,
   value([{string, unicode:characters_to_binary(io_lib:format(
-         "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
-         [Year, Month, Day, Hour, Min, Sec]
+         Format, formatting_date(Order, [Year, Month, Day, Hour, Min, Sec])
        ))}|Tokens],
         Handler,
         Stack,
@@ -122,9 +126,13 @@ value([{_,_,_}=Timestamp|Tokens], Handler, Stack, Config) ->
        );
 value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
 when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_integer(Min), is_integer(Sec) ->
+    % In case of specify format for date
+    {Format, Order} = case Config#config.format_date of
+        false -> {"~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ", []};
+        X     -> X
+    end,    
     value([{string, unicode:characters_to_binary(io_lib:format(
-            "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
-            [Year, Month, Day, Hour, Min, Sec]
+            Format, formatting_date(Order, [Year, Month, Day, Hour, Min, Sec])
         ))}|Tokens],
         Handler,
         Stack,
@@ -132,9 +140,14 @@ when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_
     );
 value([{{Year, Month, Day}, {Hour, Min, Sec}}|Tokens], Handler, Stack, Config)
 when is_integer(Year), is_integer(Month), is_integer(Day), is_integer(Hour), is_integer(Min), is_float(Sec) ->
+    % In case of specify format for date
+    {Format, Order} = case Config#config.format_date of
+        false -> {"~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~9.6.0fZ", []};
+        X     -> X
+    end,
+    
     value([{string, unicode:characters_to_binary(io_lib:format(
-            "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~9.6.0fZ",
-            [Year, Month, Day, Hour, Min, Sec]
+            Format, formatting_date(Order, [Year, Month, Day, Hour, Min, Sec])
         ))}|Tokens],
         Handler,
         Stack,
@@ -628,6 +641,34 @@ to_hex(14) -> $e;
 to_hex(15) -> $f;
 to_hex(X) -> X + 48.    %% ascii "1" is [49], "2" is [50], etc...
 
+
+% extract format of date
+formatting_date([], Numbers)      ->
+    Numbers;
+formatting_date(Formats, Numbers) ->
+    Formats0 = [ {F, 0} || F <- Formats ],
+    formatting_date(Formats0, Formats0, Numbers).
+
+formatting_date(Formats, [], _)                           ->
+    [ V || {_, V} <- Formats ];
+formatting_date(Formats, [{year, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(year, 1, 
+        Formats, {year, lists:nth(1, Numbers)}), Rest, Numbers);
+formatting_date(Formats, [{month, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(month, 1, 
+        Formats, {month, lists:nth(2, Numbers)}), Rest, Numbers);
+formatting_date(Formats, [{day, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(day, 1, 
+        Formats, {day, lists:nth(3, Numbers)}), Rest, Numbers);
+formatting_date(Formats, [{hour, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(hour, 1, 
+        Formats, {hour, lists:nth(4, Numbers)}), Rest, Numbers);
+formatting_date(Formats, [{minute, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(minute, 1, 
+        Formats, {minute, lists:nth(5, Numbers)}), Rest, Numbers);
+formatting_date(Formats, [{second, 0}|Rest], Numbers) ->
+    formatting_date(lists:keyreplace(second, 1, 
+        Formats, {second, lists:nth(6, Numbers)}), Rest, Numbers).
 
 %% for raw input
 -spec init(proplists:proplist()) -> list().

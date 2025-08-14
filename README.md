@@ -278,8 +278,11 @@ see below                       | `datetime()`
 
     erlang datetime tuples (`{{Year, Month, Day}, {Hour, Min, Sec}}`) as returned
     from `erlang:localtime/0` are automatically encoded as [iso8601][iso8601]
-    strings and are assumed to be UTC time. no conversion is attempted of json [iso8601][iso8601] strings in decoded json
-
+    strings and are assumed to be UTC time. no conversion is attempted of json [iso8601][iso8601] strings in decoded json.
+    If you want use other format in the output of the datetime value use in the config options [{format_date, {Format, Order}}],
+    where Format is a string representing the format that the datetime will be printed and order is the order of the values to be 
+    printed, example: `[{format_date, {"~2..0w-~2..0w-~4..0w ~2..0w:~2..0w:~2..0w", [month, day, year, hour, minute, second]}}])`, 
+    this will print: `"01-20-2016 17:38:59"`. The Order only supports [ month, day, year, hour, minute, second ] list.
 
 ### incomplete input ###
 
@@ -370,12 +373,24 @@ option() = dirty_strings
     | return_tail
     | uescape
     | unescaped_jsonp
+    | {format_date, {format_option(), order()}}
 
 strict_option() = comments
     | trailing_commas
     | utf8
     | single_quotes
     | escapes
+
+format_option() = string()
+
+order() = [ order_option(),... ] 
+
+order_option() = year
+    | month
+    | day
+    | hour
+    | minute
+    | second
 ``` 
 
 **jsx** functions all take a common set of options. not all flags have meaning 
@@ -467,6 +482,15 @@ additional options beyond these. see
     these codepoints are escaped (to `\u2028` and `\u2029`, respectively) to 
     retain compatibility. this option simply removes that escaping
 
+- `format_date`
+
+    As mentioned above if you want use other format in the output of the datetime value 
+    use in the config options `[{format_date, {Format, Order}}]`,
+    where `Format` is a string representing the format that the datetime will be printed 
+    and `Order` is the order of the values to be printed, example: 
+    `[{format_date, {"~2..0w-~2..0w-~4..0w ~2..0w:~2..0w:~2..0w", [month, day, year, hour, minute, second]}}])`,
+    this will print: `"01-20-2016 17:38:59"`. 
+    The Order only supports [ month, day, year, hour, minute, second ] list.
 
 ## exports ##
 
